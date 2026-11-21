@@ -274,6 +274,8 @@
 								Ремонт
 							{:else if bld.specialType === 'recycler'}
 								Утилізація
+							{:else if bld.specialType === 'tower'}
+								Вежа
 							{:else}
 								{unit?.name || 'Боєць'}
 							{/if}
@@ -311,6 +313,11 @@
 						⚙️ <strong class="text-slate-300">Утилізатор</strong>: сплачує
 						<span class="text-amber-300 font-bold">+4 золота</span> брухту за кожного загиблого бійця
 						вашої армії.
+					{:else if placedBuilding.specialType === 'tower'}
+						🏹 <strong class="text-purple-300">Оборонна вежа</strong>: веде обстріл ворогів типом
+						<span class="text-amber-300 font-bold">{placedBuilding.attackType || 'pierce'}</span>
+						(шкода: {placedBuilding.damageMin || 50}, дальність: {placedBuilding.attackRange ||
+							500}, шв: {placedBuilding.attackCooldown || 1.0}с).
 					{/if}
 				</p>
 			</div>
@@ -367,6 +374,11 @@
 						⚙️ <strong class="text-slate-300">Утилізатор</strong>: сплачує
 						<span class="text-amber-300 font-bold">+4 золота</span> брухту за кожного загиблого бійця
 						вашої армії.
+					{:else if hoveredBuilding.specialType === 'tower'}
+						🏹 <strong class="text-purple-300">Оборонна вежа</strong>: веде обстріл ворогів типом
+						<span class="text-amber-300 font-bold">{hoveredBuilding.attack_type || 'pierce'}</span>
+						(шкода: {hoveredBuilding.damage_base || 50}, дальність: {hoveredBuilding.range || 500},
+						шв: {hoveredBuilding.cooldown || 1.0}с).
 					{/if}
 				</p>
 			</div>

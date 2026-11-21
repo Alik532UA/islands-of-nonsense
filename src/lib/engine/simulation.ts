@@ -381,6 +381,7 @@ export class Simulation {
 
 		// 6. Update Castles defense
 		this.updateCastles(dt);
+		this.updateTowers(dt);
 
 		// 7. Update Floating texts
 		this.updateFloatingTexts(dt);
@@ -1261,6 +1262,42 @@ export class Simulation {
 		}
 	}
 
+	private updateTowers(dt: number): void {
+		for (const b of this.buildings) {
+			if (b.specialType !== 'tower') continue;
+
+			if (b.attackTimer === undefined) {
+				b.attackTimer = 0;
+			}
+			b.attackTimer -= dt;
+
+			if (b.attackTimer <= 0) {
+				const range = b.attackRange || 500;
+				const enemy = this.spatialGrid.findClosestEnemy(b.x, b.y, range, b.team, undefined, true);
+				if (enemy) {
+					b.attackTimer = b.attackCooldown || 1.0;
+					const dmg = b.damageMin || 50;
+					const isSplash = b.defId === 'h073' || b.defId === 'cg0a';
+					this.projectiles.push({
+						id: `tower_shot_${this.nextProjectileId++}`,
+						sourceUnitId: b.instanceId,
+						targetUnitId: enemy.instanceId,
+						x: b.x,
+						y: b.y,
+						targetX: enemy.x,
+						targetY: enemy.y,
+						speed: 650,
+						damage: dmg,
+						attackType: b.attackType || 'pierce',
+						isCrit: false,
+						team: b.team,
+						splashRadius: isSplash ? 65 : undefined
+					});
+				}
+			}
+		}
+	}
+
 	// --- PROJECTILES ---
 	private updateProjectiles(dt: number): void {
 		for (const p of this.projectiles) {
@@ -1278,6 +1315,29 @@ export class Simulation {
 			if (dist <= step) {
 				if (target && target.state !== 'DEAD') {
 					this.applyUnitDamage(target, p.damage, p.attackType, p.team, p.isCrit);
+
+					// Tower special on-hit effects
+					if (p.sourceUnitId.startsWith('bld_')) {
+						if (!target.buffs) target.buffs = [];
+						const tower = this.buildings.find((b) => b.instanceId === p.sourceUnitId);
+						if (tower?.defId === 'h03Q') {
+							// Frost tower chill slow
+							const slowBuff = target.buffs.find((b) => b.type === 'slow');
+							if (slowBuff) {
+								slowBuff.timer = Math.max(slowBuff.timer, 2.0);
+							} else {
+								target.buffs.push({ type: 'slow', timer: 2.0, value: 0.3 });
+							}
+						} else if (tower?.defId === 'n01J') {
+							// Plague tower poison
+							const poisonBuff = target.buffs.find((b) => b.type === 'poison');
+							if (poisonBuff) {
+								poisonBuff.timer = Math.max(poisonBuff.timer, 3.0);
+							} else {
+								target.buffs.push({ type: 'poison', timer: 3.0, value: 12 });
+							}
+						}
+					}
 				}
 				if (p.splashRadius) {
 					this.triggerSplashDamage(
@@ -1385,6 +1445,15 @@ export class Simulation {
 			race: bDef.race || player.race,
 			specialType: bDef.specialType
 		};
+
+		if (bDef.specialType === 'tower') {
+			building.attackCooldown = bDef.cooldown ?? 1.0;
+			building.attackTimer = 0;
+			building.attackRange = bDef.range ?? 500;
+			building.damageMin = bDef.damage_base ?? 50;
+			building.damageMax = (bDef.damage_base ?? 50) + 10;
+			building.attackType = (bDef.attack_type as AttackType) || 'pierce';
+		}
 
 		this.buildings.push(building);
 		if (isLegendaryBuilding(bDef)) {

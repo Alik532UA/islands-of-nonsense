@@ -42,7 +42,10 @@ export interface BuildingDefinition {
 	upgrade_from: string | null;
 	upgrade_extra_cost: number;
 	race?: string | null;
-	specialType?: 'treasure' | 'repair' | 'recycler';
+	specialType?: 'treasure' | 'repair' | 'recycler' | 'tower';
+	cooldown?: number | null;
+	range?: number | null;
+	damage_base?: number | null;
 	raw_fields?: Record<string, unknown>;
 }
 
@@ -126,7 +129,13 @@ export interface Building {
 	lane: Lane;
 	upgradeFrom: string | null;
 	race: string;
-	specialType?: 'treasure' | 'repair' | 'recycler';
+	specialType?: 'treasure' | 'repair' | 'recycler' | 'tower';
+	attackCooldown?: number;
+	attackTimer?: number;
+	attackRange?: number;
+	damageMin?: number;
+	damageMax?: number;
+	attackType?: AttackType;
 }
 
 export interface Projectile {

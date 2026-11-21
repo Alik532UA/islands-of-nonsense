@@ -318,6 +318,9 @@ export class ArenaRenderer {
 			} else if (b.specialType === 'recycler') {
 				baseColor = 0x334155;
 				strokeColor = isSelected ? 0xe2e8f0 : 0x94a3b8;
+			} else if (b.specialType === 'tower') {
+				baseColor = isWest ? 0x4c1d95 : 0x701a75;
+				strokeColor = isSelected ? 0xf5d0fe : 0xd8b4fe;
 			}
 
 			g.roundRect(px + 3, py + 3, CELL_SIZE - 6, CELL_SIZE - 6, 6);
@@ -337,17 +340,31 @@ export class ArenaRenderer {
 				g.fill({ color: 0x34d399 });
 				g.rect(px + 17, py + 23, 21, 9);
 				g.fill({ color: 0x34d399 });
+			} else if (b.specialType === 'tower') {
+				g.circle(px + CELL_SIZE / 2, py + CELL_SIZE / 2, 8);
+				g.fill({ color: 0xc084fc });
+				g.circle(px + CELL_SIZE / 2, py + CELL_SIZE / 2, 4);
+				g.fill({ color: 0x3b0764 });
 			}
 
-			// Spawn timer progress bar
-			if (!b.specialType || b.specialType === 'repair') {
-				const maxCd = b.specialType === 'repair' ? 1.0 : b.spawnCooldown;
-				const pct = Math.max(0, Math.min(1, 1 - b.spawnTimer / maxCd));
+			// Spawn or attack timer progress bar
+			if (!b.specialType || b.specialType === 'repair' || b.specialType === 'tower') {
+				const maxCd =
+					b.specialType === 'repair'
+						? 1.0
+						: b.specialType === 'tower'
+							? b.attackCooldown || 1.0
+							: b.spawnCooldown;
+				const currentTimer = b.specialType === 'tower' ? b.attackTimer || 0 : b.spawnTimer;
+				const pct = Math.max(0, Math.min(1, 1 - currentTimer / maxCd));
 				const barW = CELL_SIZE - 10;
 				g.rect(px + 5, py + CELL_SIZE - 7, barW, 4);
 				g.fill({ color: 0x334155 });
 				g.rect(px + 5, py + CELL_SIZE - 7, barW * pct, 4);
-				g.fill({ color: b.specialType === 'repair' ? 0x34d399 : 0xfacc15 });
+				g.fill({
+					color:
+						b.specialType === 'tower' ? 0xa855f7 : b.specialType === 'repair' ? 0x10b981 : 0x38bdf8
+				});
 			}
 		}
 	}

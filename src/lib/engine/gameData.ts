@@ -1,7 +1,7 @@
 import rawBuildings from '../data/buildings.json';
 import rawUnits from '../data/units.json';
 import rawRaces from '../data/races.json';
-import type { BuildingDefinition, UnitDefinition, RaceDefinition } from './types';
+import type { BuildingDefinition, UnitDefinition, RaceDefinition, Building } from './types';
 
 export const BUILDINGS_MAP = new Map<string, BuildingDefinition>();
 export const UNITS_MAP = new Map<string, UnitDefinition>();
@@ -52,12 +52,206 @@ export const SPECIAL_BUILDINGS: BuildingDefinition[] = [
 	}
 ];
 
+export const GUARD_TOWERS: BuildingDefinition[] = [
+	{
+		id: 'h006',
+		name: 'Вартова вежа',
+		hp: 1200,
+		armor: 5,
+		armor_type: 'fort',
+		attack_type: 'pierce',
+		damage_base: 45,
+		cooldown: 1.0,
+		range: 500,
+		gold_cost: 150,
+		unit: '',
+		upgrade_from: null,
+		upgrade_extra_cost: 0,
+		race: 'Люди',
+		specialType: 'tower'
+	},
+	{
+		id: 'h00G',
+		name: 'Приливний захисник',
+		hp: 1300,
+		armor: 5,
+		armor_type: 'fort',
+		attack_type: 'pierce',
+		damage_base: 52,
+		cooldown: 1.0,
+		range: 500,
+		gold_cost: 200,
+		unit: '',
+		upgrade_from: null,
+		upgrade_extra_cost: 0,
+		race: 'Наги',
+		specialType: 'tower'
+	},
+	{
+		id: 'h01F',
+		name: 'Око Безодні',
+		hp: 1350,
+		armor: 5,
+		armor_type: 'fort',
+		attack_type: 'chaos',
+		damage_base: 62,
+		cooldown: 1.1,
+		range: 480,
+		gold_cost: 220,
+		unit: '',
+		upgrade_from: null,
+		upgrade_extra_cost: 0,
+		race: 'Хаос',
+		specialType: 'tower'
+	},
+	{
+		id: 'h014',
+		name: 'Ельфійська лучна вежа',
+		hp: 1100,
+		armor: 4,
+		armor_type: 'fort',
+		attack_type: 'pierce',
+		damage_base: 65,
+		cooldown: 0.85,
+		range: 550,
+		gold_cost: 250,
+		unit: '',
+		upgrade_from: null,
+		upgrade_extra_cost: 0,
+		race: 'Эльфы',
+		specialType: 'tower'
+	},
+	{
+		id: 'h01O',
+		name: 'Некротичний зикурат',
+		hp: 1300,
+		armor: 5,
+		armor_type: 'fort',
+		attack_type: 'magic',
+		damage_base: 50,
+		cooldown: 0.9,
+		range: 520,
+		gold_cost: 200,
+		unit: '',
+		upgrade_from: null,
+		upgrade_extra_cost: 0,
+		race: 'Нежить',
+		specialType: 'tower'
+	},
+	{
+		id: 'o000',
+		name: 'Сторожова вежа орків',
+		hp: 1350,
+		armor: 5,
+		armor_type: 'fort',
+		attack_type: 'pierce',
+		damage_base: 55,
+		cooldown: 1.1,
+		range: 500,
+		gold_cost: 175,
+		unit: '',
+		upgrade_from: null,
+		upgrade_extra_cost: 0,
+		race: 'Орки',
+		specialType: 'tower'
+	},
+	{
+		id: 'h03Q',
+		name: 'Крижана шпиляста вежа',
+		hp: 1400,
+		armor: 5,
+		armor_type: 'fort',
+		attack_type: 'magic',
+		damage_base: 50,
+		cooldown: 1.0,
+		range: 480,
+		gold_cost: 230,
+		unit: '',
+		upgrade_from: null,
+		upgrade_extra_cost: 0,
+		race: 'Север',
+		specialType: 'tower'
+	},
+	{
+		id: 'n01J',
+		name: 'Чумна обеліск-вежа',
+		hp: 1250,
+		armor: 5,
+		armor_type: 'fort',
+		attack_type: 'chaos',
+		damage_base: 48,
+		cooldown: 1.0,
+		range: 480,
+		gold_cost: 200,
+		unit: '',
+		upgrade_from: null,
+		upgrade_extra_cost: 0,
+		race: 'Порча',
+		specialType: 'tower'
+	},
+	{
+		id: 'h073',
+		name: 'Древо-захисник',
+		hp: 1500,
+		armor: 6,
+		armor_type: 'fort',
+		attack_type: 'siege',
+		damage_base: 70,
+		cooldown: 1.4,
+		range: 520,
+		gold_cost: 210,
+		unit: '',
+		upgrade_from: null,
+		upgrade_extra_cost: 0,
+		race: 'Ночные эльфы',
+		specialType: 'tower'
+	},
+	{
+		id: 'h05L',
+		name: 'Тесла-вежа',
+		hp: 1400,
+		armor: 5,
+		armor_type: 'fort',
+		attack_type: 'magic',
+		damage_base: 60,
+		cooldown: 0.95,
+		range: 460,
+		gold_cost: 240,
+		unit: '',
+		upgrade_from: null,
+		upgrade_extra_cost: 0,
+		race: 'Техники',
+		specialType: 'tower'
+	},
+	{
+		id: 'cg0a',
+		name: 'Сміттєва баліста',
+		hp: 1200,
+		armor: 5,
+		armor_type: 'fort',
+		attack_type: 'siege',
+		damage_base: 58,
+		cooldown: 1.3,
+		range: 520,
+		gold_cost: 150,
+		unit: '',
+		upgrade_from: null,
+		upgrade_extra_cost: 0,
+		race: 'Сборщики',
+		specialType: 'tower'
+	}
+];
+
 for (const b of rawBuildings as BuildingDefinition[]) {
 	BUILDINGS_MAP.set(b.id, b);
 }
 
 for (const sb of SPECIAL_BUILDINGS) {
 	BUILDINGS_MAP.set(sb.id, sb);
+}
+
+for (const t of GUARD_TOWERS) {
+	BUILDINGS_MAP.set(t.id, t);
 }
 
 for (const u of rawUnits as UnitDefinition[]) {
@@ -191,4 +385,12 @@ export function isLegendaryBuilding(def?: BuildingDefinition): boolean {
 		name.includes('драконье кладбище') ||
 		name.includes('врата демонов')
 	);
+}
+
+/**
+ * Checks if a building is a Defensive Guard Tower.
+ */
+export function isTowerBuilding(def?: BuildingDefinition | Building): boolean {
+	if (!def) return false;
+	return def.specialType === 'tower';
 }
