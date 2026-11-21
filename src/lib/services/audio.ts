@@ -69,6 +69,31 @@ export class SoundService {
 	}
 
 	/**
+	 * Звук покращення будівлі / кузні (дзвонкий акорд)
+	 */
+	public playUpgrade(): void {
+		if (!this.enabled) return;
+		const ctx = this.getContext();
+		if (!ctx) return;
+
+		const osc = ctx.createOscillator();
+		const gain = ctx.createGain();
+
+		osc.type = 'triangle';
+		osc.frequency.setValueAtTime(440, ctx.currentTime);
+		osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.18);
+
+		gain.gain.setValueAtTime(this.volume * 0.35, ctx.currentTime);
+		gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.18);
+
+		osc.connect(gain);
+		gain.connect(ctx.destination);
+
+		osc.start();
+		osc.stop(ctx.currentTime + 0.19);
+	}
+
+	/**
 	 * Звук монети / доходу
 	 */
 	public playCoin(): void {
@@ -121,7 +146,7 @@ export class SoundService {
 	/**
 	 * Звук апгрейду кузні
 	 */
-	public playUpgrade(): void {
+	public playForgeUpgrade(): void {
 		if (!this.enabled) return;
 		const ctx = this.getContext();
 		if (!ctx) return;

@@ -1,24 +1,46 @@
 <script lang="ts">
 	import type { Simulation } from '../engine/simulation';
 	import type { BuildingDefinition } from '../engine/types';
-	import { getBaseBuildingsForRace, getUnit, RACES_LIST } from '../engine/gameData';
-	import { Coins } from 'lucide-svelte';
+	import {
+		getBaseBuildingsForRace,
+		getUpgradesForBuilding,
+		getUnit,
+		RACES_LIST
+	} from '../engine/gameData';
+	import { Coins, ArrowUpCircle, Trash2, X } from 'lucide-svelte';
 
 	let {
 		sim,
 		uiTick = 0,
 		selectedBuildingId = $bindable(null),
-		onSelectBuilding
+		selectedPlacedBuildingId = $bindable(null),
+		onSelectBuilding,
+		onUpgradeBuilding,
+		onSellBuilding
 	}: {
 		sim: Simulation;
 		uiTick?: number;
 		selectedBuildingId: string | null;
+		selectedPlacedBuildingId: string | null;
 		onSelectBuilding: (id: string | null) => void;
+		onUpgradeBuilding?: (instanceId: string, targetDefId: string) => void;
+		onSellBuilding?: (instanceId: string) => void;
 	} = $props();
 
 	let player = $derived(uiTick >= 0 ? sim.players.west : sim.players.west);
 	let playerGold = $derived(uiTick >= 0 ? sim.players.west.gold : 0);
 	let availableBuildings = $derived(uiTick >= 0 ? getBaseBuildingsForRace(player.race) : []);
+
+	let placedBuilding = $derived(
+		selectedPlacedBuildingId
+			? sim.buildings.find((b) => b.instanceId === selectedPlacedBuildingId && b.team === 'west') ||
+					null
+			: null
+	);
+	let placedUnit = $derived(placedBuilding ? getUnit(placedBuilding.spawnUnitId) : null);
+	let availableUpgrades = $derived(
+		placedBuilding ? getUpgradesForBuilding(placedBuilding.defId) : []
+	);
 
 	let hoveredBuilding = $state<BuildingDefinition | null>(null);
 	let hoveredUnit = $derived(hoveredBuilding ? getUnit(hoveredBuilding.unit) : null);
@@ -27,6 +49,17 @@
 
 	function handleKeydown(e: KeyboardEvent) {
 		const key = e.key.toUpperCase();
+
+		// If a placed building is selected and user presses 1..9, trigger upgrade
+		if (placedBuilding && availableUpgrades.length > 0) {
+			const num = parseInt(key, 10);
+			if (num >= 1 && num <= availableUpgrades.length) {
+				const up = availableUpgrades[num - 1];
+				onUpgradeBuilding?.(placedBuilding.instanceId, up.id);
+				return;
+			}
+		}
+
 		const idx = HOTKEYS.indexOf(key);
 		if (idx !== -1 && idx < availableBuildings.length) {
 			const bld = availableBuildings[idx];
@@ -100,54 +133,172 @@
 		</div>
 	</div>
 
-	<!-- Center: 4x3 Grid of Buildings -->
-	<div class="grid grid-cols-4 gap-2">
-		{#each availableBuildings as bld, idx}
-			{@const isSelected = selectedBuildingId === bld.id}
-			{@const isAffordable = playerGold >= (bld.gold_cost || 200)}
-			{@const unit = getUnit(bld.unit)}
-
-			<button
-				onclick={() => onSelectBuilding(isSelected ? null : bld.id)}
-				onmouseenter={() => (hoveredBuilding = bld)}
-				onmouseleave={() => (hoveredBuilding = null)}
-				class="relative w-28 h-14 rounded-lg border text-left p-1.5 transition-all flex flex-col justify-between cursor-pointer {isSelected
-					? 'bg-blue-900/80 border-blue-400 shadow-lg shadow-blue-500/20 ring-2 ring-blue-400'
-					: isAffordable
-						? 'bg-slate-800/90 hover:bg-slate-750 border-slate-600/80 hover:border-slate-500'
-						: 'bg-slate-900/60 border-slate-800/80 opacity-60'}"
-			>
-				<!-- Hotkey badge -->
-				<span
-					class="absolute top-1 right-1 bg-slate-950/80 border border-slate-700 text-[10px] font-mono font-bold px-1 rounded text-amber-300"
-				>
-					{HOTKEYS[idx] || ''}
+	<!-- Center: 4x3 Grid of Buildings OR Upgrade / Inspector Panel -->
+	{#if placedBuilding}
+		<div
+			class="flex items-center gap-4 flex-1 justify-center max-w-2xl px-5 py-2 bg-slate-950/90 border border-amber-500/50 rounded-xl shadow-xl shadow-amber-500/10"
+		>
+			<!-- Placed Building Info -->
+			<div class="flex flex-col min-w-[170px]">
+				<div class="flex items-center gap-2">
+					<span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+					<span class="text-xs font-bold text-amber-300 truncate max-w-[140px]">
+						{placedBuilding.name}
+					</span>
+				</div>
+				<span class="text-[11px] text-slate-300 mt-0.5">
+					Спавнить: <strong class="text-white font-semibold">{placedUnit?.name || 'Боєць'}</strong>
 				</span>
+				<span class="text-[10px] text-slate-400 font-mono">
+					Спавн: {placedBuilding.spawnCooldown}с (залишилось {placedBuilding.spawnTimer.toFixed(
+						1
+					)}с)
+				</span>
+			</div>
 
-				<!-- Building Name -->
-				<div class="text-[11px] font-bold text-slate-100 truncate pr-4">
-					{bld.name}
-				</div>
+			<div class="h-10 w-[1px] bg-slate-800"></div>
 
-				<!-- Unit & Cost -->
-				<div class="flex items-center justify-between text-[11px]">
-					<span class="text-slate-400 text-[10px] truncate max-w-[55px]">
-						{unit?.name || 'Боєць'}
+			<!-- Upgrade options -->
+			<div class="flex items-center gap-2 flex-wrap">
+				{#if availableUpgrades.length > 0}
+					{#each availableUpgrades as up, uIdx}
+						{@const upUnit = getUnit(up.unit)}
+						{@const upCost =
+							up.upgrade_extra_cost > 0
+								? up.upgrade_extra_cost
+								: Math.max(50, (up.gold_cost || 200) - placedBuilding.goldCost)}
+						{@const canAfford = playerGold >= upCost}
+						<button
+							onclick={() => onUpgradeBuilding?.(placedBuilding.instanceId, up.id)}
+							disabled={!canAfford}
+							class="px-3 py-1.5 rounded-lg border text-left flex flex-col justify-between transition {canAfford
+								? 'bg-blue-600/90 hover:bg-blue-500 border-blue-400 text-white cursor-pointer shadow-md shadow-blue-500/20'
+								: 'bg-slate-800/60 border-slate-700/60 text-slate-400 opacity-60 cursor-not-allowed'}"
+						>
+							<div class="flex items-center justify-between gap-2">
+								<span class="text-xs font-bold truncate max-w-[110px] flex items-center gap-1">
+									<ArrowUpCircle class="w-3.5 h-3.5 text-blue-300" />
+									{up.name}
+								</span>
+								<span class="text-xs font-bold font-mono text-amber-300 flex items-center gap-0.5">
+									<Coins class="w-3 h-3 text-amber-300" />
+									{upCost}
+								</span>
+							</div>
+							<span class="text-[10px] text-blue-200 truncate max-w-[130px]">
+								{upUnit?.name || 'Боєць'} [клавіша {uIdx + 1}]
+							</span>
+						</button>
+					{/each}
+				{:else}
+					<span class="text-xs text-slate-400 italic py-1 px-2">
+						Максимальний рівень покращення
 					</span>
-					<span class="font-bold font-mono text-amber-400 flex items-center gap-0.5">
-						<Coins class="w-3 h-3 text-amber-400" />
-						{bld.gold_cost}
+				{/if}
+			</div>
+
+			<!-- Actions: Sell and Close -->
+			<div class="flex items-center gap-1.5 ml-auto">
+				<button
+					onclick={() => onSellBuilding?.(placedBuilding.instanceId)}
+					class="px-2.5 py-1.5 rounded-lg border border-red-500/40 bg-red-950/40 hover:bg-red-900/60 text-red-300 text-xs font-semibold cursor-pointer transition flex items-center gap-1"
+					title="Знести споруду та повернути 50% золота"
+				>
+					<Trash2 class="w-3 h-3 text-red-400" />
+					+{Math.floor(placedBuilding.goldCost * 0.5)}g
+				</button>
+				<button
+					onclick={() => (selectedPlacedBuildingId = null)}
+					class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold cursor-pointer transition"
+					title="Закрити вибір (Esc)"
+				>
+					<X class="w-3.5 h-3.5" />
+				</button>
+			</div>
+		</div>
+	{:else}
+		<div class="grid grid-cols-4 gap-2">
+			{#each availableBuildings as bld, idx}
+				{@const isSelected = selectedBuildingId === bld.id}
+				{@const isAffordable = playerGold >= (bld.gold_cost || 200)}
+				{@const unit = getUnit(bld.unit)}
+
+				<button
+					onclick={() => onSelectBuilding(isSelected ? null : bld.id)}
+					onmouseenter={() => (hoveredBuilding = bld)}
+					onmouseleave={() => (hoveredBuilding = null)}
+					class="relative w-28 h-14 rounded-lg border text-left p-1.5 transition-all flex flex-col justify-between cursor-pointer {isSelected
+						? 'bg-blue-900/80 border-blue-400 shadow-lg shadow-blue-500/20 ring-2 ring-blue-400'
+						: isAffordable
+							? 'bg-slate-800/90 hover:bg-slate-750 border-slate-600/80 hover:border-slate-500'
+							: 'bg-slate-900/60 border-slate-800/80 opacity-60'}"
+				>
+					<!-- Hotkey badge -->
+					<span
+						class="absolute top-1 right-1 bg-slate-950/80 border border-slate-700 text-[10px] font-mono font-bold px-1 rounded text-amber-300"
+					>
+						{HOTKEYS[idx] || ''}
 					</span>
-				</div>
-			</button>
-		{/each}
-	</div>
+
+					<!-- Building Name -->
+					<div class="text-[11px] font-bold text-slate-100 truncate pr-4">
+						{bld.name}
+					</div>
+
+					<!-- Unit & Cost -->
+					<div class="flex items-center justify-between text-[11px]">
+						<span class="text-slate-400 text-[10px] truncate max-w-[55px]">
+							{unit?.name || 'Боєць'}
+						</span>
+						<span class="font-bold font-mono text-amber-400 flex items-center gap-0.5">
+							<Coins class="w-3 h-3 text-amber-400" />
+							{bld.gold_cost}
+						</span>
+					</div>
+				</button>
+			{/each}
+		</div>
+	{/if}
 
 	<!-- Right: Hover Inspector / Tooltip Card -->
 	<div
 		class="w-72 min-h-[90px] bg-slate-950/90 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-300 flex flex-col justify-between"
 	>
-		{#if hoveredBuilding && hoveredUnit}
+		{#if placedBuilding && placedUnit}
+			<div>
+				<div class="flex justify-between items-center mb-1">
+					<span class="font-bold text-sm text-amber-300">{placedBuilding.name}</span>
+					<span class="text-[11px] font-mono text-amber-400 font-bold">
+						{placedBuilding.goldCost} зол.
+					</span>
+				</div>
+				<div class="text-[11px] text-slate-400 mb-1.5">
+					Боєць: <span class="text-white font-semibold">{placedUnit.name}</span>
+					{#if placedUnit.flying}
+						<span
+							class="bg-cyan-950 text-cyan-300 border border-cyan-800 px-1 py-0.2 text-[9px] rounded ml-1 font-bold"
+						>
+							ЛІТАЮЧИЙ
+						</span>
+					{/if}
+				</div>
+
+				<div class="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] text-slate-300">
+					<div>❤️ HP: <span class="font-bold text-white">{placedUnit.hp}</span></div>
+					<div>
+						🛡️ Броня: <span class="font-bold text-white">
+							{placedUnit.armor} ({placedUnit.armor_type})
+						</span>
+					</div>
+					<div>⚔️ Атака: <span class="font-bold text-white">{placedUnit.attack_type}</span></div>
+					<div>
+						🏹 Дальність: <span class="font-bold text-white">
+							{placedUnit.range && placedUnit.range > 120 ? placedUnit.range : 'Ближній'}
+						</span>
+					</div>
+				</div>
+			</div>
+		{:else if hoveredBuilding && hoveredUnit}
 			<div>
 				<div class="flex justify-between items-center mb-1">
 					<span class="font-bold text-sm text-amber-300">{hoveredBuilding.name}</span>
@@ -193,7 +344,7 @@
 				class="flex flex-col items-center justify-center h-full text-center text-slate-500 text-[11px]"
 			>
 				<span>
-					Наведіть на будівлю для перегляду характеристик або натисніть клавішу для вибору
+					Клікніть на будівлю на базі для її покращення або виберіть нову будівлю зі списку
 				</span>
 			</div>
 		{/if}

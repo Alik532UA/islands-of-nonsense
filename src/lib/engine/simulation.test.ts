@@ -59,6 +59,41 @@ describe('Castle Fight Simulation - Economy & Gold', () => {
 		expect(sim.players.west.forge.attack).toBe(1);
 		expect(sim.players.west.gold).toBe(500 - discountedPrice);
 	});
+
+	it('should allow upgrading an existing building, updating spawned unit and deducting extra cost', () => {
+		// Build base building h003 (Лагерь стрелков, cost 140)
+		sim.players.west.gold = 500;
+		const buildSuccess = sim.build('west', 'h003', 0, 0, 'top');
+		expect(buildSuccess).toBe(true);
+		const initialBuilding = sim.buildings[0];
+		expect(initialBuilding.defId).toBe('h003');
+		expect(initialBuilding.spawnUnitId).toBe('hrif');
+		const goldAfterBuild = sim.players.west.gold;
+
+		// Upgrade to h0A1 (Лагерь Зениток, upgrade_from: h003, extra: 140)
+		const upgradeSuccess = sim.upgradeBuilding('west', initialBuilding.instanceId, 'h0A1');
+		expect(upgradeSuccess).toBe(true);
+		expect(initialBuilding.defId).toBe('h0A1');
+		expect(initialBuilding.name).toBe('Лагерь Зениток');
+		expect(initialBuilding.spawnUnitId).toBe('h05C');
+		expect(sim.players.west.gold).toBe(goldAfterBuild - 140);
+
+		// Reject invalid upgrade (not child of current building)
+		const invalidSuccess = sim.upgradeBuilding('west', initialBuilding.instanceId, 'h003');
+		expect(invalidSuccess).toBe(false);
+	});
+
+	it('should refund 50% gold when selling a building', () => {
+		sim.players.west.gold = 500;
+		sim.build('west', 'h003', 2, 2, 'bottom');
+		const building = sim.buildings[0];
+		const goldBeforeSell = sim.players.west.gold;
+
+		const sellSuccess = sim.sellBuilding('west', building.instanceId);
+		expect(sellSuccess).toBe(true);
+		expect(sim.buildings.length).toBe(0);
+		expect(sim.players.west.gold).toBe(goldBeforeSell + Math.floor(building.goldCost * 0.5));
+	});
 });
 
 describe('Castle Fight Simulation - Lane Separation', () => {

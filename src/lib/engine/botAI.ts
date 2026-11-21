@@ -1,6 +1,6 @@
 import type { Simulation } from './simulation';
-import type { Team } from './types';
-import { getBaseBuildingsForRace } from './gameData';
+import type { Team, Building, BuildingDefinition } from './types';
+import { getBaseBuildingsForRace, getUpgradesForBuilding } from './gameData';
 
 export class BotAI {
 	private sim: Simulation;
@@ -50,7 +50,31 @@ export class BotAI {
 			}
 		}
 
-		// 2. Building decision:
+		// 2. Building Upgrades: evaluate existing buildings for tier 2/3 upgrades
+		const upgradeCandidates: { building: Building; upgrade: BuildingDefinition; cost: number }[] =
+			[];
+		for (const b of this.sim.buildings) {
+			if (b.team === this.team) {
+				const availableUpgrades = getUpgradesForBuilding(b.defId);
+				for (const up of availableUpgrades) {
+					const cost =
+						up.upgrade_extra_cost > 0
+							? up.upgrade_extra_cost
+							: Math.max(50, (up.gold_cost || 200) - b.goldCost);
+					if (player.gold >= cost) {
+						upgradeCandidates.push({ building: b, upgrade: up, cost });
+					}
+				}
+			}
+		}
+
+		if (upgradeCandidates.length > 0 && Math.random() < 0.45) {
+			const candidate = upgradeCandidates[Math.floor(Math.random() * upgradeCandidates.length)];
+			this.sim.upgradeBuilding(this.team, candidate.building.instanceId, candidate.upgrade.id);
+			return;
+		}
+
+		// 3. Building placement decision:
 		// Find available building spots (3 cols x 8 rows)
 		const occupied = new Set(
 			this.sim.buildings.filter((b) => b.team === this.team).map((b) => `${b.tileX}:${b.tileY}`)

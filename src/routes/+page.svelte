@@ -17,6 +17,7 @@
 
 	let uiTick = $state(0);
 	let selectedBuildingId = $state<string | null>(null);
+	let selectedPlacedBuildingId = $state<string | null>(null);
 	let isForgeOpen = $state(false);
 	let isCommanderOpen = $state(false);
 
@@ -25,6 +26,7 @@
 	function handleKeyDown(e: KeyboardEvent) {
 		if (e.key === 'Escape') {
 			selectedBuildingId = null;
+			selectedPlacedBuildingId = null;
 			isForgeOpen = false;
 			isCommanderOpen = false;
 		} else if (e.code === 'Space' && !e.repeat && !isForgeOpen && !isCommanderOpen) {
@@ -38,6 +40,23 @@
 		}
 	}
 
+	function handleUpgradeBuilding(instanceId: string, targetDefId: string) {
+		const success = sim.upgradeBuilding('west', instanceId, targetDefId);
+		if (success) {
+			sound.playUpgrade();
+			uiTick = sim.stateVersion;
+		}
+	}
+
+	function handleSellBuilding(instanceId: string) {
+		const success = sim.sellBuilding('west', instanceId);
+		if (success) {
+			sound.playCoin();
+			selectedPlacedBuildingId = null;
+			uiTick = sim.stateVersion;
+		}
+	}
+
 	onMount(async () => {
 		renderer = new ArenaRenderer({
 			canvas: canvasEl,
@@ -48,11 +67,19 @@
 					if (success) {
 						sound.playBuild();
 						selectedBuildingId = null;
+						selectedPlacedBuildingId = null;
 						uiTick = sim.stateVersion;
 					}
+				} else {
+					const existing = sim.buildings.find(
+						(b) => b.team === 'west' && b.tileX === tileX && b.tileY === tileY
+					);
+					selectedPlacedBuildingId = existing ? existing.instanceId : null;
+					uiTick = sim.stateVersion;
 				}
 			},
-			getSelectedBuildingDefId: () => selectedBuildingId
+			getSelectedBuildingDefId: () => selectedBuildingId,
+			getSelectedPlacedBuildingId: () => selectedPlacedBuildingId
 		});
 
 		await renderer.init(canvasEl);
@@ -124,7 +151,13 @@
 		{sim}
 		{uiTick}
 		bind:selectedBuildingId
-		onSelectBuilding={(id: string | null) => (selectedBuildingId = id)}
+		bind:selectedPlacedBuildingId
+		onSelectBuilding={(id: string | null) => {
+			selectedBuildingId = id;
+			if (id) selectedPlacedBuildingId = null;
+		}}
+		onUpgradeBuilding={handleUpgradeBuilding}
+		onSellBuilding={handleSellBuilding}
 	/>
 
 	<!-- Modals -->

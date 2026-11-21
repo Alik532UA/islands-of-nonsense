@@ -18,6 +18,7 @@ export interface RendererOptions {
 	sim: Simulation;
 	onTileClick: (tileX: number, tileY: number) => void;
 	getSelectedBuildingDefId: () => string | null;
+	getSelectedPlacedBuildingId?: () => string | null;
 }
 
 export class ArenaRenderer {
@@ -25,6 +26,7 @@ export class ArenaRenderer {
 	private sim: Simulation;
 	private onTileClick: (tileX: number, tileY: number) => void;
 	private getSelectedBuildingDefId: () => string | null;
+	private getSelectedPlacedBuildingId?: () => string | null;
 
 	private rootContainer: Container;
 	private terrainLayer: Graphics;
@@ -41,6 +43,7 @@ export class ArenaRenderer {
 		this.sim = options.sim;
 		this.onTileClick = options.onTileClick;
 		this.getSelectedBuildingDefId = options.getSelectedBuildingDefId;
+		this.getSelectedPlacedBuildingId = options.getSelectedPlacedBuildingId;
 
 		this.app = new Application();
 		this.rootContainer = new Container();
@@ -250,15 +253,24 @@ export class ArenaRenderer {
 		const g = this.buildingsLayer;
 		g.clear();
 
+		const selectedPlacedId = this.getSelectedPlacedBuildingId?.();
+
 		for (const b of this.sim.buildings) {
 			const px = b.x;
 			const py = b.y;
 			const isWest = b.team === 'west';
+			const isSelected = selectedPlacedId === b.instanceId;
+
+			// Highlight halo for selected building
+			if (isSelected) {
+				g.roundRect(px - 1, py - 1, CELL_SIZE + 2, CELL_SIZE + 2, 8);
+				g.stroke({ color: 0xf59e0b, width: 3 });
+			}
 
 			// Building base stone
 			g.roundRect(px + 3, py + 3, CELL_SIZE - 6, CELL_SIZE - 6, 6);
 			g.fill({ color: isWest ? 0x1d4ed8 : 0xb91c1c });
-			g.stroke({ color: isWest ? 0x93c5fd : 0xfca5a5, width: 2 });
+			g.stroke({ color: isSelected ? 0xfbbf24 : isWest ? 0x93c5fd : 0xfca5a5, width: 2 });
 
 			// Inner roof icon/block
 			g.roundRect(px + 9, py + 9, CELL_SIZE - 18, CELL_SIZE - 18, 4);

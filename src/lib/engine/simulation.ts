@@ -669,6 +669,64 @@ export class Simulation {
 		return true;
 	}
 
+	public upgradeBuilding(team: Team, buildingInstanceId: string, targetDefId: string): boolean {
+		const building = this.buildings.find(
+			(b) => b.instanceId === buildingInstanceId && b.team === team
+		);
+		if (!building) return false;
+
+		const targetDef = getBuilding(targetDefId);
+		if (!targetDef) return false;
+
+		// Ensure targetDef is a valid upgrade of current building
+		if (targetDef.upgrade_from !== building.defId) return false;
+
+		const player = this.players[team];
+		const upgradeCost =
+			targetDef.upgrade_extra_cost > 0
+				? targetDef.upgrade_extra_cost
+				: Math.max(50, (targetDef.gold_cost || 200) - building.goldCost);
+
+		if (player.gold < upgradeCost) return false;
+
+		player.gold -= upgradeCost;
+		player.stats.goldSpent += upgradeCost;
+
+		building.defId = targetDef.id;
+		building.name = targetDef.name;
+		building.goldCost += upgradeCost;
+		building.spawnUnitId = targetDef.unit;
+		const newSpawnCd = getSpawnCooldown(targetDef, getUnit(targetDef.unit));
+		building.spawnCooldown = newSpawnCd;
+		building.spawnTimer = Math.min(building.spawnTimer, newSpawnCd);
+		building.upgradeFrom = targetDef.upgrade_from;
+		if (targetDef.race) {
+			building.race = targetDef.race;
+		}
+
+		this.addFloatingText(`-${upgradeCost}g (Апгрейд)`, building.x, building.y - 20, '#38bdf8');
+		this.notifyStateChanged();
+		return true;
+	}
+
+	public sellBuilding(team: Team, buildingInstanceId: string): boolean {
+		const idx = this.buildings.findIndex(
+			(b) => b.instanceId === buildingInstanceId && b.team === team
+		);
+		if (idx === -1) return false;
+
+		const building = this.buildings[idx];
+		const refund = Math.floor(building.goldCost * 0.5);
+
+		const player = this.players[team];
+		player.gold += refund;
+
+		this.buildings.splice(idx, 1);
+		this.addFloatingText(`+${refund}g (Знесено)`, building.x, building.y - 20, '#fbbf24');
+		this.notifyStateChanged();
+		return true;
+	}
+
 	public upgradeForge(team: Team, type: 'attack' | 'armor' | 'econ'): boolean {
 		const player = this.players[team];
 		const currentLevel = player.forge[type];

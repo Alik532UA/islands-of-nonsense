@@ -30,6 +30,9 @@ export default defineConfig(({ mode }) => ({
 			$lib: path.resolve(__dirname, './src/lib')
 		}
 	},
+	test: {
+		include: ['src/**/*.{test,spec}.{js,ts}']
+	},
 	plugins: [
 		tailwindcss(),
 		sveltekit({
