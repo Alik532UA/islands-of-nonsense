@@ -2,7 +2,8 @@ export type ArmorType =
 	'none' | 'small' | 'medium' | 'large' | 'fort' | 'divine' | 'normal' | 'hero';
 export type AttackType = 'normal' | 'pierce' | 'siege' | 'magic' | 'chaos' | 'hero';
 
-export type Team = 'west' | 'east';
+export type MatchTeam = 'west' | 'east';
+export type Team = MatchTeam | 'neutral';
 export type Lane = 'top' | 'bottom';
 export type UnitState = 'WALKING' | 'ATTACKING' | 'DYING' | 'DEAD';
 
@@ -88,13 +89,14 @@ export interface Unit {
 	critChance?: number;
 	evadeChance?: number;
 	buffs?: ActiveBuff[];
+	isBoss?: boolean;
 }
 
 export interface Building {
 	instanceId: string;
 	defId: string;
 	name: string;
-	team: Team;
+	team: MatchTeam;
 	tileX: number;
 	tileY: number;
 	x: number;
@@ -124,7 +126,7 @@ export interface Projectile {
 }
 
 export interface Castle {
-	team: Team;
+	team: MatchTeam;
 	x: number;
 	y: number;
 	hp: number;
@@ -146,7 +148,7 @@ export interface Commander {
 }
 
 export interface PlayerState {
-	team: Team;
+	team: MatchTeam;
 	isBot: boolean;
 	name: string;
 	race: string;

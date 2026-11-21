@@ -156,6 +156,13 @@
 			<div class="text-sm font-mono font-bold text-slate-200">
 				{formatTime(sim.gameTime)}
 			</div>
+			{#if sim.activeBossInstanceId}
+				<div class="text-[10px] font-bold text-amber-400 animate-pulse">👑 БОС НА АРЕНІ!</div>
+			{:else}
+				<div class="text-[10px] text-slate-500 font-mono">
+					Бос: {Math.max(0, Math.ceil(sim.bossSpawnTimer))}с
+				</div>
+			{/if}
 		</div>
 
 		<!-- Play / Pause / Speed -->

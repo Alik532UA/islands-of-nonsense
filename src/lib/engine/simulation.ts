@@ -5,6 +5,7 @@ import type {
 	Castle,
 	PlayerState,
 	Team,
+	MatchTeam,
 	Lane,
 	FloatingText,
 	ArmorType,
@@ -14,6 +15,7 @@ import { SpatialHashGrid } from './spatialGrid';
 import { calculateDamage } from './damageMatrix';
 import { getBuilding, getUnit, getSpawnCooldown } from './gameData';
 import { getRaceAbility } from './raceAbilities';
+import { getRandomBoss } from './bosses';
 
 export const ARENA_WIDTH = 2400;
 export const ARENA_HEIGHT = 800;
@@ -49,12 +51,12 @@ export class Simulation {
 	public projectiles: Projectile[] = [];
 	public floatingTexts: FloatingText[] = [];
 
-	public castles: Record<Team, Castle>;
-	public players: Record<Team, PlayerState>;
+	public castles: Record<MatchTeam, Castle>;
+	public players: Record<MatchTeam, PlayerState>;
 
 	public spatialGrid = new SpatialHashGrid(80);
 
-	public winner: Team | null = null;
+	public winner: MatchTeam | null = null;
 	public round = 1;
 	public score = { west: 0, east: 0 };
 
@@ -65,9 +67,16 @@ export class Simulation {
 	// Race skills cooldown (unlocked at 300s, cooldown 150s)
 	public raceSkillCooldown = { west: 0, east: 0 };
 
+	// Neutral Central Bosses (Spawn every 180s, alternating lanes)
+	public bossSpawnTimer = 180.0;
+	public bossIndex = 0;
+	public lastBossLane: Lane = 'bottom';
+	public lastBossId = -1;
+	public activeBossInstanceId: string | null = null;
+
 	// Callbacks
 	public onFloatingText?: (text: FloatingText) => void;
-	public onRoundEnd?: (winner: Team) => void;
+	public onRoundEnd?: (winner: MatchTeam) => void;
 
 	private nextUnitId = 1;
 	private nextBuildingId = 1;
@@ -126,9 +135,14 @@ export class Simulation {
 		this.incomeTimer = 3.0;
 		this.incomeInterval = 3.0;
 		this.raceSkillCooldown = { west: 0, east: 0 };
+		this.bossSpawnTimer = 180.0;
+		this.bossIndex = 0;
+		this.lastBossLane = 'bottom';
+		this.lastBossId = -1;
+		this.activeBossInstanceId = null;
 		this.winner = null;
 
-		for (const team of ['west', 'east'] as Team[]) {
+		for (const team of ['west', 'east'] as MatchTeam[]) {
 			const p = this.players[team];
 			p.forge = { attack: 0, armor: 0, econ: 0 };
 			p.gold = 500;
@@ -153,6 +167,14 @@ export class Simulation {
 
 		this.raceSkillCooldown.west = Math.max(0, this.raceSkillCooldown.west - dt);
 		this.raceSkillCooldown.east = Math.max(0, this.raceSkillCooldown.east - dt);
+
+		// Boss timer countdown
+		if (!this.activeBossInstanceId) {
+			this.bossSpawnTimer -= dt;
+			if (this.bossSpawnTimer <= 0) {
+				this.spawnBoss();
+			}
+		}
 
 		// 1. Update Economy
 		this.updateEconomy(dt);
@@ -218,7 +240,7 @@ export class Simulation {
 		if (this.incomeTimer <= 0) {
 			this.incomeTimer = interval;
 
-			for (const team of ['west', 'east'] as Team[]) {
+			for (const team of ['west', 'east'] as MatchTeam[]) {
 				const player = this.players[team];
 
 				// Total building value
@@ -385,6 +407,56 @@ export class Simulation {
 		return unit;
 	}
 
+	public spawnBoss(): Unit {
+		const lane: Lane = this.lastBossLane === 'bottom' ? 'top' : 'bottom';
+		this.lastBossLane = lane;
+		this.bossIndex++;
+
+		const { boss: bossDef, index } = getRandomBoss(this.lastBossId);
+		this.lastBossId = index;
+
+		const laneY = lane === 'top' ? TOP_LANE_Y : BOTTOM_LANE_Y;
+		const centerX = ARENA_WIDTH / 2;
+
+		const unit: Unit = {
+			instanceId: `boss_${this.nextUnitId++}`,
+			defId: bossDef.id,
+			name: bossDef.nameUk,
+			team: 'neutral',
+			lane,
+			x: centerX,
+			y: laneY,
+			prevX: centerX,
+			prevY: laneY,
+			hp: bossDef.hp,
+			maxHp: bossDef.hp,
+			armor: bossDef.armor,
+			armorType: bossDef.armorType,
+			attackType: bossDef.attackType,
+			damageMin: bossDef.damage,
+			damageMax: bossDef.damage,
+			damageBonusPct: 0,
+			armorBonus: 0,
+			attackCooldown: bossDef.attackCooldown,
+			cooldownTimer: 0.5,
+			range: bossDef.range,
+			speed: 40,
+			flying: false,
+			currentTargetId: null,
+			targetX: centerX,
+			targetY: laneY,
+			state: 'WALKING',
+			size: bossDef.size,
+			isBoss: true
+		};
+
+		this.units.push(unit);
+		this.activeBossInstanceId = unit.instanceId;
+		this.addFloatingText(`БОСС: ${bossDef.nameUk}!`, centerX, laneY - 40, '#f59e0b');
+		this.notifyStateChanged();
+		return unit;
+	}
+
 	// --- UNITS ---
 	private updateUnits(dt: number): void {
 		for (const u of this.units) {
@@ -452,6 +524,20 @@ export class Simulation {
 					const dirY = dy / dist;
 					u.x += dirX * currentSpeed * dt;
 					u.y += dirY * currentSpeed * dt;
+				}
+			} else if (u.team === 'neutral') {
+				// Boss Leash & Patrol: Stay near center of the lane (leash radius 400)
+				u.currentTargetId = null;
+				const centerX = ARENA_WIDTH / 2;
+				const dx = centerX - u.x;
+				const dy = targetLaneY - u.y;
+				const dist = Math.hypot(dx, dy);
+				if (dist > 15) {
+					u.state = 'WALKING';
+					u.x += (dx / dist) * currentSpeed * dt;
+					u.y += (dy / dist) * currentSpeed * dt;
+				} else {
+					u.state = 'WALKING';
 				}
 			} else {
 				// No enemy nearby on this lane -> March towards enemy Castle
@@ -557,7 +643,17 @@ export class Simulation {
 
 		if (target.hp <= 0) {
 			target.state = 'DEAD';
-			this.players[attackerTeam].stats.unitsKilled++;
+			if (target.team === 'neutral') {
+				this.activeBossInstanceId = null;
+				this.bossSpawnTimer = 180.0;
+				if (attackerTeam === 'west' || attackerTeam === 'east') {
+					const bounty = Math.min(110, 10 + 20 * (this.bossIndex - 1));
+					this.players[attackerTeam].gold += bounty;
+					this.addFloatingText(`+${bounty}g за Боса!`, target.x, target.y - 30, '#fbbf24');
+				}
+			} else if (attackerTeam === 'west' || attackerTeam === 'east') {
+				this.players[attackerTeam].stats.unitsKilled++;
+			}
 		}
 	}
 
@@ -575,7 +671,7 @@ export class Simulation {
 	// --- CASTLE DEFENSE ---
 	private castleCooldowns = { west: 0, east: 0 };
 	private updateCastles(dt: number): void {
-		for (const team of ['west', 'east'] as Team[]) {
+		for (const team of ['west', 'east'] as MatchTeam[]) {
 			const castle = this.castles[team];
 			this.castleCooldowns[team] -= dt;
 
@@ -660,7 +756,7 @@ export class Simulation {
 
 	// --- PLAYER ACTIONS ---
 	public build(
-		team: Team,
+		team: MatchTeam,
 		defId: string,
 		tileX: number,
 		tileY: number,
@@ -717,7 +813,11 @@ export class Simulation {
 		return true;
 	}
 
-	public upgradeBuilding(team: Team, buildingInstanceId: string, targetDefId: string): boolean {
+	public upgradeBuilding(
+		team: MatchTeam,
+		buildingInstanceId: string,
+		targetDefId: string
+	): boolean {
 		const building = this.buildings.find(
 			(b) => b.instanceId === buildingInstanceId && b.team === team
 		);
@@ -757,7 +857,7 @@ export class Simulation {
 		return true;
 	}
 
-	public sellBuilding(team: Team, buildingInstanceId: string): boolean {
+	public sellBuilding(team: MatchTeam, buildingInstanceId: string): boolean {
 		const idx = this.buildings.findIndex(
 			(b) => b.instanceId === buildingInstanceId && b.team === team
 		);
@@ -775,7 +875,7 @@ export class Simulation {
 		return true;
 	}
 
-	public upgradeForge(team: Team, type: 'attack' | 'armor' | 'econ'): boolean {
+	public upgradeForge(team: MatchTeam, type: 'attack' | 'armor' | 'econ'): boolean {
 		const player = this.players[team];
 		const currentLevel = player.forge[type];
 		const isAlik = player.commander === 2;
@@ -809,7 +909,7 @@ export class Simulation {
 		return true;
 	}
 
-	public getForgePrice(team: Team, type: 'attack' | 'armor' | 'econ'): number {
+	public getForgePrice(team: MatchTeam, type: 'attack' | 'armor' | 'econ'): number {
 		const player = this.players[team];
 		const currentLevel = player.forge[type];
 		const isAlik = player.commander === 2;
@@ -831,18 +931,18 @@ export class Simulation {
 	}
 
 	// --- RACE ACTIVE ABILITIES (Unlocked at 300s, cooldown 150s) ---
-	public canUseRaceSkill(team: Team): boolean {
+	public canUseRaceSkill(team: MatchTeam): boolean {
 		return this.gameTime >= 300 && this.raceSkillCooldown[team] <= 0 && !this.winner;
 	}
 
-	public useRaceSkill(team: Team): boolean {
+	public useRaceSkill(team: MatchTeam): boolean {
 		if (!this.canUseRaceSkill(team)) return false;
 
 		const player = this.players[team];
 		const ability = getRaceAbility(player.race);
 		this.raceSkillCooldown[team] = 150;
 
-		const enemyTeam: Team = team === 'west' ? 'east' : 'west';
+		const enemyTeam: MatchTeam = team === 'west' ? 'east' : 'west';
 
 		switch (ability.kind) {
 			case 'dmg':

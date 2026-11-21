@@ -339,6 +339,7 @@ export class ArenaRenderer {
 			if (u.state === 'DEAD') continue;
 
 			const isWest = u.team === 'west';
+			const isNeutral = u.team === 'neutral';
 			const radius = u.size;
 
 			// If flying, draw subtle shadow on the ground
@@ -347,33 +348,46 @@ export class ArenaRenderer {
 				g.fill({ color: 0x000000, alpha: 0.3 });
 			}
 
+			// If neutral boss, draw glowing aura
+			if (isNeutral) {
+				g.circle(u.x, u.y, radius + 5);
+				g.stroke({ color: 0xf59e0b, width: 2, alpha: 0.7 });
+			}
+
 			// Unit circle body
 			g.circle(u.x, u.y, radius);
-			g.fill({ color: isWest ? 0x2563eb : 0xdc2626 });
-			g.stroke({ color: isWest ? 0xbfdbfe : 0xfecaca, width: 2 });
+			g.fill({ color: isNeutral ? 0x7e22ce : isWest ? 0x2563eb : 0xdc2626 });
+			g.stroke({
+				color: isNeutral ? 0xfbbf24 : isWest ? 0xbfdbfe : 0xfecaca,
+				width: isNeutral ? 3 : 2
+			});
 
 			// Unit Inner Emblem based on Attack Type
 			this.renderUnitEmblem(g, u.x, u.y, u.attackType, radius);
 
-			// Direction arrow
-			const dir = isWest ? 1 : -1;
-			g.moveTo(u.x + dir * (radius + 2), u.y);
-			g.lineTo(u.x + dir * (radius - 4), u.y - 4);
-			g.lineTo(u.x + dir * (radius - 4), u.y + 4);
-			g.fill({ color: 0xffffff });
+			// Direction arrow (for normal units)
+			if (!isNeutral) {
+				const dir = isWest ? 1 : -1;
+				g.moveTo(u.x + dir * (radius + 2), u.y);
+				g.lineTo(u.x + dir * (radius - 4), u.y - 4);
+				g.lineTo(u.x + dir * (radius - 4), u.y + 4);
+				g.fill({ color: 0xffffff });
+			}
 
 			// Health Bar
 			const hpPct = Math.max(0, u.hp / u.maxHp);
-			const barW = radius * 2.2;
-			const barH = 3;
+			const barW = isNeutral ? radius * 2.8 : radius * 2.2;
+			const barH = isNeutral ? 5 : 3;
 			const barX = u.x - barW / 2;
-			const barY = u.y - radius - 7;
+			const barY = u.y - radius - (isNeutral ? 11 : 7);
 
 			g.rect(barX - 1, barY - 1, barW + 2, barH + 2);
 			g.fill({ color: 0x000000, alpha: 0.8 });
 
 			g.rect(barX, barY, barW * hpPct, barH);
-			g.fill({ color: hpPct > 0.5 ? 0x4ade80 : hpPct > 0.25 ? 0xfacc15 : 0xf87171 });
+			g.fill({
+				color: isNeutral ? 0xf59e0b : hpPct > 0.5 ? 0x4ade80 : hpPct > 0.25 ? 0xfacc15 : 0xf87171
+			});
 		}
 	}
 

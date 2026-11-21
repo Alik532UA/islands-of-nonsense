@@ -1,10 +1,10 @@
 import type { Simulation } from './simulation';
-import type { Team, Building, BuildingDefinition } from './types';
+import type { MatchTeam, Building, BuildingDefinition } from './types';
 import { getBaseBuildingsForRace, getUpgradesForBuilding } from './gameData';
 
 export class BotAI {
 	private sim: Simulation;
-	private team: Team = 'east';
+	private team: MatchTeam = 'east';
 	private decisionTimer = 1.5;
 
 	constructor(sim: Simulation) {
