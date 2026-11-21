@@ -75,7 +75,7 @@ export function calculateDamage(
 ): number {
 	const aType = (attackType?.toLowerCase() || 'normal') as AttackType;
 
-	let normalizedArmor = (armorType?.toLowerCase() || 'medium');
+	let normalizedArmor = armorType?.toLowerCase() || 'medium';
 	if (normalizedArmor === 'heavy') normalizedArmor = 'large';
 	if (normalizedArmor === 'light') normalizedArmor = 'small';
 	if (normalizedArmor === 'unarmored') normalizedArmor = 'none';
@@ -84,7 +84,7 @@ export function calculateDamage(
 	const defType = normalizedArmor as ArmorType;
 	const typeMultiplier = DAMAGE_MULTIPLIERS[aType]?.[defType] ?? 1.0;
 
-	let armorFactor = 1.0;
+	let armorFactor: number;
 	if (targetArmor >= 0) {
 		const reduction = (0.06 * targetArmor) / (1 + 0.06 * targetArmor);
 		armorFactor = Math.max(0.01, 1 - reduction);

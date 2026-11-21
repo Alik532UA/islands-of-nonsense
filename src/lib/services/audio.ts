@@ -1,0 +1,150 @@
+/**
+ * Procedural Web Audio Sound Synthesizer (ADR 0002 style).
+ * Generates all game sound effects procedurally with zero external asset latency.
+ */
+export class SoundService {
+	private ctx: AudioContext | null = null;
+	private enabled = true;
+	private volume = 0.5;
+
+	constructor() {
+		// AudioContext will be initialized on user interaction
+	}
+
+	private getContext(): AudioContext | null {
+		if (typeof window === 'undefined') return null;
+		if (!this.ctx) {
+			const AudioCtx =
+				window.AudioContext ||
+				(window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+			if (AudioCtx) {
+				this.ctx = new AudioCtx();
+			}
+		}
+		if (this.ctx && this.ctx.state === 'suspended') {
+			this.ctx.resume().catch(() => {});
+		}
+		return this.ctx;
+	}
+
+	public setVolume(val: number): void {
+		this.volume = Math.max(0, Math.min(1, val));
+	}
+
+	public setEnabled(flag: boolean): void {
+		this.enabled = flag;
+	}
+
+	public isEnabled(): boolean {
+		return this.enabled;
+	}
+
+	public getVolume(): number {
+		return this.volume;
+	}
+
+	/**
+	 * Звук будівництва (металевий молот)
+	 */
+	public playBuild(): void {
+		if (!this.enabled) return;
+		const ctx = this.getContext();
+		if (!ctx) return;
+
+		const osc = ctx.createOscillator();
+		const gain = ctx.createGain();
+
+		osc.type = 'triangle';
+		osc.frequency.setValueAtTime(320, ctx.currentTime);
+		osc.frequency.exponentialRampToValueAtTime(140, ctx.currentTime + 0.12);
+
+		gain.gain.setValueAtTime(this.volume * 0.4, ctx.currentTime);
+		gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+
+		osc.connect(gain);
+		gain.connect(ctx.destination);
+
+		osc.start();
+		osc.stop(ctx.currentTime + 0.13);
+	}
+
+	/**
+	 * Звук монети / доходу
+	 */
+	public playCoin(): void {
+		if (!this.enabled) return;
+		const ctx = this.getContext();
+		if (!ctx) return;
+
+		const osc = ctx.createOscillator();
+		const gain = ctx.createGain();
+
+		osc.type = 'sine';
+		osc.frequency.setValueAtTime(987, ctx.currentTime);
+		osc.frequency.setValueAtTime(1318, ctx.currentTime + 0.08);
+
+		gain.gain.setValueAtTime(this.volume * 0.25, ctx.currentTime);
+		gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+
+		osc.connect(gain);
+		gain.connect(ctx.destination);
+
+		osc.start();
+		osc.stop(ctx.currentTime + 0.26);
+	}
+
+	/**
+	 * Звук атаки / влучання
+	 */
+	public playHit(): void {
+		if (!this.enabled) return;
+		const ctx = this.getContext();
+		if (!ctx) return;
+
+		const osc = ctx.createOscillator();
+		const gain = ctx.createGain();
+
+		osc.type = 'sawtooth';
+		osc.frequency.setValueAtTime(180, ctx.currentTime);
+		osc.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 0.08);
+
+		gain.gain.setValueAtTime(this.volume * 0.3, ctx.currentTime);
+		gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+
+		osc.connect(gain);
+		gain.connect(ctx.destination);
+
+		osc.start();
+		osc.stop(ctx.currentTime + 0.09);
+	}
+
+	/**
+	 * Звук апгрейду кузні
+	 */
+	public playUpgrade(): void {
+		if (!this.enabled) return;
+		const ctx = this.getContext();
+		if (!ctx) return;
+
+		const now = ctx.currentTime;
+		const notes = [440, 554, 659, 880];
+		notes.forEach((freq, idx) => {
+			const osc = ctx.createOscillator();
+			const gain = ctx.createGain();
+
+			osc.type = 'sine';
+			osc.frequency.setValueAtTime(freq, now + idx * 0.07);
+
+			gain.gain.setValueAtTime(this.volume * 0.2, now + idx * 0.07);
+			gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.07 + 0.15);
+
+			osc.connect(gain);
+			gain.connect(ctx.destination);
+
+			osc.start(now + idx * 0.07);
+			osc.stop(now + idx * 0.07 + 0.16);
+		});
+	}
+}
+
+export const sound = new SoundService();

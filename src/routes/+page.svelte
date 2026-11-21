@@ -3,6 +3,7 @@
 	import { Simulation } from '../lib/engine/simulation';
 	import { BotAI } from '../lib/engine/botAI';
 	import { ArenaRenderer } from '../lib/renderer/ArenaRenderer';
+	import { sound } from '../lib/services/audio';
 	import TopBar from '../lib/components/TopBar.svelte';
 	import BottomBar from '../lib/components/BottomBar.svelte';
 	import ForgeModal from '../lib/components/ForgeModal.svelte';
@@ -21,6 +22,22 @@
 
 	let animFrameId: number;
 
+	function handleKeyDown(e: KeyboardEvent) {
+		if (e.key === 'Escape') {
+			selectedBuildingId = null;
+			isForgeOpen = false;
+			isCommanderOpen = false;
+		} else if (e.code === 'Space' && !e.repeat && !isForgeOpen && !isCommanderOpen) {
+			e.preventDefault();
+			sim.isRunning = !sim.isRunning;
+			uiTick = sim.stateVersion;
+		} else if ((e.key === 'f' || e.key === 'F') && !e.repeat) {
+			isForgeOpen = !isForgeOpen;
+		} else if ((e.key === 'c' || e.key === 'C') && !e.repeat) {
+			isCommanderOpen = !isCommanderOpen;
+		}
+	}
+
 	onMount(async () => {
 		renderer = new ArenaRenderer({
 			canvas: canvasEl,
@@ -29,6 +46,7 @@
 				if (selectedBuildingId) {
 					const success = sim.build('west', selectedBuildingId, tileX, tileY);
 					if (success) {
+						sound.playBuild();
 						selectedBuildingId = null;
 						uiTick = sim.stateVersion;
 					}
@@ -76,6 +94,8 @@
 	}
 </script>
 
+<svelte:window onkeydown={handleKeyDown} />
+
 <svelte:head>
 	<title>Castle Fight Web</title>
 </svelte:head>
@@ -90,7 +110,9 @@
 	/>
 
 	<!-- Arena Viewport (Longer Map aspect 3:1) -->
-	<div class="flex-1 w-full bg-slate-950 flex items-center justify-center p-2 relative overflow-hidden">
+	<div
+		class="flex-1 w-full bg-slate-950 flex items-center justify-center p-2 relative overflow-hidden"
+	>
 		<canvas
 			bind:this={canvasEl}
 			class="max-w-full max-h-full rounded-xl shadow-2xl border border-slate-800 object-contain aspect-[3/1] cursor-crosshair"

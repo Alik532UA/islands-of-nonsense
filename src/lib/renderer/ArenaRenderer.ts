@@ -1,5 +1,6 @@
 import { Application, Container, Graphics } from 'pixi.js';
 import type { Simulation } from '../engine/simulation';
+import type { Castle } from '../engine/types';
 import {
 	ARENA_WIDTH,
 	ARENA_HEIGHT,
@@ -11,7 +12,6 @@ import {
 	EAST_GRID_START_Y,
 	CELL_SIZE
 } from '../engine/simulation';
-import type { Unit, Building, Projectile, Castle } from '../engine/types';
 
 export interface RendererOptions {
 	canvas: HTMLCanvasElement;
@@ -236,7 +236,8 @@ export class ArenaRenderer {
 			const px = WEST_GRID_START_X + this.hoveredTile.x * CELL_SIZE;
 			const py = WEST_GRID_START_Y + this.hoveredTile.y * CELL_SIZE;
 			const isOccupied = this.sim.buildings.some(
-				(b) => b.team === 'west' && b.tileX === this.hoveredTile!.x && b.tileY === this.hoveredTile!.y
+				(b) =>
+					b.team === 'west' && b.tileX === this.hoveredTile!.x && b.tileY === this.hoveredTile!.y
 			);
 
 			g.rect(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4);

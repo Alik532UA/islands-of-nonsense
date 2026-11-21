@@ -20,7 +20,9 @@
 
 {#if isOpen}
 	<div class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-		<div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl p-6 text-white relative">
+		<div
+			class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl p-6 text-white relative"
+		>
 			<!-- Close button -->
 			<button
 				onclick={() => (isOpen = false)}
@@ -48,7 +50,9 @@
 			<!-- Upgrade Cards -->
 			<div class="flex flex-col gap-3.5">
 				<!-- 1. Attack Upgrade -->
-				<div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
+				<div
+					class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex items-center justify-between"
+				>
 					<div class="flex items-center gap-3.5">
 						<div class="p-2 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400">
 							<Sword class="w-5 h-5" />
@@ -70,21 +74,26 @@
 						<button
 							onclick={() => sim.upgradeForge('west', 'attack')}
 							disabled={player.gold < attackPrice}
-							class="px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer {player.gold >= attackPrice
+							class="px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer {player.gold >=
+							attackPrice
 								? 'bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/30'
 								: 'bg-slate-800 text-slate-500 cursor-not-allowed'}"
 						>
 							Покращити ({attackPrice}g)
 						</button>
 					{:else}
-						<span class="text-xs font-bold text-emerald-400 bg-emerald-950/50 border border-emerald-800 px-3 py-1 rounded-lg">
+						<span
+							class="text-xs font-bold text-emerald-400 bg-emerald-950/50 border border-emerald-800 px-3 py-1 rounded-lg"
+						>
 							МАКСИМУМ
 						</span>
 					{/if}
 				</div>
 
 				<!-- 2. Armor Upgrade -->
-				<div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
+				<div
+					class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex items-center justify-between"
+				>
 					<div class="flex items-center gap-3.5">
 						<div class="p-2 bg-blue-500/10 border border-blue-500/30 rounded-lg text-blue-400">
 							<Shield class="w-5 h-5" />
@@ -106,21 +115,26 @@
 						<button
 							onclick={() => sim.upgradeForge('west', 'armor')}
 							disabled={player.gold < armorPrice}
-							class="px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer {player.gold >= armorPrice
+							class="px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer {player.gold >=
+							armorPrice
 								? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30'
 								: 'bg-slate-800 text-slate-500 cursor-not-allowed'}"
 						>
 							Покращити ({armorPrice}g)
 						</button>
 					{:else}
-						<span class="text-xs font-bold text-emerald-400 bg-emerald-950/50 border border-emerald-800 px-3 py-1 rounded-lg">
+						<span
+							class="text-xs font-bold text-emerald-400 bg-emerald-950/50 border border-emerald-800 px-3 py-1 rounded-lg"
+						>
 							МАКСИМУМ
 						</span>
 					{/if}
 				</div>
 
 				<!-- 3. Economy Upgrade -->
-				<div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
+				<div
+					class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex items-center justify-between"
+				>
 					<div class="flex items-center gap-3.5">
 						<div class="p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-400">
 							<TrendingUp class="w-5 h-5" />
@@ -142,14 +156,17 @@
 						<button
 							onclick={() => sim.upgradeForge('west', 'econ')}
 							disabled={player.gold < econPrice}
-							class="px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer {player.gold >= econPrice
+							class="px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer {player.gold >=
+							econPrice
 								? 'bg-amber-600 hover:bg-amber-500 text-white shadow-lg shadow-amber-600/30'
 								: 'bg-slate-800 text-slate-500 cursor-not-allowed'}"
 						>
 							Покращити ({econPrice}g)
 						</button>
 					{:else}
-						<span class="text-xs font-bold text-emerald-400 bg-emerald-950/50 border border-emerald-800 px-3 py-1 rounded-lg">
+						<span
+							class="text-xs font-bold text-emerald-400 bg-emerald-950/50 border border-emerald-800 px-3 py-1 rounded-lg"
+						>
 							МАКСИМУМ
 						</span>
 					{/if}

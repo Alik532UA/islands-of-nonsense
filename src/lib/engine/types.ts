@@ -1,4 +1,5 @@
-export type ArmorType = 'none' | 'small' | 'medium' | 'large' | 'fort' | 'divine' | 'normal' | 'hero';
+export type ArmorType =
+	'none' | 'small' | 'medium' | 'large' | 'fort' | 'divine' | 'normal' | 'hero';
 export type AttackType = 'normal' | 'pierce' | 'siege' | 'magic' | 'chaos' | 'hero';
 
 export type Team = 'west' | 'east';
@@ -25,7 +26,7 @@ export interface UnitDefinition {
 	move_type: string | null;
 	flying: boolean;
 	gold_cost: number;
-	raw_fields?: Record<string, any>;
+	raw_fields?: Record<string, unknown>;
 }
 
 export interface BuildingDefinition {
@@ -40,7 +41,7 @@ export interface BuildingDefinition {
 	upgrade_from: string | null;
 	upgrade_extra_cost: number;
 	race?: string | null;
-	raw_fields?: Record<string, any>;
+	raw_fields?: Record<string, unknown>;
 }
 
 export interface RaceDefinition {
@@ -125,8 +126,8 @@ export interface Castle {
 
 export interface ForgeLevels {
 	attack: number; // 0..5 (+8% damage each)
-	armor: number;  // 0..5 (+1 armor each)
-	econ: number;   // 0..3 (+10% income each)
+	armor: number; // 0..5 (+1 armor each)
+	econ: number; // 0..3 (+10% income each)
 }
 
 export interface Commander {

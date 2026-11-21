@@ -1,11 +1,7 @@
 <script lang="ts">
 	import type { Simulation } from '../engine/simulation';
 	import type { BuildingDefinition } from '../engine/types';
-	import {
-		getBaseBuildingsForRace,
-		getUnit,
-		RACES_LIST
-	} from '../engine/gameData';
+	import { getBaseBuildingsForRace, getUnit, RACES_LIST } from '../engine/gameData';
 	import { Coins } from 'lucide-svelte';
 
 	let {
@@ -41,7 +37,9 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="relative bg-slate-900/95 border-t border-slate-700/80 px-6 py-3 shadow-2xl flex items-center justify-between text-white select-none backdrop-blur z-20">
+<div
+	class="relative bg-slate-900/95 border-t border-slate-700/80 px-6 py-3 shadow-2xl flex items-center justify-between text-white select-none backdrop-blur z-20"
+>
 	<!-- Left: Race Selector & Lane Preference -->
 	<div class="flex flex-col gap-2 min-w-[200px]">
 		<!-- Race Select -->
@@ -92,7 +90,8 @@
 					player.preferredLane = 'bottom';
 					sim.notifyStateChanged();
 				}}
-				class="px-2 py-0.5 rounded text-[11px] font-bold transition {player.preferredLane === 'bottom'
+				class="px-2 py-0.5 rounded text-[11px] font-bold transition {player.preferredLane ===
+				'bottom'
 					? 'bg-blue-600 text-white'
 					: 'bg-slate-800 text-slate-400 hover:bg-slate-700'}"
 			>
@@ -119,7 +118,9 @@
 						: 'bg-slate-900/60 border-slate-800/80 opacity-60'}"
 			>
 				<!-- Hotkey badge -->
-				<span class="absolute top-1 right-1 bg-slate-950/80 border border-slate-700 text-[10px] font-mono font-bold px-1 rounded text-amber-300">
+				<span
+					class="absolute top-1 right-1 bg-slate-950/80 border border-slate-700 text-[10px] font-mono font-bold px-1 rounded text-amber-300"
+				>
 					{HOTKEYS[idx] || ''}
 				</span>
 
@@ -143,17 +144,23 @@
 	</div>
 
 	<!-- Right: Hover Inspector / Tooltip Card -->
-	<div class="w-72 min-h-[90px] bg-slate-950/90 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-300 flex flex-col justify-between">
+	<div
+		class="w-72 min-h-[90px] bg-slate-950/90 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-300 flex flex-col justify-between"
+	>
 		{#if hoveredBuilding && hoveredUnit}
 			<div>
 				<div class="flex justify-between items-center mb-1">
 					<span class="font-bold text-sm text-amber-300">{hoveredBuilding.name}</span>
-					<span class="text-[11px] font-mono text-amber-400 font-bold">{hoveredBuilding.gold_cost} зол.</span>
+					<span class="text-[11px] font-mono text-amber-400 font-bold">
+						{hoveredBuilding.gold_cost} зол.
+					</span>
 				</div>
 				<div class="text-[11px] text-slate-400 mb-1.5">
 					Тренує: <span class="text-white font-semibold">{hoveredUnit.name}</span>
 					{#if hoveredUnit.flying}
-						<span class="bg-cyan-950 text-cyan-300 border border-cyan-800 px-1 py-0.2 text-[9px] rounded ml-1 font-bold">
+						<span
+							class="bg-cyan-950 text-cyan-300 border border-cyan-800 px-1 py-0.2 text-[9px] rounded ml-1 font-bold"
+						>
 							ЛІТАЮЧИЙ
 						</span>
 					{/if}
@@ -161,9 +168,17 @@
 
 				<div class="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] text-slate-300">
 					<div>❤️ HP: <span class="font-bold text-white">{hoveredUnit.hp}</span></div>
-					<div>🛡️ Броня: <span class="font-bold text-white">{hoveredUnit.armor} ({hoveredUnit.armor_type})</span></div>
+					<div>
+						🛡️ Броня: <span class="font-bold text-white">
+							{hoveredUnit.armor} ({hoveredUnit.armor_type})
+						</span>
+					</div>
 					<div>⚔️ Атака: <span class="font-bold text-white">{hoveredUnit.attack_type}</span></div>
-					<div>🏹 Дальність: <span class="font-bold text-white">{hoveredUnit.range && hoveredUnit.range > 120 ? hoveredUnit.range : 'Ближній'}</span></div>
+					<div>
+						🏹 Дальність: <span class="font-bold text-white">
+							{hoveredUnit.range && hoveredUnit.range > 120 ? hoveredUnit.range : 'Ближній'}
+						</span>
+					</div>
 				</div>
 			</div>
 		{:else if selectedBuildingId}
@@ -174,8 +189,12 @@
 				<span class="text-slate-400 text-[10px] mt-1">Клікніть на вільну клітинку вашої бази!</span>
 			</div>
 		{:else}
-			<div class="flex flex-col items-center justify-center h-full text-center text-slate-500 text-[11px]">
-				<span>Наведіть на будівлю для перегляду характеристик або натисніть клавішу для вибору</span>
+			<div
+				class="flex flex-col items-center justify-center h-full text-center text-slate-500 text-[11px]"
+			>
+				<span>
+					Наведіть на будівлю для перегляду характеристик або натисніть клавішу для вибору
+				</span>
 			</div>
 		{/if}
 	</div>

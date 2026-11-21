@@ -1,9 +1,10 @@
 import type { Simulation } from './simulation';
+import type { Team } from './types';
 import { getBaseBuildingsForRace } from './gameData';
 
 export class BotAI {
 	private sim: Simulation;
-	private team: 'east' = 'east';
+	private team: Team = 'east';
 	private decisionTimer = 1.5;
 
 	constructor(sim: Simulation) {
@@ -52,9 +53,7 @@ export class BotAI {
 		// 2. Building decision:
 		// Find available building spots (3 cols x 8 rows)
 		const occupied = new Set(
-			this.sim.buildings
-				.filter((b) => b.team === this.team)
-				.map((b) => `${b.tileX}:${b.tileY}`)
+			this.sim.buildings.filter((b) => b.team === this.team).map((b) => `${b.tileX}:${b.tileY}`)
 		);
 
 		const freeSlots: { x: number; y: number }[] = [];

@@ -36,7 +36,9 @@
 	}
 </script>
 
-<header class="bg-slate-900/95 border-b border-slate-700/80 px-4 py-2.5 shadow-xl flex items-center justify-between text-white select-none backdrop-blur z-20">
+<header
+	class="bg-slate-900/95 border-b border-slate-700/80 px-4 py-2.5 shadow-xl flex items-center justify-between text-white select-none backdrop-blur z-20"
+>
 	<!-- Left: West Castle & Resources -->
 	<div class="flex items-center gap-6">
 		<!-- West Castle HP -->
@@ -48,7 +50,9 @@
 				</span>
 				<span class="text-slate-300 font-mono">{westCastle.hp} / {westCastle.maxHp}</span>
 			</div>
-			<div class="h-2.5 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-700/50">
+			<div
+				class="h-2.5 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-700/50"
+			>
 				<div
 					class="h-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-all duration-200"
 					style="width: {westHpPct}%"
@@ -57,7 +61,9 @@
 		</div>
 
 		<!-- Gold & Wood -->
-		<div class="flex items-center gap-4 bg-slate-950/80 px-4 py-1.5 rounded-lg border border-slate-800">
+		<div
+			class="flex items-center gap-4 bg-slate-950/80 px-4 py-1.5 rounded-lg border border-slate-800"
+		>
 			<!-- Gold -->
 			<div class="flex items-center gap-1.5 font-bold text-amber-400">
 				<Coins class="w-4 h-4 text-amber-400" />
@@ -161,7 +167,9 @@
 					<Shield class="w-3.5 h-3.5 inline text-red-400" />
 				</span>
 			</div>
-			<div class="h-2.5 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-700/50">
+			<div
+				class="h-2.5 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-700/50"
+			>
 				<div
 					class="h-full bg-gradient-to-l from-red-600 to-orange-400 transition-all duration-200"
 					style="width: {eastHpPct}%"

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Simulation } from './simulation';
-import { getBaseBuildingsForRace, getBuilding } from './gameData';
+import { getBuilding } from './gameData';
 
 describe('Castle Fight Simulation - Economy & Gold', () => {
 	let sim: Simulation;
@@ -107,7 +107,7 @@ describe('Castle Fight Simulation - Lane Separation', () => {
 
 	it('units on the SAME lane MUST acquire and attack each other', () => {
 		// Spawn two enemies on Top lane within range
-		const westUnit = sim.spawnUnitDirectly({
+		const _westUnit = sim.spawnUnitDirectly({
 			team: 'west',
 			lane: 'top',
 			x: 800,

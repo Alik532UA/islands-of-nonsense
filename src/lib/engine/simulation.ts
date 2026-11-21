@@ -212,7 +212,6 @@ export class Simulation {
 
 			for (const team of ['west', 'east'] as Team[]) {
 				const player = this.players[team];
-				const enemyTeam: Team = team === 'west' ? 'east' : 'west';
 
 				// Total building value
 				const bldValue = this.buildings
@@ -266,7 +265,7 @@ export class Simulation {
 		player.stats.unitsSpawned++;
 
 		// Determine lane
-		let lane = building.lane;
+		let lane: Lane;
 		if (player.preferredLane !== 'auto') {
 			lane = player.preferredLane;
 		} else {
@@ -278,7 +277,7 @@ export class Simulation {
 
 		// Calculate commander & forge bonuses
 		let damageBonusPct = player.forge.attack * 0.08;
-		let armorBonus = player.forge.armor * 1.0;
+		const armorBonus = player.forge.armor * 1.0;
 		let attackSpeedMult = 1.0;
 
 		// Commander 3 (Dima): +24% damage
@@ -315,7 +314,7 @@ export class Simulation {
 			attackCooldown: cooldown,
 			cooldownTimer: Math.random() * 0.3,
 			range: Math.max(90, unitDef.range ?? 100),
-			speed: (unitDef.raw_fields?.umvs ?? 270) * 0.36,
+			speed: (Number(unitDef.raw_fields?.umvs) || 270) * 0.36,
 			flying: !!unitDef.flying,
 			currentTargetId: null,
 			targetX: building.team === 'west' ? ARENA_WIDTH - 80 : 80,
@@ -462,7 +461,8 @@ export class Simulation {
 
 		// Roll raw damage
 		let rawDmg =
-			attacker.damageMin + Math.floor(Math.random() * (attacker.damageMax - attacker.damageMin + 1));
+			attacker.damageMin +
+			Math.floor(Math.random() * (attacker.damageMax - attacker.damageMin + 1));
 
 		let isCrit = false;
 		if (attacker.critChance && Math.random() < attacker.critChance) {
@@ -514,8 +514,9 @@ export class Simulation {
 	}
 
 	private attackCastle(attacker: Unit, castle: Castle): void {
-		let rawDmg =
-			attacker.damageMin + Math.floor(Math.random() * (attacker.damageMax - attacker.damageMin + 1));
+		const rawDmg =
+			attacker.damageMin +
+			Math.floor(Math.random() * (attacker.damageMax - attacker.damageMin + 1));
 		const finalDamage = calculateDamage(attacker.attackType, 'fort', rawDmg, 5);
 		castle.hp = Math.max(0, castle.hp - finalDamage);
 
@@ -531,7 +532,14 @@ export class Simulation {
 			this.castleCooldowns[team] -= dt;
 
 			if (this.castleCooldowns[team] <= 0) {
-				const enemy = this.spatialGrid.findClosestEnemy(castle.x, castle.y, 450, team, undefined, true);
+				const enemy = this.spatialGrid.findClosestEnemy(
+					castle.x,
+					castle.y,
+					450,
+					team,
+					undefined,
+					true
+				);
 				if (enemy) {
 					this.castleCooldowns[team] = 1.0;
 					this.projectiles.push({
@@ -603,7 +611,13 @@ export class Simulation {
 	}
 
 	// --- PLAYER ACTIONS ---
-	public build(team: Team, defId: string, tileX: number, tileY: number, lane: Lane = 'top'): boolean {
+	public build(
+		team: Team,
+		defId: string,
+		tileX: number,
+		tileY: number,
+		lane: Lane = 'top'
+	): boolean {
 		const bDef = getBuilding(defId);
 		if (!bDef) return false;
 
@@ -613,7 +627,9 @@ export class Simulation {
 		if (player.gold < cost) return false;
 
 		// Check overlap
-		const occupied = this.buildings.some((b) => b.team === team && b.tileX === tileX && b.tileY === tileY);
+		const occupied = this.buildings.some(
+			(b) => b.team === team && b.tileX === tileX && b.tileY === tileY
+		);
 		if (occupied) return false;
 
 		// Deduct gold
