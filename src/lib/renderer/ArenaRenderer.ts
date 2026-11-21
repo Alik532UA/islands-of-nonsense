@@ -480,6 +480,15 @@ export class ArenaRenderer {
 				g.fill({ color: isWest ? 0x93c5fd : 0xfca5a5 });
 			}
 		}
+
+		for (const s of this.sim.splashEffects) {
+			const progress = 1 - s.timer / s.maxTimer;
+			const radius = s.radius * Math.min(1, progress * 1.2);
+			const alpha = Math.max(0, 1 - progress);
+			g.circle(s.x, s.y, radius);
+			g.fill({ color: 0xf97316, alpha: alpha * 0.25 });
+			g.stroke({ color: 0xfbbf24, width: 2, alpha });
+		}
 	}
 
 	private drawRescueStrikeEffects(): void {

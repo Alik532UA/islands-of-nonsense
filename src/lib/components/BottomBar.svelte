@@ -282,11 +282,15 @@
 				</div>
 				<p class="text-xs text-slate-300 leading-relaxed mb-2">
 					{#if placedBuilding.specialType === 'treasure'}
-						💰 <strong class="text-amber-300">Скриня скарбів</strong>: збільшує кожен вихідний дохід вашої команди на <span class="text-emerald-400 font-bold">+20%</span>.
+						💰 <strong class="text-amber-300">Скриня скарбів</strong>: збільшує кожен вихідний дохід
+						вашої команди на <span class="text-emerald-400 font-bold">+20%</span>.
 					{:else if placedBuilding.specialType === 'repair'}
-						🛠️ <strong class="text-emerald-300">Ремонтний пункт</strong>: постійно відновлює <span class="text-emerald-400 font-bold">+25 HP</span> замку щосекунди.
+						🛠️ <strong class="text-emerald-300">Ремонтний пункт</strong>: постійно відновлює
+						<span class="text-emerald-400 font-bold">+25 HP</span> замку щосекунди.
 					{:else if placedBuilding.specialType === 'recycler'}
-						⚙️ <strong class="text-slate-300">Утилізатор</strong>: сплачує <span class="text-amber-300 font-bold">+4 золота</span> брухту за кожного загиблого бійця вашої армії.
+						⚙️ <strong class="text-slate-300">Утилізатор</strong>: сплачує
+						<span class="text-amber-300 font-bold">+4 золота</span> брухту за кожного загиблого бійця
+						вашої армії.
 					{/if}
 				</p>
 			</div>
@@ -334,11 +338,15 @@
 				</div>
 				<p class="text-xs text-slate-300 leading-relaxed mb-2">
 					{#if hoveredBuilding.specialType === 'treasure'}
-						💰 <strong class="text-amber-300">Скриня скарбів</strong>: збільшує кожен вихідний дохід вашої команди на <span class="text-emerald-400 font-bold">+20%</span>.
+						💰 <strong class="text-amber-300">Скриня скарбів</strong>: збільшує кожен вихідний дохід
+						вашої команди на <span class="text-emerald-400 font-bold">+20%</span>.
 					{:else if hoveredBuilding.specialType === 'repair'}
-						🛠️ <strong class="text-emerald-300">Ремонтний пункт</strong>: постійно відновлює <span class="text-emerald-400 font-bold">+25 HP</span> замку щосекунди.
+						🛠️ <strong class="text-emerald-300">Ремонтний пункт</strong>: постійно відновлює
+						<span class="text-emerald-400 font-bold">+25 HP</span> замку щосекунди.
 					{:else if hoveredBuilding.specialType === 'recycler'}
-						⚙️ <strong class="text-slate-300">Утилізатор</strong>: сплачує <span class="text-amber-300 font-bold">+4 золота</span> брухту за кожного загиблого бійця вашої армії.
+						⚙️ <strong class="text-slate-300">Утилізатор</strong>: сплачує
+						<span class="text-amber-300 font-bold">+4 золота</span> брухту за кожного загиблого бійця
+						вашої армії.
 					{/if}
 				</p>
 			</div>

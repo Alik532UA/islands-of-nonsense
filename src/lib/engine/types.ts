@@ -91,6 +91,9 @@ export interface Unit {
 	evadeChance?: number;
 	buffs?: ActiveBuff[];
 	isBoss?: boolean;
+	splashRadius?: number;
+	reflectDamagePct?: number;
+	isScavenger?: boolean;
 }
 
 export interface Building {
@@ -125,6 +128,7 @@ export interface Projectile {
 	attackType: AttackType;
 	isCrit: boolean;
 	team: Team;
+	splashRadius?: number;
 }
 
 export interface Castle {

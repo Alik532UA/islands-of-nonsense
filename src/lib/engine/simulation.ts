@@ -83,9 +83,14 @@ export class Simulation {
 		maxTimer: number;
 	}[] = [];
 
-	// Castle Shop & Consumables
-	public castleInvulnerableTimer: Record<MatchTeam, number> = { west: 0, east: 0 };
-	public itemCooldowns: Record<MatchTeam, Record<string, number>> = { west: {}, east: {} };
+	// AoE Splash Effects
+	public splashEffects: {
+		x: number;
+		y: number;
+		radius: number;
+		timer: number;
+		maxTimer: number;
+	}[] = [];
 
 	// Neutral Central Bosses (Spawn every 180s, alternating lanes)
 	public bossSpawnTimer = 180.0;
@@ -159,8 +164,7 @@ export class Simulation {
 		this.itemCooldowns = { west: {}, east: {} };
 		this.rescueStrikeCooldown = { west: 0, east: 0 };
 		this.rescueStrikeEffects = [];
-		this.castleInvulnerableTimer = { west: 0, east: 0 };
-		this.itemCooldowns = { west: {}, east: {} };
+		this.splashEffects = [];
 		this.bossSpawnTimer = 180.0;
 		this.bossIndex = 0;
 		this.lastBossLane = 'bottom';
@@ -205,16 +209,10 @@ export class Simulation {
 		}
 		this.rescueStrikeEffects = this.rescueStrikeEffects.filter((eff) => eff.timer > 0);
 
-		for (const team of ['west', 'east'] as MatchTeam[]) {
-			for (const itemId in this.itemCooldowns[team]) {
-				if (this.itemCooldowns[team][itemId] > 0) {
-					this.itemCooldowns[team][itemId] = Math.max(0, this.itemCooldowns[team][itemId] - dt);
-				}
-			}
+		for (const eff of this.splashEffects) {
+			eff.timer -= dt;
 		}
-
-		this.castleInvulnerableTimer.west = Math.max(0, this.castleInvulnerableTimer.west - dt);
-		this.castleInvulnerableTimer.east = Math.max(0, this.castleInvulnerableTimer.east - dt);
+		this.splashEffects = this.splashEffects.filter((eff) => eff.timer > 0);
 
 		for (const team of ['west', 'east'] as MatchTeam[]) {
 			for (const itemId in this.itemCooldowns[team]) {
@@ -432,7 +430,12 @@ export class Simulation {
 			state: 'WALKING',
 			size: unitDef.flying ? 20 : 15,
 			critChance: player.commander === 5 ? 0.25 : 0,
-			evadeChance: player.commander === 6 ? 0.2 : 0
+			evadeChance: player.commander === 6 ? 0.2 : 0,
+			splashRadius:
+				unitDef.attack_type === 'siege' || unitDef.raw_fields?.ua1w === 'msplash' ? 110 : undefined,
+			isScavenger: building.race === 'Сборщики',
+			reflectDamagePct:
+				building.race === 'Нічні ельфи' && unitDef.armor_type === 'heavy' ? 0.2 : undefined
 		};
 
 		this.units.push(unit);
@@ -449,10 +452,16 @@ export class Simulation {
 		x: number;
 		y: number;
 		hp?: number;
+		maxHp?: number;
 		armor?: number;
 		range?: number;
 		attackCooldown?: number;
+		cooldownTimer?: number;
+		speed?: number;
 		damage?: number;
+		splashRadius?: number;
+		reflectDamagePct?: number;
+		isScavenger?: boolean;
 	}): Unit {
 		const unit: Unit = {
 			instanceId: `test_unit_${this.nextUnitId++}`,
@@ -465,7 +474,7 @@ export class Simulation {
 			prevX: options.x,
 			prevY: options.y,
 			hp: options.hp ?? 500,
-			maxHp: options.hp ?? 500,
+			maxHp: options.maxHp ?? options.hp ?? 500,
 			armor: options.armor ?? 2,
 			armorType: 'medium',
 			attackType: 'normal',
@@ -474,15 +483,18 @@ export class Simulation {
 			damageBonusPct: 0,
 			armorBonus: 0,
 			attackCooldown: options.attackCooldown ?? 1.0,
-			cooldownTimer: 0,
+			cooldownTimer: options.cooldownTimer ?? 0,
 			range: options.range ?? 100,
-			speed: 100,
+			speed: options.speed ?? 100,
 			flying: false,
 			currentTargetId: null,
 			targetX: options.team === 'west' ? ARENA_WIDTH - 80 : 80,
 			targetY: options.y,
 			state: 'WALKING',
-			size: 15
+			size: 15,
+			splashRadius: options.splashRadius,
+			reflectDamagePct: options.reflectDamagePct,
+			isScavenger: options.isScavenger
 		};
 		this.units.push(unit);
 		return unit;
@@ -703,10 +715,66 @@ export class Simulation {
 				damage: rawDmg,
 				attackType: attacker.attackType,
 				isCrit,
-				team: attacker.team
+				team: attacker.team,
+				splashRadius: attacker.splashRadius
 			});
 		} else {
 			this.applyUnitDamage(target, rawDmg, attacker.attackType, attacker.team, isCrit);
+
+			// Melee AoE Splash
+			if (attacker.splashRadius) {
+				this.triggerSplashDamage(
+					target.x,
+					target.y,
+					attacker.splashRadius,
+					rawDmg * 0.5,
+					attacker.attackType,
+					attacker.team,
+					target.instanceId,
+					attacker.lane
+				);
+			}
+
+			// Thorns / Spiked Carapace Reflection
+			if (target.reflectDamagePct && target.reflectDamagePct > 0) {
+				const reflected = Math.max(1, Math.round(rawDmg * target.reflectDamagePct));
+				attacker.hp -= reflected;
+				this.addFloatingText(`!${reflected}! Відбиття`, attacker.x, attacker.y - 15, '#a855f7');
+				if (attacker.hp <= 0) {
+					attacker.state = 'DEAD';
+				}
+			}
+		}
+	}
+
+	private triggerSplashDamage(
+		x: number,
+		y: number,
+		radius: number,
+		damage: number,
+		attackType: AttackType,
+		attackerTeam: Team,
+		primaryTargetId?: string,
+		lane?: Lane
+	): void {
+		this.splashEffects.push({
+			x,
+			y,
+			radius,
+			timer: 0.35,
+			maxTimer: 0.35
+		});
+
+		const radiusSq = radius * radius;
+		for (const u of this.units) {
+			if (u.instanceId === primaryTargetId || u.state === 'DEAD' || u.team === attackerTeam)
+				continue;
+			if (lane && u.lane !== lane) continue;
+			const dx = u.x - x;
+			const dy = u.y - y;
+			if (dx * dx + dy * dy <= radiusSq) {
+				this.applyUnitDamage(u, Math.round(damage), attackType, attackerTeam, false);
+			}
 		}
 	}
 
@@ -734,7 +802,7 @@ export class Simulation {
 		if (target.hp <= 0) {
 			target.state = 'DEAD';
 
-			// Recycler scrap salvage on unit death:
+			// Recycler scrap salvage on unit death
 			if (target.team === 'west' || target.team === 'east') {
 				const recyclers = this.buildings.filter(
 					(b) => b.team === target.team && b.specialType === 'recycler'
@@ -743,6 +811,29 @@ export class Simulation {
 					const scrapBonus = recyclers.length * 4;
 					this.players[target.team].gold += scrapBonus;
 					this.addFloatingText(`+${scrapBonus}g Брухт`, target.x, target.y - 20, '#eab308');
+				}
+			}
+
+			// Scavenger Great Assembly (Великая сборка): empower closest friendly unit
+			if (target.isScavenger && (target.team === 'west' || target.team === 'east')) {
+				const allies = this.units.filter(
+					(u) =>
+						u.team === target.team &&
+						u.state !== 'DEAD' &&
+						u.instanceId !== target.instanceId &&
+						u.lane === target.lane
+				);
+				if (allies.length > 0) {
+					allies.sort(
+						(a, b) =>
+							Math.hypot(a.x - target.x, a.y - target.y) -
+							Math.hypot(b.x - target.x, b.y - target.y)
+					);
+					const closest = allies[0];
+					closest.hp = Math.min(closest.maxHp, closest.hp + 75);
+					closest.buffs = closest.buffs || [];
+					closest.buffs.push({ type: 'dmg', timer: 10, value: 0.15 });
+					this.addFloatingText('+Уламки (+15% шкоди)', closest.x, closest.y - 25, '#f59e0b');
 				}
 			}
 
@@ -831,6 +922,17 @@ export class Simulation {
 				if (target && target.state !== 'DEAD') {
 					this.applyUnitDamage(target, p.damage, p.attackType, p.team, p.isCrit);
 				}
+				if (p.splashRadius) {
+					this.triggerSplashDamage(
+						p.targetX,
+						p.targetY,
+						p.splashRadius,
+						p.damage * 0.5,
+						p.attackType,
+						p.team,
+						p.targetUnitId
+					);
+				}
 				p.damage = 0;
 			} else {
 				p.x += (dx / dist) * step;
@@ -908,7 +1010,7 @@ export class Simulation {
 			goldCost: cost,
 			spawnUnitId: bDef.unit,
 			spawnCooldown: spawnCd,
-			spawnTimer: 4.0, // Initial spawn delay
+			spawnTimer: bDef.specialType === 'repair' ? 0 : 4.0, // Repair starts immediately
 			lane,
 			upgradeFrom: bDef.upgrade_from,
 			race: bDef.race || player.race,
@@ -917,79 +1019,6 @@ export class Simulation {
 
 		this.buildings.push(building);
 		this.addFloatingText(`-${cost}g`, worldX, worldY - 20, '#fbbf24');
-
-		this.notifyStateChanged();
-		return true;
-	}
-
-	// --- CASTLE SHOP & CONSUMABLES ---
-	public getItemCooldown(team: MatchTeam, itemId: string): number {
-		return this.itemCooldowns[team]?.[itemId] || 0;
-	}
-
-	public canBuyCastleItem(team: MatchTeam, itemId: string): boolean {
-		const item = CASTLE_ITEMS[itemId];
-		if (!item) return false;
-		const player = this.players[team];
-		if (player.gold < item.cost) return false;
-		if (this.getItemCooldown(team, itemId) > 0) return false;
-		return true;
-	}
-
-	public buyCastleItem(team: MatchTeam, itemId: string): boolean {
-		if (!this.canBuyCastleItem(team, itemId)) return false;
-		const item = CASTLE_ITEMS[itemId];
-		const player = this.players[team];
-		const myCastle = this.castles[team];
-		const enemyTeam: MatchTeam = team === 'west' ? 'east' : 'west';
-
-		player.gold -= item.cost;
-		player.stats.goldSpent += item.cost;
-		this.itemCooldowns[team][itemId] = item.cooldown;
-
-		switch (itemId) {
-			case 'I00E': {
-				// Scroll of Weakness: debuff enemies within 1400 range of castle
-				const rangeSq = 1400 * 1400;
-				let debuffedCount = 0;
-				for (const u of this.units) {
-					if (u.team === enemyTeam && u.state !== 'DEAD') {
-						const dx = u.x - myCastle.x;
-						const dy = u.y - myCastle.y;
-						if (dx * dx + dy * dy <= rangeSq) {
-							u.buffs = u.buffs || [];
-							u.buffs.push({ type: 'weakness', timer: 15, value: 0.4 });
-							debuffedCount++;
-						}
-					}
-				}
-				this.addFloatingText(
-					`Сувій Слабкості! (${debuffedCount} ворогів)`,
-					myCastle.x,
-					myCastle.y - 60,
-					'#a855f7'
-				);
-				break;
-			}
-			case 'I00F': {
-				// Azure Dome: Invulnerability for 6 seconds
-				this.castleInvulnerableTimer[team] = 6.0;
-				this.addFloatingText(
-					'Лазурний купол! (Невразливість)',
-					myCastle.x,
-					myCastle.y - 60,
-					'#06b6d4'
-				);
-				break;
-			}
-			case 'I004': {
-				// Golden Cheese: Instant heal +2500 HP and +100 gold refund
-				myCastle.hp = Math.min(myCastle.maxHp, myCastle.hp + 2500);
-				player.gold += 100;
-				this.addFloatingText('+2500 HP Золотий Сир!', myCastle.x, myCastle.y - 60, '#eab308');
-				break;
-			}
-		}
 
 		this.notifyStateChanged();
 		return true;
@@ -1039,79 +1068,6 @@ export class Simulation {
 		return true;
 	}
 
-	// --- CASTLE SHOP & CONSUMABLES ---
-	public getItemCooldown(team: MatchTeam, itemId: string): number {
-		return this.itemCooldowns[team]?.[itemId] || 0;
-	}
-
-	public canBuyCastleItem(team: MatchTeam, itemId: string): boolean {
-		const item = CASTLE_ITEMS[itemId];
-		if (!item) return false;
-		const player = this.players[team];
-		if (player.gold < item.cost) return false;
-		if (this.getItemCooldown(team, itemId) > 0) return false;
-		return true;
-	}
-
-	public buyCastleItem(team: MatchTeam, itemId: string): boolean {
-		if (!this.canBuyCastleItem(team, itemId)) return false;
-		const item = CASTLE_ITEMS[itemId];
-		const player = this.players[team];
-		const myCastle = this.castles[team];
-		const enemyTeam: MatchTeam = team === 'west' ? 'east' : 'west';
-
-		player.gold -= item.cost;
-		player.stats.goldSpent += item.cost;
-		this.itemCooldowns[team][itemId] = item.cooldown;
-
-		switch (itemId) {
-			case 'I00E': {
-				// Scroll of Weakness: debuff enemies within 1400 range of castle
-				const rangeSq = 1400 * 1400;
-				let debuffedCount = 0;
-				for (const u of this.units) {
-					if (u.team === enemyTeam && u.state !== 'DEAD') {
-						const dx = u.x - myCastle.x;
-						const dy = u.y - myCastle.y;
-						if (dx * dx + dy * dy <= rangeSq) {
-							u.buffs = u.buffs || [];
-							u.buffs.push({ type: 'weakness', timer: 15, value: 0.4 });
-							debuffedCount++;
-						}
-					}
-				}
-				this.addFloatingText(
-					`Сувій Слабкості! (${debuffedCount} ворогів)`,
-					myCastle.x,
-					myCastle.y - 60,
-					'#a855f7'
-				);
-				break;
-			}
-			case 'I00F': {
-				// Azure Dome: Invulnerability for 6 seconds
-				this.castleInvulnerableTimer[team] = 6.0;
-				this.addFloatingText(
-					'Лазурний купол! (Невразливість)',
-					myCastle.x,
-					myCastle.y - 60,
-					'#06b6d4'
-				);
-				break;
-			}
-			case 'I004': {
-				// Golden Cheese: Instant heal +2500 HP and +100 gold refund
-				myCastle.hp = Math.min(myCastle.maxHp, myCastle.hp + 2500);
-				player.gold += 100;
-				this.addFloatingText('+2500 HP Золотий Сир!', myCastle.x, myCastle.y - 60, '#eab308');
-				break;
-			}
-		}
-
-		this.notifyStateChanged();
-		return true;
-	}
-
 	public sellBuilding(team: MatchTeam, buildingInstanceId: string): boolean {
 		const idx = this.buildings.findIndex(
 			(b) => b.instanceId === buildingInstanceId && b.team === team
@@ -1126,79 +1082,6 @@ export class Simulation {
 
 		this.buildings.splice(idx, 1);
 		this.addFloatingText(`+${refund}g (Знесено)`, building.x, building.y - 20, '#fbbf24');
-		this.notifyStateChanged();
-		return true;
-	}
-
-	// --- CASTLE SHOP & CONSUMABLES ---
-	public getItemCooldown(team: MatchTeam, itemId: string): number {
-		return this.itemCooldowns[team]?.[itemId] || 0;
-	}
-
-	public canBuyCastleItem(team: MatchTeam, itemId: string): boolean {
-		const item = CASTLE_ITEMS[itemId];
-		if (!item) return false;
-		const player = this.players[team];
-		if (player.gold < item.cost) return false;
-		if (this.getItemCooldown(team, itemId) > 0) return false;
-		return true;
-	}
-
-	public buyCastleItem(team: MatchTeam, itemId: string): boolean {
-		if (!this.canBuyCastleItem(team, itemId)) return false;
-		const item = CASTLE_ITEMS[itemId];
-		const player = this.players[team];
-		const myCastle = this.castles[team];
-		const enemyTeam: MatchTeam = team === 'west' ? 'east' : 'west';
-
-		player.gold -= item.cost;
-		player.stats.goldSpent += item.cost;
-		this.itemCooldowns[team][itemId] = item.cooldown;
-
-		switch (itemId) {
-			case 'I00E': {
-				// Scroll of Weakness: debuff enemies within 1400 range of castle
-				const rangeSq = 1400 * 1400;
-				let debuffedCount = 0;
-				for (const u of this.units) {
-					if (u.team === enemyTeam && u.state !== 'DEAD') {
-						const dx = u.x - myCastle.x;
-						const dy = u.y - myCastle.y;
-						if (dx * dx + dy * dy <= rangeSq) {
-							u.buffs = u.buffs || [];
-							u.buffs.push({ type: 'weakness', timer: 15, value: 0.4 });
-							debuffedCount++;
-						}
-					}
-				}
-				this.addFloatingText(
-					`Сувій Слабкості! (${debuffedCount} ворогів)`,
-					myCastle.x,
-					myCastle.y - 60,
-					'#a855f7'
-				);
-				break;
-			}
-			case 'I00F': {
-				// Azure Dome: Invulnerability for 6 seconds
-				this.castleInvulnerableTimer[team] = 6.0;
-				this.addFloatingText(
-					'Лазурний купол! (Невразливість)',
-					myCastle.x,
-					myCastle.y - 60,
-					'#06b6d4'
-				);
-				break;
-			}
-			case 'I004': {
-				// Golden Cheese: Instant heal +2500 HP and +100 gold refund
-				myCastle.hp = Math.min(myCastle.maxHp, myCastle.hp + 2500);
-				player.gold += 100;
-				this.addFloatingText('+2500 HP Золотий Сир!', myCastle.x, myCastle.y - 60, '#eab308');
-				break;
-			}
-		}
-
 		this.notifyStateChanged();
 		return true;
 	}
@@ -1233,79 +1116,6 @@ export class Simulation {
 		player.stats.goldSpent += price;
 
 		this.addFloatingText(`Кузня +1`, this.castles[team].x, this.castles[team].y - 50, '#10b981');
-		this.notifyStateChanged();
-		return true;
-	}
-
-	// --- CASTLE SHOP & CONSUMABLES ---
-	public getItemCooldown(team: MatchTeam, itemId: string): number {
-		return this.itemCooldowns[team]?.[itemId] || 0;
-	}
-
-	public canBuyCastleItem(team: MatchTeam, itemId: string): boolean {
-		const item = CASTLE_ITEMS[itemId];
-		if (!item) return false;
-		const player = this.players[team];
-		if (player.gold < item.cost) return false;
-		if (this.getItemCooldown(team, itemId) > 0) return false;
-		return true;
-	}
-
-	public buyCastleItem(team: MatchTeam, itemId: string): boolean {
-		if (!this.canBuyCastleItem(team, itemId)) return false;
-		const item = CASTLE_ITEMS[itemId];
-		const player = this.players[team];
-		const myCastle = this.castles[team];
-		const enemyTeam: MatchTeam = team === 'west' ? 'east' : 'west';
-
-		player.gold -= item.cost;
-		player.stats.goldSpent += item.cost;
-		this.itemCooldowns[team][itemId] = item.cooldown;
-
-		switch (itemId) {
-			case 'I00E': {
-				// Scroll of Weakness: debuff enemies within 1400 range of castle
-				const rangeSq = 1400 * 1400;
-				let debuffedCount = 0;
-				for (const u of this.units) {
-					if (u.team === enemyTeam && u.state !== 'DEAD') {
-						const dx = u.x - myCastle.x;
-						const dy = u.y - myCastle.y;
-						if (dx * dx + dy * dy <= rangeSq) {
-							u.buffs = u.buffs || [];
-							u.buffs.push({ type: 'weakness', timer: 15, value: 0.4 });
-							debuffedCount++;
-						}
-					}
-				}
-				this.addFloatingText(
-					`Сувій Слабкості! (${debuffedCount} ворогів)`,
-					myCastle.x,
-					myCastle.y - 60,
-					'#a855f7'
-				);
-				break;
-			}
-			case 'I00F': {
-				// Azure Dome: Invulnerability for 6 seconds
-				this.castleInvulnerableTimer[team] = 6.0;
-				this.addFloatingText(
-					'Лазурний купол! (Невразливість)',
-					myCastle.x,
-					myCastle.y - 60,
-					'#06b6d4'
-				);
-				break;
-			}
-			case 'I004': {
-				// Golden Cheese: Instant heal +2500 HP and +100 gold refund
-				myCastle.hp = Math.min(myCastle.maxHp, myCastle.hp + 2500);
-				player.gold += 100;
-				this.addFloatingText('+2500 HP Золотий Сир!', myCastle.x, myCastle.y - 60, '#eab308');
-				break;
-			}
-		}
-
 		this.notifyStateChanged();
 		return true;
 	}
@@ -1511,7 +1321,6 @@ export class Simulation {
 
 		switch (itemId) {
 			case 'I00E': {
-				// Scroll of Weakness: debuff enemies within 1400 range of castle
 				const rangeSq = 1400 * 1400;
 				let debuffedCount = 0;
 				for (const u of this.units) {
@@ -1534,7 +1343,6 @@ export class Simulation {
 				break;
 			}
 			case 'I00F': {
-				// Azure Dome: Invulnerability for 6 seconds
 				this.castleInvulnerableTimer[team] = 6.0;
 				this.addFloatingText(
 					'Лазурний купол! (Невразливість)',
@@ -1545,7 +1353,6 @@ export class Simulation {
 				break;
 			}
 			case 'I004': {
-				// Golden Cheese: Instant heal +2500 HP and +100 gold refund
 				myCastle.hp = Math.min(myCastle.maxHp, myCastle.hp + 2500);
 				player.gold += 100;
 				this.addFloatingText('+2500 HP Золотий Сир!', myCastle.x, myCastle.y - 60, '#eab308');
@@ -1600,78 +1407,5 @@ export class Simulation {
 
 		this.notifyStateChanged();
 		return { hitCount, damageDealt };
-	}
-
-	// --- CASTLE SHOP & CONSUMABLES ---
-	public getItemCooldown(team: MatchTeam, itemId: string): number {
-		return this.itemCooldowns[team]?.[itemId] || 0;
-	}
-
-	public canBuyCastleItem(team: MatchTeam, itemId: string): boolean {
-		const item = CASTLE_ITEMS[itemId];
-		if (!item) return false;
-		const player = this.players[team];
-		if (player.gold < item.cost) return false;
-		if (this.getItemCooldown(team, itemId) > 0) return false;
-		return true;
-	}
-
-	public buyCastleItem(team: MatchTeam, itemId: string): boolean {
-		if (!this.canBuyCastleItem(team, itemId)) return false;
-		const item = CASTLE_ITEMS[itemId];
-		const player = this.players[team];
-		const myCastle = this.castles[team];
-		const enemyTeam: MatchTeam = team === 'west' ? 'east' : 'west';
-
-		player.gold -= item.cost;
-		player.stats.goldSpent += item.cost;
-		this.itemCooldowns[team][itemId] = item.cooldown;
-
-		switch (itemId) {
-			case 'I00E': {
-				// Scroll of Weakness: debuff enemies within 1400 range of castle
-				const rangeSq = 1400 * 1400;
-				let debuffedCount = 0;
-				for (const u of this.units) {
-					if (u.team === enemyTeam && u.state !== 'DEAD') {
-						const dx = u.x - myCastle.x;
-						const dy = u.y - myCastle.y;
-						if (dx * dx + dy * dy <= rangeSq) {
-							u.buffs = u.buffs || [];
-							u.buffs.push({ type: 'weakness', timer: 15, value: 0.4 });
-							debuffedCount++;
-						}
-					}
-				}
-				this.addFloatingText(
-					`Сувій Слабкості! (${debuffedCount} ворогів)`,
-					myCastle.x,
-					myCastle.y - 60,
-					'#a855f7'
-				);
-				break;
-			}
-			case 'I00F': {
-				// Azure Dome: Invulnerability for 6 seconds
-				this.castleInvulnerableTimer[team] = 6.0;
-				this.addFloatingText(
-					'Лазурний купол! (Невразливість)',
-					myCastle.x,
-					myCastle.y - 60,
-					'#06b6d4'
-				);
-				break;
-			}
-			case 'I004': {
-				// Golden Cheese: Instant heal +2500 HP and +100 gold refund
-				myCastle.hp = Math.min(myCastle.maxHp, myCastle.hp + 2500);
-				player.gold += 100;
-				this.addFloatingText('+2500 HP Золотий Сир!', myCastle.x, myCastle.y - 60, '#eab308');
-				break;
-			}
-		}
-
-		this.notifyStateChanged();
-		return true;
 	}
 }
