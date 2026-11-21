@@ -171,3 +171,24 @@ export function resolveUnitAbility(
 
 	return 'none';
 }
+
+/**
+ * Checks if a building is a Legendary structure requiring Food Cap.
+ * Follows WC3 reference: ufoo > 0, cost >= 450, or legendary apex spawners.
+ */
+export function isLegendaryBuilding(def?: BuildingDefinition): boolean {
+	if (!def) return false;
+	if (Number(def.raw_fields?.ufoo) > 0) return true;
+	if (def.gold_cost >= 450) return true;
+	const name = (def.name || '').toLowerCase();
+	return (
+		name.includes('древний фонтан') ||
+		name.includes('университет') ||
+		name.includes('цитадель некромантии') ||
+		name.includes('уничтожитель') ||
+		name.includes('амазонок') ||
+		name.includes('элитных големов') ||
+		name.includes('драконье кладбище') ||
+		name.includes('врата демонов')
+	);
+}

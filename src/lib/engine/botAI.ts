@@ -3,6 +3,7 @@ import type { MatchTeam, Building, BuildingDefinition, Lane } from './types';
 import {
 	getBaseBuildingsForRace,
 	getUpgradesForBuilding,
+	isLegendaryBuilding,
 	UNITS_MAP,
 	SPECIAL_BUILDINGS
 } from './gameData';
@@ -264,6 +265,9 @@ export class BotAI {
 		for (const b of myBuildings) {
 			const availableUpgrades = getUpgradesForBuilding(b.defId);
 			for (const up of availableUpgrades) {
+				const isLeg = isLegendaryBuilding(up);
+				if (isLeg && player.food >= player.maxFood) continue;
+
 				const cost =
 					up.upgrade_extra_cost > 0
 						? up.upgrade_extra_cost
@@ -299,7 +303,12 @@ export class BotAI {
 
 		// Candidate buildings pool
 		const baseBuildings = getBaseBuildingsForRace(player.race);
-		const candidateList: BuildingDefinition[] = [...baseBuildings];
+		let candidateList: BuildingDefinition[] = [...baseBuildings];
+
+		// Filter out legendary buildings if food cap is full
+		candidateList = candidateList.filter(
+			(b) => !isLegendaryBuilding(b) || player.food < player.maxFood
+		);
 
 		// Check special buildings
 		const treasureCount = myBuildings.filter((b) => b.specialType === 'treasure').length;

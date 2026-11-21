@@ -11,6 +11,7 @@
 		Pause,
 		Sparkles,
 		ShoppingBag,
+		Crown,
 		Flame
 	} from 'lucide-svelte';
 
@@ -103,6 +104,18 @@
 					></div>
 				</div>
 				<span class="text-[10px] text-amber-400/90 font-mono">{Math.ceil(sim.incomeTimer)}с</span>
+			</div>
+
+			<!-- Food Cap (Legendary Building Limit) -->
+			<div
+				class="flex items-center gap-1.5 text-xs border-l border-slate-700 pl-3 {player.maxFood > 0
+					? 'text-amber-300'
+					: 'text-slate-500'}"
+				title="Ліміт легендарних будівель (Їжа): {player.food}/{player.maxFood}. Купіть Золотий Сир у магазині замку (B) за 1500g, щоб збільшити ліміт!"
+			>
+				<Crown class="w-3.5 h-3.5 {player.maxFood > 0 ? 'text-amber-400' : 'text-slate-500'}" />
+				<span class="text-[11px] text-slate-400">Їжа:</span>
+				<span class="font-mono font-bold">{player.food}/{player.maxFood}</span>
 			</div>
 		</div>
 

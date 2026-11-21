@@ -14,7 +14,14 @@ import type {
 } from './types';
 import { SpatialHashGrid } from './spatialGrid';
 import { calculateDamage } from './damageMatrix';
-import { getBuilding, getUnit, getSpawnCooldown, resolveUnitAbility, RACES_LIST } from './gameData';
+import {
+	getBuilding,
+	getUnit,
+	getSpawnCooldown,
+	resolveUnitAbility,
+	isLegendaryBuilding,
+	RACES_LIST
+} from './gameData';
 import { getRaceAbility } from './raceAbilities';
 import { getRandomBoss } from './bosses';
 import { CASTLE_ITEMS } from './items';
@@ -170,6 +177,8 @@ export class Simulation {
 				randomGoldGranted: westIsRandom,
 				gold: westGold,
 				lumber: 125,
+				food: 0,
+				maxFood: 0,
 				commander: 2, // Alik
 				forge: { attack: 0, armor: 0, econ: 0 },
 				preferredLane: 'auto',
@@ -184,6 +193,8 @@ export class Simulation {
 				randomGoldGranted: eastIsRandom,
 				gold: eastGold,
 				lumber: 125,
+				food: 0,
+				maxFood: 0,
 				commander: 3, // Dima
 				forge: { attack: 0, armor: 0, econ: 0 },
 				preferredLane: 'auto',
@@ -287,6 +298,8 @@ export class Simulation {
 			p.forge = { attack: 0, armor: 0, econ: 0 };
 			p.gold = 500;
 			p.lumber = 125;
+			p.food = 0;
+			p.maxFood = 0;
 			if (newRaces?.[team]) {
 				p.race = newRaces[team]!;
 			}
@@ -1324,6 +1337,18 @@ export class Simulation {
 
 		if (player.gold < cost) return false;
 
+		// Check food requirement for legendary structures
+		if (isLegendaryBuilding(bDef)) {
+			if (player.food >= player.maxFood) {
+				const startX = team === 'west' ? WEST_GRID_START_X : EAST_GRID_START_X;
+				const startY = team === 'west' ? WEST_GRID_START_Y : EAST_GRID_START_Y;
+				const worldX = startX + tileX * CELL_SIZE;
+				const worldY = startY + tileY * CELL_SIZE;
+				this.addFloatingText('Потрібна Їжа! Купіть Сир у замку', worldX, worldY - 20, '#ef4444');
+				return false;
+			}
+		}
+
 		// Check overlap
 		const occupied = this.buildings.some(
 			(b) => b.team === team && b.tileX === tileX && b.tileY === tileY
@@ -1362,6 +1387,9 @@ export class Simulation {
 		};
 
 		this.buildings.push(building);
+		if (isLegendaryBuilding(bDef)) {
+			player.food++;
+		}
 		this.addFloatingText(`-${cost}g`, worldX, worldY - 20, '#fbbf24');
 
 		this.notifyStateChanged();
@@ -1384,7 +1412,23 @@ export class Simulation {
 		// Ensure targetDef is a valid upgrade of current building
 		if (targetDef.upgrade_from !== building.defId) return false;
 
+		const currentDef = getBuilding(building.defId);
+		const currentIsLeg = isLegendaryBuilding(currentDef);
+		const targetIsLeg = isLegendaryBuilding(targetDef);
 		const player = this.players[team];
+
+		if (targetIsLeg && !currentIsLeg) {
+			if (player.food >= player.maxFood) {
+				this.addFloatingText(
+					'Потрібна Їжа! Купіть Сир у замку',
+					building.x,
+					building.y - 20,
+					'#ef4444'
+				);
+				return false;
+			}
+		}
+
 		const upgradeCost =
 			targetDef.upgrade_extra_cost > 0
 				? targetDef.upgrade_extra_cost
@@ -1394,6 +1438,9 @@ export class Simulation {
 
 		player.gold -= upgradeCost;
 		player.stats.goldSpent += upgradeCost;
+		if (targetIsLeg && !currentIsLeg) {
+			player.food++;
+		}
 
 		building.defId = targetDef.id;
 		building.name = targetDef.name;
@@ -1419,9 +1466,13 @@ export class Simulation {
 		if (idx === -1) return false;
 
 		const building = this.buildings[idx];
+		const player = this.players[team];
+		const currentDef = getBuilding(building.defId);
+		if (isLegendaryBuilding(currentDef)) {
+			player.food = Math.max(0, player.food - 1);
+		}
 		const refund = Math.floor(building.goldCost * 0.5);
 
-		const player = this.players[team];
 		player.gold += refund;
 
 		this.buildings.splice(idx, 1);
@@ -1819,7 +1870,13 @@ export class Simulation {
 			case 'I004': {
 				myCastle.hp = Math.min(myCastle.maxHp, myCastle.hp + 2500);
 				player.gold += 100;
-				this.addFloatingText('+2500 HP Золотий Сир!', myCastle.x, myCastle.y - 60, '#eab308');
+				player.maxFood += 1;
+				this.addFloatingText(
+					'+2500 HP Золотий Сир! (+1 Їжа)',
+					myCastle.x,
+					myCastle.y - 60,
+					'#eab308'
+				);
 				break;
 			}
 		}

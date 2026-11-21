@@ -5,9 +5,10 @@
 		getBaseBuildingsForRace,
 		getUpgradesForBuilding,
 		getUnit,
+		isLegendaryBuilding,
 		RACES_LIST
 	} from '../engine/gameData';
-	import { Coins, ArrowUpCircle, Trash2, X } from 'lucide-svelte';
+	import { Coins, ArrowUpCircle, Trash2, X, Crown } from 'lucide-svelte';
 
 	let {
 		sim,
@@ -234,6 +235,8 @@
 				{@const isSelected = selectedBuildingId === bld.id}
 				{@const isAffordable = playerGold >= (bld.gold_cost || 200)}
 				{@const unit = getUnit(bld.unit)}
+				{@const isLeg = isLegendaryBuilding(bld)}
+				{@const lacksFood = isLeg && player.food >= player.maxFood}
 
 				<button
 					onclick={() => onSelectBuilding(isSelected ? null : bld.id)}
@@ -241,9 +244,11 @@
 					onmouseleave={() => (hoveredBuilding = null)}
 					class="relative w-28 h-14 rounded-lg border text-left p-1.5 transition-all flex flex-col justify-between cursor-pointer {isSelected
 						? 'bg-blue-900/80 border-blue-400 shadow-lg shadow-blue-500/20 ring-2 ring-blue-400'
-						: isAffordable
-							? 'bg-slate-800/90 hover:bg-slate-750 border-slate-600/80 hover:border-slate-500'
-							: 'bg-slate-900/60 border-slate-800/80 opacity-60'}"
+						: lacksFood
+							? 'bg-red-950/40 border-red-800/80 hover:border-red-600'
+							: isAffordable
+								? 'bg-slate-800/90 hover:bg-slate-750 border-slate-600/80 hover:border-slate-500'
+								: 'bg-slate-900/60 border-slate-800/80 opacity-60'}"
 				>
 					<!-- Hotkey badge -->
 					<span
@@ -253,8 +258,11 @@
 					</span>
 
 					<!-- Building Name -->
-					<div class="text-[11px] font-bold text-slate-100 truncate pr-4">
-						{bld.name}
+					<div class="text-[11px] font-bold text-slate-100 truncate pr-4 flex items-center gap-1">
+						{#if isLeg}
+							<Crown class="w-3 h-3 text-amber-400 flex-shrink-0" />
+						{/if}
+						<span class="truncate">{bld.name}</span>
 					</div>
 
 					<!-- Unit & Cost -->

@@ -176,6 +176,8 @@ export interface PlayerState {
 	randomGoldGranted?: boolean;
 	gold: number;
 	lumber: number;
+	food: number;
+	maxFood: number;
 	commander: number; // 1..6
 	forge: ForgeLevels;
 	preferredLane: 'auto' | 'top' | 'bottom';
