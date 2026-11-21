@@ -2,7 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { Simulation, type SimulationConfig } from '../lib/engine/simulation';
 	import { BotAI } from '../lib/engine/botAI';
-	import { ArenaRenderer } from '../lib/renderer/ArenaRenderer';
+	import { ArenaRenderer, type SelectedEntity } from '../lib/renderer/ArenaRenderer';
 	import { sound } from '../lib/services/audio';
 	import TopBar from '../lib/components/TopBar.svelte';
 	import BottomBar from '../lib/components/BottomBar.svelte';
@@ -20,6 +20,9 @@
 	let uiTick = $state(0);
 	let selectedBuildingId = $state<string | null>(null);
 	let selectedPlacedBuildingId = $state<string | null>(null);
+	let selectedUnitId = $state<string | null>(null);
+	let selectedEntity = $state<SelectedEntity>({ type: 'worker' });
+
 	let isForgeOpen = $state(false);
 	let isCommanderOpen = $state(false);
 	let isShopOpen = $state(false);
@@ -31,10 +34,15 @@
 		if (e.key === 'Escape') {
 			selectedBuildingId = null;
 			selectedPlacedBuildingId = null;
+			selectedUnitId = null;
+			selectedEntity = { type: 'worker' };
 			isForgeOpen = false;
 			isCommanderOpen = false;
 			isShopOpen = false;
 			isSettingsOpen = false;
+		} else if (e.key === 'F9') {
+			e.preventDefault();
+			isCommanderOpen = !isCommanderOpen;
 		} else if (
 			e.code === 'Space' &&
 			!e.repeat &&
@@ -96,6 +104,7 @@
 		if (success) {
 			sound.playCoin();
 			selectedPlacedBuildingId = null;
+			selectedEntity = { type: 'worker' };
 			uiTick = sim.stateVersion;
 		}
 	}
@@ -111,6 +120,7 @@
 						sound.playBuild();
 						selectedBuildingId = null;
 						selectedPlacedBuildingId = null;
+						selectedEntity = { type: 'worker' };
 						uiTick = sim.stateVersion;
 					}
 				} else {
@@ -118,9 +128,29 @@
 						(b) => b.team === 'west' && b.tileX === tileX && b.tileY === tileY
 					);
 					selectedPlacedBuildingId = existing ? existing.instanceId : null;
+					selectedEntity = existing
+						? { type: 'building', instanceId: existing.instanceId }
+						: { type: 'worker' };
 					uiTick = sim.stateVersion;
 				}
 			},
+			onSelectEntity: (entity: SelectedEntity) => {
+				selectedEntity = entity;
+				if (entity?.type === 'building') {
+					selectedPlacedBuildingId = entity.instanceId;
+					selectedUnitId = null;
+					selectedBuildingId = null;
+				} else if (entity?.type === 'unit') {
+					selectedUnitId = entity.instanceId;
+					selectedPlacedBuildingId = null;
+					selectedBuildingId = null;
+				} else {
+					selectedPlacedBuildingId = null;
+					selectedUnitId = null;
+				}
+				uiTick = sim.stateVersion;
+			},
+			getSelectedEntity: () => selectedEntity,
 			getSelectedBuildingDefId: () => selectedBuildingId,
 			getSelectedPlacedBuildingId: () => selectedPlacedBuildingId
 		});
@@ -210,9 +240,14 @@
 		{uiTick}
 		bind:selectedBuildingId
 		bind:selectedPlacedBuildingId
+		bind:selectedUnitId
 		onSelectBuilding={(id: string | null) => {
 			selectedBuildingId = id;
-			if (id) selectedPlacedBuildingId = null;
+			if (id) {
+				selectedPlacedBuildingId = null;
+				selectedUnitId = null;
+				selectedEntity = { type: 'worker' };
+			}
 		}}
 		onUpgradeBuilding={handleUpgradeBuilding}
 		onSellBuilding={handleSellBuilding}

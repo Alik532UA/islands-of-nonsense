@@ -186,6 +186,20 @@ export interface Commander {
 	icon: string;
 }
 
+export interface WorkerState {
+	name: string;
+	x: number;
+	y: number;
+	targetX: number;
+	targetY: number;
+	hp: number;
+	maxHp: number;
+	armor: string;
+	speed: number;
+	isBuilding?: boolean;
+	buildTimer?: number;
+}
+
 export interface PlayerState {
 	team: MatchTeam;
 	isBot: boolean;
@@ -200,6 +214,7 @@ export interface PlayerState {
 	commander: number; // 1..6
 	forge: ForgeLevels;
 	preferredLane: 'auto' | 'top' | 'bottom';
+	worker?: WorkerState;
 	stats: {
 		unitsSpawned: number;
 		unitsKilled: number;

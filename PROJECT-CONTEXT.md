@@ -195,16 +195,16 @@
 
 ## 10. Опціональні критерії інженерного та продуктового пакетів
 
-| Критерій              | Застосовано | Причина / Локація                                         |
-| :-------------------- | :---------: | :-------------------------------------------------------- |
-| **I18N**              |     Так     | Двомовність UA/EN, `src/lib/i18n/index.ts`                |
-| **DEPENDENCIES**      |     Так     | Lockfile, `scripts/check-audit.mjs`                       |
-| **VERSIONING**        |     Так     | `package.json`, версія у футері                           |
-| **ACCESSIBILITY**     |     Так     | WCAG 2.2 AA перевірки, гарячі клавіші, семантичні діалоги |
-| **STORAGE-NAMESPACE** |     Так     | Префікс `castlefight_`, `src/lib/services/storage.ts`     |
-| **ERROR-HANDLING**    |     Так     | `<svelte:boundary>`, `ErrorFallback.svelte`               |
-| **PURE-SIMULATION**   |     Так     | Ізольований детермінований рушій `src/lib/engine/`        |
-| **LIGHTHOUSE**        |     Так     | `lighthouserc.cjs` з мінімальним порогом 0.9              |
+| Критерій              | Застосовано | Причина / Локація                                                                                                                                           |
+| :-------------------- | :---------: | :---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **I18N**              |     Так     | Двомовність UA/EN, `src/lib/i18n/index.ts`                                                                                                                  |
+| **DEPENDENCIES**      |     Так     | Lockfile, `scripts/check-audit.mjs`                                                                                                                         |
+| **VERSIONING**        |     Так     | `package.json`, версія у футері                                                                                                                             |
+| **ACCESSIBILITY**     |     Так     | WCAG 2.2 AA перевірки, гарячі клавіші, семантичні діалоги                                                                                                   |
+| **STORAGE-NAMESPACE** |     Так     | Префікс `castlefight_`, `src/lib/services/storage.ts`                                                                                                       |
+| **ERROR-HANDLING**    |     Так     | `<svelte:boundary>`, `ErrorFallback.svelte`                                                                                                                 |
+| **PURE-SIMULATION**   |     Так     | Ізольований детермінований рушій `src/lib/engine/`                                                                                                          |
+| **LIGHTHOUSE**        |     Так     | `lighthouserc.cjs` з мінімальним порогом 0.9                                                                                                                |
 | **DEBUGGING**         |     Так     | logService (кільцевий буфер 1000, 200 у сесії), ServiceBadge, redact PII, ErrorLogModal, 55x V/R жести, hardReset/ownScope, 5 Vitest сьютів (DEBUGGING-v10) |
 
 ---

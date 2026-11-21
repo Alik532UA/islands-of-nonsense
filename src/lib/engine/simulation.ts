@@ -21,6 +21,7 @@ import {
 	getSpawnCooldown,
 	resolveUnitAbility,
 	isLegendaryBuilding,
+	getBuilderNameForRace,
 	RACES_LIST
 } from './gameData';
 import { getRaceAbility } from './raceAbilities';
@@ -191,6 +192,19 @@ export class Simulation {
 				commander: 2, // Alik
 				forge: { attack: 0, armor: 0, econ: 0 },
 				preferredLane: 'auto',
+				worker: {
+					name: getBuilderNameForRace(eastRace),
+					x: EAST_GRID_START_X + 3 * CELL_SIZE + 45,
+					y: (TOP_LANE_Y + BOTTOM_LANE_Y) / 2,
+					targetX: EAST_GRID_START_X + 3 * CELL_SIZE + 45,
+					targetY: (TOP_LANE_Y + BOTTOM_LANE_Y) / 2,
+					hp: 220,
+					maxHp: 220,
+					armor: 'Неуразливий',
+					speed: 260,
+					isBuilding: false,
+					buildTimer: 0
+				},
 				stats: {
 					unitsSpawned: 0,
 					unitsKilled: 0,
@@ -215,6 +229,19 @@ export class Simulation {
 				commander: 3, // Dima
 				forge: { attack: 0, armor: 0, econ: 0 },
 				preferredLane: 'auto',
+				worker: {
+					name: getBuilderNameForRace(eastRace),
+					x: EAST_GRID_START_X + 3 * CELL_SIZE + 45,
+					y: (TOP_LANE_Y + BOTTOM_LANE_Y) / 2,
+					targetX: EAST_GRID_START_X + 3 * CELL_SIZE + 45,
+					targetY: (TOP_LANE_Y + BOTTOM_LANE_Y) / 2,
+					hp: 220,
+					maxHp: 220,
+					armor: 'Неуразливий',
+					speed: 260,
+					isBuilding: false,
+					buildTimer: 0
+				},
 				stats: {
 					unitsSpawned: 0,
 					unitsKilled: 0,
@@ -249,6 +276,9 @@ export class Simulation {
 			const picked = pool[Math.floor(Math.random() * pool.length)];
 			player.race = picked;
 			player.isRandomRace = true;
+			if (player.worker) {
+				player.worker.name = getBuilderNameForRace(player.race);
+			}
 
 			// Grant +30% gold bonus if at start of game and not already granted
 			if (this.gameTime <= 15 && !player.randomGoldGranted) {
@@ -281,6 +311,9 @@ export class Simulation {
 
 		player.race = race;
 		player.isRandomRace = false;
+		if (player.worker) {
+			player.worker.name = getBuilderNameForRace(player.race);
+		}
 		this.notifyStateChanged();
 		return true;
 	}
@@ -413,6 +446,27 @@ export class Simulation {
 			eff.timer -= dt;
 		}
 		this.splashEffects = this.splashEffects.filter((eff) => eff.timer > 0);
+
+		// Update Workers position and build animation
+		for (const team of ['west', 'east'] as MatchTeam[]) {
+			const w = this.players[team]?.worker;
+			if (w) {
+				const dx = w.targetX - w.x;
+				const dy = w.targetY - w.y;
+				const dist = Math.hypot(dx, dy);
+				if (dist > 3) {
+					const moveDist = Math.min(dist, w.speed * dt);
+					w.x += (dx / dist) * moveDist;
+					w.y += (dy / dist) * moveDist;
+				}
+				if (w.buildTimer && w.buildTimer > 0) {
+					w.buildTimer -= dt;
+					if (w.buildTimer <= 0) {
+						w.isBuilding = false;
+					}
+				}
+			}
+		}
 
 		for (const team of ['west', 'east'] as MatchTeam[]) {
 			for (const itemId in this.itemCooldowns[team]) {
@@ -1586,10 +1640,26 @@ export class Simulation {
 		if (isLegendaryBuilding(bDef)) {
 			player.food++;
 		}
+		if (player.worker) {
+			player.worker.targetX = worldX + CELL_SIZE / 2 + (team === 'west' ? -25 : 25);
+			player.worker.targetY = worldY + CELL_SIZE / 2;
+			player.worker.isBuilding = true;
+			player.worker.buildTimer = 1.2;
+		}
 		this.addFloatingText(`-${cost}g`, worldX, worldY - 20, '#fbbf24');
 
 		this.notifyStateChanged();
 		return true;
+	}
+
+	public moveWorker(team: MatchTeam, targetX: number, targetY: number): void {
+		const w = this.players[team]?.worker;
+		if (w) {
+			w.targetX = targetX;
+			w.targetY = targetY;
+			w.isBuilding = false;
+			this.notifyStateChanged();
+		}
 	}
 
 	public upgradeBuilding(

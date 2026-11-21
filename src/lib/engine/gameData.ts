@@ -394,3 +394,38 @@ export function isTowerBuilding(def?: BuildingDefinition | Building): boolean {
 	if (!def) return false;
 	return def.specialType === 'tower';
 }
+
+/**
+ * Returns canonical Ukrainian builder unit name for a given race.
+ */
+export function getBuilderNameForRace(race: string): string {
+	switch (race) {
+		case 'Север':
+			return 'Північний будівельник';
+		case 'Люди':
+			return 'Будівельник Людей';
+		case 'Орки':
+			return 'Будівельник Орків';
+		case 'Нежить':
+			return 'Будівельник Нежиті';
+		case 'Ельфи':
+			return 'Будівельник Ельфів';
+		case 'Хаос':
+			return 'Будівельник Хаосу';
+		case 'Наги':
+			return 'Будівельник Наг';
+		case 'Порча':
+			return 'Будівельник Скверни';
+		case 'Ночні ельфи':
+		case 'Ночные эльфы':
+			return 'Будівельник Нічних Ельфів';
+		case 'Техніки':
+		case 'Техники':
+			return 'Будівельник Техніків';
+		case 'Складальники':
+		case 'Сборщики':
+			return 'Будівельник Складальників';
+		default:
+			return 'Північний будівельник';
+	}
+}
