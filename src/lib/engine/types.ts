@@ -50,6 +50,12 @@ export interface RaceDefinition {
 	buildings: string[];
 }
 
+export interface ActiveBuff {
+	type: 'dmg' | 'as' | 'shield' | 'evade' | 'slow' | 'infect';
+	timer: number;
+	value: number;
+}
+
 export interface Unit {
 	instanceId: string;
 	defId: string;
@@ -81,6 +87,7 @@ export interface Unit {
 	size: number;
 	critChance?: number;
 	evadeChance?: number;
+	buffs?: ActiveBuff[];
 }
 
 export interface Building {

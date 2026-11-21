@@ -13,6 +13,7 @@ import type {
 import { SpatialHashGrid } from './spatialGrid';
 import { calculateDamage } from './damageMatrix';
 import { getBuilding, getUnit, getSpawnCooldown } from './gameData';
+import { getRaceAbility } from './raceAbilities';
 
 export const ARENA_WIDTH = 2400;
 export const ARENA_HEIGHT = 800;
@@ -60,6 +61,9 @@ export class Simulation {
 	// Economy state
 	public incomeTimer = 3.0; // Current countdown
 	public incomeInterval = 3.0;
+
+	// Race skills cooldown (unlocked at 300s, cooldown 150s)
+	public raceSkillCooldown = { west: 0, east: 0 };
 
 	// Callbacks
 	public onFloatingText?: (text: FloatingText) => void;
@@ -121,6 +125,7 @@ export class Simulation {
 		this.gameTime = 0;
 		this.incomeTimer = 3.0;
 		this.incomeInterval = 3.0;
+		this.raceSkillCooldown = { west: 0, east: 0 };
 		this.winner = null;
 
 		for (const team of ['west', 'east'] as Team[]) {
@@ -145,6 +150,9 @@ export class Simulation {
 
 		this.tick++;
 		this.gameTime += dt;
+
+		this.raceSkillCooldown.west = Math.max(0, this.raceSkillCooldown.west - dt);
+		this.raceSkillCooldown.east = Math.max(0, this.raceSkillCooldown.east - dt);
 
 		// 1. Update Economy
 		this.updateEconomy(dt);
