@@ -76,6 +76,7 @@ export class Simulation {
 
 	// Castle Shop & Consumables
 	public castleInvulnerableTimer: Record<MatchTeam, number> = { west: 0, east: 0 };
+	public castleOverchargeTimer: Record<MatchTeam, number> = { west: 0, east: 0 };
 	public itemCooldowns: Record<MatchTeam, Record<string, number>> = { west: {}, east: {} };
 
 	// Rescue Strike (Emergency Castle Defense, 180s CD)
@@ -260,6 +261,7 @@ export class Simulation {
 		this.incomeInterval = 3.0;
 		this.raceSkillCooldown = { west: 0, east: 0 };
 		this.castleInvulnerableTimer = { west: 0, east: 0 };
+		this.castleOverchargeTimer = { west: 0, east: 0 };
 		this.itemCooldowns = { west: {}, east: {} };
 		this.rescueStrikeCooldown = { west: 0, east: 0 };
 		this.rescueStrikeEffects = [];
@@ -299,6 +301,9 @@ export class Simulation {
 
 		this.castleInvulnerableTimer.west = Math.max(0, this.castleInvulnerableTimer.west - dt);
 		this.castleInvulnerableTimer.east = Math.max(0, this.castleInvulnerableTimer.east - dt);
+
+		this.castleOverchargeTimer.west = Math.max(0, this.castleOverchargeTimer.west - dt);
+		this.castleOverchargeTimer.east = Math.max(0, this.castleOverchargeTimer.east - dt);
 
 		this.rescueStrikeCooldown.west = Math.max(0, this.rescueStrikeCooldown.west - dt);
 		this.rescueStrikeCooldown.east = Math.max(0, this.rescueStrikeCooldown.east - dt);
@@ -1046,7 +1051,8 @@ export class Simulation {
 					true
 				);
 				if (enemy) {
-					this.castleCooldowns[team] = 1.0;
+					const isOvercharged = this.castleOverchargeTimer[team] > 0;
+					this.castleCooldowns[team] = isOvercharged ? 0.5 : 1.0;
 					this.projectiles.push({
 						id: `castle_shot_${this.nextProjectileId++}`,
 						sourceUnitId: 'castle_' + team,
@@ -1056,9 +1062,9 @@ export class Simulation {
 						targetX: enemy.x,
 						targetY: enemy.y,
 						speed: 700,
-						damage: 85,
+						damage: isOvercharged ? 170 : 85,
 						attackType: 'siege',
-						isCrit: false,
+						isCrit: isOvercharged,
 						team
 					});
 				}
@@ -1482,6 +1488,126 @@ export class Simulation {
 		this.itemCooldowns[team][itemId] = item.cooldown;
 
 		switch (itemId) {
+			case 'I001': {
+				// Battle Drums: +25% attack speed to all friendly troops for 15s
+				for (const u of this.units) {
+					if (u.team === team && u.state !== 'DEAD') {
+						u.buffs = u.buffs || [];
+						u.buffs.push({ type: 'as', timer: 15, value: 0.25 });
+					}
+				}
+				this.addFloatingText(
+					'Бойові Барабани! (+25% Шв. атаки)',
+					myCastle.x,
+					myCastle.y - 60,
+					'#f97316'
+				);
+				break;
+			}
+			case 'I003': {
+				// Battle Horn: +4 armor to all friendly troops for 20s
+				for (const u of this.units) {
+					if (u.team === team && u.state !== 'DEAD') {
+						u.buffs = u.buffs || [];
+						u.buffs.push({ type: 'shield', timer: 20, value: 4 });
+					}
+				}
+				this.addFloatingText('Бойовий Ріг! (+4 Броні)', myCastle.x, myCastle.y - 60, '#38bdf8');
+				break;
+			}
+			case 'I005': {
+				// Rune of Power: overcharge castle cannons for 20s
+				this.castleOverchargeTimer[team] = 20.0;
+				this.addFloatingText(
+					'Руна Могутності! (х2 Шкоди гармат)',
+					myCastle.x,
+					myCastle.y - 60,
+					'#ef4444'
+				);
+				break;
+			}
+			case 'I007': {
+				// Magic Wand: cleanses friendly debuffs and curses enemies (-30% dmg for 12s)
+				for (const u of this.units) {
+					if (u.state === 'DEAD') continue;
+					if (u.team === team) {
+						if (u.buffs) {
+							u.buffs = u.buffs.filter(
+								(b) => b.type !== 'weakness' && b.type !== 'slow' && b.type !== 'infect'
+							);
+						}
+					} else if (u.team === enemyTeam) {
+						u.buffs = u.buffs || [];
+						u.buffs.push({ type: 'dmg', timer: 12, value: -0.3 });
+					}
+				}
+				this.addFloatingText(
+					'Чарівний Жезл! (Очищення та Прокляття)',
+					myCastle.x,
+					myCastle.y - 60,
+					'#a855f7'
+				);
+				break;
+			}
+			case 'I008': {
+				// Scroll of Stone: summons Stone Golem at castle gate
+				const lane: Lane =
+					this.spatialGrid.queryRadius(myCastle.x, 220, 400).length >=
+					this.spatialGrid.queryRadius(myCastle.x, 580, 400).length
+						? 'top'
+						: 'bottom';
+				const golem = this.spawnUnitDirectly({
+					team,
+					lane,
+					x: team === 'west' ? 300 : ARENA_WIDTH - 300,
+					y: lane === 'top' ? 220 : 580,
+					hp: 1800,
+					maxHp: 1800,
+					armor: 12,
+					damage: 65,
+					range: 110,
+					attackCooldown: 1.1,
+					speed: 80
+				});
+				golem.name = 'Кам’яний Голем';
+				golem.armorType = 'large';
+				golem.attackType = 'normal';
+				this.addFloatingText('Кам’яний Голем покликаний!', myCastle.x, myCastle.y - 60, '#78716c');
+				break;
+			}
+			case 'I009': {
+				// Rune of Repair: restore 1200 HP to castle
+				myCastle.hp = Math.min(myCastle.maxHp, myCastle.hp + 1200);
+				this.addFloatingText('+1200 HP Ремонт!', myCastle.x, myCastle.y - 60, '#10b981');
+				break;
+			}
+			case 'I00A': {
+				// Lightning Orb: strikes up to 6 enemies within 1000 range of castle for 350 magic damage each
+				const rangeSq = 1000 * 1000;
+				const candidates = this.units.filter((u) => u.team === enemyTeam && u.state !== 'DEAD');
+				candidates.sort((a, b) => {
+					const distA = Math.hypot(a.x - myCastle.x, a.y - myCastle.y);
+					const distB = Math.hypot(b.x - myCastle.x, b.y - myCastle.y);
+					return distA - distB;
+				});
+				let struck = 0;
+				for (const u of candidates) {
+					const dx = u.x - myCastle.x;
+					const dy = u.y - myCastle.y;
+					if (dx * dx + dy * dy <= rangeSq) {
+						this.applyUnitDamage(u, 350, 'magic', team, false);
+						struck++;
+						if (struck >= 6) break;
+					}
+				}
+				this.addFloatingText(
+					`Куля Блискавок! (${struck} цілей)`,
+					myCastle.x,
+					myCastle.y - 60,
+					'#38bdf8'
+				);
+				break;
+			}
 			case 'I00E': {
 				const rangeSq = 1400 * 1400;
 				let debuffedCount = 0;

@@ -2,7 +2,21 @@
 	import type { Simulation } from '../engine/simulation';
 	import { CASTLE_ITEMS_LIST } from '../engine/items';
 	import { sound } from '../services/audio';
-	import { ShoppingBag, Scroll, Shield, Crown, Coins, X } from 'lucide-svelte';
+	import {
+		ShoppingBag,
+		Scroll,
+		Shield,
+		Crown,
+		Coins,
+		X,
+		Zap,
+		Wrench,
+		Wand2,
+		Volume2,
+		Sparkles,
+		ShieldAlert,
+		Swords
+	} from 'lucide-svelte';
 
 	let {
 		sim,
@@ -25,7 +39,7 @@
 {#if isOpen}
 	<div class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
 		<div
-			class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl p-6 text-white relative"
+			class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl p-6 text-white relative"
 		>
 			<!-- Close button -->
 			<button
@@ -36,49 +50,77 @@
 			</button>
 
 			<!-- Header -->
-			<div class="flex items-center gap-3 mb-5 border-b border-slate-800 pb-3">
+			<div class="flex items-center gap-3 mb-4 border-b border-slate-800 pb-3 flex-shrink-0">
 				<div class="p-2.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
 					<ShoppingBag class="w-6 h-6 text-emerald-400" />
 				</div>
 				<div>
 					<h2 class="text-xl font-bold text-emerald-300">Магазин Замку</h2>
 					<p class="text-xs text-slate-400">
-						Стратегічні припаси та екстрений захист вашої цитаделі
+						Стратегічні припаси та екстрений захист вашої цитаделі ({CASTLE_ITEMS_LIST.length} предметів)
 					</p>
 				</div>
 			</div>
 
-			<!-- Item Cards -->
-			<div class="flex flex-col gap-3.5">
+			<!-- Item Cards (Scrollable) -->
+			<div class="flex flex-col gap-2.5 overflow-y-auto pr-1.5 flex-1 min-h-0">
 				{#each CASTLE_ITEMS_LIST as item}
 					{@const cd = sim.getItemCooldown('west', item.id)}
 					{@const canAfford = player.gold >= item.cost}
 					{@const canBuy = canAfford && cd <= 0}
 					<div
-						class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex items-center justify-between gap-4"
+						class="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 flex items-center justify-between gap-3.5 hover:border-slate-700 transition"
 					>
-						<div class="flex items-center gap-3.5">
+						<div class="flex items-center gap-3 min-w-0">
 							<div
-								class="p-2.5 rounded-lg border {item.id === 'I00E'
+								class="p-2.5 rounded-lg border flex-shrink-0 {item.id === 'I00E'
 									? 'bg-purple-500/10 border-purple-500/30 text-purple-400'
 									: item.id === 'I00F'
 										? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400'
-										: 'bg-amber-500/10 border-amber-500/30 text-amber-400'}"
+										: item.id === 'I004'
+											? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+											: item.id === 'I001'
+												? 'bg-orange-500/10 border-orange-500/30 text-orange-400'
+												: item.id === 'I005'
+													? 'bg-red-500/10 border-red-500/30 text-red-400'
+													: item.id === 'I009'
+														? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+														: item.id === 'I00A'
+															? 'bg-sky-500/10 border-sky-500/30 text-sky-400'
+															: item.id === 'I008'
+																? 'bg-stone-500/10 border-stone-500/30 text-stone-300'
+																: item.id === 'I003'
+																	? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
+																	: 'bg-violet-500/10 border-violet-500/30 text-violet-400'}"
 							>
 								{#if item.id === 'I00E'}
-									<Scroll class="w-6 h-6" />
+									<Scroll class="w-5 h-5" />
 								{:else if item.id === 'I00F'}
-									<Shield class="w-6 h-6" />
+									<Shield class="w-5 h-5" />
+								{:else if item.id === 'I004'}
+									<Crown class="w-5 h-5" />
+								{:else if item.id === 'I001'}
+									<Swords class="w-5 h-5" />
+								{:else if item.id === 'I005'}
+									<Zap class="w-5 h-5" />
+								{:else if item.id === 'I009'}
+									<Wrench class="w-5 h-5" />
+								{:else if item.id === 'I00A'}
+									<Sparkles class="w-5 h-5" />
+								{:else if item.id === 'I008'}
+									<ShieldAlert class="w-5 h-5" />
+								{:else if item.id === 'I003'}
+									<Volume2 class="w-5 h-5" />
 								{:else}
-									<Crown class="w-6 h-6" />
+									<Wand2 class="w-5 h-5" />
 								{/if}
 							</div>
-							<div>
+							<div class="min-w-0">
 								<div class="flex items-center gap-2">
-									<h3 class="font-bold text-sm text-slate-100">{item.nameUk}</h3>
-									<span class="text-[10px] text-slate-500">({item.nameEn})</span>
+									<h3 class="font-bold text-sm text-slate-100 truncate">{item.nameUk}</h3>
+									<span class="text-[10px] text-slate-500 hidden sm:inline">({item.nameEn})</span>
 								</div>
-								<p class="text-xs text-slate-400 mt-0.5 max-w-xs leading-relaxed">
+								<p class="text-xs text-slate-400 mt-0.5 leading-snug">
 									{item.descriptionUk}
 								</p>
 								<div class="text-[11px] text-slate-500 mt-1">
@@ -113,7 +155,7 @@
 
 			<!-- Footer -->
 			<div
-				class="mt-5 pt-3 border-t border-slate-800 flex justify-between items-center text-xs text-slate-500"
+				class="mt-4 pt-3 border-t border-slate-800 flex justify-between items-center text-xs text-slate-500 flex-shrink-0"
 			>
 				<span>
 					Гаряча клавіша: <kbd
