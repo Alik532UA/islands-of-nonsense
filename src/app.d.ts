@@ -8,6 +8,19 @@ declare global {
 		// interface PageState {}
 		// interface Platform {}
 	}
+	const __APP_VERSION__: string;
+}
+
+declare module '$app/environment' {
+	export const browser: boolean;
+	export const dev: boolean;
+	export const building: boolean;
+	export const version: string;
+}
+
+declare module '$app/paths' {
+	export const base: string;
+	export const assets: string;
 }
 
 export {};

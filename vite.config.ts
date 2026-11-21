@@ -25,6 +25,9 @@ export default defineConfig(({ mode }) => ({
 		port: 5174,
 		strictPort: true
 	},
+	define: {
+		__APP_VERSION__: JSON.stringify('0.0.1')
+	},
 	resolve: {
 		alias: {
 			$lib: path.resolve(__dirname, './src/lib')
@@ -62,6 +65,7 @@ export default defineConfig(({ mode }) => ({
 					'font-src': ['self', 'data:'],
 					'img-src': ['self', 'data:', 'blob:'],
 					'connect-src': ['self'],
+					'worker-src': ['self', 'blob:'],
 					'frame-ancestors': ['none'],
 					'base-uri': ['self'],
 					'form-action': ['none']

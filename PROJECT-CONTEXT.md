@@ -205,6 +205,7 @@
 | **ERROR-HANDLING**    |     Так     | `<svelte:boundary>`, `ErrorFallback.svelte`               |
 | **PURE-SIMULATION**   |     Так     | Ізольований детермінований рушій `src/lib/engine/`        |
 | **LIGHTHOUSE**        |     Так     | `lighthouserc.cjs` з мінімальним порогом 0.9              |
+| **DEBUGGING**         |     Так     | logService (кільцевий буфер 1000, 200 у сесії), ServiceBadge, redact PII, ErrorLogModal, 55x V/R жести, hardReset/ownScope, 5 Vitest сьютів (DEBUGGING-v10) |
 
 ---
 

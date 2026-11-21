@@ -1,3 +1,4 @@
+import 'pixi.js/unsafe-eval';
 import { Application, Container, Graphics } from 'pixi.js';
 import type { Simulation } from '../engine/simulation';
 import type { Castle } from '../engine/types';

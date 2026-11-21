@@ -2,8 +2,40 @@
 	import './layout.css';
 	import favicon from '#lib/assets/favicon.svg';
 	import type { LayoutProps } from './$types';
+	import { dev } from '$app/env';
+	import ServiceBadge from '$lib/components/ServiceBadge.svelte';
+	import { debugMode } from '$lib/debug/debugMode.svelte';
+	import { hardReset } from '$lib/debug/hardReset';
+	import { createKeySequence, listenForSequences } from '$lib/debug/keySequence';
 
 	let { children }: LayoutProps = $props();
+
+	/** Показати табло в production: 55 разів поспіль V випадково не натиснеш. */
+	const BADGE_SHOW = 55;
+	/** Сховати — 5: помилка коштує одного жесту; у dev табло видно й так, і обидва пороги — 5. */
+	const BADGE_HIDE = 5;
+	/** Скидання знищує прогрес: високий поріг і ще підтвердження (§ 3.3). */
+	const RESET_PRESSES = 55;
+	/** Рядок, а не t(): скидання кличуть і тоді, коли не завантажилися словники (§ 3.4). */
+	const RESET_CONFIRM =
+		'Стерти локальні дані цього застосунку й перезавантажити? / Erase this app’s local data and reload?';
+
+	$effect(() =>
+		listenForSequences(
+			createKeySequence({
+				letter: 'v',
+				threshold: () => (dev || debugMode.enabled ? BADGE_HIDE : BADGE_SHOW),
+				onComplete: () => debugMode.set(!debugMode.enabled)
+			}),
+			createKeySequence({
+				letter: 'r',
+				threshold: RESET_PRESSES,
+				onComplete: () => {
+					if (confirm(RESET_CONFIRM)) void hardReset();
+				}
+			})
+		)
+	);
 </script>
 
 <svelte:head>
@@ -11,3 +43,4 @@
 </svelte:head>
 
 {@render children()}
+<ServiceBadge />

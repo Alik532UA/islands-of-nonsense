@@ -71,9 +71,9 @@ function createStore(area: 'localStorage' | 'sessionStorage') {
 			}
 		},
 
-		clear(): void {
+		clear(): number {
 			const s = open();
-			if (!s) return;
+			if (!s) return 0;
 			try {
 				const keysToRemove: string[] = [];
 				for (let i = 0; i < s.length; i++) {
@@ -85,8 +85,9 @@ function createStore(area: 'localStorage' | 'sessionStorage') {
 				for (const k of keysToRemove) {
 					s.removeItem(k);
 				}
+				return keysToRemove.length;
 			} catch {
-				// Ignore
+				return 0;
 			}
 		}
 	};
@@ -95,3 +96,4 @@ function createStore(area: 'localStorage' | 'sessionStorage') {
 export const safeStorage = createStore('localStorage');
 export const safeSession = createStore('sessionStorage');
 export const storage = safeStorage;
+export const sessionStore = safeSession;

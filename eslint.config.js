@@ -23,7 +23,8 @@ export default defineConfig(
 		languageOptions: {
 			globals: {
 				...globals.browser,
-				...globals.node
+				...globals.node,
+				__APP_VERSION__: 'readonly'
 			}
 		},
 		rules: {
@@ -53,6 +54,18 @@ export default defineConfig(
 					varsIgnorePattern: '^_'
 				}
 			]
+		}
+	},
+	{
+		files: ['src/**/*.{ts,js,svelte}'],
+		rules: {
+			'no-console': 'error'
+		}
+	},
+	{
+		files: ['src/lib/services/logService.svelte.ts', 'src/**/*.{test,spec}.ts'],
+		rules: {
+			'no-console': 'off'
 		}
 	}
 );
