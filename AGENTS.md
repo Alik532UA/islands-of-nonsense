@@ -4,6 +4,10 @@
 Канон: **selection_criteria/v10 та product_criteria/v10**
 
 Цей файл є обов'язковим для прочитання AI-агентами перед виконанням будь-яких завдань у репозиторії.
+Також див. [PROJECT-CONTEXT.md](PROJECT-CONTEXT.md) та каталог [.read_for_AI/](.read_for_AI/):
+
+- [.read_for_AI/summary.md](.read_for_AI/summary.md) — короткий довідник кодової бази та модулів.
+- [.read_for_AI/invariants.md](.read_for_AI/invariants.md) — обов'язкові інженерні інваріанти.
 
 ---
 

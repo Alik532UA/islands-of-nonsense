@@ -6,6 +6,34 @@
 
 # Castle Fight Web — Project Context
 
+## 0. AI Executive Summary & Navigation Index (Швидкий довідник для агентів)
+
+> [!NOTE]
+> Цей розділ є головним вказівником для автономних AI-агентів (LLM). Використовуйте його як Single Source of Truth для миттєвої навігації без потреби парсити весь детальний інженерний контекст.
+
+| Параметр / Інваріант      | Значення                                                                | Локація у коді / Примітка                                          |
+| :------------------------ | :---------------------------------------------------------------------- | :----------------------------------------------------------------- |
+| **Стек**                  | SvelteKit 3 + Svelte 5 (Runes) + TypeScript (`strict: true`) + PixiJS 8 | [package.json](package.json), [svelte.config.js](svelte.config.js) |
+| **Хостинг та домен**      | `https://alik532ua.github.io/castle-fight-web-pack/`                    | GitHub Pages (`adapter-static`), fallback `404.html`               |
+| **Префікс сховища**       | `castlefight_` (dev: `castlefight-dev_`)                                | Суворий фасад у `src/lib/services/storage.ts`                      |
+| **Порт dev-сервера**      | **5174** (`--strictPort` для уникнення колізій із 5173/5197/5399)       | `package.json` dev script                                          |
+| **Маршрутизація та i18n** | 2 мови (`uk` типова, `en`), сувора заборона `ru`                        | `src/lib/i18n/index.ts`                                            |
+| **Захист CSP**            | `mode: 'hash'`, повна політика у `svelte.config.js`                     | `svelte.config.js`, `src/csp-hash.test.ts`                         |
+| **Безпека XSS & Storage** | Заборона сирого `{@html}` та неізольованого `localStorage`              | `src/security.test.ts`                                             |
+| **Error Boundary**        | `<svelte:boundary>` + `ErrorFallback.svelte`                            | `src/routes/+layout.svelte`, `src/routes/+error.svelte`            |
+| **Тестування та гейти**   | 10 Vitest сьютів (32 тести) + Playwright E2E + Axe a11y                 | `npm test`, `npm run test:e2e`, `check:build`, `audit:ci`          |
+| **CI/CD Автоматизація**   | Deploy + Lighthouse CI (`lighthouserc.cjs`)                             | `.github/workflows/deploy.yml`                                     |
+
+### Швидкий покажчик ключових рішень:
+
+- **Архітектура рендерингу**: Pixi.JS 8 WebGL/WebGPU рендерер (`ArenaRenderer.ts`) повністю відокремлений від симуляції (`simulation.ts`).
+- **Оптимізація колізій**: Просторова хеш-сітка `SpatialHashGrid` забезпечує пошук супротивників $O(1)$ для сотень юнітів.
+- **Математика WC3**: Реалізована автентична таблиця типів атак і броні з карти Warcraft III Castle Fight v37 (`damageMatrix.ts`).
+- **Бот-супротивник**: Автономний штучний інтелект `BotAI.ts` динамічно будує споруди та прокачує кузню.
+- **Доступність (a11y)**: Адаптивний інтерфейс, гарячі клавіші (`C` - командири, `F` - кузня, `Esc` - закрити), відповідність WCAG 2.2 AA.
+
+---
+
 ## 1. Загальні відомості
 
 - **Назва**: Castle Fight Web (WC3 Tactical Auto-Battler)
@@ -22,7 +50,8 @@
 - **SITE_BASE**: `/castle-fight-web-pack` (у production-збірці; порожній рядок у локальній розробці)
 - **paths.relative**: `false`
 - **paths.origin**: `https://alik532ua.github.io`
-- **Порт dev-сервера**: **5174** (`--strictPort` для уникнення колізій із 5173, 5197 у Slovko та 5399 у MindStep)
+- **Fallback**: `404.html` (налаштовано у `svelte.config.js`)
+- **Порт dev-сервера**: **5174** (`--strictPort`)
 
 ---
 
@@ -49,8 +78,10 @@
 | `selected_commander` | `castlefight_selected_commander` | Вибраний командир гравця      | `'sasha'\|'alik'\|'dima'...` |
 | `high_score`         | `castlefight_high_score`         | Максимальна кількість перемог | Ціле невід'ємне число        |
 | `match_history`      | `castlefight_match_history`      | Останні 10 зіграних матчів    | JSON масив MatchSummary      |
+| `stale_reload`       | `castlefight_stale_reload`       | Захист від циклу оновлення    | URL поточної сторінки        |
 
 - Прямий виклик `window.localStorage` або `window.sessionStorage` заборонений поза фасадом `$lib/services/storage.ts` (контролюється `src/security.test.ts`).
+- Метод `storage.clear()` видаляє тільки власні ключі префіксу.
 
 ---
 
@@ -91,13 +122,104 @@
 6. **Бот-супротивник ([AC-AI-1])**:
    - Клас `BotAI` (`src/lib/engine/botAI.ts`) будує будівлі на вільних клітинках кожні 1.5–2 секунди з пріоритетом доходних споруд та прокачує кузню.
 
+7. **Аудіо-система (`src/lib/services/audio.ts`)**:
+   - Процедурний синтез звукових ефектів пострілів, будівництва, ударів та сповіщень через Web Audio API.
+
 ---
 
-## 5. Безпека та інваріанти (SECURITY-v10)
+## 5. Безпека та CSP (SECURITY-v10 & CSP-v10)
 
-- **CSP-політика**: `default-src 'self'`, `script-src 'self'`, `style-src 'self' 'unsafe-inline'`, `img-src 'self' data: blob:`, `connect-src 'self'`.
-- **Захист від XSS**: заборона сирого `{@html}` без санітизації та викликів `document.write`.
-- **Автоматичні гейти якості**:
-  - `npm run check` — перевірка типізації Svelte 5 та TypeScript (0 помилок).
-  - `npm run lint` — перевірка ESLint та форматування Prettier.
-  - `npm run test` — юніт-тести рушія, просторової сітки, кузні, командирів та інваріантів безпеки.
+- **Режим CSP**: `mode: 'hash'` у `svelte.config.js`.
+- **Директиви CSP**:
+  - `default-src: 'self'`
+  - `script-src: 'self' + sha256 hashes`
+  - `style-src: 'self' 'unsafe-inline'`
+  - `img-src: 'self' data: blob:`
+  - `connect-src: 'self'`
+  - `object-src: 'none'`
+  - `base-uri: 'self'`
+  - `frame-ancestors: 'none'`
+- **Захист від XSS**: заборона сирого `{@html}` без санітизації та викликів `document.write` (контролюється `src/security.test.ts`).
+- **Перевірка залежностей**: `scripts/check-audit.mjs` у CI/CD.
+
+---
+
+## 6. Надійність та Error Boundaries (ERROR-HANDLING-v10)
+
+- **Межа помилок (`<svelte:boundary>`)**:
+  - Інтерфейс у `src/routes/+layout.svelte` обгорнутий у межу помилок із резервним компонентом `src/lib/components/ErrorFallback.svelte`.
+- **Сторінка 404 / 500 (`src/routes/+error.svelte`)**:
+  - Стилізований термінал із можливістю повернення в головне меню та скидання стану матчу.
+
+---
+
+## 7. Модель версіонування (VERSIONING-v10)
+
+- **Синхронізація версій**: `package.json` та константа версії у збірці.
+- **Клієнтський захист**: перевірка цілісності коду та обробка застарілих чанків.
+
+---
+
+## 8. Політика перевірок та гейтів якості (CODE-QUALITY-v10)
+
+| Команда               | Гейт canon.json   | Опис перевірки                                                                     |
+| :-------------------- | :---------------- | :--------------------------------------------------------------------------------- |
+| `npm run check`       | GATE-SVELTE-CHECK | Сувора перевірка типізації TypeScript та синтаксису Svelte 5 Runes                 |
+| `npm run lint`        | GATE-ESLINT       | Повний лінтинг ESLint Flat Config та форматування Prettier                         |
+| `npm run format`      | —                 | Автоматичне форматування кодової бази                                              |
+| `npm test`            | GATE-TEST-RUNNERS | Vitest юніт-тести рушія, кузні, командирів, сітки та безпеки (10 файлів, 32 тести) |
+| `npm run test:e2e`    | GATE-A11Y-AXE     | Playwright E2E автоматизовані браузерні тести та WCAG 2.2 AA аудит                 |
+| `npm run check:build` | GATE-BUILD-OUTPUT | Автоматичний гейт зібраного проєкту (`build/index.html`, `build/404.html`)         |
+| `npm run audit:ci`    | GATE-AUDIT        | Автоматичний аудит безпеки npm-пакетів                                             |
+| `lhci autorun`        | GATE-LIGHTHOUSE   | Lighthouse CI аудит швидкодії, доступності (minScore: 0.9), SEO та кращих практик  |
+
+Всі перевірки інтегровано у workflow [.github/workflows/deploy.yml](.github/workflows/deploy.yml).
+
+---
+
+## 9. Доступність (a11y) та керування
+
+- **Гарячі клавіші**:
+  - `C` — відкрити / закрити вікно вибору Командира.
+  - `F` — відкрити / закрити Військову Кузню.
+  - `Esc` — закрити активне модальне вікно або скасувати вибір.
+- **Підтримка екранних читачів**:
+  - Модальні вікна мають роль `dialog`, `aria-modal="true"`, доступні описи та заголовки.
+  - Усі інтерактивні кнопки мають читабельні назви або `aria-label`.
+- **Автоматизований аудит**:
+  - E2E сьют `tests/a11y.spec.ts` з перевіркою `@axe-core/playwright` за стандартом WCAG 2.2 AA.
+
+---
+
+## 10. Опціональні критерії інженерного та продуктового пакетів
+
+| Критерій              | Застосовано | Причина / Локація                                         |
+| :-------------------- | :---------: | :-------------------------------------------------------- |
+| **I18N**              |     Так     | Двомовність UA/EN, `src/lib/i18n/index.ts`                |
+| **DEPENDENCIES**      |     Так     | Lockfile, `scripts/check-audit.mjs`                       |
+| **VERSIONING**        |     Так     | `package.json`, версія у футері                           |
+| **ACCESSIBILITY**     |     Так     | WCAG 2.2 AA перевірки, гарячі клавіші, семантичні діалоги |
+| **STORAGE-NAMESPACE** |     Так     | Префікс `castlefight_`, `src/lib/services/storage.ts`     |
+| **ERROR-HANDLING**    |     Так     | `<svelte:boundary>`, `ErrorFallback.svelte`               |
+| **PURE-SIMULATION**   |     Так     | Ізольований детермінований рушій `src/lib/engine/`        |
+| **LIGHTHOUSE**        |     Так     | `lighthouserc.cjs` з мінімальним порогом 0.9              |
+
+---
+
+## 11. Прийняті рішення (Decisions)
+
+| Питання                  | Обрано                                   | Причина                                                                        | Дата       |
+| :----------------------- | :--------------------------------------- | :----------------------------------------------------------------------------- | :--------- |
+| **Відокремлення Canvas** | Чистий клас `Simulation` без Pixi/DOM    | Можливість швидкого тестування логіки матчу та балансу у Vitest за мілісекунди | 2026-11-21 |
+| **Оптимізація колізій**  | Просторова сітка `SpatialHashGrid`       | Зниження складності пошуку ворогів з $O(N^2)$ до $O(N)$ для 300+ юнітів        | 2026-11-21 |
+| **Аудіо-ефекти**         | Web Audio API синтезатор замість mp3/wav | Мінімальний розмір репозиторію та нульовий час завантаження аудіобанків        | 2026-11-21 |
+| **Режим CSP**            | `mode: 'hash'` у `svelte.config.js`      | Захист від XSS на статичному хостингу GitHub Pages                             | 2026-11-21 |
+
+---
+
+## 12. Свідомі відхилення від канону
+
+1. **Рендерер Pixi.js на HTML5 Canvas**:
+   - _Причина_: Для масштабних авто-батлерів зі сотнями юнітів на екрані DOM-рендеринг не забезпечує стабільні 60 FPS. Використано Pixi.js 8 із винесенням усіх інтерфейсних елементів керування у доступний HTML/DOM оверлей.
+2. **Процедурний Web Audio синтез**:
+   - _Причина_: Заощаджує понад 15 МБ трафіку та усуває зовнішні залежності від важких аудіо-файлів.
