@@ -129,14 +129,11 @@ export class Simulation {
 		const westIsRandom = isAllRandom || config.westRace === 'random';
 
 		let eastRace = config.eastRace || 'Орки';
-		const eastIsRandom =
-			isAllRandom || config.eastRace === 'random' || config.botDifficulty > 0;
+		const eastIsRandom = isAllRandom || config.eastRace === 'random' || config.botDifficulty > 0;
 
 		if (isAllRandom) {
 			westRace = availableRaces[Math.floor(Math.random() * availableRaces.length)];
-			let eastPool = isUniqueRaces
-				? availableRaces.filter((r) => r !== westRace)
-				: availableRaces;
+			let eastPool = isUniqueRaces ? availableRaces.filter((r) => r !== westRace) : availableRaces;
 			if (eastPool.length === 0) eastPool = availableRaces;
 			eastRace = eastPool[Math.floor(Math.random() * eastPool.length)];
 		} else {
@@ -227,12 +224,7 @@ export class Simulation {
 
 		// Direct race selection
 		if (this.config.uniqueRaces && otherPlayer && otherPlayer.race === race) {
-			this.addFloatingText(
-				'Раса вже зайнята (-ur)!',
-				team === 'west' ? 300 : 1600,
-				400,
-				'#ef4444'
-			);
+			this.addFloatingText('Раса вже зайнята (-ur)!', team === 'west' ? 300 : 1600, 400, '#ef4444');
 			return false;
 		}
 
@@ -810,8 +802,7 @@ export class Simulation {
 
 				// If exactly overlapping, give a deterministic non-zero perpendicular nudge
 				if (dist < 0.1) {
-					const seed =
-						(u.instanceId.charCodeAt(u.instanceId.length - 1) || 1) % 2 === 0 ? 1 : -1;
+					const seed = (u.instanceId.charCodeAt(u.instanceId.length - 1) || 1) % 2 === 0 ? 1 : -1;
 					dx = seed * 0.5;
 					dy = (seed === 1 ? -1 : 1) * 2;
 					dist = Math.hypot(dx, dy);
