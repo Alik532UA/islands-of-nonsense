@@ -7,11 +7,11 @@
 
 	let {
 		sim,
-		_uiTick = 0,
+		uiTick: _uiTick = 0,
 		onMinimapClick
 	}: {
 		sim: Simulation;
-		_uiTick?: number;
+		uiTick?: number;
 		onMinimapClick?: (arenaX: number, arenaY: number) => void;
 	} = $props();
 
@@ -20,8 +20,8 @@
 	let simpleTerrainMode = $state(false);
 	let lastPing = $state<{ x: number; y: number; timer: number } | null>(null);
 
-	const MAP_WIDTH = 190;
-	const MAP_HEIGHT = 135;
+	const MAP_WIDTH = 220;
+	const MAP_HEIGHT = 70;
 
 	function triggerPing(x: number, y: number) {
 		lastPing = { x, y, timer: 1.5 };

@@ -113,6 +113,11 @@ export interface Unit {
 	isEnsnared?: boolean;
 	buildingDefId?: string;
 	buildingName?: string;
+	targetBuildingId?: string | null;
+	deathTimer?: number;
+	attackAnimTimer?: number;
+	mana?: number;
+	maxMana?: number;
 }
 
 export interface BuildingPerformance {
@@ -132,6 +137,10 @@ export interface Building {
 	tileY: number;
 	x: number;
 	y: number;
+	hp: number;
+	maxHp: number;
+	armor: number;
+	armorType: ArmorType;
 	goldCost: number;
 	spawnUnitId: string;
 	spawnCooldown: number;
@@ -139,6 +148,9 @@ export interface Building {
 	lane: Lane;
 	upgradeFrom: string | null;
 	race: string;
+	isUnderConstruction?: boolean;
+	buildProgress?: number;
+	maxBuildProgress?: number;
 	specialType?: 'treasure' | 'repair' | 'recycler' | 'tower';
 	attackCooldown?: number;
 	attackTimer?: number;
@@ -198,6 +210,7 @@ export interface WorkerState {
 	speed: number;
 	isBuilding?: boolean;
 	buildTimer?: number;
+	targetBuildingId?: string | null;
 }
 
 export interface PlayerState {

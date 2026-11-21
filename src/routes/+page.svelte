@@ -109,7 +109,36 @@
 		}
 	}
 
+	function attachAudioHandlers(s: Simulation) {
+		s.onSoundEffect = (type: string) => {
+			switch (type) {
+				case 'attack_normal':
+					sound.playSwordClash();
+					break;
+				case 'attack_pierce':
+					sound.playBowShot();
+					break;
+				case 'attack_magic':
+					sound.playMagicCast();
+					break;
+				case 'attack_siege':
+					sound.playHit();
+					break;
+				case 'unit_death':
+					sound.playUnitDeath();
+					break;
+				case 'building_destroyed':
+					sound.playBuildingDestroyed();
+					break;
+				case 'building_repair':
+					sound.playRepair();
+					break;
+			}
+		};
+	}
+
 	onMount(async () => {
+		attachAudioHandlers(sim);
 		renderer = new ArenaRenderer({
 			canvas: canvasEl,
 			sim,
@@ -201,6 +230,7 @@
 		selectedBuildingId = null;
 		selectedPlacedBuildingId = null;
 		sim = new Simulation(newConfig);
+		attachAudioHandlers(sim);
 		botAI = new BotAI(sim);
 		renderer?.setSimulation(sim);
 		uiTick = sim.stateVersion;

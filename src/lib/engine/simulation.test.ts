@@ -70,11 +70,11 @@ describe('Castle Fight Simulation - Economy & Gold', () => {
 		expect(initialBuilding.spawnUnitId).toBe('hrif');
 		const goldAfterBuild = sim.players.west.gold;
 
-		// Upgrade to h0A1 (Лагерь Зениток, upgrade_from: h003, extra: 140)
+		// Upgrade to h0A1 (Табір Зеніток, upgrade_from: h003, extra: 140)
 		const upgradeSuccess = sim.upgradeBuilding('west', initialBuilding.instanceId, 'h0A1');
 		expect(upgradeSuccess).toBe(true);
 		expect(initialBuilding.defId).toBe('h0A1');
-		expect(initialBuilding.name).toBe('Лагерь Зениток');
+		expect(initialBuilding.name).toBe('Табір Зеніток');
 		expect(initialBuilding.spawnUnitId).toBe('h05C');
 		expect(sim.players.west.gold).toBe(goldAfterBuild - 140);
 

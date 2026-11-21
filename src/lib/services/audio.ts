@@ -144,6 +144,138 @@ export class SoundService {
 	}
 
 	/**
+	 * Звук удару мечем (ближній бій)
+	 */
+	public playSwordClash(): void {
+		if (!this.enabled) return;
+		const ctx = this.getContext();
+		if (!ctx) return;
+
+		const osc = ctx.createOscillator();
+		const gain = ctx.createGain();
+
+		osc.type = 'triangle';
+		osc.frequency.setValueAtTime(400, ctx.currentTime);
+		osc.frequency.exponentialRampToValueAtTime(120, ctx.currentTime + 0.06);
+
+		gain.gain.setValueAtTime(this.volume * 0.25, ctx.currentTime);
+		gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.07);
+
+		osc.connect(gain);
+		gain.connect(ctx.destination);
+
+		osc.start();
+		osc.stop(ctx.currentTime + 0.07);
+	}
+
+	/**
+	 * Звук пострілу з лука / колюча атака
+	 */
+	public playBowShot(): void {
+		if (!this.enabled) return;
+		const ctx = this.getContext();
+		if (!ctx) return;
+
+		const osc = ctx.createOscillator();
+		const gain = ctx.createGain();
+
+		osc.type = 'sine';
+		osc.frequency.setValueAtTime(600, ctx.currentTime);
+		osc.frequency.exponentialRampToValueAtTime(250, ctx.currentTime + 0.05);
+
+		gain.gain.setValueAtTime(this.volume * 0.2, ctx.currentTime);
+		gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.06);
+
+		osc.connect(gain);
+		gain.connect(ctx.destination);
+
+		osc.start();
+		osc.stop(ctx.currentTime + 0.06);
+	}
+
+	/**
+	 * Звук магічного закляття / вибуху
+	 */
+	public playMagicCast(): void {
+		if (!this.enabled) return;
+		const ctx = this.getContext();
+		if (!ctx) return;
+
+		const osc = ctx.createOscillator();
+		const gain = ctx.createGain();
+
+		osc.type = 'sine';
+		osc.frequency.setValueAtTime(280, ctx.currentTime);
+		osc.frequency.exponentialRampToValueAtTime(750, ctx.currentTime + 0.12);
+
+		gain.gain.setValueAtTime(this.volume * 0.25, ctx.currentTime);
+		gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.14);
+
+		osc.connect(gain);
+		gain.connect(ctx.destination);
+
+		osc.start();
+		osc.stop(ctx.currentTime + 0.15);
+	}
+
+	/**
+	 * Звук загибелі бійця
+	 */
+	public playUnitDeath(): void {
+		if (!this.enabled) return;
+		const ctx = this.getContext();
+		if (!ctx) return;
+
+		const osc = ctx.createOscillator();
+		const gain = ctx.createGain();
+
+		osc.type = 'sawtooth';
+		osc.frequency.setValueAtTime(120, ctx.currentTime);
+		osc.frequency.exponentialRampToValueAtTime(35, ctx.currentTime + 0.15);
+
+		gain.gain.setValueAtTime(this.volume * 0.25, ctx.currentTime);
+		gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.16);
+
+		osc.connect(gain);
+		gain.connect(ctx.destination);
+
+		osc.start();
+		osc.stop(ctx.currentTime + 0.17);
+	}
+
+	/**
+	 * Звук лагодження будівлі
+	 */
+	public playRepair(): void {
+		this.playBuild();
+	}
+
+	/**
+	 * Звук руйнування будівлі (каменепад)
+	 */
+	public playBuildingDestroyed(): void {
+		if (!this.enabled) return;
+		const ctx = this.getContext();
+		if (!ctx) return;
+
+		const osc = ctx.createOscillator();
+		const gain = ctx.createGain();
+
+		osc.type = 'sawtooth';
+		osc.frequency.setValueAtTime(90, ctx.currentTime);
+		osc.frequency.exponentialRampToValueAtTime(25, ctx.currentTime + 0.35);
+
+		gain.gain.setValueAtTime(this.volume * 0.45, ctx.currentTime);
+		gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+
+		osc.connect(gain);
+		gain.connect(ctx.destination);
+
+		osc.start();
+		osc.stop(ctx.currentTime + 0.42);
+	}
+
+	/**
 	 * Звук апгрейду кузні
 	 */
 	public playForgeUpgrade(): void {

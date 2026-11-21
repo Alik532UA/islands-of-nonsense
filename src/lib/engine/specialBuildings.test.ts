@@ -71,6 +71,8 @@ describe('Point 6: Special Non-Spawning Buildings (Treasure Box, Repair, Recycle
 
 		const success = sim.build('west', 'cg09_repair', 0, 1);
 		expect(success).toBe(true);
+		// Mark constructed to test repair mechanism in isolation
+		sim.buildings[0].isUnderConstruction = false;
 
 		const initialHp = westCastle.hp;
 

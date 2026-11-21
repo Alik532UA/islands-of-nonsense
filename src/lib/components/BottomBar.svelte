@@ -5,8 +5,7 @@
 		getBaseBuildingsForRace,
 		getUpgradesForBuilding,
 		getUnit,
-		isLegendaryBuilding,
-		RACES_LIST
+		isLegendaryBuilding
 	} from '../engine/gameData';
 	import {
 		Coins,
@@ -171,9 +170,15 @@
 				class="relative w-full h-4 bg-[#0c1017] rounded border border-[#3b3226] overflow-hidden flex items-center justify-center shadow-inner"
 			>
 				{#if activeEntityType === 'building' && placedBuilding}
-					<div class="absolute left-0 top-0 bottom-0 bg-[#22c55e] transition-all w-full"></div>
+					{@const bHp = placedBuilding.hp ?? placedBuilding.goldCost * 4}
+					{@const bMaxHp = placedBuilding.maxHp ?? placedBuilding.goldCost * 4}
+					{@const bPct = Math.max(0, Math.min(100, (bHp / bMaxHp) * 100))}
+					<div
+						class="absolute left-0 top-0 bottom-0 bg-[#22c55e] transition-all"
+						style="width: {bPct}%"
+					></div>
 					<span class="relative z-10 text-[9px] font-mono font-bold text-white drop-shadow">
-						{placedBuilding.goldCost * 4} / {placedBuilding.goldCost * 4}
+						{Math.ceil(bHp)} / {bMaxHp}
 					</span>
 				{:else if activeEntityType === 'unit' && selectedUnit}
 					{@const hpPct = Math.max(0, Math.min(100, (selectedUnit.hp / selectedUnit.maxHp) * 100))}
@@ -185,22 +190,37 @@
 						{Math.ceil(selectedUnit.hp)} / {selectedUnit.maxHp}
 					</span>
 				{:else}
-					<div class="absolute left-0 top-0 bottom-0 bg-[#22c55e] transition-all w-full"></div>
+					{@const wHp = worker?.hp ?? 220}
+					{@const wMaxHp = worker?.maxHp ?? 220}
+					{@const wPct = Math.max(0, Math.min(100, (wHp / wMaxHp) * 100))}
+					<div
+						class="absolute left-0 top-0 bottom-0 bg-[#22c55e] transition-all"
+						style="width: {wPct}%"
+					></div>
 					<span class="relative z-10 text-[9px] font-mono font-bold text-white drop-shadow">
-						{worker?.hp ?? 220} / {worker?.maxHp ?? 220}
+						{Math.ceil(wHp)} / {wMaxHp}
 					</span>
 				{/if}
 			</div>
 
-			<!-- Mana Bar (Blue) -->
-			<div
-				class="relative w-full h-2.5 bg-[#0c1017] rounded border border-[#3b3226] overflow-hidden flex items-center justify-center shadow-inner"
-			>
-				<div class="absolute left-0 top-0 bottom-0 bg-[#3b82f6] transition-all w-full"></div>
-				<span class="relative z-10 text-[7px] font-mono font-bold text-white drop-shadow">
-					100 / 100
-				</span>
-			</div>
+			<!-- Mana Bar (Blue) - Render only if entity has mana -->
+			{#if activeEntityType === 'unit' && selectedUnit && selectedUnit.maxMana && selectedUnit.maxMana > 0}
+				{@const manaPct = Math.max(
+					0,
+					Math.min(100, ((selectedUnit.mana || 0) / selectedUnit.maxMana) * 100)
+				)}
+				<div
+					class="relative w-full h-2.5 bg-[#0c1017] rounded border border-[#3b3226] overflow-hidden flex items-center justify-center shadow-inner"
+				>
+					<div
+						class="absolute left-0 top-0 bottom-0 bg-[#3b82f6] transition-all"
+						style="width: {manaPct}%"
+					></div>
+					<span class="relative z-10 text-[7px] font-mono font-bold text-white drop-shadow">
+						{Math.floor(selectedUnit.mana || 0)} / {selectedUnit.maxMana}
+					</span>
+				</div>
+			{/if}
 		</div>
 	</div>
 
@@ -225,21 +245,11 @@
 			</div>
 
 			{#if activeEntityType === 'worker'}
-				<!-- Race Selector Shortcut inside Worker menu -->
-				<div class="flex items-center gap-1.5">
+				<div
+					class="flex items-center gap-1.5 bg-[#0c1017] px-2.5 py-0.5 rounded border border-[#78654c]/60"
+				>
 					<span class="text-[11px] text-[#9ca3af]">Раса:</span>
-					<select
-						value={player.race}
-						onchange={(e) => {
-							sim.setPlayerRace('west', (e.target as HTMLSelectElement).value);
-							onSelectBuilding(null);
-						}}
-						class="bg-[#0c1017] border border-[#78654c] rounded px-2 py-0.5 text-xs font-bold text-amber-300 focus:outline-none cursor-pointer"
-					>
-						{#each RACES_LIST as r}
-							<option value={r.race}>{r.race}</option>
-						{/each}
-					</select>
+					<span class="text-xs font-bold text-amber-300">{player.race}</span>
 				</div>
 			{/if}
 		</div>

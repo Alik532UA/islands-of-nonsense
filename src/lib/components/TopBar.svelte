@@ -40,6 +40,7 @@
 	let eastCastle = $derived(uiTick >= 0 ? sim.castles.east : sim.castles.east);
 	let player = $derived(uiTick >= 0 ? sim.players.west : sim.players.west);
 	let playerGold = $derived(uiTick >= 0 ? sim.players.west.gold : 0);
+	let westIncome = $derived(uiTick >= 0 ? sim.calculateIncome('west') : 15);
 	let commander = $derived(uiTick >= 0 ? getCommander(player.commander) : getCommander(1));
 
 	let westHpPct = $derived(Math.max(0, Math.round((westCastle.hp / westCastle.maxHp) * 100)));
@@ -262,13 +263,12 @@
 				<span class="text-sm font-mono tracking-tight">{playerGold}</span>
 			</div>
 
-			<!-- 🌲 Wood / Lumber (Income) -->
+			<!-- 💰 Gold Income -->
 			<div
-				class="flex items-center gap-1.5 text-xs text-emerald-300 border-l border-[#3b3226] pl-2.5"
-				title="Дохід дерева: виплата кожні {sim.incomeInterval}с"
+				class="flex items-center gap-1.5 text-xs text-amber-300 border-l border-[#3b3226] pl-2.5"
+				title="Періодичний дохід золота: +{westIncome} кожні {sim.incomeInterval}с"
 			>
-				<TreePine class="w-4 h-4 text-emerald-400" />
-				<span class="font-mono font-bold">+{sim.players.west.lumber}</span>
+				<span class="font-mono font-bold text-amber-400">+{westIncome}</span>
 				<!-- Income progress bar -->
 				<div class="w-12 h-1.5 bg-[#1e2433] rounded-full overflow-hidden border border-[#3b3226]">
 					<div
@@ -278,6 +278,17 @@
 				</div>
 				<span class="text-[9px] text-amber-400/90 font-mono">{Math.ceil(sim.incomeTimer)}с</span>
 			</div>
+
+			<!-- 🌲 Lumber (if > 0) -->
+			{#if sim.players.west.lumber > 0}
+				<div
+					class="flex items-center gap-1 text-xs text-emerald-300 border-l border-[#3b3226] pl-2.5"
+					title="Дерево для особливих технологій"
+				>
+					<TreePine class="w-3.5 h-3.5 text-emerald-400" />
+					<span class="font-mono font-bold">{sim.players.west.lumber}</span>
+				</div>
+			{/if}
 
 			<!-- 🥩 Food Cap (Legendary Building Limit) -->
 			<div

@@ -315,14 +315,18 @@ export function resolveUnitAbility(
 
 	if (
 		name.includes('капкан') ||
-		name.includes('ловец') ||
+		name.includes('павук') ||
+		name.includes('ловець') ||
 		name.includes('паук') ||
+		name.includes('ловец') ||
 		def.id === 'n01O'
 	) {
 		return 'ensnare';
 	}
 	if (
 		name.includes('чум') ||
+		name.includes('отрут') ||
+		name.includes('вбивця') ||
 		name.includes('яд') ||
 		name.includes('убийца') ||
 		def.id === 'u007' ||
@@ -332,8 +336,10 @@ export function resolveUnitAbility(
 	}
 	if (
 		name.includes('паладин') ||
+		name.includes('друїд') ||
+		name.includes('жрець') ||
+		name.includes('чарівник') ||
 		name.includes('друид') ||
-		name.includes('жрец') ||
 		name.includes('волшебник') ||
 		def.id === 'h03C' ||
 		def.id === 'e00J' ||
@@ -343,8 +349,11 @@ export function resolveUnitAbility(
 	}
 	if (
 		name.includes('магнатор') ||
+		name.includes('вандіго') ||
 		name.includes('вандиго') ||
+		name.includes('вартовий') ||
 		name.includes('страж') ||
+		name.includes('сокир') ||
 		name.includes('топор') ||
 		def.id === 'n016' ||
 		def.id === 'n013' ||
@@ -353,8 +362,10 @@ export function resolveUnitAbility(
 		return 'bash';
 	}
 	if (
-		name.includes('кодой') ||
+		name.includes('кодо') ||
+		name.includes('чемпіон') ||
 		name.includes('чемпион') ||
+		name.includes('майстер-меч') ||
 		name.includes('мастер-меч') ||
 		def.id === 'o008' ||
 		def.id === 'o006' ||
@@ -376,13 +387,23 @@ export function isLegendaryBuilding(def?: BuildingDefinition): boolean {
 	if (def.gold_cost >= 450) return true;
 	const name = (def.name || '').toLowerCase();
 	return (
+		name.includes('давній фонтан') ||
+		name.includes('стародавній фонтан') ||
 		name.includes('древний фонтан') ||
+		name.includes('університет') ||
 		name.includes('университет') ||
+		name.includes('цитадель некромантії') ||
 		name.includes('цитадель некромантии') ||
+		name.includes('руйнівник') ||
+		name.includes('знищувач') ||
 		name.includes('уничтожитель') ||
 		name.includes('амазонок') ||
+		name.includes('елітних големів') ||
 		name.includes('элитных големов') ||
+		name.includes('драконячий цвинтар') ||
+		name.includes('драконяче кладовище') ||
 		name.includes('драконье кладбище') ||
+		name.includes('брама демонів') ||
 		name.includes('врата демонов')
 	);
 }

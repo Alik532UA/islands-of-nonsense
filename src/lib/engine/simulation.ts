@@ -132,6 +132,9 @@ export class Simulation {
 	// Callbacks
 	public onFloatingText?: (text: FloatingText) => void;
 	public onRoundEnd?: (winner: MatchTeam) => void;
+	public onSoundEffect?: (
+		sound: 'hit' | 'sword' | 'bow' | 'magic' | 'death' | 'buildingDestroyed'
+	) => void;
 
 	private nextUnitId = 1;
 	private nextBuildingId = 1;
@@ -193,10 +196,10 @@ export class Simulation {
 				forge: { attack: 0, armor: 0, econ: 0 },
 				preferredLane: 'auto',
 				worker: {
-					name: getBuilderNameForRace(eastRace),
-					x: EAST_GRID_START_X + 3 * CELL_SIZE + 45,
+					name: getBuilderNameForRace(westRace),
+					x: WEST_GRID_START_X - 45,
 					y: (TOP_LANE_Y + BOTTOM_LANE_Y) / 2,
-					targetX: EAST_GRID_START_X + 3 * CELL_SIZE + 45,
+					targetX: WEST_GRID_START_X - 45,
 					targetY: (TOP_LANE_Y + BOTTOM_LANE_Y) / 2,
 					hp: 220,
 					maxHp: 220,
@@ -412,6 +415,25 @@ export class Simulation {
 			}
 		}
 
+		if (this.players.west.worker) {
+			this.players.west.worker.name = getBuilderNameForRace(this.players.west.race);
+			this.players.west.worker.x = WEST_GRID_START_X - 45;
+			this.players.west.worker.y = (TOP_LANE_Y + BOTTOM_LANE_Y) / 2;
+			this.players.west.worker.targetX = WEST_GRID_START_X - 45;
+			this.players.west.worker.targetY = (TOP_LANE_Y + BOTTOM_LANE_Y) / 2;
+			this.players.west.worker.isBuilding = false;
+			this.players.west.worker.targetBuildingId = null;
+		}
+		if (this.players.east.worker) {
+			this.players.east.worker.name = getBuilderNameForRace(this.players.east.race);
+			this.players.east.worker.x = EAST_GRID_START_X + 3 * CELL_SIZE + 45;
+			this.players.east.worker.y = (TOP_LANE_Y + BOTTOM_LANE_Y) / 2;
+			this.players.east.worker.targetX = EAST_GRID_START_X + 3 * CELL_SIZE + 45;
+			this.players.east.worker.targetY = (TOP_LANE_Y + BOTTOM_LANE_Y) / 2;
+			this.players.east.worker.isBuilding = false;
+			this.players.east.worker.targetBuildingId = null;
+		}
+
 		this.notifyStateChanged();
 	}
 
@@ -447,22 +469,68 @@ export class Simulation {
 		}
 		this.splashEffects = this.splashEffects.filter((eff) => eff.timer > 0);
 
-		// Update Workers position and build animation
+		// Update Workers position and construction
 		for (const team of ['west', 'east'] as MatchTeam[]) {
 			const w = this.players[team]?.worker;
 			if (w) {
-				const dx = w.targetX - w.x;
-				const dy = w.targetY - w.y;
-				const dist = Math.hypot(dx, dy);
-				if (dist > 3) {
-					const moveDist = Math.min(dist, w.speed * dt);
-					w.x += (dx / dist) * moveDist;
-					w.y += (dy / dist) * moveDist;
-				}
-				if (w.buildTimer && w.buildTimer > 0) {
-					w.buildTimer -= dt;
-					if (w.buildTimer <= 0) {
+				const targetBld = w.targetBuildingId
+					? this.buildings.find((b) => b.instanceId === w.targetBuildingId)
+					: null;
+
+				if (targetBld && targetBld.isUnderConstruction) {
+					w.targetX = targetBld.x + CELL_SIZE / 2;
+					w.targetY = targetBld.y + CELL_SIZE / 2;
+					const dx = w.targetX - w.x;
+					const dy = w.targetY - w.y;
+					const dist = Math.hypot(dx, dy);
+
+					if (dist > 45) {
+						const moveDist = Math.min(dist, w.speed * dt);
+						w.x += (dx / dist) * moveDist;
+						w.y += (dy / dist) * moveDist;
 						w.isBuilding = false;
+					} else {
+						// In building construction range!
+						w.isBuilding = true;
+						targetBld.buildProgress = (targetBld.buildProgress || 0) + dt;
+						const maxProg = targetBld.maxBuildProgress || 3.5;
+						targetBld.hp = Math.min(
+							targetBld.maxHp,
+							Math.round(targetBld.maxHp * (0.15 + 0.85 * (targetBld.buildProgress / maxProg)))
+						);
+
+						if (targetBld.buildProgress >= maxProg) {
+							targetBld.isUnderConstruction = false;
+							targetBld.hp = targetBld.maxHp;
+							w.isBuilding = false;
+							w.targetBuildingId = null;
+							this.addFloatingText(
+								'+Готово!',
+								targetBld.x + CELL_SIZE / 2,
+								targetBld.y - 15,
+								'#22c55e'
+							);
+							this.onSoundEffect?.('sword');
+						}
+					}
+				} else {
+					if (w.targetBuildingId) {
+						w.targetBuildingId = null;
+						w.isBuilding = false;
+					}
+					const dx = w.targetX - w.x;
+					const dy = w.targetY - w.y;
+					const dist = Math.hypot(dx, dy);
+					if (dist > 3) {
+						const moveDist = Math.min(dist, w.speed * dt);
+						w.x += (dx / dist) * moveDist;
+						w.y += (dy / dist) * moveDist;
+					}
+					if (w.buildTimer && w.buildTimer > 0) {
+						w.buildTimer -= dt;
+						if (w.buildTimer <= 0) {
+							w.isBuilding = false;
+						}
 					}
 				}
 			}
@@ -515,7 +583,7 @@ export class Simulation {
 		this.updateFloatingTexts(dt);
 
 		// 8. Cleanup dead entities
-		this.units = this.units.filter((u) => u.state !== 'DEAD');
+		this.units = this.units.filter((u) => u.state !== 'DEAD' || (u.deathTimer ?? 0) > 0);
 		this.projectiles = this.projectiles.filter((p) => p.damage > 0);
 
 		// 9. Check Win Condition
@@ -541,18 +609,52 @@ export class Simulation {
 	}
 
 	// --- ECONOMY ---
-	private updateEconomy(dt: number): void {
-		let interval = 3.0;
+	public calculateIncome(team: MatchTeam): number {
 		let cfM = 0.65;
 		if (this.gameTime >= 1500) {
-			interval = 10.0;
 			cfM = 1.0;
 		} else if (this.gameTime >= 960) {
-			interval = 7.0;
 			cfM = 0.85;
 		} else if (this.gameTime >= 480) {
-			interval = 5.0;
 			cfM = 0.75;
+		}
+		const player = this.players[team];
+		if (!player) return 15;
+
+		const bldValue = this.buildings
+			.filter((b) => b.team === team)
+			.reduce((sum, b) => sum + b.goldCost, 0);
+
+		const baseIncome = 10 * (0.5 + 0.002 * bldValue);
+		let multiplier = cfM * (1 + 0.1 * player.forge.econ);
+
+		if (player.commander === 1) {
+			multiplier += cfM * 0.12;
+		}
+
+		const myCastle = this.castles[team];
+		if (myCastle && myCastle.hp / myCastle.maxHp <= 0.7) {
+			multiplier *= 1.15;
+		}
+
+		const treasureBoxes = this.buildings.filter(
+			(b) => b.team === team && b.specialType === 'treasure'
+		).length;
+		if (treasureBoxes > 0) {
+			multiplier *= 1 + 0.2 * treasureBoxes;
+		}
+
+		return Math.max(5, Math.round(baseIncome * multiplier));
+	}
+
+	private updateEconomy(dt: number): void {
+		let interval = 3.0;
+		if (this.gameTime >= 1500) {
+			interval = 10.0;
+		} else if (this.gameTime >= 960) {
+			interval = 7.0;
+		} else if (this.gameTime >= 480) {
+			interval = 5.0;
 		}
 		this.incomeInterval = interval;
 		this.incomeTimer -= dt;
@@ -562,38 +664,8 @@ export class Simulation {
 
 			for (const team of ['west', 'east'] as MatchTeam[]) {
 				const player = this.players[team];
-
-				// Total building value
-				const bldValue = this.buildings
-					.filter((b) => b.team === team)
-					.reduce((sum, b) => sum + b.goldCost, 0);
-
-				// Base diminishing returns curve
-				const baseIncome = 10 * (0.5 + 0.002 * bldValue);
-
-				// Forge econ bonus (+10% per level)
-				let multiplier = cfM * (1 + 0.1 * player.forge.econ);
-
-				// Commander Sasha: +12% income
-				if (player.commander === 1) {
-					multiplier += cfM * 0.12;
-				}
-
-				// Catch-up mechanic: if castle HP <= 70%, +15% income
 				const myCastle = this.castles[team];
-				if (myCastle.hp / myCastle.maxHp <= 0.7) {
-					multiplier *= 1.15;
-				}
-
-				// Treasure Box: +20% income per chest
-				const treasureBoxes = this.buildings.filter(
-					(b) => b.team === team && b.specialType === 'treasure'
-				).length;
-				if (treasureBoxes > 0) {
-					multiplier *= 1 + 0.2 * treasureBoxes;
-				}
-
-				const payout = Math.max(5, Math.round(baseIncome * multiplier));
+				const payout = this.calculateIncome(team);
 				player.gold += payout;
 
 				// Spawn income text above castle
@@ -678,6 +750,9 @@ export class Simulation {
 	// --- BUILDINGS ---
 	private updateBuildings(dt: number): void {
 		for (const b of this.buildings) {
+			if (b.isUnderConstruction) {
+				continue;
+			}
 			if (b.specialType === 'repair') {
 				b.spawnTimer -= dt;
 				if (b.spawnTimer <= 0) {
@@ -718,7 +793,8 @@ export class Simulation {
 		}
 
 		const laneY = lane === 'top' ? TOP_LANE_Y : BOTTOM_LANE_Y;
-		const startX = building.team === 'west' ? building.x + 35 : building.x - 35;
+		const spawnX = building.x + CELL_SIZE / 2;
+		const spawnY = building.y + CELL_SIZE / 2;
 
 		// Calculate commander & forge bonuses
 		let damageBonusPct = player.forge.attack * 0.08;
@@ -743,10 +819,10 @@ export class Simulation {
 			name: unitDef.name || 'Боєць',
 			team: building.team,
 			lane,
-			x: startX,
-			y: laneY + (Math.random() * 20 - 10), // slight corridor spread
-			prevX: startX,
-			prevY: laneY,
+			x: spawnX,
+			y: spawnY,
+			prevX: spawnX,
+			prevY: spawnY,
 			hp: unitDef.hp ?? 300,
 			maxHp: unitDef.hp ?? 300,
 			armor: (unitDef.armor ?? 2) + armorBonus,
@@ -898,7 +974,10 @@ export class Simulation {
 	// --- UNITS ---
 	private updateUnits(dt: number): void {
 		for (const u of this.units) {
-			if (u.state === 'DEAD') continue;
+			if (u.state === 'DEAD') {
+				u.deathTimer = (u.deathTimer ?? 0.7) - dt;
+				continue;
+			}
 
 			// Process active buffs
 			if (u.buffs && u.buffs.length > 0) {
@@ -1058,35 +1137,89 @@ export class Simulation {
 					u.state = 'WALKING';
 				}
 			} else {
-				// No enemy nearby on this lane -> March towards enemy Castle
-				u.currentTargetId = null;
-				const targetCastle = u.team === 'west' ? this.castles.east : this.castles.west;
-				const distToCastle = Math.hypot(targetCastle.x - u.x, targetCastle.y - u.y);
+				// No enemy units on this lane -> Check for enemy buildings in the base
+				const enemyTeam: MatchTeam = u.team === 'west' ? 'east' : 'west';
+				let targetBuilding: Building | null = null;
+				const isNearEnemyBase = u.team === 'west' ? u.x >= ARENA_WIDTH - 550 : u.x <= 550;
 
-				if (distToCastle <= u.range + 50) {
-					u.state = 'ATTACKING';
-					if (u.cooldownTimer <= 0) {
-						let cd = u.attackCooldown;
-						if (u.buffs?.some((b) => b.type === 'as')) {
-							cd *= 0.75;
+				if (isNearEnemyBase) {
+					let closestBldDist = Infinity;
+					for (const b of this.buildings) {
+						if (b.team !== enemyTeam || b.hp <= 0) continue;
+						const bx = b.x + CELL_SIZE / 2;
+						const by = b.y + CELL_SIZE / 2;
+						const d = Math.hypot(bx - u.x, by - u.y);
+						if (d < closestBldDist && d <= Math.max(u.range + 80, 500)) {
+							closestBldDist = d;
+							targetBuilding = b;
 						}
-						if (u.buffs?.some((b) => b.type === 'weakness')) {
-							cd *= 1.4;
+					}
+				}
+
+				if (targetBuilding) {
+					const bDist = Math.hypot(
+						targetBuilding.x + CELL_SIZE / 2 - u.x,
+						targetBuilding.y + CELL_SIZE / 2 - u.y
+					);
+					if (bDist <= u.range + 30) {
+						u.state = 'ATTACKING';
+						u.currentTargetId = null;
+						u.targetBuildingId = targetBuilding.instanceId;
+						if (u.cooldownTimer <= 0) {
+							let cd = u.attackCooldown;
+							if (u.buffs?.some((b) => b.type === 'as')) cd *= 0.75;
+							if (u.buffs?.some((b) => b.type === 'weakness')) cd *= 1.4;
+							u.cooldownTimer = cd;
+							this.performAttackBuilding(u, targetBuilding);
 						}
-						u.cooldownTimer = cd;
-						this.attackCastle(u, targetCastle);
+					} else {
+						u.state = 'WALKING';
+						u.currentTargetId = null;
+						u.targetBuildingId = targetBuilding.instanceId;
+						const dirX = (targetBuilding.x + CELL_SIZE / 2 - u.x) / bDist;
+						const dirY = (targetBuilding.y + CELL_SIZE / 2 - u.y) / bDist;
+						u.x += dirX * currentSpeed * dt;
+						u.y += dirY * currentSpeed * dt;
 					}
 				} else {
-					u.state = 'WALKING';
-					// Lane corridor guidance: steer smoothly back to lane center Y
-					const dyToLane = targetLaneY - u.y;
-					let stepY = 0;
-					if (Math.abs(dyToLane) > 4) {
-						stepY = Math.sign(dyToLane) * Math.min(Math.abs(dyToLane), currentSpeed * dt * 0.8);
+					// No enemy nearby and no buildings -> March towards Castle
+					u.currentTargetId = null;
+					u.targetBuildingId = null;
+					const targetCastle = u.team === 'west' ? this.castles.east : this.castles.west;
+					const distToCastle = Math.hypot(targetCastle.x - u.x, targetCastle.y - u.y);
+
+					if (distToCastle <= u.range + 65) {
+						u.state = 'ATTACKING';
+						if (u.cooldownTimer <= 0) {
+							let cd = u.attackCooldown;
+							if (u.buffs?.some((b) => b.type === 'as')) {
+								cd *= 0.75;
+							}
+							if (u.buffs?.some((b) => b.type === 'weakness')) {
+								cd *= 1.4;
+							}
+							u.cooldownTimer = cd;
+							this.attackCastle(u, targetCastle);
+						}
+					} else if (isNearEnemyBase) {
+						// Converge onto Castle gate at (targetCastle.x, targetCastle.y)
+						u.state = 'WALKING';
+						const dirX = (targetCastle.x - u.x) / distToCastle;
+						const dirY = (targetCastle.y - u.y) / distToCastle;
+						u.x += dirX * currentSpeed * dt;
+						u.y += dirY * currentSpeed * dt;
+					} else {
+						u.state = 'WALKING';
+						// Lane corridor guidance: steer smoothly back to lane center Y
+						const dyToLane = targetLaneY - u.y;
+						let stepY = 0;
+						if (Math.abs(dyToLane) > 4) {
+							stepY = Math.sign(dyToLane) * Math.min(Math.abs(dyToLane), currentSpeed * dt * 0.8);
+						}
+						const stepX = (u.team === 'west' ? 1 : -1) * currentSpeed * dt;
+						u.x += stepX;
+						u.y += stepY;
 					}
-					const stepX = (u.team === 'west' ? 1 : -1) * currentSpeed * dt;
-					u.x += stepX;
-					u.y += stepY;
 				}
 			}
 		}
@@ -1375,11 +1508,13 @@ export class Simulation {
 			return;
 		}
 
+		attacker.attackAnimTimer = 0.25;
 		const rawDmg =
 			attacker.damageMin +
 			Math.floor(Math.random() * (attacker.damageMax - attacker.damageMin + 1));
 		const finalDamage = calculateDamage(attacker.attackType, 'fort', rawDmg, 5);
 		castle.hp = Math.max(0, castle.hp - finalDamage);
+		this.onSoundEffect?.('hit');
 
 		if (attacker.team === 'west' || attacker.team === 'east') {
 			this.players[attacker.team].stats.damageToCastle += finalDamage;
@@ -1395,6 +1530,78 @@ export class Simulation {
 		}
 
 		this.addFloatingText(`-${finalDamage}`, castle.x, castle.y - 30, '#ef4444');
+		this.notifyStateChanged();
+	}
+
+	private performAttackBuilding(attacker: Unit, target: Building): void {
+		attacker.attackAnimTimer = 0.25;
+		let rawDmg =
+			attacker.damageMin +
+			Math.floor(Math.random() * (attacker.damageMax - attacker.damageMin + 1));
+		if (attacker.buffs?.some((b) => b.type === 'dmg')) {
+			rawDmg = Math.round(rawDmg * 1.25);
+		}
+
+		if (attacker.range > 150) {
+			this.projectiles.push({
+				id: `proj_${this.nextProjectileId++}`,
+				sourceUnitId: attacker.instanceId,
+				targetUnitId: target.instanceId,
+				x: attacker.x,
+				y: attacker.y,
+				targetX: target.x + CELL_SIZE / 2,
+				targetY: target.y + CELL_SIZE / 2,
+				speed: 650,
+				damage: rawDmg,
+				attackType: attacker.attackType,
+				isCrit: false,
+				team: attacker.team,
+				splashRadius: attacker.splashRadius
+			});
+			if (attacker.attackType === 'magic') {
+				this.onSoundEffect?.('magic');
+			} else {
+				this.onSoundEffect?.('bow');
+			}
+		} else {
+			const mTeam: MatchTeam = attacker.team === 'east' ? 'east' : 'west';
+			this.damageBuilding(target, rawDmg, attacker.attackType, mTeam);
+			this.onSoundEffect?.('sword');
+		}
+	}
+
+	public damageBuilding(
+		building: Building,
+		rawDamage: number,
+		attackType: AttackType,
+		attackerTeam: MatchTeam
+	): void {
+		if (building.hp <= 0) return;
+		const damage = calculateDamage(attackType, building.armorType, rawDamage, building.armor);
+		building.hp -= damage;
+		this.addFloatingText(`-${damage}`, building.x + CELL_SIZE / 2, building.y - 15, '#f87171');
+
+		const player = this.players[attackerTeam];
+		if (player) {
+			player.stats.totalDamageDealt += damage;
+		}
+
+		if (building.hp <= 0) {
+			building.hp = 0;
+			this.buildings = this.buildings.filter((b) => b.instanceId !== building.instanceId);
+			const bDef = getBuilding(building.defId);
+			if (bDef && isLegendaryBuilding(bDef)) {
+				const owner = this.players[building.team];
+				if (owner && owner.food > 0) owner.food--;
+			}
+			this.addFloatingText(
+				`Зруйновано: ${building.name}`,
+				building.x + CELL_SIZE / 2,
+				building.y - 25,
+				'#ef4444'
+			);
+			this.onSoundEffect?.('buildingDestroyed');
+		}
 		this.notifyStateChanged();
 	}
 
@@ -1476,9 +1683,16 @@ export class Simulation {
 	private updateProjectiles(dt: number): void {
 		for (const p of this.projectiles) {
 			const target = this.units.find((u) => u.instanceId === p.targetUnitId);
+			const targetBuilding = !target
+				? this.buildings.find((b) => b.instanceId === p.targetUnitId)
+				: null;
+
 			if (target && target.state !== 'DEAD') {
 				p.targetX = target.x;
 				p.targetY = target.y;
+			} else if (targetBuilding) {
+				p.targetX = targetBuilding.x + CELL_SIZE / 2;
+				p.targetY = targetBuilding.y + CELL_SIZE / 2;
 			}
 
 			const dx = p.targetX - p.x;
@@ -1519,6 +1733,8 @@ export class Simulation {
 							}
 						}
 					}
+				} else if (targetBuilding && targetBuilding.hp > 0) {
+					this.damageBuilding(targetBuilding, p.damage, p.attackType, p.team as MatchTeam);
 				}
 				if (p.splashRadius) {
 					this.triggerSplashDamage(
@@ -1608,6 +1824,9 @@ export class Simulation {
 
 		const spawnCd = getSpawnCooldown(bDef, getUnit(bDef.unit));
 
+		const isBot = player.isBot;
+		const buildTime = isBot ? 2.5 : 3.5;
+
 		const building: Building = {
 			instanceId: `bld_${this.nextBuildingId++}`,
 			defId: bDef.id,
@@ -1617,14 +1836,21 @@ export class Simulation {
 			tileY,
 			x: worldX,
 			y: worldY,
+			hp: Math.round((bDef.hp || 1200) * 0.15),
+			maxHp: bDef.hp || 1200,
+			armor: bDef.armor ?? 5,
+			armorType: (bDef.armor_type as ArmorType) || 'fort',
 			goldCost: cost,
 			spawnUnitId: bDef.unit,
 			spawnCooldown: spawnCd,
-			spawnTimer: bDef.specialType === 'repair' ? 0 : 4.0, // Repair starts immediately
+			spawnTimer: bDef.specialType === 'repair' ? 0 : 4.0,
 			lane,
 			upgradeFrom: bDef.upgrade_from,
 			race: bDef.race || player.race,
-			specialType: bDef.specialType
+			specialType: bDef.specialType,
+			isUnderConstruction: true,
+			buildProgress: 0,
+			maxBuildProgress: buildTime
 		};
 
 		if (bDef.specialType === 'tower') {
@@ -1641,10 +1867,10 @@ export class Simulation {
 			player.food++;
 		}
 		if (player.worker) {
-			player.worker.targetX = worldX + CELL_SIZE / 2 + (team === 'west' ? -25 : 25);
+			player.worker.targetX = worldX + CELL_SIZE / 2;
 			player.worker.targetY = worldY + CELL_SIZE / 2;
-			player.worker.isBuilding = true;
-			player.worker.buildTimer = 1.2;
+			player.worker.targetBuildingId = building.instanceId;
+			player.worker.isBuilding = false;
 		}
 		this.addFloatingText(`-${cost}g`, worldX, worldY - 20, '#fbbf24');
 
@@ -1658,6 +1884,7 @@ export class Simulation {
 			w.targetX = targetX;
 			w.targetY = targetY;
 			w.isBuilding = false;
+			w.targetBuildingId = null;
 			this.notifyStateChanged();
 		}
 	}

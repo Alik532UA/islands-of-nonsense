@@ -44,6 +44,7 @@ export class ArenaRenderer {
 	private terrainLayer: Graphics;
 	private gridLayer: Graphics;
 	private buildingsLayer: Graphics;
+	private coinsLayer: Graphics;
 	private workersLayer: Graphics;
 	private unitsLayer: Graphics;
 	private projectilesLayer: Graphics;
@@ -65,6 +66,7 @@ export class ArenaRenderer {
 		this.terrainLayer = new Graphics();
 		this.gridLayer = new Graphics();
 		this.buildingsLayer = new Graphics();
+		this.coinsLayer = new Graphics();
 		this.workersLayer = new Graphics();
 		this.unitsLayer = new Graphics();
 		this.projectilesLayer = new Graphics();
@@ -89,6 +91,7 @@ export class ArenaRenderer {
 		this.rootContainer.addChild(this.terrainLayer);
 		this.rootContainer.addChild(this.gridLayer);
 		this.rootContainer.addChild(this.buildingsLayer);
+		this.rootContainer.addChild(this.coinsLayer);
 		this.rootContainer.addChild(this.workersLayer);
 		this.rootContainer.addChild(this.unitsLayer);
 		this.rootContainer.addChild(this.projectilesLayer);
@@ -105,6 +108,22 @@ export class ArenaRenderer {
 	}
 
 	private setupInteraction(canvas: HTMLCanvasElement): void {
+		canvas.addEventListener('contextmenu', (e) => {
+			e.preventDefault();
+		});
+
+		canvas.addEventListener('mousedown', (e: MouseEvent) => {
+			if (e.button === 2) {
+				// Right-click order to move worker
+				const rect = canvas.getBoundingClientRect();
+				const scaleX = ARENA_WIDTH / rect.width;
+				const scaleY = ARENA_HEIGHT / rect.height;
+				const mouseX = (e.clientX - rect.left) * scaleX;
+				const mouseY = (e.clientY - rect.top) * scaleY;
+				this.sim.moveWorker('west', mouseX, mouseY);
+			}
+		});
+
 		canvas.addEventListener('mousemove', (e) => {
 			const rect = canvas.getBoundingClientRect();
 			const scaleX = ARENA_WIDTH / rect.width;
@@ -420,7 +439,8 @@ export class ArenaRenderer {
 	}
 
 	private drawCoinsLayer(): void {
-		const g = this.projectilesLayer;
+		const g = this.coinsLayer;
+		g.clear();
 		for (const coin of this.sim.goldCoins) {
 			const pulse = 1 + Math.sin(this.sim.gameTime * 7) * 0.15;
 			const radius = 9 * pulse;
@@ -557,6 +577,53 @@ export class ArenaRenderer {
 				g.fill({ color: 0x3b0764 });
 			}
 
+			// Under construction visual overlay & progress bar
+			if (b.isUnderConstruction) {
+				g.roundRect(px + 4, py + 4, CELL_SIZE - 8, CELL_SIZE - 8, 4);
+				g.fill({ color: 0x78350f, alpha: 0.65 });
+				g.stroke({ color: 0xd97706, width: 2 });
+
+				// Scaffolding diagonal cross
+				g.beginPath();
+				g.moveTo(px + 6, py + 6);
+				g.lineTo(px + CELL_SIZE - 6, py + CELL_SIZE - 6);
+				g.moveTo(px + CELL_SIZE - 6, py + 6);
+				g.lineTo(px + 6, py + CELL_SIZE - 6);
+				g.stroke({ color: 0xfbbf24, width: 2, alpha: 0.8 });
+
+				// Construction progress bar above building
+				const bProg = b.buildProgress || 0;
+				const bMax = b.maxBuildProgress || 6.0;
+				const progPct = Math.max(0, Math.min(1, bProg / bMax));
+
+				const barX = px + 4;
+				const barY = py - 8;
+				const barW = CELL_SIZE - 8;
+				const barH = 5;
+
+				g.roundRect(barX - 1, barY - 1, barW + 2, barH + 2, 2);
+				g.fill({ color: 0x090d16 });
+				g.stroke({ color: 0xf59e0b, width: 1 });
+
+				g.roundRect(barX, barY, barW * progPct, barH, 1.5);
+				g.fill({ color: 0xf59e0b });
+				continue;
+			}
+
+			// Damaged building HP bar (underneath building)
+			if (b.hp !== undefined && b.maxHp !== undefined && b.hp < b.maxHp) {
+				const hpPct = Math.max(0, Math.min(1, b.hp / b.maxHp));
+				const hpBarX = px + 4;
+				const hpBarY = py + CELL_SIZE + 2;
+				const hpBarW = CELL_SIZE - 8;
+				const hpBarH = 4;
+
+				g.roundRect(hpBarX - 1, hpBarY - 1, hpBarW + 2, hpBarH + 2, 1);
+				g.fill({ color: 0x090d16 });
+				g.roundRect(hpBarX, hpBarY, hpBarW * hpPct, hpBarH, 1);
+				g.fill({ color: hpPct > 0.5 ? 0x22c55e : hpPct > 0.25 ? 0xeab308 : 0xef4444 });
+			}
+
 			// Legendary Apex Badge
 			const bDef = getBuilding(b.defId);
 			const isLeg = isLegendaryBuilding(bDef);
@@ -681,46 +748,63 @@ export class ArenaRenderer {
 		g.clear();
 
 		for (const u of this.sim.units) {
-			if (u.state === 'DEAD') continue;
+			const radius = u.size;
+
+			if (u.state === 'DEAD') {
+				if (u.deathTimer !== undefined && u.deathTimer > 0) {
+					const fade = Math.max(0, u.deathTimer / 0.7);
+					g.ellipse(u.x, u.y, radius * 0.9, radius * 0.45);
+					g.fill({ color: 0x334155, alpha: fade * 0.65 });
+					g.rect(u.x - 3, u.y - 1, 6, 2);
+					g.fill({ color: 0xe2e8f0, alpha: fade * 0.8 });
+				}
+				continue;
+			}
 
 			const isWest = u.team === 'west';
 			const isNeutral = u.team === 'neutral';
-			const radius = u.size;
+			const dir = isNeutral ? 1 : isWest ? 1 : -1;
+			const walkBob =
+				u.state === 'WALKING' ? Math.sin(this.sim.gameTime * 14 + u.x * 0.05) * 1.5 : 0;
+			const attackLunge =
+				u.state === 'ATTACKING' ? Math.sin((u.attackAnimTimer || 0) * Math.PI) * 4 * dir : 0;
+			const unitX = u.x + attackLunge;
+			const unitY = u.y + walkBob;
 
 			// If flying, draw subtle shadow on the ground & wings
 			if (u.flying) {
-				g.ellipse(u.x, u.y + 16, radius, radius * 0.4);
+				g.ellipse(unitX, u.y + 16, radius, radius * 0.4);
 				g.fill({ color: 0x000000, alpha: 0.3 });
 
 				const flap = Math.sin(this.sim.gameTime * 15) * 3;
 				g.poly([
-					u.x - radius - 5,
-					u.y - 2 + flap,
-					u.x - radius,
-					u.y - radius * 0.5,
-					u.x - radius,
-					u.y + radius * 0.5
+					unitX - radius - 5,
+					unitY - 2 + flap,
+					unitX - radius,
+					unitY - radius * 0.5,
+					unitX - radius,
+					unitY + radius * 0.5
 				]);
 				g.fill({ color: 0xe0f2fe, alpha: 0.85 });
 				g.poly([
-					u.x + radius + 5,
-					u.y - 2 + flap,
-					u.x + radius,
-					u.y - radius * 0.5,
-					u.x + radius,
-					u.y + radius * 0.5
+					unitX + radius + 5,
+					unitY - 2 + flap,
+					unitX + radius,
+					unitY - radius * 0.5,
+					unitX + radius,
+					unitY + radius * 0.5
 				]);
 				g.fill({ color: 0xe0f2fe, alpha: 0.85 });
 			}
 
 			// If neutral boss, draw glowing aura
 			if (isNeutral) {
-				g.circle(u.x, u.y, radius + 5);
+				g.circle(unitX, unitY, radius + 5);
 				g.stroke({ color: 0xf59e0b, width: 2, alpha: 0.7 });
 			}
 
 			// Unit circle body
-			g.circle(u.x, u.y, radius);
+			g.circle(unitX, unitY, radius);
 			g.fill({ color: isNeutral ? 0x7e22ce : isWest ? 0x2563eb : 0xdc2626 });
 			g.stroke({
 				color: isNeutral ? 0xfbbf24 : isWest ? 0xbfdbfe : 0xfecaca,
@@ -730,40 +814,67 @@ export class ArenaRenderer {
 			// Status Effects Visuals
 			if (u.isStunned) {
 				const angle = this.sim.gameTime * 8;
-				const starX = u.x + Math.cos(angle) * (radius + 2);
-				const starY = u.y - radius - 2 + Math.sin(angle) * 3;
+				const starX = unitX + Math.cos(angle) * (radius + 2);
+				const starY = unitY - radius - 2 + Math.sin(angle) * 3;
 				g.circle(starX, starY, 3);
 				g.fill({ color: 0xfacc15 });
 			}
 
 			if (u.isEnsnared) {
-				g.rect(u.x - radius, u.y - radius, radius * 2, radius * 2);
+				g.rect(unitX - radius, unitY - radius, radius * 2, radius * 2);
 				g.stroke({ color: 0xd97706, width: 1.5, alpha: 0.85 });
 			}
 
 			if (u.buffs?.some((b) => b.type === 'poison')) {
-				g.circle(u.x + Math.sin(this.sim.gameTime * 6) * 6, u.y - radius - 3, 2.5);
+				g.circle(unitX + Math.sin(this.sim.gameTime * 6) * 6, unitY - radius - 3, 2.5);
 				g.fill({ color: 0x22c55e });
 			}
 
 			// Unit Inner Emblem based on Attack Type
-			this.renderUnitEmblem(g, u.x, u.y, u.attackType, radius);
+			this.renderUnitEmblem(g, unitX, unitY, u.attackType, radius);
 
-			// Direction arrow (for normal units)
+			// Directional weapon & shield
 			if (!isNeutral) {
-				const dir = isWest ? 1 : -1;
-				g.moveTo(u.x + dir * (radius + 2), u.y);
-				g.lineTo(u.x + dir * (radius - 4), u.y - 4);
-				g.lineTo(u.x + dir * (radius - 4), u.y + 4);
-				g.fill({ color: 0xffffff });
+				const wpX = unitX + dir * (radius + 2);
+				const wpY = unitY;
+				if (u.attackType === 'pierce') {
+					// Bow arc & arrow
+					g.beginPath();
+					g.arc(wpX - dir * 2, wpY, 6, -Math.PI / 2, Math.PI / 2, dir < 0);
+					g.stroke({ color: 0x92400e, width: 2 });
+					g.beginPath();
+					g.moveTo(wpX - dir * 4, wpY);
+					g.lineTo(wpX + dir * 4, wpY);
+					g.stroke({ color: 0xfef08a, width: 1.5 });
+				} else if (u.attackType === 'siege') {
+					// Cannon barrel
+					g.rect(dir > 0 ? wpX - 2 : wpX - 7, wpY - 3, 9, 6);
+					g.fill({ color: 0x475569 });
+					g.stroke({ color: 0x1e293b, width: 1 });
+				} else if (u.attackType === 'magic') {
+					// Magic orb
+					const orbPulse = Math.sin(this.sim.gameTime * 10) * 1.5;
+					g.circle(wpX, wpY - 2, 4 + orbPulse);
+					g.fill({ color: 0xc084fc, alpha: 0.85 });
+				} else {
+					// Melee Sword & Shield
+					g.beginPath();
+					g.moveTo(wpX, wpY + 5);
+					g.lineTo(wpX + dir * 5, wpY - 5);
+					g.stroke({ color: 0xe2e8f0, width: 2 });
+					// Shield on offhand
+					g.ellipse(unitX - dir * (radius * 0.6), unitY, 3, 6);
+					g.fill({ color: isWest ? 0x1e3a8a : 0x7f1d1d });
+					g.stroke({ color: 0xfbbf24, width: 1 });
+				}
 			}
 
 			// Health Bar
 			const hpPct = Math.max(0, u.hp / u.maxHp);
 			const barW = isNeutral ? radius * 2.8 : radius * 2.2;
 			const barH = isNeutral ? 5 : 3;
-			const barX = u.x - barW / 2;
-			const barY = u.y - radius - (isNeutral ? 11 : 7);
+			const barX = unitX - barW / 2;
+			const barY = unitY - radius - (isNeutral ? 11 : 7);
 
 			g.rect(barX - 1, barY - 1, barW + 2, barH + 2);
 			g.fill({ color: 0x000000, alpha: 0.8 });
@@ -906,7 +1017,9 @@ export class ArenaRenderer {
 			g.stroke({ color: 0xd97706, width: 1 });
 
 			// Hair / Headband (WC3 Peasant look)
+			g.beginPath();
 			g.arc(wx, wy - 11 + bob, 7, Math.PI, 0);
+			g.closePath();
 			g.fill({ color: 0x451a03 });
 
 			// Eyes
@@ -920,6 +1033,7 @@ export class ArenaRenderer {
 			const hy = wy + bob - 2 + hammerSwing;
 
 			// Hammer Handle
+			g.beginPath();
 			g.moveTo(hx - 2, hy + 8);
 			g.lineTo(hx + 4, hy - 4);
 			g.stroke({ color: 0x92400e, width: 2.5 });
@@ -968,6 +1082,7 @@ export class ArenaRenderer {
 			g.stroke({ color: 0x166534, width: 1 });
 
 			// Hammer
+			g.beginPath();
 			g.moveTo(ex - 8, ey + bob);
 			g.lineTo(ex - 12, ey + bob - 8);
 			g.stroke({ color: 0x78350f, width: 2.5 });
