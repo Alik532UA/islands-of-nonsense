@@ -1,7 +1,8 @@
 <script lang="ts">
 	import type { Simulation } from '../engine/simulation';
 	import { getCommander } from '../engine/commanders';
-	import { Coins, Shield, Sword, Hammer, Play, Pause } from 'lucide-svelte';
+	import { getRaceAbility } from '../engine/raceAbilities';
+	import { Coins, Shield, Sword, Hammer, Play, Pause, Sparkles } from 'lucide-svelte';
 
 	let {
 		sim,
@@ -24,6 +25,13 @@
 
 	let westHpPct = $derived(Math.max(0, Math.round((westCastle.hp / westCastle.maxHp) * 100)));
 	let eastHpPct = $derived(Math.max(0, Math.round((eastCastle.hp / eastCastle.maxHp) * 100)));
+
+	let raceAbility = $derived(uiTick >= 0 ? getRaceAbility(player.race) : getRaceAbility('Люди'));
+	let canCastRaceSkill = $derived(uiTick >= 0 ? sim.canUseRaceSkill('west') : false);
+	let raceSkillCd = $derived(uiTick >= 0 ? sim.raceSkillCooldown.west : 0);
+	let raceSkillUnlockLeft = $derived(
+		uiTick >= 0 ? Math.max(0, 300 - Math.floor(sim.gameTime)) : 300
+	);
 
 	let incomePct = $derived(
 		Math.max(0, Math.min(100, Math.round((1 - sim.incomeTimer / sim.incomeInterval) * 100)))
@@ -105,6 +113,34 @@
 				{#if player.forge.attack + player.forge.armor + player.forge.econ > 0}
 					<span class="bg-amber-500 text-slate-950 text-[10px] px-1 rounded-full font-bold">
 						{player.forge.attack + player.forge.armor + player.forge.econ}
+					</span>
+				{/if}
+			</button>
+
+			<!-- Race Ability Button -->
+			<button
+				onclick={() => {
+					if (canCastRaceSkill) {
+						sim.useRaceSkill('west');
+					}
+				}}
+				disabled={!canCastRaceSkill}
+				class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer {canCastRaceSkill
+					? 'bg-purple-900/80 hover:bg-purple-800 border border-purple-400 text-purple-100 ring-2 ring-purple-400/50 animate-pulse'
+					: 'bg-slate-950/60 border border-slate-800 text-slate-500 cursor-not-allowed opacity-70'}"
+				title="{raceAbility.nameUk}: {raceAbility.descriptionUk} (Гаряча клавіша: R)"
+			>
+				<Sparkles class="w-3.5 h-3.5 {canCastRaceSkill ? 'text-purple-300' : 'text-slate-500'}" />
+				<span class="truncate max-w-[80px]">{raceAbility.nameUk}</span>
+				{#if raceSkillUnlockLeft > 0}
+					<span class="text-[10px] font-mono text-slate-500">({raceSkillUnlockLeft}с)</span>
+				{:else if raceSkillCd > 0}
+					<span class="text-[10px] font-mono text-amber-400">{Math.ceil(raceSkillCd)}с</span>
+				{:else}
+					<span
+						class="text-[9px] bg-purple-950 border border-purple-500/60 px-1 rounded text-purple-300 font-mono font-bold"
+					>
+						R
 					</span>
 				{/if}
 			</button>

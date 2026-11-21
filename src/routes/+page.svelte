@@ -37,6 +37,14 @@
 			isForgeOpen = !isForgeOpen;
 		} else if ((e.key === 'c' || e.key === 'C') && !e.repeat) {
 			isCommanderOpen = !isCommanderOpen;
+		} else if ((e.key === 'r' || e.key === 'R') && !e.repeat && !isForgeOpen && !isCommanderOpen) {
+			if (sim.canUseRaceSkill('west')) {
+				const success = sim.useRaceSkill('west');
+				if (success) {
+					sound.playUpgrade();
+					uiTick = sim.stateVersion;
+				}
+			}
 		}
 	}
 

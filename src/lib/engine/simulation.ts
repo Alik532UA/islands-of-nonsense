@@ -390,9 +390,29 @@ export class Simulation {
 		for (const u of this.units) {
 			if (u.state === 'DEAD') continue;
 
+			// Process active buffs
+			if (u.buffs && u.buffs.length > 0) {
+				for (const b of u.buffs) {
+					b.timer -= dt;
+					if (b.type === 'infect') {
+						u.hp -= b.value * dt;
+					}
+				}
+				u.buffs = u.buffs.filter((b) => b.timer > 0);
+				if (u.hp <= 0) {
+					u.state = 'DEAD';
+					continue;
+				}
+			}
+
 			u.prevX = u.x;
 			u.prevY = u.y;
 			u.cooldownTimer -= dt;
+
+			let currentSpeed = u.speed;
+			if (u.buffs?.some((b) => b.type === 'slow')) {
+				currentSpeed *= 0.5;
+			}
 
 			const targetLaneY = u.lane === 'top' ? TOP_LANE_Y : BOTTOM_LANE_Y;
 
@@ -418,7 +438,11 @@ export class Simulation {
 					u.currentTargetId = enemyTarget.instanceId;
 
 					if (u.cooldownTimer <= 0) {
-						u.cooldownTimer = u.attackCooldown;
+						let cd = u.attackCooldown;
+						if (u.buffs?.some((b) => b.type === 'as')) {
+							cd *= 0.75;
+						}
+						u.cooldownTimer = cd;
 						this.performAttack(u, enemyTarget);
 					}
 				} else {
@@ -426,8 +450,8 @@ export class Simulation {
 					u.state = 'WALKING';
 					const dirX = dx / dist;
 					const dirY = dy / dist;
-					u.x += dirX * u.speed * dt;
-					u.y += dirY * u.speed * dt;
+					u.x += dirX * currentSpeed * dt;
+					u.y += dirY * currentSpeed * dt;
 				}
 			} else {
 				// No enemy nearby on this lane -> March towards enemy Castle
@@ -438,7 +462,11 @@ export class Simulation {
 				if (distToCastle <= u.range + 50) {
 					u.state = 'ATTACKING';
 					if (u.cooldownTimer <= 0) {
-						u.cooldownTimer = u.attackCooldown;
+						let cd = u.attackCooldown;
+						if (u.buffs?.some((b) => b.type === 'as')) {
+							cd *= 0.75;
+						}
+						u.cooldownTimer = cd;
 						this.attackCastle(u, targetCastle);
 					}
 				} else {
@@ -447,9 +475,9 @@ export class Simulation {
 					const dyToLane = targetLaneY - u.y;
 					let stepY = 0;
 					if (Math.abs(dyToLane) > 4) {
-						stepY = Math.sign(dyToLane) * Math.min(Math.abs(dyToLane), u.speed * dt * 0.8);
+						stepY = Math.sign(dyToLane) * Math.min(Math.abs(dyToLane), currentSpeed * dt * 0.8);
 					}
-					const stepX = (u.team === 'west' ? 1 : -1) * u.speed * dt;
+					const stepX = (u.team === 'west' ? 1 : -1) * currentSpeed * dt;
 					u.x += stepX;
 					u.y += stepY;
 				}
@@ -462,7 +490,11 @@ export class Simulation {
 		if (attacker.lane !== target.lane) return;
 
 		// Evade check
-		if (target.evadeChance && Math.random() < target.evadeChance) {
+		let effectiveEvade = target.evadeChance || 0;
+		if (target.buffs?.some((b) => b.type === 'evade')) {
+			effectiveEvade = Math.min(0.85, effectiveEvade + 0.4);
+		}
+		if (effectiveEvade > 0 && Math.random() < effectiveEvade) {
 			this.addFloatingText('Ухилення!', target.x, target.y - 20, '#60a5fa');
 			return;
 		}
@@ -471,6 +503,10 @@ export class Simulation {
 		let rawDmg =
 			attacker.damageMin +
 			Math.floor(Math.random() * (attacker.damageMax - attacker.damageMin + 1));
+
+		if (attacker.buffs?.some((b) => b.type === 'dmg')) {
+			rawDmg = Math.round(rawDmg * 1.25);
+		}
 
 		let isCrit = false;
 		if (attacker.critChance && Math.random() < attacker.critChance) {
@@ -505,7 +541,11 @@ export class Simulation {
 		attackerTeam: Team,
 		isCrit: boolean
 	): void {
-		const finalDamage = calculateDamage(attackType, target.armorType, rawDmg, target.armor);
+		let effectiveArmor = target.armor;
+		if (target.buffs?.some((b) => b.type === 'shield')) {
+			effectiveArmor += 5;
+		}
+		const finalDamage = calculateDamage(attackType, target.armorType, rawDmg, effectiveArmor);
 		target.hp -= finalDamage;
 
 		this.addFloatingText(
@@ -788,5 +828,157 @@ export class Simulation {
 		let price = baseCost + currentLevel * costStep;
 		if (isAlik) price = Math.round(price * 0.5);
 		return price;
+	}
+
+	// --- RACE ACTIVE ABILITIES (Unlocked at 300s, cooldown 150s) ---
+	public canUseRaceSkill(team: Team): boolean {
+		return this.gameTime >= 300 && this.raceSkillCooldown[team] <= 0 && !this.winner;
+	}
+
+	public useRaceSkill(team: Team): boolean {
+		if (!this.canUseRaceSkill(team)) return false;
+
+		const player = this.players[team];
+		const ability = getRaceAbility(player.race);
+		this.raceSkillCooldown[team] = 150;
+
+		const enemyTeam: Team = team === 'west' ? 'east' : 'west';
+
+		switch (ability.kind) {
+			case 'dmg':
+				for (const u of this.units) {
+					if (u.team === team && u.state !== 'DEAD') {
+						u.buffs = u.buffs || [];
+						u.buffs.push({ type: 'dmg', timer: 15, value: 0.25 });
+					}
+				}
+				this.addFloatingText(
+					`${ability.nameUk}! (+25% шкоди)`,
+					this.castles[team].x,
+					this.castles[team].y - 60,
+					'#f59e0b'
+				);
+				break;
+			case 'as':
+			case 'sbor':
+				for (const u of this.units) {
+					if (u.team === team && u.state !== 'DEAD') {
+						u.buffs = u.buffs || [];
+						u.buffs.push({ type: 'as', timer: ability.duration, value: 0.3 });
+					}
+				}
+				this.addFloatingText(
+					`${ability.nameUk}! (+Швидкість атаки)`,
+					this.castles[team].x,
+					this.castles[team].y - 60,
+					'#10b981'
+				);
+				break;
+			case 'shield':
+				for (const u of this.units) {
+					if (u.team === team && u.state !== 'DEAD') {
+						u.buffs = u.buffs || [];
+						u.buffs.push({ type: 'shield', timer: 10, value: 5 });
+					}
+				}
+				this.addFloatingText(
+					`${ability.nameUk}! (+5 броні)`,
+					this.castles[team].x,
+					this.castles[team].y - 60,
+					'#60a5fa'
+				);
+				break;
+			case 'evade':
+				for (const u of this.units) {
+					if (u.team === team && u.state !== 'DEAD') {
+						u.buffs = u.buffs || [];
+						u.buffs.push({ type: 'evade', timer: 8, value: 0.4 });
+					}
+				}
+				this.addFloatingText(
+					`${ability.nameUk}! (+40% ухилення)`,
+					this.castles[team].x,
+					this.castles[team].y - 60,
+					'#a855f7'
+				);
+				break;
+			case 'slow':
+				for (const u of this.units) {
+					if (u.team === enemyTeam && u.state !== 'DEAD') {
+						u.buffs = u.buffs || [];
+						u.buffs.push({ type: 'slow', timer: 8, value: 0.5 });
+					}
+				}
+				this.addFloatingText(
+					`${ability.nameUk}! (-50% швидкості ворога)`,
+					this.castles[enemyTeam].x,
+					this.castles[enemyTeam].y - 60,
+					'#06b6d4'
+				);
+				break;
+			case 'plague':
+				for (const u of this.units) {
+					if (u.team === enemyTeam && u.state !== 'DEAD') {
+						const dmg = Math.max(15, Math.round(u.hp * 0.1));
+						u.hp = Math.max(1, u.hp - dmg);
+						this.addFloatingText(`-${dmg}`, u.x, u.y - 15, '#22c55e');
+					}
+				}
+				this.addFloatingText(
+					`${ability.nameUk}! (-10% HP ворогам)`,
+					this.castles[enemyTeam].x,
+					this.castles[enemyTeam].y - 60,
+					'#22c55e'
+				);
+				break;
+			case 'mine':
+				for (const u of this.units) {
+					if (u.team === enemyTeam && u.state !== 'DEAD') {
+						const distFromCenter = Math.abs(u.x - ARENA_WIDTH / 2);
+						if (distFromCenter <= 700) {
+							u.hp -= 300;
+							this.addFloatingText('-300', u.x, u.y - 20, '#ef4444');
+							if (u.hp <= 0) u.state = 'DEAD';
+						}
+					}
+				}
+				this.addFloatingText('МІНА! (300 шкоди)', ARENA_WIDTH / 2, TOP_LANE_Y, '#ef4444');
+				break;
+			case 'nuke_chaos':
+			case 'nuke_elf': {
+				const nukeDmg = ability.kind === 'nuke_chaos' ? 200 : 150;
+				for (const u of this.units) {
+					if (u.team === enemyTeam && u.state !== 'DEAD') {
+						u.hp -= nukeDmg;
+						this.addFloatingText(`-${nukeDmg}`, u.x, u.y - 15, '#f97316');
+						if (u.hp <= 0) u.state = 'DEAD';
+					}
+				}
+				this.addFloatingText(
+					`${ability.nameUk}!`,
+					this.castles[enemyTeam].x,
+					this.castles[enemyTeam].y - 60,
+					'#f97316'
+				);
+				break;
+			}
+			case 'infect':
+				for (const u of this.units) {
+					if (u.team === enemyTeam && u.state !== 'DEAD') {
+						u.buffs = u.buffs || [];
+						u.buffs.push({ type: 'infect', timer: 8, value: 30 });
+					}
+				}
+				this.addFloatingText(
+					`${ability.nameUk}! (Зараження)`,
+					this.castles[enemyTeam].x,
+					this.castles[enemyTeam].y - 60,
+					'#84cc16'
+				);
+				break;
+		}
+
+		this.notifyStateChanged();
+		return true;
 	}
 }

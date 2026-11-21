@@ -23,6 +23,17 @@ export class BotAI {
 		const player = this.sim.players[this.team];
 		if (!player || !player.isBot) return;
 
+		// 0. Race skill decision: use when unlocked and enemy forces are gathered
+		if (this.sim.canUseRaceSkill(this.team)) {
+			const enemyCount = this.sim.units.filter(
+				(u) => u.team !== this.team && u.state !== 'DEAD'
+			).length;
+			if (enemyCount >= 3) {
+				this.sim.useRaceSkill(this.team);
+				return;
+			}
+		}
+
 		// 1. Forge decision: if surplus gold, buy forge upgrades
 		if (player.gold > 350) {
 			if (this.sim.gameTime < 300 && player.forge.econ < 2) {
