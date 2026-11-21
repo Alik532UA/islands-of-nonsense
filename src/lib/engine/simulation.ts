@@ -321,6 +321,14 @@ export class Simulation {
 					multiplier *= 1.15;
 				}
 
+				// Treasure Box: +20% income per chest
+				const treasureBoxes = this.buildings.filter(
+					(b) => b.team === team && b.specialType === 'treasure'
+				).length;
+				if (treasureBoxes > 0) {
+					multiplier *= 1 + 0.2 * treasureBoxes;
+				}
+
 				const payout = Math.max(5, Math.round(baseIncome * multiplier));
 				player.gold += payout;
 
@@ -335,6 +343,22 @@ export class Simulation {
 	// --- BUILDINGS ---
 	private updateBuildings(dt: number): void {
 		for (const b of this.buildings) {
+			if (b.specialType === 'repair') {
+				b.spawnTimer -= dt;
+				if (b.spawnTimer <= 0) {
+					b.spawnTimer = 1.0;
+					const castle = this.castles[b.team];
+					if (castle.hp < castle.maxHp) {
+						castle.hp = Math.min(castle.maxHp, castle.hp + 25);
+						this.addFloatingText('+25 HP', castle.x, castle.y - 45, '#10b981');
+					}
+				}
+				continue;
+			}
+			if (b.specialType) {
+				continue;
+			}
+
 			b.spawnTimer -= dt;
 			if (b.spawnTimer <= 0) {
 				b.spawnTimer = b.spawnCooldown;
@@ -709,6 +733,19 @@ export class Simulation {
 
 		if (target.hp <= 0) {
 			target.state = 'DEAD';
+
+			// Recycler scrap salvage on unit death:
+			if (target.team === 'west' || target.team === 'east') {
+				const recyclers = this.buildings.filter(
+					(b) => b.team === target.team && b.specialType === 'recycler'
+				);
+				if (recyclers.length > 0) {
+					const scrapBonus = recyclers.length * 4;
+					this.players[target.team].gold += scrapBonus;
+					this.addFloatingText(`+${scrapBonus}g Брухт`, target.x, target.y - 20, '#eab308');
+				}
+			}
+
 			if (target.team === 'neutral') {
 				this.activeBossInstanceId = null;
 				this.bossSpawnTimer = 180.0;
@@ -874,7 +911,8 @@ export class Simulation {
 			spawnTimer: 4.0, // Initial spawn delay
 			lane,
 			upgradeFrom: bDef.upgrade_from,
-			race: bDef.race || player.race
+			race: bDef.race || player.race,
+			specialType: bDef.specialType
 		};
 
 		this.buildings.push(building);

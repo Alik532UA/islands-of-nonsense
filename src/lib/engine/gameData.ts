@@ -7,8 +7,57 @@ export const BUILDINGS_MAP = new Map<string, BuildingDefinition>();
 export const UNITS_MAP = new Map<string, UnitDefinition>();
 export const RACES_LIST: RaceDefinition[] = rawRaces as RaceDefinition[];
 
+export const SPECIAL_BUILDINGS: BuildingDefinition[] = [
+	{
+		id: 'h008',
+		name: 'Скриня скарбів',
+		hp: 800,
+		armor: 5,
+		armor_type: 'fort',
+		attack_type: 'normal',
+		gold_cost: 160,
+		unit: '',
+		upgrade_from: null,
+		upgrade_extra_cost: 0,
+		race: null,
+		specialType: 'treasure'
+	},
+	{
+		id: 'cg09_repair',
+		name: 'Ремонтний пункт',
+		hp: 1200,
+		armor: 5,
+		armor_type: 'fort',
+		attack_type: 'normal',
+		gold_cost: 180,
+		unit: '',
+		upgrade_from: null,
+		upgrade_extra_cost: 0,
+		race: null,
+		specialType: 'repair'
+	},
+	{
+		id: 'cg07_recycler',
+		name: 'Утилізатор',
+		hp: 1100,
+		armor: 5,
+		armor_type: 'fort',
+		attack_type: 'normal',
+		gold_cost: 210,
+		unit: '',
+		upgrade_from: null,
+		upgrade_extra_cost: 0,
+		race: null,
+		specialType: 'recycler'
+	}
+];
+
 for (const b of rawBuildings as BuildingDefinition[]) {
 	BUILDINGS_MAP.set(b.id, b);
+}
+
+for (const sb of SPECIAL_BUILDINGS) {
+	BUILDINGS_MAP.set(sb.id, sb);
 }
 
 for (const u of rawUnits as UnitDefinition[]) {
@@ -34,7 +83,7 @@ export function getBuildingsForRace(raceName: string): BuildingDefinition[] {
 }
 
 export function getBaseBuildingsForRace(raceName: string): BuildingDefinition[] {
-	return getBuildingsForRace(raceName).filter((b) => !b.upgrade_from);
+	return [...getBuildingsForRace(raceName).filter((b) => !b.upgrade_from), ...SPECIAL_BUILDINGS];
 }
 
 export function getUpgradesForBuilding(buildingId: string): BuildingDefinition[] {

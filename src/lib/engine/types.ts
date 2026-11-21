@@ -42,6 +42,7 @@ export interface BuildingDefinition {
 	upgrade_from: string | null;
 	upgrade_extra_cost: number;
 	race?: string | null;
+	specialType?: 'treasure' | 'repair' | 'recycler';
 	raw_fields?: Record<string, unknown>;
 }
 
@@ -108,6 +109,7 @@ export interface Building {
 	lane: Lane;
 	upgradeFrom: string | null;
 	race: string;
+	specialType?: 'treasure' | 'repair' | 'recycler';
 }
 
 export interface Projectile {

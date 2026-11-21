@@ -269,21 +269,49 @@ export class ArenaRenderer {
 			}
 
 			// Building base stone
+			let baseColor = isWest ? 0x1d4ed8 : 0xb91c1c;
+			let strokeColor = isSelected ? 0xfbbf24 : isWest ? 0x93c5fd : 0xfca5a5;
+
+			if (b.specialType === 'treasure') {
+				baseColor = 0xb45309;
+				strokeColor = isSelected ? 0xfef08a : 0xfbbf24;
+			} else if (b.specialType === 'repair') {
+				baseColor = 0x047857;
+				strokeColor = isSelected ? 0xa7f3d0 : 0x34d399;
+			} else if (b.specialType === 'recycler') {
+				baseColor = 0x334155;
+				strokeColor = isSelected ? 0xe2e8f0 : 0x94a3b8;
+			}
+
 			g.roundRect(px + 3, py + 3, CELL_SIZE - 6, CELL_SIZE - 6, 6);
-			g.fill({ color: isWest ? 0x1d4ed8 : 0xb91c1c });
-			g.stroke({ color: isSelected ? 0xfbbf24 : isWest ? 0x93c5fd : 0xfca5a5, width: 2 });
+			g.fill({ color: baseColor });
+			g.stroke({ color: strokeColor, width: 2 });
 
 			// Inner roof icon/block
 			g.roundRect(px + 9, py + 9, CELL_SIZE - 18, CELL_SIZE - 18, 4);
 			g.fill({ color: 0x0f172a, alpha: 0.85 });
 
+			// Special insignia in center
+			if (b.specialType === 'treasure') {
+				g.rect(px + 18, py + 18, CELL_SIZE - 36, CELL_SIZE - 36);
+				g.fill({ color: 0xfbbf24 });
+			} else if (b.specialType === 'repair') {
+				g.rect(px + 23, py + 17, 9, 21);
+				g.fill({ color: 0x34d399 });
+				g.rect(px + 17, py + 23, 21, 9);
+				g.fill({ color: 0x34d399 });
+			}
+
 			// Spawn timer progress bar
-			const pct = Math.max(0, Math.min(1, 1 - b.spawnTimer / b.spawnCooldown));
-			const barW = CELL_SIZE - 10;
-			g.rect(px + 5, py + CELL_SIZE - 7, barW, 4);
-			g.fill({ color: 0x334155 });
-			g.rect(px + 5, py + CELL_SIZE - 7, barW * pct, 4);
-			g.fill({ color: 0xfacc15 });
+			if (!b.specialType || b.specialType === 'repair') {
+				const maxCd = b.specialType === 'repair' ? 1.0 : b.spawnCooldown;
+				const pct = Math.max(0, Math.min(1, 1 - b.spawnTimer / maxCd));
+				const barW = CELL_SIZE - 10;
+				g.rect(px + 5, py + CELL_SIZE - 7, barW, 4);
+				g.fill({ color: 0x334155 });
+				g.rect(px + 5, py + CELL_SIZE - 7, barW * pct, 4);
+				g.fill({ color: b.specialType === 'repair' ? 0x34d399 : 0xfacc15 });
+			}
 		}
 	}
 

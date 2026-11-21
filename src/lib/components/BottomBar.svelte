@@ -248,7 +248,15 @@
 					<!-- Unit & Cost -->
 					<div class="flex items-center justify-between text-[11px]">
 						<span class="text-slate-400 text-[10px] truncate max-w-[55px]">
-							{unit?.name || 'Боєць'}
+							{#if bld.specialType === 'treasure'}
+								Дохід +20%
+							{:else if bld.specialType === 'repair'}
+								Ремонт
+							{:else if bld.specialType === 'recycler'}
+								Утилізація
+							{:else}
+								{unit?.name || 'Боєць'}
+							{/if}
 						</span>
 						<span class="font-bold font-mono text-amber-400 flex items-center gap-0.5">
 							<Coins class="w-3 h-3 text-amber-400" />
@@ -264,7 +272,25 @@
 	<div
 		class="w-72 min-h-[90px] bg-slate-950/90 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-300 flex flex-col justify-between"
 	>
-		{#if placedBuilding && placedUnit}
+		{#if placedBuilding && placedBuilding.specialType}
+			<div>
+				<div class="flex justify-between items-center mb-1">
+					<span class="font-bold text-sm text-amber-300">{placedBuilding.name}</span>
+					<span class="text-[11px] font-mono text-amber-400 font-bold">
+						{placedBuilding.goldCost} зол.
+					</span>
+				</div>
+				<p class="text-xs text-slate-300 leading-relaxed mb-2">
+					{#if placedBuilding.specialType === 'treasure'}
+						💰 <strong class="text-amber-300">Скриня скарбів</strong>: збільшує кожен вихідний дохід вашої команди на <span class="text-emerald-400 font-bold">+20%</span>.
+					{:else if placedBuilding.specialType === 'repair'}
+						🛠️ <strong class="text-emerald-300">Ремонтний пункт</strong>: постійно відновлює <span class="text-emerald-400 font-bold">+25 HP</span> замку щосекунди.
+					{:else if placedBuilding.specialType === 'recycler'}
+						⚙️ <strong class="text-slate-300">Утилізатор</strong>: сплачує <span class="text-amber-300 font-bold">+4 золота</span> брухту за кожного загиблого бійця вашої армії.
+					{/if}
+				</p>
+			</div>
+		{:else if placedBuilding && placedUnit}
 			<div>
 				<div class="flex justify-between items-center mb-1">
 					<span class="font-bold text-sm text-amber-300">{placedBuilding.name}</span>
@@ -297,6 +323,24 @@
 						</span>
 					</div>
 				</div>
+			</div>
+		{:else if hoveredBuilding && hoveredBuilding.specialType}
+			<div>
+				<div class="flex justify-between items-center mb-1">
+					<span class="font-bold text-sm text-amber-300">{hoveredBuilding.name}</span>
+					<span class="text-[11px] font-mono text-amber-400 font-bold">
+						{hoveredBuilding.gold_cost} зол.
+					</span>
+				</div>
+				<p class="text-xs text-slate-300 leading-relaxed mb-2">
+					{#if hoveredBuilding.specialType === 'treasure'}
+						💰 <strong class="text-amber-300">Скриня скарбів</strong>: збільшує кожен вихідний дохід вашої команди на <span class="text-emerald-400 font-bold">+20%</span>.
+					{:else if hoveredBuilding.specialType === 'repair'}
+						🛠️ <strong class="text-emerald-300">Ремонтний пункт</strong>: постійно відновлює <span class="text-emerald-400 font-bold">+25 HP</span> замку щосекунди.
+					{:else if hoveredBuilding.specialType === 'recycler'}
+						⚙️ <strong class="text-slate-300">Утилізатор</strong>: сплачує <span class="text-amber-300 font-bold">+4 золота</span> брухту за кожного загиблого бійця вашої армії.
+					{/if}
+				</p>
 			</div>
 		{:else if hoveredBuilding && hoveredUnit}
 			<div>
