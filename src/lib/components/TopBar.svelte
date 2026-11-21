@@ -2,7 +2,17 @@
 	import type { Simulation } from '../engine/simulation';
 	import { getCommander } from '../engine/commanders';
 	import { getRaceAbility } from '../engine/raceAbilities';
-	import { Coins, Shield, Sword, Hammer, Play, Pause, Sparkles, ShoppingBag } from 'lucide-svelte';
+	import {
+		Coins,
+		Shield,
+		Sword,
+		Hammer,
+		Play,
+		Pause,
+		Sparkles,
+		ShoppingBag,
+		Flame
+	} from 'lucide-svelte';
 
 	let {
 		sim,
@@ -34,6 +44,9 @@
 	let raceSkillUnlockLeft = $derived(
 		uiTick >= 0 ? Math.max(0, 300 - Math.floor(sim.gameTime)) : 300
 	);
+
+	let canUseRescue = $derived(uiTick >= 0 ? sim.canUseRescueStrike('west') : false);
+	let rescueCd = $derived(uiTick >= 0 ? sim.rescueStrikeCooldown.west : 0);
 
 	let incomePct = $derived(
 		Math.max(0, Math.min(100, Math.round((1 - sim.incomeTimer / sim.incomeInterval) * 100)))
@@ -158,6 +171,34 @@
 						class="text-[9px] bg-purple-950 border border-purple-500/60 px-1 rounded text-purple-300 font-mono font-bold"
 					>
 						R
+					</span>
+				{/if}
+			</button>
+
+			<!-- Emergency Rescue Strike Button -->
+			<button
+				onclick={() => {
+					if (canUseRescue) {
+						sim.triggerRescueStrike('west');
+					}
+				}}
+				disabled={!canUseRescue}
+				class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer {canUseRescue
+					? 'bg-rose-950/80 hover:bg-rose-900 border border-rose-500 text-rose-100 ring-2 ring-rose-500/50'
+					: 'bg-slate-950/60 border border-slate-800 text-slate-500 cursor-not-allowed opacity-70'}"
+				title="Рятівний Удар: артилерійський залп навколо замку (-950 шкоди, КД 180с, Гаряча клавіша: E)"
+			>
+				<Flame
+					class="w-3.5 h-3.5 {canUseRescue ? 'text-rose-400 animate-pulse' : 'text-slate-500'}"
+				/>
+				<span class="truncate max-w-[90px]">Рятівний удар</span>
+				{#if rescueCd > 0}
+					<span class="text-[10px] font-mono text-amber-400">{Math.ceil(rescueCd)}с</span>
+				{:else}
+					<span
+						class="text-[9px] bg-rose-950 border border-rose-500/60 px-1 rounded text-rose-300 font-mono font-bold"
+					>
+						E
 					</span>
 				{/if}
 			</button>

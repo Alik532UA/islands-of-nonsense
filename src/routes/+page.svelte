@@ -56,6 +56,20 @@
 					uiTick = sim.stateVersion;
 				}
 			}
+		} else if (
+			(e.key === 'e' || e.key === 'E') &&
+			!e.repeat &&
+			!isForgeOpen &&
+			!isCommanderOpen &&
+			!isShopOpen
+		) {
+			if (sim.canUseRescueStrike('west')) {
+				const res = sim.triggerRescueStrike('west');
+				if (res) {
+					sound.playRescueStrike();
+					uiTick = sim.stateVersion;
+				}
+			}
 		}
 	}
 

@@ -23,7 +23,25 @@ export class BotAI {
 		const player = this.sim.players[this.team];
 		if (!player || !player.isBot) return;
 
-		// 0. Race skill decision: use when unlocked and enemy forces are gathered
+		// 0. Emergency Rescue Strike (Highest priority if enemies cluster near castle)
+		const myCastle = this.sim.castles[this.team];
+		const castleHpRatio = myCastle.hp / myCastle.maxHp;
+
+		if (this.sim.canUseRescueStrike(this.team)) {
+			const enemyTeam = this.team === 'west' ? 'east' : 'west';
+			const enemyNearCastle = this.sim.units.filter(
+				(u) =>
+					u.team === enemyTeam &&
+					u.state !== 'DEAD' &&
+					Math.hypot(u.x - myCastle.x, u.y - myCastle.y) <= 750
+			);
+			if (enemyNearCastle.length >= 3 || (castleHpRatio < 0.4 && enemyNearCastle.length >= 1)) {
+				this.sim.triggerRescueStrike(this.team);
+				return;
+			}
+		}
+
+		// 1. Race skill decision: use when unlocked and enemy forces are gathered
 		if (this.sim.canUseRaceSkill(this.team)) {
 			const enemyCount = this.sim.units.filter(
 				(u) => u.team !== this.team && u.state !== 'DEAD'
@@ -34,10 +52,7 @@ export class BotAI {
 			}
 		}
 
-		// Castle Emergency Defense & Shop
-		const myCastle = this.sim.castles[this.team];
-		const castleHpRatio = myCastle.hp / myCastle.maxHp;
-
+		// 2. Castle Emergency Defense & Shop
 		if (castleHpRatio < 0.4) {
 			if (this.sim.canBuyCastleItem(this.team, 'I00F')) {
 				this.sim.buyCastleItem(this.team, 'I00F');

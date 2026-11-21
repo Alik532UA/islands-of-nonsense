@@ -204,6 +204,7 @@ export class ArenaRenderer {
 		this.drawUnitsLayer();
 		this.drawCastles();
 		this.drawProjectilesLayer();
+		this.drawRescueStrikeEffects();
 	}
 
 	private drawGridLayer(): void {
@@ -450,6 +451,22 @@ export class ArenaRenderer {
 				g.rect(p.x - 4, p.y - 1, 9, 2);
 				g.fill({ color: isWest ? 0x93c5fd : 0xfca5a5 });
 			}
+		}
+	}
+
+	private drawRescueStrikeEffects(): void {
+		const g = this.projectilesLayer;
+		for (const eff of this.sim.rescueStrikeEffects) {
+			const progress = 1 - eff.timer / eff.maxTimer;
+			const currentRadius = eff.radius * Math.min(1, progress * 1.3);
+			const alpha = Math.max(0, 1 - progress);
+
+			g.circle(eff.x, eff.y, currentRadius);
+			g.fill({ color: 0xf97316, alpha: alpha * 0.18 });
+			g.stroke({ color: 0xef4444, width: 4 * (1 - progress) + 1, alpha });
+
+			g.circle(eff.x, eff.y, currentRadius * 0.7);
+			g.stroke({ color: 0xfbbf24, width: 2, alpha });
 		}
 	}
 

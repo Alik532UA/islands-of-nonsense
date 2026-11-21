@@ -72,6 +72,21 @@ export class Simulation {
 	public castleInvulnerableTimer: Record<MatchTeam, number> = { west: 0, east: 0 };
 	public itemCooldowns: Record<MatchTeam, Record<string, number>> = { west: {}, east: {} };
 
+	// Rescue Strike (Emergency Castle Defense, 180s CD)
+	public rescueStrikeCooldown: Record<MatchTeam, number> = { west: 0, east: 0 };
+	public rescueStrikeEffects: {
+		team: MatchTeam;
+		x: number;
+		y: number;
+		radius: number;
+		timer: number;
+		maxTimer: number;
+	}[] = [];
+
+	// Castle Shop & Consumables
+	public castleInvulnerableTimer: Record<MatchTeam, number> = { west: 0, east: 0 };
+	public itemCooldowns: Record<MatchTeam, Record<string, number>> = { west: {}, east: {} };
+
 	// Neutral Central Bosses (Spawn every 180s, alternating lanes)
 	public bossSpawnTimer = 180.0;
 	public bossIndex = 0;
@@ -142,6 +157,10 @@ export class Simulation {
 		this.raceSkillCooldown = { west: 0, east: 0 };
 		this.castleInvulnerableTimer = { west: 0, east: 0 };
 		this.itemCooldowns = { west: {}, east: {} };
+		this.rescueStrikeCooldown = { west: 0, east: 0 };
+		this.rescueStrikeEffects = [];
+		this.castleInvulnerableTimer = { west: 0, east: 0 };
+		this.itemCooldowns = { west: {}, east: {} };
 		this.bossSpawnTimer = 180.0;
 		this.bossIndex = 0;
 		this.lastBossLane = 'bottom';
@@ -174,6 +193,25 @@ export class Simulation {
 
 		this.raceSkillCooldown.west = Math.max(0, this.raceSkillCooldown.west - dt);
 		this.raceSkillCooldown.east = Math.max(0, this.raceSkillCooldown.east - dt);
+
+		this.castleInvulnerableTimer.west = Math.max(0, this.castleInvulnerableTimer.west - dt);
+		this.castleInvulnerableTimer.east = Math.max(0, this.castleInvulnerableTimer.east - dt);
+
+		this.rescueStrikeCooldown.west = Math.max(0, this.rescueStrikeCooldown.west - dt);
+		this.rescueStrikeCooldown.east = Math.max(0, this.rescueStrikeCooldown.east - dt);
+
+		for (const eff of this.rescueStrikeEffects) {
+			eff.timer -= dt;
+		}
+		this.rescueStrikeEffects = this.rescueStrikeEffects.filter((eff) => eff.timer > 0);
+
+		for (const team of ['west', 'east'] as MatchTeam[]) {
+			for (const itemId in this.itemCooldowns[team]) {
+				if (this.itemCooldowns[team][itemId] > 0) {
+					this.itemCooldowns[team][itemId] = Math.max(0, this.itemCooldowns[team][itemId] - dt);
+				}
+			}
+		}
 
 		this.castleInvulnerableTimer.west = Math.max(0, this.castleInvulnerableTimer.west - dt);
 		this.castleInvulnerableTimer.east = Math.max(0, this.castleInvulnerableTimer.east - dt);
@@ -387,6 +425,7 @@ export class Simulation {
 		x: number;
 		y: number;
 		hp?: number;
+		armor?: number;
 		range?: number;
 		attackCooldown?: number;
 		damage?: number;
@@ -403,7 +442,7 @@ export class Simulation {
 			prevY: options.y,
 			hp: options.hp ?? 500,
 			maxHp: options.hp ?? 500,
-			armor: 2,
+			armor: options.armor ?? 2,
 			armorType: 'medium',
 			attackType: 'normal',
 			damageMin: options.damage ?? 50,
@@ -845,6 +884,79 @@ export class Simulation {
 		return true;
 	}
 
+	// --- CASTLE SHOP & CONSUMABLES ---
+	public getItemCooldown(team: MatchTeam, itemId: string): number {
+		return this.itemCooldowns[team]?.[itemId] || 0;
+	}
+
+	public canBuyCastleItem(team: MatchTeam, itemId: string): boolean {
+		const item = CASTLE_ITEMS[itemId];
+		if (!item) return false;
+		const player = this.players[team];
+		if (player.gold < item.cost) return false;
+		if (this.getItemCooldown(team, itemId) > 0) return false;
+		return true;
+	}
+
+	public buyCastleItem(team: MatchTeam, itemId: string): boolean {
+		if (!this.canBuyCastleItem(team, itemId)) return false;
+		const item = CASTLE_ITEMS[itemId];
+		const player = this.players[team];
+		const myCastle = this.castles[team];
+		const enemyTeam: MatchTeam = team === 'west' ? 'east' : 'west';
+
+		player.gold -= item.cost;
+		player.stats.goldSpent += item.cost;
+		this.itemCooldowns[team][itemId] = item.cooldown;
+
+		switch (itemId) {
+			case 'I00E': {
+				// Scroll of Weakness: debuff enemies within 1400 range of castle
+				const rangeSq = 1400 * 1400;
+				let debuffedCount = 0;
+				for (const u of this.units) {
+					if (u.team === enemyTeam && u.state !== 'DEAD') {
+						const dx = u.x - myCastle.x;
+						const dy = u.y - myCastle.y;
+						if (dx * dx + dy * dy <= rangeSq) {
+							u.buffs = u.buffs || [];
+							u.buffs.push({ type: 'weakness', timer: 15, value: 0.4 });
+							debuffedCount++;
+						}
+					}
+				}
+				this.addFloatingText(
+					`Сувій Слабкості! (${debuffedCount} ворогів)`,
+					myCastle.x,
+					myCastle.y - 60,
+					'#a855f7'
+				);
+				break;
+			}
+			case 'I00F': {
+				// Azure Dome: Invulnerability for 6 seconds
+				this.castleInvulnerableTimer[team] = 6.0;
+				this.addFloatingText(
+					'Лазурний купол! (Невразливість)',
+					myCastle.x,
+					myCastle.y - 60,
+					'#06b6d4'
+				);
+				break;
+			}
+			case 'I004': {
+				// Golden Cheese: Instant heal +2500 HP and +100 gold refund
+				myCastle.hp = Math.min(myCastle.maxHp, myCastle.hp + 2500);
+				player.gold += 100;
+				this.addFloatingText('+2500 HP Золотий Сир!', myCastle.x, myCastle.y - 60, '#eab308');
+				break;
+			}
+		}
+
+		this.notifyStateChanged();
+		return true;
+	}
+
 	public upgradeBuilding(
 		team: MatchTeam,
 		buildingInstanceId: string,
@@ -889,6 +1001,79 @@ export class Simulation {
 		return true;
 	}
 
+	// --- CASTLE SHOP & CONSUMABLES ---
+	public getItemCooldown(team: MatchTeam, itemId: string): number {
+		return this.itemCooldowns[team]?.[itemId] || 0;
+	}
+
+	public canBuyCastleItem(team: MatchTeam, itemId: string): boolean {
+		const item = CASTLE_ITEMS[itemId];
+		if (!item) return false;
+		const player = this.players[team];
+		if (player.gold < item.cost) return false;
+		if (this.getItemCooldown(team, itemId) > 0) return false;
+		return true;
+	}
+
+	public buyCastleItem(team: MatchTeam, itemId: string): boolean {
+		if (!this.canBuyCastleItem(team, itemId)) return false;
+		const item = CASTLE_ITEMS[itemId];
+		const player = this.players[team];
+		const myCastle = this.castles[team];
+		const enemyTeam: MatchTeam = team === 'west' ? 'east' : 'west';
+
+		player.gold -= item.cost;
+		player.stats.goldSpent += item.cost;
+		this.itemCooldowns[team][itemId] = item.cooldown;
+
+		switch (itemId) {
+			case 'I00E': {
+				// Scroll of Weakness: debuff enemies within 1400 range of castle
+				const rangeSq = 1400 * 1400;
+				let debuffedCount = 0;
+				for (const u of this.units) {
+					if (u.team === enemyTeam && u.state !== 'DEAD') {
+						const dx = u.x - myCastle.x;
+						const dy = u.y - myCastle.y;
+						if (dx * dx + dy * dy <= rangeSq) {
+							u.buffs = u.buffs || [];
+							u.buffs.push({ type: 'weakness', timer: 15, value: 0.4 });
+							debuffedCount++;
+						}
+					}
+				}
+				this.addFloatingText(
+					`Сувій Слабкості! (${debuffedCount} ворогів)`,
+					myCastle.x,
+					myCastle.y - 60,
+					'#a855f7'
+				);
+				break;
+			}
+			case 'I00F': {
+				// Azure Dome: Invulnerability for 6 seconds
+				this.castleInvulnerableTimer[team] = 6.0;
+				this.addFloatingText(
+					'Лазурний купол! (Невразливість)',
+					myCastle.x,
+					myCastle.y - 60,
+					'#06b6d4'
+				);
+				break;
+			}
+			case 'I004': {
+				// Golden Cheese: Instant heal +2500 HP and +100 gold refund
+				myCastle.hp = Math.min(myCastle.maxHp, myCastle.hp + 2500);
+				player.gold += 100;
+				this.addFloatingText('+2500 HP Золотий Сир!', myCastle.x, myCastle.y - 60, '#eab308');
+				break;
+			}
+		}
+
+		this.notifyStateChanged();
+		return true;
+	}
+
 	public sellBuilding(team: MatchTeam, buildingInstanceId: string): boolean {
 		const idx = this.buildings.findIndex(
 			(b) => b.instanceId === buildingInstanceId && b.team === team
@@ -903,6 +1088,79 @@ export class Simulation {
 
 		this.buildings.splice(idx, 1);
 		this.addFloatingText(`+${refund}g (Знесено)`, building.x, building.y - 20, '#fbbf24');
+		this.notifyStateChanged();
+		return true;
+	}
+
+	// --- CASTLE SHOP & CONSUMABLES ---
+	public getItemCooldown(team: MatchTeam, itemId: string): number {
+		return this.itemCooldowns[team]?.[itemId] || 0;
+	}
+
+	public canBuyCastleItem(team: MatchTeam, itemId: string): boolean {
+		const item = CASTLE_ITEMS[itemId];
+		if (!item) return false;
+		const player = this.players[team];
+		if (player.gold < item.cost) return false;
+		if (this.getItemCooldown(team, itemId) > 0) return false;
+		return true;
+	}
+
+	public buyCastleItem(team: MatchTeam, itemId: string): boolean {
+		if (!this.canBuyCastleItem(team, itemId)) return false;
+		const item = CASTLE_ITEMS[itemId];
+		const player = this.players[team];
+		const myCastle = this.castles[team];
+		const enemyTeam: MatchTeam = team === 'west' ? 'east' : 'west';
+
+		player.gold -= item.cost;
+		player.stats.goldSpent += item.cost;
+		this.itemCooldowns[team][itemId] = item.cooldown;
+
+		switch (itemId) {
+			case 'I00E': {
+				// Scroll of Weakness: debuff enemies within 1400 range of castle
+				const rangeSq = 1400 * 1400;
+				let debuffedCount = 0;
+				for (const u of this.units) {
+					if (u.team === enemyTeam && u.state !== 'DEAD') {
+						const dx = u.x - myCastle.x;
+						const dy = u.y - myCastle.y;
+						if (dx * dx + dy * dy <= rangeSq) {
+							u.buffs = u.buffs || [];
+							u.buffs.push({ type: 'weakness', timer: 15, value: 0.4 });
+							debuffedCount++;
+						}
+					}
+				}
+				this.addFloatingText(
+					`Сувій Слабкості! (${debuffedCount} ворогів)`,
+					myCastle.x,
+					myCastle.y - 60,
+					'#a855f7'
+				);
+				break;
+			}
+			case 'I00F': {
+				// Azure Dome: Invulnerability for 6 seconds
+				this.castleInvulnerableTimer[team] = 6.0;
+				this.addFloatingText(
+					'Лазурний купол! (Невразливість)',
+					myCastle.x,
+					myCastle.y - 60,
+					'#06b6d4'
+				);
+				break;
+			}
+			case 'I004': {
+				// Golden Cheese: Instant heal +2500 HP and +100 gold refund
+				myCastle.hp = Math.min(myCastle.maxHp, myCastle.hp + 2500);
+				player.gold += 100;
+				this.addFloatingText('+2500 HP Золотий Сир!', myCastle.x, myCastle.y - 60, '#eab308');
+				break;
+			}
+		}
+
 		this.notifyStateChanged();
 		return true;
 	}
@@ -937,6 +1195,79 @@ export class Simulation {
 		player.stats.goldSpent += price;
 
 		this.addFloatingText(`Кузня +1`, this.castles[team].x, this.castles[team].y - 50, '#10b981');
+		this.notifyStateChanged();
+		return true;
+	}
+
+	// --- CASTLE SHOP & CONSUMABLES ---
+	public getItemCooldown(team: MatchTeam, itemId: string): number {
+		return this.itemCooldowns[team]?.[itemId] || 0;
+	}
+
+	public canBuyCastleItem(team: MatchTeam, itemId: string): boolean {
+		const item = CASTLE_ITEMS[itemId];
+		if (!item) return false;
+		const player = this.players[team];
+		if (player.gold < item.cost) return false;
+		if (this.getItemCooldown(team, itemId) > 0) return false;
+		return true;
+	}
+
+	public buyCastleItem(team: MatchTeam, itemId: string): boolean {
+		if (!this.canBuyCastleItem(team, itemId)) return false;
+		const item = CASTLE_ITEMS[itemId];
+		const player = this.players[team];
+		const myCastle = this.castles[team];
+		const enemyTeam: MatchTeam = team === 'west' ? 'east' : 'west';
+
+		player.gold -= item.cost;
+		player.stats.goldSpent += item.cost;
+		this.itemCooldowns[team][itemId] = item.cooldown;
+
+		switch (itemId) {
+			case 'I00E': {
+				// Scroll of Weakness: debuff enemies within 1400 range of castle
+				const rangeSq = 1400 * 1400;
+				let debuffedCount = 0;
+				for (const u of this.units) {
+					if (u.team === enemyTeam && u.state !== 'DEAD') {
+						const dx = u.x - myCastle.x;
+						const dy = u.y - myCastle.y;
+						if (dx * dx + dy * dy <= rangeSq) {
+							u.buffs = u.buffs || [];
+							u.buffs.push({ type: 'weakness', timer: 15, value: 0.4 });
+							debuffedCount++;
+						}
+					}
+				}
+				this.addFloatingText(
+					`Сувій Слабкості! (${debuffedCount} ворогів)`,
+					myCastle.x,
+					myCastle.y - 60,
+					'#a855f7'
+				);
+				break;
+			}
+			case 'I00F': {
+				// Azure Dome: Invulnerability for 6 seconds
+				this.castleInvulnerableTimer[team] = 6.0;
+				this.addFloatingText(
+					'Лазурний купол! (Невразливість)',
+					myCastle.x,
+					myCastle.y - 60,
+					'#06b6d4'
+				);
+				break;
+			}
+			case 'I004': {
+				// Golden Cheese: Instant heal +2500 HP and +100 gold refund
+				myCastle.hp = Math.min(myCastle.maxHp, myCastle.hp + 2500);
+				player.gold += 100;
+				this.addFloatingText('+2500 HP Золотий Сир!', myCastle.x, myCastle.y - 60, '#eab308');
+				break;
+			}
+		}
+
 		this.notifyStateChanged();
 		return true;
 	}
@@ -1118,6 +1449,124 @@ export class Simulation {
 	public getItemCooldown(team: MatchTeam, itemId: string): number {
 		const cd = this.itemCooldowns[team]?.[itemId] || 0;
 		return cd <= 0.001 ? 0 : cd;
+	}
+
+	public canBuyCastleItem(team: MatchTeam, itemId: string): boolean {
+		const item = CASTLE_ITEMS[itemId];
+		if (!item) return false;
+		const player = this.players[team];
+		if (player.gold < item.cost) return false;
+		if (this.getItemCooldown(team, itemId) > 0) return false;
+		return true;
+	}
+
+	public buyCastleItem(team: MatchTeam, itemId: string): boolean {
+		if (!this.canBuyCastleItem(team, itemId)) return false;
+		const item = CASTLE_ITEMS[itemId];
+		const player = this.players[team];
+		const myCastle = this.castles[team];
+		const enemyTeam: MatchTeam = team === 'west' ? 'east' : 'west';
+
+		player.gold -= item.cost;
+		player.stats.goldSpent += item.cost;
+		this.itemCooldowns[team][itemId] = item.cooldown;
+
+		switch (itemId) {
+			case 'I00E': {
+				// Scroll of Weakness: debuff enemies within 1400 range of castle
+				const rangeSq = 1400 * 1400;
+				let debuffedCount = 0;
+				for (const u of this.units) {
+					if (u.team === enemyTeam && u.state !== 'DEAD') {
+						const dx = u.x - myCastle.x;
+						const dy = u.y - myCastle.y;
+						if (dx * dx + dy * dy <= rangeSq) {
+							u.buffs = u.buffs || [];
+							u.buffs.push({ type: 'weakness', timer: 15, value: 0.4 });
+							debuffedCount++;
+						}
+					}
+				}
+				this.addFloatingText(
+					`Сувій Слабкості! (${debuffedCount} ворогів)`,
+					myCastle.x,
+					myCastle.y - 60,
+					'#a855f7'
+				);
+				break;
+			}
+			case 'I00F': {
+				// Azure Dome: Invulnerability for 6 seconds
+				this.castleInvulnerableTimer[team] = 6.0;
+				this.addFloatingText(
+					'Лазурний купол! (Невразливість)',
+					myCastle.x,
+					myCastle.y - 60,
+					'#06b6d4'
+				);
+				break;
+			}
+			case 'I004': {
+				// Golden Cheese: Instant heal +2500 HP and +100 gold refund
+				myCastle.hp = Math.min(myCastle.maxHp, myCastle.hp + 2500);
+				player.gold += 100;
+				this.addFloatingText('+2500 HP Золотий Сир!', myCastle.x, myCastle.y - 60, '#eab308');
+				break;
+			}
+		}
+
+		this.notifyStateChanged();
+		return true;
+	}
+
+	// --- RESCUE STRIKE (EMERGENCY CASTLE DEFENSE) ---
+	public canUseRescueStrike(team: MatchTeam): boolean {
+		return this.rescueStrikeCooldown[team] <= 0;
+	}
+
+	public triggerRescueStrike(team: MatchTeam): { hitCount: number; damageDealt: number } | null {
+		if (!this.canUseRescueStrike(team)) return null;
+
+		this.rescueStrikeCooldown[team] = 180.0;
+		const castle = this.castles[team];
+		const enemyTeam: MatchTeam = team === 'west' ? 'east' : 'west';
+		const radius = 750;
+		const radiusSq = radius * radius;
+
+		this.rescueStrikeEffects.push({
+			team,
+			x: castle.x,
+			y: castle.y,
+			radius,
+			timer: 1.2,
+			maxTimer: 1.2
+		});
+
+		let hitCount = 0;
+		let damageDealt = 0;
+		const strikeDamage = 950;
+
+		for (const u of this.units) {
+			if (u.team === enemyTeam && u.state !== 'DEAD') {
+				const dx = u.x - castle.x;
+				const dy = u.y - castle.y;
+				if (dx * dx + dy * dy <= radiusSq) {
+					this.applyUnitDamage(u, strikeDamage, 'siege', team, true);
+					hitCount++;
+					damageDealt += strikeDamage;
+				}
+			}
+		}
+
+		this.addFloatingText(`РЯТІВНИЙ УДАР! (-${strikeDamage})`, castle.x, castle.y - 75, '#f97316');
+
+		this.notifyStateChanged();
+		return { hitCount, damageDealt };
+	}
+
+	// --- CASTLE SHOP & CONSUMABLES ---
+	public getItemCooldown(team: MatchTeam, itemId: string): number {
+		return this.itemCooldowns[team]?.[itemId] || 0;
 	}
 
 	public canBuyCastleItem(team: MatchTeam, itemId: string): boolean {
