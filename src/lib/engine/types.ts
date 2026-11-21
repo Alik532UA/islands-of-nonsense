@@ -181,3 +181,13 @@ export interface FloatingText {
 	life: number;
 	maxLife: number;
 }
+
+export interface GoldCoin {
+	id: string;
+	lane: Lane;
+	x: number;
+	y: number;
+	value: number;
+	lifeTime: number;
+	maxLifeTime: number;
+}

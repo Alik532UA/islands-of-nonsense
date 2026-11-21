@@ -8,6 +8,7 @@ import type {
 	MatchTeam,
 	Lane,
 	FloatingText,
+	GoldCoin,
 	ArmorType,
 	AttackType
 } from './types';
@@ -105,6 +106,12 @@ export class Simulation {
 	public lastBossLane: Lane = 'bottom';
 	public lastBossId = -1;
 	public activeBossInstanceId: string | null = null;
+
+	// Battlefield Gold Coins (Spawn every 40s along neutral zone, I000)
+	public goldCoins: GoldCoin[] = [];
+	public coinSpawnTimer = 40.0;
+	public coinSpawnInterval = 40.0;
+	private nextCoinId = 1;
 
 	// Callbacks
 	public onFloatingText?: (text: FloatingText) => void;
@@ -271,6 +278,8 @@ export class Simulation {
 		this.lastBossLane = 'bottom';
 		this.lastBossId = -1;
 		this.activeBossInstanceId = null;
+		this.goldCoins = [];
+		this.coinSpawnTimer = this.coinSpawnInterval;
 		this.winner = null;
 
 		for (const team of ['west', 'east'] as MatchTeam[]) {
@@ -334,10 +343,13 @@ export class Simulation {
 			}
 		}
 
-		// 1. Update Economy
+		// 1. Update Battlefield Gold Coins (I000)
+		this.updateGoldCoins(dt);
+
+		// 2. Update Economy
 		this.updateEconomy(dt);
 
-		// 2. Update Buildings & Spawning
+		// 3. Update Buildings & Spawning
 		this.updateBuildings(dt);
 
 		// 3. Update Spatial Grid
@@ -440,6 +452,76 @@ export class Simulation {
 
 			this.notifyStateChanged();
 		}
+	}
+
+	// --- BATTLEFIELD GOLD COINS (I000) ---
+	private updateGoldCoins(dt: number): void {
+		this.coinSpawnTimer -= dt;
+		if (this.coinSpawnTimer <= 0.001) {
+			this.coinSpawnTimer = this.coinSpawnInterval;
+			const lane: Lane = Math.random() < 0.5 ? 'top' : 'bottom';
+			const laneY = lane === 'top' ? TOP_LANE_Y : BOTTOM_LANE_Y;
+			const coin: GoldCoin = {
+				id: `coin_${this.nextCoinId++}`,
+				lane,
+				x: 850 + Math.random() * 700,
+				y: laneY + (Math.random() * 30 - 15),
+				value: 50,
+				lifeTime: 35.0,
+				maxLifeTime: 35.0
+			};
+			this.goldCoins.push(coin);
+			this.notifyStateChanged();
+		}
+
+		for (let i = this.goldCoins.length - 1; i >= 0; i--) {
+			const coin = this.goldCoins[i];
+			coin.lifeTime -= dt;
+			if (coin.lifeTime <= 0) {
+				this.goldCoins.splice(i, 1);
+				this.notifyStateChanged();
+				continue;
+			}
+
+			// Check pickup by living units on the same lane
+			for (const u of this.units) {
+				if (u.state === 'DEAD' || u.lane !== coin.lane) continue;
+				const dx = u.x - coin.x;
+				const dy = u.y - coin.y;
+				if (dx * dx + dy * dy <= 45 * 45) {
+					if (u.team === 'west' || u.team === 'east') {
+						this.collectCoin(coin.id, u.team);
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	public collectCoin(coinId: string, team: MatchTeam): boolean {
+		const idx = this.goldCoins.findIndex((c) => c.id === coinId);
+		if (idx === -1) return false;
+		const coin = this.goldCoins[idx];
+		this.goldCoins.splice(idx, 1);
+		this.players[team].gold += coin.value;
+		this.addFloatingText(`+${coin.value}g Монета!`, coin.x, coin.y - 20, '#fbbf24');
+		this.notifyStateChanged();
+		return true;
+	}
+
+	public spawnCoinDirectly(lane: Lane, x: number, y: number, value = 50): GoldCoin {
+		const coin: GoldCoin = {
+			id: `coin_${this.nextCoinId++}`,
+			lane,
+			x,
+			y,
+			value,
+			lifeTime: 35.0,
+			maxLifeTime: 35.0
+		};
+		this.goldCoins.push(coin);
+		this.notifyStateChanged();
+		return coin;
 	}
 
 	// --- BUILDINGS ---

@@ -109,7 +109,22 @@ export class ArenaRenderer {
 			this.hoveredTile = null;
 		});
 
-		canvas.addEventListener('click', () => {
+		canvas.addEventListener('click', (e: MouseEvent) => {
+			const rect = canvas.getBoundingClientRect();
+			const scaleX = ARENA_WIDTH / rect.width;
+			const scaleY = ARENA_HEIGHT / rect.height;
+			const mouseX = (e.clientX - rect.left) * scaleX;
+			const mouseY = (e.clientY - rect.top) * scaleY;
+
+			for (const coin of this.sim.goldCoins) {
+				const dx = mouseX - coin.x;
+				const dy = mouseY - coin.y;
+				if (dx * dx + dy * dy <= 28 * 28) {
+					this.sim.collectCoin(coin.id, 'west');
+					return;
+				}
+			}
+
 			if (this.hoveredTile) {
 				this.onTileClick(this.hoveredTile.x, this.hoveredTile.y);
 			}
@@ -202,9 +217,31 @@ export class ArenaRenderer {
 		this.drawGridLayer();
 		this.drawBuildingsLayer();
 		this.drawUnitsLayer();
+		this.drawCoinsLayer();
 		this.drawCastles();
 		this.drawProjectilesLayer();
 		this.drawRescueStrikeEffects();
+	}
+
+	private drawCoinsLayer(): void {
+		const g = this.projectilesLayer;
+		for (const coin of this.sim.goldCoins) {
+			const pulse = 1 + Math.sin(this.sim.gameTime * 7) * 0.15;
+			const radius = 9 * pulse;
+
+			// Ambient Glow
+			g.circle(coin.x, coin.y, radius + 4);
+			g.fill({ color: 0xfbbf24, alpha: 0.25 });
+
+			// Main Coin Body
+			g.circle(coin.x, coin.y, radius);
+			g.fill({ color: 0xf59e0b });
+			g.stroke({ color: 0xfef08a, width: 2 });
+
+			// Inner Coin Center
+			g.circle(coin.x, coin.y, radius * 0.4);
+			g.fill({ color: 0xfef08a });
+		}
 	}
 
 	private drawGridLayer(): void {
