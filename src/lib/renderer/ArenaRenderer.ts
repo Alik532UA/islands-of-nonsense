@@ -329,6 +329,16 @@ export class ArenaRenderer {
 
 		g.rect(barX, barY, barWidth * hpPct, barHeight);
 		g.fill({ color: hpPct > 0.5 ? 0x22c55e : hpPct > 0.25 ? 0xeab308 : 0xef4444 });
+
+		// Azure Dome Invulnerability Forcefield
+		if (this.sim.castleInvulnerableTimer[castle.team] > 0) {
+			g.circle(cx, cy, 80);
+			g.fill({ color: 0x06b6d4, alpha: 0.25 });
+			g.stroke({ color: 0x38bdf8, width: 3, alpha: 0.85 });
+
+			g.circle(cx, cy, 95);
+			g.stroke({ color: 0x67e8f9, width: 1.5, alpha: 0.5 });
+		}
 	}
 
 	private drawUnitsLayer(): void {

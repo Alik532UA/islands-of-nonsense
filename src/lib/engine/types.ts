@@ -52,7 +52,7 @@ export interface RaceDefinition {
 }
 
 export interface ActiveBuff {
-	type: 'dmg' | 'as' | 'shield' | 'evade' | 'slow' | 'infect';
+	type: 'dmg' | 'as' | 'shield' | 'evade' | 'slow' | 'infect' | 'weakness';
 	timer: number;
 	value: number;
 }

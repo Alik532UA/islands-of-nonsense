@@ -34,6 +34,35 @@ export class BotAI {
 			}
 		}
 
+		// Castle Emergency Defense & Shop
+		const myCastle = this.sim.castles[this.team];
+		const castleHpRatio = myCastle.hp / myCastle.maxHp;
+
+		if (castleHpRatio < 0.4) {
+			if (this.sim.canBuyCastleItem(this.team, 'I00F')) {
+				this.sim.buyCastleItem(this.team, 'I00F');
+				return;
+			}
+			if (castleHpRatio < 0.3 && this.sim.canBuyCastleItem(this.team, 'I004')) {
+				this.sim.buyCastleItem(this.team, 'I004');
+				return;
+			}
+		}
+
+		if (this.sim.canBuyCastleItem(this.team, 'I00E')) {
+			const enemyTeam = this.team === 'west' ? 'east' : 'west';
+			const enemyNearCastle = this.sim.units.filter(
+				(u) =>
+					u.team === enemyTeam &&
+					u.state !== 'DEAD' &&
+					Math.hypot(u.x - myCastle.x, u.y - myCastle.y) <= 1000
+			);
+			if (enemyNearCastle.length >= 3) {
+				this.sim.buyCastleItem(this.team, 'I00E');
+				return;
+			}
+		}
+
 		// 1. Forge decision: if surplus gold, buy forge upgrades
 		if (player.gold > 350) {
 			if (this.sim.gameTime < 300 && player.forge.econ < 2) {

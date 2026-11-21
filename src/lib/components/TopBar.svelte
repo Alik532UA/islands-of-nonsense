@@ -2,18 +2,20 @@
 	import type { Simulation } from '../engine/simulation';
 	import { getCommander } from '../engine/commanders';
 	import { getRaceAbility } from '../engine/raceAbilities';
-	import { Coins, Shield, Sword, Hammer, Play, Pause, Sparkles } from 'lucide-svelte';
+	import { Coins, Shield, Sword, Hammer, Play, Pause, Sparkles, ShoppingBag } from 'lucide-svelte';
 
 	let {
 		sim,
 		uiTick = 0,
 		onOpenForge,
-		onOpenCommander
+		onOpenCommander,
+		onOpenShop
 	}: {
 		sim: Simulation;
 		uiTick?: number;
 		onOpenForge: () => void;
 		onOpenCommander: () => void;
+		onOpenShop?: () => void;
 	} = $props();
 
 	// Explicitly depend on uiTick so Svelte 5 re-reads properties from the class instance
@@ -115,6 +117,21 @@
 						{player.forge.attack + player.forge.armor + player.forge.econ}
 					</span>
 				{/if}
+			</button>
+
+			<!-- Castle Shop Button -->
+			<button
+				onclick={onOpenShop}
+				class="flex items-center gap-1.5 bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-600/50 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-emerald-200 transition cursor-pointer"
+				title="Магазин замку: припаси та захист (Гаряча клавіша: B)"
+			>
+				<ShoppingBag class="w-3.5 h-3.5 text-emerald-400" />
+				<span>Магазин</span>
+				<span
+					class="text-[9px] bg-emerald-950 border border-emerald-500/60 px-1 rounded text-emerald-300 font-mono font-bold"
+				>
+					B
+				</span>
 			</button>
 
 			<!-- Race Ability Button -->

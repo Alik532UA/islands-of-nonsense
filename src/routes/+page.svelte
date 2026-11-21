@@ -9,6 +9,7 @@
 	import ForgeModal from '../lib/components/ForgeModal.svelte';
 	import CommanderModal from '../lib/components/CommanderModal.svelte';
 	import VictoryModal from '../lib/components/VictoryModal.svelte';
+	import ShopModal from '../lib/components/ShopModal.svelte';
 
 	let canvasEl: HTMLCanvasElement;
 	let sim = $state(new Simulation({ botDifficulty: 15, startGold: 500 }));
@@ -20,6 +21,7 @@
 	let selectedPlacedBuildingId = $state<string | null>(null);
 	let isForgeOpen = $state(false);
 	let isCommanderOpen = $state(false);
+	let isShopOpen = $state(false);
 
 	let animFrameId: number;
 
@@ -29,7 +31,8 @@
 			selectedPlacedBuildingId = null;
 			isForgeOpen = false;
 			isCommanderOpen = false;
-		} else if (e.code === 'Space' && !e.repeat && !isForgeOpen && !isCommanderOpen) {
+			isShopOpen = false;
+		} else if (e.code === 'Space' && !e.repeat && !isForgeOpen && !isCommanderOpen && !isShopOpen) {
 			e.preventDefault();
 			sim.isRunning = !sim.isRunning;
 			uiTick = sim.stateVersion;
@@ -37,7 +40,15 @@
 			isForgeOpen = !isForgeOpen;
 		} else if ((e.key === 'c' || e.key === 'C') && !e.repeat) {
 			isCommanderOpen = !isCommanderOpen;
-		} else if ((e.key === 'r' || e.key === 'R') && !e.repeat && !isForgeOpen && !isCommanderOpen) {
+		} else if ((e.key === 'b' || e.key === 'B') && !e.repeat) {
+			isShopOpen = !isShopOpen;
+		} else if (
+			(e.key === 'r' || e.key === 'R') &&
+			!e.repeat &&
+			!isForgeOpen &&
+			!isCommanderOpen &&
+			!isShopOpen
+		) {
 			if (sim.canUseRaceSkill('west')) {
 				const success = sim.useRaceSkill('west');
 				if (success) {
@@ -142,6 +153,7 @@
 		{uiTick}
 		onOpenForge={() => (isForgeOpen = true)}
 		onOpenCommander={() => (isCommanderOpen = true)}
+		onOpenShop={() => (isShopOpen = true)}
 	/>
 
 	<!-- Arena Viewport (Longer Map aspect 3:1) -->
@@ -171,6 +183,7 @@
 	<!-- Modals -->
 	<ForgeModal {sim} bind:isOpen={isForgeOpen} />
 	<CommanderModal {sim} bind:isOpen={isCommanderOpen} />
+	<ShopModal {sim} bind:isOpen={isShopOpen} />
 	<VictoryModal {sim} onNextRound={handleNextRound} />
 </main>
 
