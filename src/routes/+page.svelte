@@ -1,0 +1,122 @@
+<script lang="ts">
+	import { onMount, onDestroy } from 'svelte';
+	import { Simulation } from '../lib/engine/simulation';
+	import { BotAI } from '../lib/engine/botAI';
+	import { ArenaRenderer } from '../lib/renderer/ArenaRenderer';
+	import TopBar from '../lib/components/TopBar.svelte';
+	import BottomBar from '../lib/components/BottomBar.svelte';
+	import ForgeModal from '../lib/components/ForgeModal.svelte';
+	import CommanderModal from '../lib/components/CommanderModal.svelte';
+	import VictoryModal from '../lib/components/VictoryModal.svelte';
+
+	let canvasEl: HTMLCanvasElement;
+	let sim = $state(new Simulation({ botDifficulty: 15, startGold: 500 }));
+	let botAI = new BotAI(sim);
+	let renderer: ArenaRenderer | null = null;
+
+	let uiTick = $state(0);
+	let selectedBuildingId = $state<string | null>(null);
+	let isForgeOpen = $state(false);
+	let isCommanderOpen = $state(false);
+
+	let animFrameId: number;
+
+	onMount(async () => {
+		renderer = new ArenaRenderer({
+			canvas: canvasEl,
+			sim,
+			onTileClick: (tileX: number, tileY: number) => {
+				if (selectedBuildingId) {
+					const success = sim.build('west', selectedBuildingId, tileX, tileY);
+					if (success) {
+						selectedBuildingId = null;
+						uiTick = sim.stateVersion;
+					}
+				}
+			},
+			getSelectedBuildingDefId: () => selectedBuildingId
+		});
+
+		await renderer.init(canvasEl);
+
+		let lastTime = performance.now();
+		let accumulator = 0;
+		const FIXED_STEP = 0.05; // 20 FPS simulation rate
+
+		function gameLoop(now: number) {
+			const rawDelta = Math.min(0.25, (now - lastTime) / 1000);
+			lastTime = now;
+
+			if (sim.isRunning) {
+				accumulator += rawDelta * sim.speed;
+				while (accumulator >= FIXED_STEP) {
+					sim.step(FIXED_STEP);
+					botAI.update(FIXED_STEP);
+					accumulator -= FIXED_STEP;
+				}
+				uiTick = sim.stateVersion;
+			}
+
+			animFrameId = requestAnimationFrame(gameLoop);
+		}
+
+		animFrameId = requestAnimationFrame(gameLoop);
+	});
+
+	onDestroy(() => {
+		if (animFrameId) cancelAnimationFrame(animFrameId);
+		renderer?.destroy();
+	});
+
+	function handleNextRound() {
+		sim.round++;
+		sim.resetRound();
+		uiTick = sim.stateVersion;
+		isCommanderOpen = true;
+	}
+</script>
+
+<svelte:head>
+	<title>Castle Fight Web</title>
+</svelte:head>
+
+<main class="h-screen w-screen overflow-hidden flex flex-col bg-slate-950 select-none">
+	<!-- Top Bar: Castles HP, Gold, Income Timer, Controls -->
+	<TopBar
+		{sim}
+		{uiTick}
+		onOpenForge={() => (isForgeOpen = true)}
+		onOpenCommander={() => (isCommanderOpen = true)}
+	/>
+
+	<!-- Arena Viewport (Longer Map aspect 3:1) -->
+	<div class="flex-1 w-full bg-slate-950 flex items-center justify-center p-2 relative overflow-hidden">
+		<canvas
+			bind:this={canvasEl}
+			class="max-w-full max-h-full rounded-xl shadow-2xl border border-slate-800 object-contain aspect-[3/1] cursor-crosshair"
+		></canvas>
+	</div>
+
+	<!-- Bottom Bar: Buildings Grid 4x3, Tooltip, Race & Lane Selectors -->
+	<BottomBar
+		{sim}
+		{uiTick}
+		bind:selectedBuildingId
+		onSelectBuilding={(id: string | null) => (selectedBuildingId = id)}
+	/>
+
+	<!-- Modals -->
+	<ForgeModal {sim} bind:isOpen={isForgeOpen} />
+	<CommanderModal {sim} bind:isOpen={isCommanderOpen} />
+	<VictoryModal {sim} onNextRound={handleNextRound} />
+</main>
+
+<style>
+	:global(body) {
+		margin: 0;
+		padding: 0;
+		background-color: #090d16;
+		overflow: hidden;
+		user-select: none;
+	}
+</style>
