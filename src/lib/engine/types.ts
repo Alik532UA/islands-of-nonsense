@@ -158,6 +158,8 @@ export interface PlayerState {
 	isBot: boolean;
 	name: string;
 	race: string;
+	isRandomRace?: boolean;
+	randomGoldGranted?: boolean;
 	gold: number;
 	lumber: number;
 	commander: number; // 1..6

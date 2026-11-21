@@ -81,8 +81,7 @@
 			<select
 				value={player.race}
 				onchange={(e) => {
-					player.race = (e.target as HTMLSelectElement).value;
-					sim.notifyStateChanged();
+					sim.setPlayerRace('west', (e.target as HTMLSelectElement).value);
 					onSelectBuilding(null);
 				}}
 				class="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs font-bold text-amber-300 focus:outline-none focus:border-amber-500 cursor-pointer"
@@ -91,6 +90,19 @@
 					<option value={r.race}>{r.race}</option>
 				{/each}
 			</select>
+
+			<button
+				onclick={() => {
+					sim.setPlayerRace('west', 'random');
+					onSelectBuilding(null);
+				}}
+				title="Випадкова раса: +30% золота на старті"
+				class="px-2 py-1 rounded text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition flex items-center gap-1 shadow cursor-pointer {player.isRandomRace
+					? 'ring-1 ring-amber-400'
+					: ''}"
+			>
+				🎲 +30%g
+			</button>
 		</div>
 
 		<!-- Lane Selector -->

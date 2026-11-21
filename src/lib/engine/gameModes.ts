@@ -14,6 +14,8 @@ export interface GameModeConfig {
 	botDifficulty: number; // 0 (Easy), 15 (Medium), 30 (Hard), 80 (Insane)
 	allowForge: boolean;
 	castleHpMultiplier: number;
+	uniqueRaces?: boolean;
+	allRandom?: boolean;
 }
 
 export const GAME_MODES: Record<string, GameModeConfig> = {
@@ -28,6 +30,32 @@ export const GAME_MODES: Record<string, GameModeConfig> = {
 		botDifficulty: 15,
 		allowForge: true,
 		castleHpMultiplier: 1.0
+	},
+	allRandom: {
+		id: 'allRandom',
+		nameUk: 'All Random (-ar)',
+		nameEn: 'All Random (-ar)',
+		descriptionUk: 'Всі команди отримують випадкові раси та бонус +30% до стартового золота',
+		descriptionEn: 'All teams receive random races and +30% starting gold bonus',
+		startGold: 150,
+		incomeMultiplier: 1.0,
+		botDifficulty: 15,
+		allowForge: true,
+		castleHpMultiplier: 1.0,
+		allRandom: true
+	},
+	uniqueRaces: {
+		id: 'uniqueRaces',
+		nameUk: 'Unique Races (-ur)',
+		nameEn: 'Unique Races (-ur)',
+		descriptionUk: 'Унікальні раси: протиборчі команди не можуть обрати однакову расу',
+		descriptionEn: 'Unique races: opposing teams cannot choose the same race',
+		startGold: 150,
+		incomeMultiplier: 1.0,
+		botDifficulty: 15,
+		allowForge: true,
+		castleHpMultiplier: 1.0,
+		uniqueRaces: true
 	},
 	blitz: {
 		id: 'blitz',

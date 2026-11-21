@@ -13,7 +13,7 @@ import type {
 } from './types';
 import { SpatialHashGrid } from './spatialGrid';
 import { calculateDamage } from './damageMatrix';
-import { getBuilding, getUnit, getSpawnCooldown } from './gameData';
+import { getBuilding, getUnit, getSpawnCooldown, RACES_LIST } from './gameData';
 import { getRaceAbility } from './raceAbilities';
 import { getRandomBoss } from './bosses';
 import { CASTLE_ITEMS } from './items';
@@ -35,9 +35,15 @@ export const CELL_SIZE = 55;
 export interface SimulationConfig {
 	botDifficulty: number; // 0, 15, 30, 80
 	startGold: number;
+	modeId?: string;
+	uniqueRaces?: boolean;
+	allRandom?: boolean;
+	westRace?: string;
+	eastRace?: string;
 }
 
 export class Simulation {
+	public config: SimulationConfig;
 	public tick = 0;
 	public gameTime = 0; // seconds
 	public isRunning = true;
@@ -109,18 +115,55 @@ export class Simulation {
 	private nextTextId = 1;
 
 	constructor(config: SimulationConfig = { botDifficulty: 0, startGold: 500 }) {
+		this.config = config;
 		this.castles = {
 			west: { team: 'west', x: 60, y: 400, hp: 14000, maxHp: 14000 },
 			east: { team: 'east', x: 2340, y: 400, hp: 14000, maxHp: 14000 }
 		};
+
+		const availableRaces = RACES_LIST.map((r) => r.race);
+		const isAllRandom = !!config.allRandom;
+		const isUniqueRaces = !!config.uniqueRaces;
+
+		let westRace = config.westRace || 'Люди';
+		const westIsRandom = isAllRandom || config.westRace === 'random';
+
+		let eastRace = config.eastRace || 'Орки';
+		const eastIsRandom =
+			isAllRandom || config.eastRace === 'random' || config.botDifficulty > 0;
+
+		if (isAllRandom) {
+			westRace = availableRaces[Math.floor(Math.random() * availableRaces.length)];
+			let eastPool = isUniqueRaces
+				? availableRaces.filter((r) => r !== westRace)
+				: availableRaces;
+			if (eastPool.length === 0) eastPool = availableRaces;
+			eastRace = eastPool[Math.floor(Math.random() * eastPool.length)];
+		} else {
+			if (westIsRandom) {
+				westRace = availableRaces[Math.floor(Math.random() * availableRaces.length)];
+			}
+			if (eastIsRandom && !config.eastRace) {
+				let eastPool = isUniqueRaces
+					? availableRaces.filter((r) => r !== westRace)
+					: availableRaces;
+				if (eastPool.length === 0) eastPool = availableRaces;
+				eastRace = eastPool[Math.floor(Math.random() * eastPool.length)];
+			}
+		}
+
+		const westGold = westIsRandom ? Math.round(config.startGold * 1.3) : config.startGold;
+		const eastGold = eastIsRandom ? Math.round(config.startGold * 1.3) : config.startGold;
 
 		this.players = {
 			west: {
 				team: 'west',
 				isBot: false,
 				name: 'Гравець',
-				race: 'Люди',
-				gold: config.startGold,
+				race: westRace,
+				isRandomRace: westIsRandom,
+				randomGoldGranted: westIsRandom,
+				gold: westGold,
 				lumber: 125,
 				commander: 2, // Alik
 				forge: { attack: 0, armor: 0, econ: 0 },
@@ -131,8 +174,10 @@ export class Simulation {
 				team: 'east',
 				isBot: true,
 				name: 'Бот v37',
-				race: 'Орки',
-				gold: Math.round(config.startGold * (config.botDifficulty > 0 ? 1.3 : 1.0)),
+				race: eastRace,
+				isRandomRace: eastIsRandom,
+				randomGoldGranted: eastIsRandom,
+				gold: eastGold,
 				lumber: 125,
 				commander: 3, // Dima
 				forge: { attack: 0, armor: 0, econ: 0 },
@@ -140,6 +185,68 @@ export class Simulation {
 				stats: { unitsSpawned: 0, unitsKilled: 0, goldSpent: 0 }
 			}
 		};
+	}
+
+	/**
+	 * Sets player race or rolls random race with +30% gold bonus and -ur unique race enforcement.
+	 */
+	public setPlayerRace(team: MatchTeam, race: string | 'random'): boolean {
+		const player = this.players[team];
+		if (!player) return false;
+
+		const otherTeam = team === 'west' ? 'east' : 'west';
+		const otherPlayer = this.players[otherTeam];
+		const availableRaces = RACES_LIST.map((r) => r.race);
+
+		if (race === 'random') {
+			let pool = availableRaces;
+			if (this.config.uniqueRaces && otherPlayer) {
+				pool = pool.filter((r) => r !== otherPlayer.race);
+			}
+			if (pool.length === 0) pool = availableRaces;
+
+			const picked = pool[Math.floor(Math.random() * pool.length)];
+			player.race = picked;
+			player.isRandomRace = true;
+
+			// Grant +30% gold bonus if at start of game and not already granted
+			if (this.gameTime <= 15 && !player.randomGoldGranted) {
+				const bonus = Math.round(this.config.startGold * 0.3);
+				player.gold += bonus;
+				player.randomGoldGranted = true;
+				this.addFloatingText(
+					`+${bonus}g Випадкова раса!`,
+					team === 'west' ? 300 : 1600,
+					400,
+					'#eab308'
+				);
+			}
+			this.notifyStateChanged();
+			return true;
+		}
+
+		// Direct race selection
+		if (this.config.uniqueRaces && otherPlayer && otherPlayer.race === race) {
+			this.addFloatingText(
+				'Раса вже зайнята (-ur)!',
+				team === 'west' ? 300 : 1600,
+				400,
+				'#ef4444'
+			);
+			return false;
+		}
+
+		// If player switches away from random before 15s, remove granted bonus
+		if (player.isRandomRace && player.randomGoldGranted && this.gameTime <= 15) {
+			const bonus = Math.round(this.config.startGold * 0.3);
+			player.gold = Math.max(0, player.gold - bonus);
+			player.randomGoldGranted = false;
+		}
+
+		player.race = race;
+		player.isRandomRace = false;
+		this.notifyStateChanged();
+		return true;
 	}
 
 	public notifyStateChanged(): void {
