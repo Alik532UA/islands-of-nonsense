@@ -262,20 +262,25 @@
 						{#if isLeg}
 							<Crown class="w-3 h-3 text-amber-400 flex-shrink-0" />
 						{/if}
+						{#if unit?.flying}
+							<span class="text-[10px]" title="Літаючий юніт">🪽</span>
+						{/if}
 						<span class="truncate">{bld.name}</span>
 					</div>
 
 					<!-- Unit & Cost -->
 					<div class="flex items-center justify-between text-[11px]">
-						<span class="text-slate-400 text-[10px] truncate max-w-[55px]">
+						<span
+							class="text-slate-400 text-[10px] truncate max-w-[55px] flex items-center gap-0.5"
+						>
 							{#if bld.specialType === 'treasure'}
-								Дохід +20%
+								💰 Дохід
 							{:else if bld.specialType === 'repair'}
-								Ремонт
+								🛠️ Ремонт
 							{:else if bld.specialType === 'recycler'}
-								Утилізація
+								⚙️ Брухт
 							{:else if bld.specialType === 'tower'}
-								Вежа
+								🏹 Вежа
 							{:else}
 								{unit?.name || 'Боєць'}
 							{/if}

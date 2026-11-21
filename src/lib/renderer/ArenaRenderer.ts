@@ -332,9 +332,23 @@ export class ArenaRenderer {
 			g.fill({ color: baseColor });
 			g.stroke({ color: strokeColor, width: 2 });
 
-			// Inner roof icon/block
+			// Inner roof icon/block with race color tinting
+			const raceColors: Record<string, number> = {
+				Люди: 0x1e3a8a,
+				Орки: 0x831843,
+				Нежить: 0x14532d,
+				Эльфы: 0x065f46,
+				Хаос: 0x7f1d1d,
+				Наги: 0x0e7490,
+				Север: 0x0369a1,
+				Порча: 0x581c87,
+				'Ночные эльфы': 0x365314,
+				Техники: 0x78350f,
+				Сборщики: 0x334155
+			};
+			const roofColor = raceColors[b.race] || 0x0f172a;
 			g.roundRect(px + 9, py + 9, CELL_SIZE - 18, CELL_SIZE - 18, 4);
-			g.fill({ color: 0x0f172a, alpha: 0.85 });
+			g.fill({ color: roofColor, alpha: 0.9 });
 
 			// Special insignia in center
 			if (b.specialType === 'treasure') {
@@ -482,10 +496,30 @@ export class ArenaRenderer {
 			const isNeutral = u.team === 'neutral';
 			const radius = u.size;
 
-			// If flying, draw subtle shadow on the ground
+			// If flying, draw subtle shadow on the ground & wings
 			if (u.flying) {
 				g.ellipse(u.x, u.y + 16, radius, radius * 0.4);
 				g.fill({ color: 0x000000, alpha: 0.3 });
+
+				const flap = Math.sin(this.sim.gameTime * 15) * 3;
+				g.poly([
+					u.x - radius - 5,
+					u.y - 2 + flap,
+					u.x - radius,
+					u.y - radius * 0.5,
+					u.x - radius,
+					u.y + radius * 0.5
+				]);
+				g.fill({ color: 0xe0f2fe, alpha: 0.85 });
+				g.poly([
+					u.x + radius + 5,
+					u.y - 2 + flap,
+					u.x + radius,
+					u.y - radius * 0.5,
+					u.x + radius,
+					u.y + radius * 0.5
+				]);
+				g.fill({ color: 0xe0f2fe, alpha: 0.85 });
 			}
 
 			// If neutral boss, draw glowing aura
@@ -501,6 +535,25 @@ export class ArenaRenderer {
 				color: isNeutral ? 0xfbbf24 : isWest ? 0xbfdbfe : 0xfecaca,
 				width: isNeutral ? 3 : 2
 			});
+
+			// Status Effects Visuals
+			if (u.isStunned) {
+				const angle = this.sim.gameTime * 8;
+				const starX = u.x + Math.cos(angle) * (radius + 2);
+				const starY = u.y - radius - 2 + Math.sin(angle) * 3;
+				g.circle(starX, starY, 3);
+				g.fill({ color: 0xfacc15 });
+			}
+
+			if (u.isEnsnared) {
+				g.rect(u.x - radius, u.y - radius, radius * 2, radius * 2);
+				g.stroke({ color: 0xd97706, width: 1.5, alpha: 0.85 });
+			}
+
+			if (u.buffs?.some((b) => b.type === 'poison')) {
+				g.circle(u.x + Math.sin(this.sim.gameTime * 6) * 6, u.y - radius - 3, 2.5);
+				g.fill({ color: 0x22c55e });
+			}
 
 			// Unit Inner Emblem based on Attack Type
 			this.renderUnitEmblem(g, u.x, u.y, u.attackType, radius);
