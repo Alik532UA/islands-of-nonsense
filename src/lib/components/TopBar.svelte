@@ -12,7 +12,8 @@
 		Sparkles,
 		ShoppingBag,
 		Crown,
-		Flame
+		Flame,
+		Sliders
 	} from 'lucide-svelte';
 
 	let {
@@ -20,13 +21,15 @@
 		uiTick = 0,
 		onOpenForge,
 		onOpenCommander,
-		onOpenShop
+		onOpenShop,
+		onOpenSettings
 	}: {
 		sim: Simulation;
 		uiTick?: number;
 		onOpenForge: () => void;
 		onOpenCommander: () => void;
 		onOpenShop?: () => void;
+		onOpenSettings?: () => void;
 	} = $props();
 
 	// Explicitly depend on uiTick so Svelte 5 re-reads properties from the class instance
@@ -263,6 +266,14 @@
 				title="Швидкість гри"
 			>
 				{sim.speed}x
+			</button>
+
+			<button
+				onclick={onOpenSettings}
+				class="p-1.5 rounded hover:bg-slate-800 text-slate-300 transition"
+				title="Налаштування старту матчу"
+			>
+				<Sliders class="w-4 h-4 text-amber-400" />
 			</button>
 		</div>
 	</div>

@@ -55,6 +55,10 @@ export class ArenaRenderer {
 		this.uiLayer = new Container();
 	}
 
+	public setSimulation(newSim: Simulation): void {
+		this.sim = newSim;
+	}
+
 	public async init(canvas: HTMLCanvasElement): Promise<void> {
 		await this.app.init({
 			canvas,

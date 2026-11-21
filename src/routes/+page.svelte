@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { Simulation } from '../lib/engine/simulation';
+	import { Simulation, type SimulationConfig } from '../lib/engine/simulation';
 	import { BotAI } from '../lib/engine/botAI';
 	import { ArenaRenderer } from '../lib/renderer/ArenaRenderer';
 	import { sound } from '../lib/services/audio';
@@ -10,6 +10,7 @@
 	import CommanderModal from '../lib/components/CommanderModal.svelte';
 	import VictoryModal from '../lib/components/VictoryModal.svelte';
 	import ShopModal from '../lib/components/ShopModal.svelte';
+	import StartMatchModal from '../lib/components/StartMatchModal.svelte';
 
 	let canvasEl: HTMLCanvasElement;
 	let sim = $state(new Simulation({ botDifficulty: 15, startGold: 500 }));
@@ -22,6 +23,7 @@
 	let isForgeOpen = $state(false);
 	let isCommanderOpen = $state(false);
 	let isShopOpen = $state(false);
+	let isSettingsOpen = $state(false);
 
 	let animFrameId: number;
 
@@ -32,7 +34,15 @@
 			isForgeOpen = false;
 			isCommanderOpen = false;
 			isShopOpen = false;
-		} else if (e.code === 'Space' && !e.repeat && !isForgeOpen && !isCommanderOpen && !isShopOpen) {
+			isSettingsOpen = false;
+		} else if (
+			e.code === 'Space' &&
+			!e.repeat &&
+			!isForgeOpen &&
+			!isCommanderOpen &&
+			!isShopOpen &&
+			!isSettingsOpen
+		) {
 			e.preventDefault();
 			sim.isRunning = !sim.isRunning;
 			uiTick = sim.stateVersion;
@@ -156,6 +166,15 @@
 		uiTick = sim.stateVersion;
 		isCommanderOpen = true;
 	}
+
+	function handleStartNewMatch(newConfig: SimulationConfig) {
+		selectedBuildingId = null;
+		selectedPlacedBuildingId = null;
+		sim = new Simulation(newConfig);
+		botAI = new BotAI(sim);
+		renderer?.setSimulation(sim);
+		uiTick = sim.stateVersion;
+	}
 </script>
 
 <svelte:window onkeydown={handleKeyDown} />
@@ -172,6 +191,7 @@
 		onOpenForge={() => (isForgeOpen = true)}
 		onOpenCommander={() => (isCommanderOpen = true)}
 		onOpenShop={() => (isShopOpen = true)}
+		onOpenSettings={() => (isSettingsOpen = true)}
 	/>
 
 	<!-- Arena Viewport (Longer Map aspect 3:1) -->
@@ -203,6 +223,12 @@
 	<CommanderModal {sim} bind:isOpen={isCommanderOpen} />
 	<ShopModal {sim} bind:isOpen={isShopOpen} />
 	<VictoryModal {sim} onNextRound={handleNextRound} />
+	<StartMatchModal
+		isOpen={isSettingsOpen}
+		currentConfig={sim.config}
+		onClose={() => (isSettingsOpen = false)}
+		onStartMatch={handleStartNewMatch}
+	/>
 </main>
 
 <style>
