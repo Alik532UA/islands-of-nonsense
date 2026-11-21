@@ -111,6 +111,16 @@ export interface Unit {
 	abilityCooldownTimer?: number;
 	isStunned?: boolean;
 	isEnsnared?: boolean;
+	buildingDefId?: string;
+	buildingName?: string;
+}
+
+export interface BuildingPerformance {
+	defId: string;
+	name: string;
+	team: MatchTeam;
+	kills: number;
+	damage: number;
 }
 
 export interface Building {
@@ -194,6 +204,10 @@ export interface PlayerState {
 		unitsSpawned: number;
 		unitsKilled: number;
 		goldSpent: number;
+		totalDamageDealt: number;
+		damageToCastle: number;
+		coinsCollected: number;
+		itemsPurchased: number;
 	};
 }
 

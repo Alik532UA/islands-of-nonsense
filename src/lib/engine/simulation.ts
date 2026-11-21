@@ -10,7 +10,8 @@ import type {
 	FloatingText,
 	GoldCoin,
 	ArmorType,
-	AttackType
+	AttackType,
+	BuildingPerformance
 } from './types';
 import { SpatialHashGrid } from './spatialGrid';
 import { calculateDamage } from './damageMatrix';
@@ -124,6 +125,9 @@ export class Simulation {
 	public coinSpawnInterval = 40.0;
 	private nextCoinId = 1;
 
+	// MVP & Building Performance Breakdown
+	public buildingStats: Record<string, BuildingPerformance> = {};
+
 	// Callbacks
 	public onFloatingText?: (text: FloatingText) => void;
 	public onRoundEnd?: (winner: MatchTeam) => void;
@@ -187,7 +191,15 @@ export class Simulation {
 				commander: 2, // Alik
 				forge: { attack: 0, armor: 0, econ: 0 },
 				preferredLane: 'auto',
-				stats: { unitsSpawned: 0, unitsKilled: 0, goldSpent: 0 }
+				stats: {
+					unitsSpawned: 0,
+					unitsKilled: 0,
+					goldSpent: 0,
+					totalDamageDealt: 0,
+					damageToCastle: 0,
+					coinsCollected: 0,
+					itemsPurchased: 0
+				}
 			},
 			east: {
 				team: 'east',
@@ -203,7 +215,15 @@ export class Simulation {
 				commander: 3, // Dima
 				forge: { attack: 0, armor: 0, econ: 0 },
 				preferredLane: 'auto',
-				stats: { unitsSpawned: 0, unitsKilled: 0, goldSpent: 0 }
+				stats: {
+					unitsSpawned: 0,
+					unitsKilled: 0,
+					goldSpent: 0,
+					totalDamageDealt: 0,
+					damageToCastle: 0,
+					coinsCollected: 0,
+					itemsPurchased: 0
+				}
 			}
 		};
 	}
@@ -280,6 +300,33 @@ export class Simulation {
 		this.resetRound();
 	}
 
+	public recordBuildingDamage(defId: string, name: string, team: MatchTeam, damage: number): void {
+		if (!this.buildingStats[defId]) {
+			this.buildingStats[defId] = { defId, name, team, kills: 0, damage: 0 };
+		}
+		this.buildingStats[defId].damage += Math.round(damage);
+	}
+
+	public recordBuildingKill(defId: string, name: string, team: MatchTeam): void {
+		if (!this.buildingStats[defId]) {
+			this.buildingStats[defId] = { defId, name, team, kills: 0, damage: 0 };
+		}
+		this.buildingStats[defId].kills += 1;
+	}
+
+	public getMvpBuilding(team: MatchTeam): BuildingPerformance | null {
+		const list = Object.values(this.buildingStats).filter((b) => b.team === team);
+		if (list.length === 0) {
+			const firstBuilding = this.buildings.find((b) => b.team === team);
+			if (firstBuilding) {
+				return { defId: firstBuilding.defId, name: firstBuilding.name, team, kills: 0, damage: 0 };
+			}
+			return null;
+		}
+		list.sort((a, b) => b.kills * 100 + b.damage - (a.kills * 100 + a.damage));
+		return list[0] || null;
+	}
+
 	public resetRound(newRaces?: { west?: string; east?: string }): void {
 		this.units = [];
 		this.buildings = [];
@@ -309,6 +356,7 @@ export class Simulation {
 		this.coinSpawnTimer = this.coinSpawnInterval;
 		this.winner = null;
 		this.roundWinner = null;
+		this.buildingStats = {};
 
 		for (const team of ['west', 'east'] as MatchTeam[]) {
 			const p = this.players[team];
@@ -317,6 +365,15 @@ export class Simulation {
 			p.lumber = 125;
 			p.food = 0;
 			p.maxFood = 0;
+			p.stats = {
+				unitsSpawned: 0,
+				unitsKilled: 0,
+				goldSpent: 0,
+				totalDamageDealt: 0,
+				damageToCastle: 0,
+				coinsCollected: 0,
+				itemsPurchased: 0
+			};
 			if (newRaces?.[team]) {
 				p.race = newRaces[team]!;
 			}
@@ -543,6 +600,7 @@ export class Simulation {
 		const coin = this.goldCoins[idx];
 		this.goldCoins.splice(idx, 1);
 		this.players[team].gold += coin.value;
+		this.players[team].stats.coinsCollected++;
 		this.addFloatingText(`+${coin.value}g Монета!`, coin.x, coin.y - 20, '#fbbf24');
 		this.notifyStateChanged();
 		return true;
@@ -661,6 +719,8 @@ export class Simulation {
 			isScavenger: building.race === 'Сборщики',
 			reflectDamagePct:
 				building.race === 'Нічні ельфи' && unitDef.armor_type === 'heavy' ? 0.2 : undefined,
+			buildingDefId: building.defId,
+			buildingName: building.name,
 			abilityType: resolveUnitAbility(unitDef),
 			abilityCooldownTimer: 0
 		};
@@ -1101,7 +1161,7 @@ export class Simulation {
 				splashRadius: attacker.splashRadius
 			});
 		} else {
-			this.applyUnitDamage(target, rawDmg, attacker.attackType, attacker.team, isCrit);
+			this.applyUnitDamage(target, rawDmg, attacker.attackType, attacker.team, isCrit, attacker);
 
 			// Melee AoE Splash
 			if (attacker.splashRadius) {
@@ -1165,7 +1225,8 @@ export class Simulation {
 		rawDmg: number,
 		attackType: AttackType,
 		attackerTeam: Team,
-		isCrit: boolean
+		isCrit: boolean,
+		attackerUnit?: Unit
 	): void {
 		let effectiveArmor = target.armor;
 		if (target.buffs?.some((b) => b.type === 'shield')) {
@@ -1173,6 +1234,19 @@ export class Simulation {
 		}
 		const finalDamage = calculateDamage(attackType, target.armorType, rawDmg, effectiveArmor);
 		target.hp -= finalDamage;
+
+		if (attackerTeam === 'west' || attackerTeam === 'east') {
+			this.players[attackerTeam].stats.totalDamageDealt += finalDamage;
+		}
+
+		if (attackerUnit?.buildingDefId && (attackerTeam === 'west' || attackerTeam === 'east')) {
+			this.recordBuildingDamage(
+				attackerUnit.buildingDefId,
+				attackerUnit.buildingName || attackerUnit.name,
+				attackerTeam,
+				finalDamage
+			);
+		}
 
 		this.addFloatingText(
 			isCrit ? `!${finalDamage}!` : `-${finalDamage}`,
@@ -1183,6 +1257,14 @@ export class Simulation {
 
 		if (target.hp <= 0) {
 			target.state = 'DEAD';
+
+			if (attackerUnit?.buildingDefId && (attackerTeam === 'west' || attackerTeam === 'east')) {
+				this.recordBuildingKill(
+					attackerUnit.buildingDefId,
+					attackerUnit.buildingName || attackerUnit.name,
+					attackerTeam
+				);
+			}
 
 			// Recycler scrap salvage on unit death
 			if (target.team === 'west' || target.team === 'east') {
@@ -1244,6 +1326,19 @@ export class Simulation {
 			Math.floor(Math.random() * (attacker.damageMax - attacker.damageMin + 1));
 		const finalDamage = calculateDamage(attacker.attackType, 'fort', rawDmg, 5);
 		castle.hp = Math.max(0, castle.hp - finalDamage);
+
+		if (attacker.team === 'west' || attacker.team === 'east') {
+			this.players[attacker.team].stats.damageToCastle += finalDamage;
+			this.players[attacker.team].stats.totalDamageDealt += finalDamage;
+			if (attacker.buildingDefId) {
+				this.recordBuildingDamage(
+					attacker.buildingDefId,
+					attacker.buildingName || attacker.name,
+					attacker.team,
+					finalDamage
+				);
+			}
+		}
 
 		this.addFloatingText(`-${finalDamage}`, castle.x, castle.y - 30, '#ef4444');
 		this.notifyStateChanged();
@@ -1339,12 +1434,19 @@ export class Simulation {
 			const step = p.speed * dt;
 			if (dist <= step) {
 				if (target && target.state !== 'DEAD') {
-					this.applyUnitDamage(target, p.damage, p.attackType, p.team, p.isCrit);
+					const attackerUnit = this.units.find((u) => u.instanceId === p.sourceUnitId);
+					this.applyUnitDamage(target, p.damage, p.attackType, p.team, p.isCrit, attackerUnit);
 
-					// Tower special on-hit effects
+					// Tower special on-hit effects & stats
 					if (p.sourceUnitId.startsWith('bld_')) {
 						if (!target.buffs) target.buffs = [];
 						const tower = this.buildings.find((b) => b.instanceId === p.sourceUnitId);
+						if (tower) {
+							this.recordBuildingDamage(tower.defId, tower.name, tower.team, p.damage);
+							if (target.hp <= 0) {
+								this.recordBuildingKill(tower.defId, tower.name, tower.team);
+							}
+						}
 						if (tower?.defId === 'h03Q') {
 							// Frost tower chill slow
 							const slowBuff = target.buffs.find((b) => b.type === 'slow');
@@ -1806,6 +1908,7 @@ export class Simulation {
 
 		player.gold -= item.cost;
 		player.stats.goldSpent += item.cost;
+		player.stats.itemsPurchased++;
 		this.itemCooldowns[team][itemId] = item.cooldown;
 
 		switch (itemId) {

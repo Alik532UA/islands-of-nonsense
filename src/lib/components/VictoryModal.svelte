@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Simulation } from '../engine/simulation';
-	import { Trophy, Skull, RotateCcw, Award } from 'lucide-svelte';
+	import { Trophy, Skull, RotateCcw, Award, Crown } from 'lucide-svelte';
 
 	let {
 		sim,
@@ -14,6 +14,7 @@
 	let isMatchOver = $derived(!!sim.matchWinner);
 	let statsWest = $derived(sim.players.west.stats);
 	let statsEast = $derived(sim.players.east.stats);
+	let westMvp = $derived(sim.getMvpBuilding('west'));
 </script>
 
 {#if sim.winner}
@@ -69,7 +70,7 @@
 				{/if}
 			</h2>
 
-			<p class="text-xs text-slate-400 mb-2">
+			<p class="text-xs text-slate-400 mb-4">
 				Рахунок серії: <span class="font-mono font-bold text-white text-sm">
 					{sim.score.west} : {sim.score.east}
 				</span>
@@ -78,32 +79,100 @@
 				</span>
 			</p>
 
-			<!-- Round Stats Summary -->
+			<!-- MVP Building Banner -->
+			{#if westMvp}
+				<div
+					class="bg-gradient-to-r from-amber-950/60 via-amber-900/40 to-amber-950/60 border border-amber-500/40 rounded-xl p-3 mb-4 text-xs flex items-center justify-between shadow-lg shadow-amber-500/5"
+				>
+					<div class="flex items-center gap-2">
+						<div class="p-1.5 bg-amber-500/20 text-amber-400 rounded-lg">
+							<Crown class="w-4 h-4" />
+						</div>
+						<div class="text-left">
+							<div class="text-[10px] font-bold uppercase tracking-wider text-amber-400">
+								MVP Споруда вашої армії
+							</div>
+							<div class="font-bold text-slate-100">{westMvp.name}</div>
+						</div>
+					</div>
+					<div class="text-right text-[11px] font-mono">
+						<div class="text-amber-300 font-bold">{westMvp.kills} вбивств</div>
+						<div class="text-slate-400 text-[10px]">{westMvp.damage} шкоди</div>
+					</div>
+				</div>
+			{/if}
+
+			<!-- Round & Match Stats Summary -->
 			<div
 				class="bg-slate-950/80 border border-slate-800 rounded-xl p-4 mb-6 text-xs text-slate-300 grid grid-cols-2 gap-4"
 			>
-				<div class="border-r border-slate-800 pr-2">
-					<div class="font-bold text-blue-400 mb-1">Ваша команда</div>
-					<div>
-						Створено бійців: <span class="font-bold text-white">{statsWest.unitsSpawned}</span>
+				<div class="border-r border-slate-800 pr-2 space-y-1 text-left">
+					<div class="font-bold text-blue-400 mb-1 flex items-center justify-between">
+						<span>Ваша команда</span>
+						<span class="text-[10px] font-mono bg-blue-950 px-1.5 rounded text-blue-300">West</span>
 					</div>
-					<div>
-						Знищено ворогів: <span class="font-bold text-white">{statsWest.unitsKilled}</span>
+					<div class="flex justify-between">
+						<span class="text-slate-400">Шкода замку:</span>
+						<span class="font-bold text-rose-400 font-mono">{statsWest.damageToCastle}</span>
 					</div>
-					<div>
-						Витрачено золота: <span class="font-bold text-white">{statsWest.goldSpent}g</span>
+					<div class="flex justify-between">
+						<span class="text-slate-400">Шкода армії:</span>
+						<span class="font-bold text-amber-300 font-mono">{statsWest.totalDamageDealt}</span>
+					</div>
+					<div class="flex justify-between">
+						<span class="text-slate-400">Знищено ворогів:</span>
+						<span class="font-bold text-white font-mono">{statsWest.unitsKilled}</span>
+					</div>
+					<div class="flex justify-between">
+						<span class="text-slate-400">Створено бійців:</span>
+						<span class="font-bold text-slate-200 font-mono">{statsWest.unitsSpawned}</span>
+					</div>
+					<div class="flex justify-between">
+						<span class="text-slate-400">Монет підібрано:</span>
+						<span class="font-bold text-amber-400 font-mono">{statsWest.coinsCollected}</span>
+					</div>
+					<div class="flex justify-between">
+						<span class="text-slate-400">Предметів замку:</span>
+						<span class="font-bold text-indigo-300 font-mono">{statsWest.itemsPurchased}</span>
+					</div>
+					<div class="flex justify-between">
+						<span class="text-slate-400">Витрачено золота:</span>
+						<span class="font-bold text-emerald-400 font-mono">{statsWest.goldSpent}g</span>
 					</div>
 				</div>
-				<div class="pl-2">
-					<div class="font-bold text-red-400 mb-1">Супротивник (Бот)</div>
-					<div>
-						Створено бійців: <span class="font-bold text-white">{statsEast.unitsSpawned}</span>
+
+				<div class="pl-2 space-y-1 text-left">
+					<div class="font-bold text-red-400 mb-1 flex items-center justify-between">
+						<span>Бот (Супротивник)</span>
+						<span class="text-[10px] font-mono bg-red-950 px-1.5 rounded text-red-300">East</span>
 					</div>
-					<div>
-						Знищено ворогів: <span class="font-bold text-white">{statsEast.unitsKilled}</span>
+					<div class="flex justify-between">
+						<span class="text-slate-400">Шкода замку:</span>
+						<span class="font-bold text-rose-400 font-mono">{statsEast.damageToCastle}</span>
 					</div>
-					<div>
-						Витрачено золота: <span class="font-bold text-white">{statsEast.goldSpent}g</span>
+					<div class="flex justify-between">
+						<span class="text-slate-400">Шкода армії:</span>
+						<span class="font-bold text-amber-300 font-mono">{statsEast.totalDamageDealt}</span>
+					</div>
+					<div class="flex justify-between">
+						<span class="text-slate-400">Знищено ворогів:</span>
+						<span class="font-bold text-white font-mono">{statsEast.unitsKilled}</span>
+					</div>
+					<div class="flex justify-between">
+						<span class="text-slate-400">Створено бійців:</span>
+						<span class="font-bold text-slate-200 font-mono">{statsEast.unitsSpawned}</span>
+					</div>
+					<div class="flex justify-between">
+						<span class="text-slate-400">Монет підібрано:</span>
+						<span class="font-bold text-amber-400 font-mono">{statsEast.coinsCollected}</span>
+					</div>
+					<div class="flex justify-between">
+						<span class="text-slate-400">Предметів замку:</span>
+						<span class="font-bold text-indigo-300 font-mono">{statsEast.itemsPurchased}</span>
+					</div>
+					<div class="flex justify-between">
+						<span class="text-slate-400">Витрачено золота:</span>
+						<span class="font-bold text-emerald-400 font-mono">{statsEast.goldSpent}g</span>
 					</div>
 				</div>
 			</div>
