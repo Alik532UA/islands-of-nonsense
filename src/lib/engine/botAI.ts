@@ -1,14 +1,43 @@
 import type { Simulation } from './simulation';
-import type { MatchTeam, Building, BuildingDefinition } from './types';
-import { getBaseBuildingsForRace, getUpgradesForBuilding } from './gameData';
+import type { MatchTeam, Building, BuildingDefinition, Lane } from './types';
+import {
+	getBaseBuildingsForRace,
+	getUpgradesForBuilding,
+	UNITS_MAP,
+	SPECIAL_BUILDINGS
+} from './gameData';
+
+export interface EnemyArmyScan {
+	flyingCount: number;
+	heavyCount: number;
+	lightCount: number;
+	fortCount: number;
+	mediumCount: number;
+	totalCount: number;
+	topPressure: number;
+	bottomPressure: number;
+}
+
+export const BOT_TIER_LIMITS: Record<number, { minPrice: number; maxPrice: number }> = {
+	0: { minPrice: 0, maxPrice: 285 },
+	1: { minPrice: 0, maxPrice: 450 },
+	2: { minPrice: 165, maxPrice: 650 },
+	3: { minPrice: 165, maxPrice: 5000 },
+	4: { minPrice: 200, maxPrice: 5000 }
+};
 
 export class BotAI {
 	private sim: Simulation;
 	private team: MatchTeam = 'east';
 	private decisionTimer = 1.5;
 
-	constructor(sim: Simulation) {
+	constructor(sim: Simulation, team: MatchTeam = 'east') {
 		this.sim = sim;
+		this.team = team;
+	}
+
+	public getTeam(): MatchTeam {
+		return this.team;
 	}
 
 	public update(dt: number): void {
@@ -19,14 +48,131 @@ export class BotAI {
 		}
 	}
 
+	/**
+	 * Calculates the bot price tier (0 - 4) based on income and gold in hand.
+	 * Follows WC3 reference/docs/05_БОТЫ.md:
+	 * Natural income thresholds: 15, 27, 65.
+	 * Raised gold thresholds: 360, 560, 800.
+	 */
+	public calculateTier(income: number, gold: number): number {
+		let naturalTier = 0;
+		if (income >= 65) naturalTier = 3;
+		else if (income >= 27) naturalTier = 2;
+		else if (income >= 15) naturalTier = 1;
+
+		let goldTier = 0;
+		if (gold >= 800) goldTier = 4;
+		else if (gold >= 560) goldTier = 3;
+		else if (gold >= 360) goldTier = 2;
+
+		return Math.max(naturalTier, goldTier);
+	}
+
+	/**
+	 * Scans enemy units on the battlefield to detect unit composition and lane pressure.
+	 */
+	public scanEnemyArmy(): EnemyArmyScan {
+		const enemyTeam = this.team === 'west' ? 'east' : 'west';
+		const myCastle = this.sim.castles[this.team];
+
+		const scan: EnemyArmyScan = {
+			flyingCount: 0,
+			heavyCount: 0,
+			lightCount: 0,
+			fortCount: 0,
+			mediumCount: 0,
+			totalCount: 0,
+			topPressure: 0,
+			bottomPressure: 0
+		};
+
+		for (const u of this.sim.units) {
+			if (u.team !== enemyTeam || u.state === 'DEAD') continue;
+
+			scan.totalCount++;
+			if (u.flying) scan.flyingCount++;
+
+			const armor = u.armorType?.toLowerCase();
+			if (armor === 'large' || armor === 'heavy') scan.heavyCount++;
+			else if (armor === 'small' || armor === 'light') scan.lightCount++;
+			else if (armor === 'fort' || armor === 'fortified') scan.fortCount++;
+			else scan.mediumCount++;
+
+			// Lane pressure: closer to our castle means higher immediate threat
+			const distToCastle = Math.hypot(u.x - myCastle.x, u.y - myCastle.y);
+			const pressure = Math.max(1, 1500 - distToCastle);
+			if (u.lane === 'top') {
+				scan.topPressure += pressure;
+			} else {
+				scan.bottomPressure += pressure;
+			}
+		}
+
+		return scan;
+	}
+
+	/**
+	 * Evaluates candidate building:
+	 * Base 5000 + price weight - duplicate penalty (-60/ea) + counter-pick bonuses.
+	 */
+	public scoreBuilding(
+		building: BuildingDefinition,
+		tier: number,
+		scan: EnemyArmyScan,
+		existingCount: number
+	): number {
+		let score = 5000;
+		const cost = building.gold_cost || 200;
+
+		// Price weight: price / 4 when tier >= 2, or price / 15
+		score += tier >= 2 ? cost / 4 : cost / 15;
+
+		// Duplicate repetition penalty: -60 pts for each identical building
+		score -= existingCount * 60;
+
+		// Unit tactical counters
+		const unitDef = building.unit ? UNITS_MAP.get(building.unit) : null;
+		if (unitDef) {
+			const canHitAir = unitDef.flying || (unitDef.range !== null && unitDef.range > 120);
+
+			// Anti-Air scoring
+			if (scan.flyingCount > 0) {
+				if (canHitAir) {
+					score += 350;
+				} else {
+					score -= 150;
+				}
+			}
+
+			// Attack type vs Armor type counter-scoring
+			if (scan.totalCount > 0) {
+				const attack = unitDef.attack_type?.toLowerCase() || 'normal';
+				if (attack === 'magic' && scan.heavyCount > 0) {
+					score += 200 * (scan.heavyCount / scan.totalCount);
+				}
+				if ((attack === 'pierce' || attack === 'siege') && scan.lightCount > 0) {
+					score += 200 * (scan.lightCount / scan.totalCount);
+				}
+				if (attack === 'siege' && scan.fortCount > 0) {
+					score += 250 * (scan.fortCount / scan.totalCount);
+				}
+				if (attack === 'normal' && scan.mediumCount > 0) {
+					score += 150 * (scan.mediumCount / scan.totalCount);
+				}
+			}
+		}
+
+		return score;
+	}
+
 	private makeDecision(): void {
 		const player = this.sim.players[this.team];
 		if (!player || !player.isBot) return;
 
-		// 0. Emergency Rescue Strike (Highest priority if enemies cluster near castle)
 		const myCastle = this.sim.castles[this.team];
 		const castleHpRatio = myCastle.hp / myCastle.maxHp;
 
+		// 0. Emergency Rescue Strike
 		if (this.sim.canUseRescueStrike(this.team)) {
 			const enemyTeam = this.team === 'west' ? 'east' : 'west';
 			const enemyNearCastle = this.sim.units.filter(
@@ -78,7 +224,7 @@ export class BotAI {
 			}
 		}
 
-		// 1. Forge decision: if surplus gold, buy forge upgrades
+		// 3. Forge decision: buy forge upgrades if surplus gold
 		if (player.gold > 350) {
 			if (this.sim.gameTime < 300 && player.forge.econ < 2) {
 				const cost = this.sim.getForgePrice(this.team, 'econ');
@@ -105,32 +251,37 @@ export class BotAI {
 			}
 		}
 
-		// 2. Building Upgrades: evaluate existing buildings for tier 2/3 upgrades
+		// 4. Calculate Current Price Tier based on building investment and gold
+		const myBuildings = this.sim.buildings.filter((b) => b.team === this.team);
+		const bldValue = myBuildings.reduce((sum, b) => sum + b.goldCost, 0);
+		const estimatedIncome = 10 * (0.5 + 0.002 * bldValue) * (1 + 0.1 * player.forge.econ);
+		const tier = this.calculateTier(estimatedIncome, player.gold);
+		const scan = this.scanEnemyArmy();
+
+		// 5. Building Upgrades: evaluate existing buildings for tier 2/3 upgrades
 		const upgradeCandidates: { building: Building; upgrade: BuildingDefinition; cost: number }[] =
 			[];
-		for (const b of this.sim.buildings) {
-			if (b.team === this.team) {
-				const availableUpgrades = getUpgradesForBuilding(b.defId);
-				for (const up of availableUpgrades) {
-					const cost =
-						up.upgrade_extra_cost > 0
-							? up.upgrade_extra_cost
-							: Math.max(50, (up.gold_cost || 200) - b.goldCost);
-					if (player.gold >= cost) {
-						upgradeCandidates.push({ building: b, upgrade: up, cost });
-					}
+		for (const b of myBuildings) {
+			const availableUpgrades = getUpgradesForBuilding(b.defId);
+			for (const up of availableUpgrades) {
+				const cost =
+					up.upgrade_extra_cost > 0
+						? up.upgrade_extra_cost
+						: Math.max(50, (up.gold_cost || 200) - b.goldCost);
+				if (player.gold >= cost) {
+					upgradeCandidates.push({ building: b, upgrade: up, cost });
 				}
 			}
 		}
 
-		if (upgradeCandidates.length > 0 && Math.random() < 0.45) {
+		// When tier >= 3, upgrade probability is 100% (WC3 reference: "при поднятом ярусе 3+ шанс заменён на 100%")
+		if (upgradeCandidates.length > 0 && (tier >= 3 || Math.random() < 0.45)) {
 			const candidate = upgradeCandidates[Math.floor(Math.random() * upgradeCandidates.length)];
 			this.sim.upgradeBuilding(this.team, candidate.building.instanceId, candidate.upgrade.id);
 			return;
 		}
 
-		// 3. Building placement decision:
-		// Find available building spots (3 cols x 8 rows)
+		// 6. Building placement decision:
 		const occupied = new Set(
 			this.sim.buildings.filter((b) => b.team === this.team).map((b) => `${b.tileX}:${b.tileY}`)
 		);
@@ -146,29 +297,77 @@ export class BotAI {
 
 		if (freeSlots.length === 0) return;
 
-		// Pick candidate buildings for bot's race
+		// Candidate buildings pool
 		const baseBuildings = getBaseBuildingsForRace(player.race);
-		const affordable = baseBuildings.filter((b) => (b.gold_cost || 200) <= player.gold);
+		const candidateList: BuildingDefinition[] = [...baseBuildings];
 
-		if (affordable.length > 0) {
-			const existingCounts = new Map<string, number>();
-			for (const b of this.sim.buildings) {
-				if (b.team === this.team) {
-					existingCounts.set(b.defId, (existingCounts.get(b.defId) || 0) + 1);
-				}
-			}
+		// Check special buildings
+		const treasureCount = myBuildings.filter((b) => b.specialType === 'treasure').length;
+		const repairCount = myBuildings.filter((b) => b.specialType === 'repair').length;
 
-			affordable.sort((a, b) => {
-				const countA = existingCounts.get(a.id) || 0;
-				const countB = existingCounts.get(b.id) || 0;
-				return countA - countB || (b.gold_cost || 0) - (a.gold_cost || 0);
-			});
-
-			const chosenBuilding = affordable[0];
-			const randomSlot = freeSlots[Math.floor(Math.random() * freeSlots.length)];
-			const lane = randomSlot.y < 4 ? 'top' : 'bottom';
-
-			this.sim.build(this.team, chosenBuilding.id, randomSlot.x, randomSlot.y, lane);
+		if (player.gold >= 300 && estimatedIncome < 50 && treasureCount < 1) {
+			const chest = SPECIAL_BUILDINGS.find((b) => b.specialType === 'treasure');
+			if (chest) candidateList.push(chest);
 		}
+		if (castleHpRatio < 0.7 && repairCount < 1 && player.gold >= 180) {
+			const repair = SPECIAL_BUILDINGS.find((b) => b.specialType === 'repair');
+			if (repair) candidateList.push(repair);
+		}
+
+		// Existing building counts for repetition penalty
+		const existingCounts = new Map<string, number>();
+		for (const b of myBuildings) {
+			existingCounts.set(b.defId, (existingCounts.get(b.defId) || 0) + 1);
+		}
+
+		// Filter candidates by tier range
+		const tierLimits = BOT_TIER_LIMITS[tier] || BOT_TIER_LIMITS[0];
+		let filtered = candidateList.filter((b) => {
+			const cost = b.gold_cost || 200;
+			return cost >= tierLimits.minPrice && cost <= tierLimits.maxPrice && cost <= player.gold;
+		});
+
+		// Fallback to any affordable building if tier limits produced 0 matches
+		if (filtered.length === 0) {
+			filtered = candidateList.filter((b) => (b.gold_cost || 200) <= player.gold);
+		}
+
+		if (filtered.length === 0) return;
+
+		// Score and sort candidates
+		const scoredCandidates = filtered.map((b) => ({
+			building: b,
+			score: this.scoreBuilding(b, tier, scan, existingCounts.get(b.id) || 0) + Math.random() * 50
+		}));
+
+		scoredCandidates.sort((a, b) => b.score - a.score);
+		const chosenBuilding = scoredCandidates[0].building;
+
+		// Tactical lane selection based on lane pressure & balance
+		let preferredSlots: { x: number; y: number }[] = [];
+		if (scan.topPressure > scan.bottomPressure + 300) {
+			preferredSlots = freeSlots.filter((s) => s.y < 4);
+		} else if (scan.bottomPressure > scan.topPressure + 300) {
+			preferredSlots = freeSlots.filter((s) => s.y >= 4);
+		} else {
+			// Balance lane building count
+			const topCount = myBuildings.filter((b) => b.tileY < 4).length;
+			const bottomCount = myBuildings.filter((b) => b.tileY >= 4).length;
+			if (topCount < bottomCount) {
+				preferredSlots = freeSlots.filter((s) => s.y < 4);
+			} else if (bottomCount < topCount) {
+				preferredSlots = freeSlots.filter((s) => s.y >= 4);
+			}
+		}
+
+		const chosenSlot =
+			preferredSlots.length > 0
+				? preferredSlots[Math.floor(Math.random() * preferredSlots.length)]
+				: freeSlots[Math.floor(Math.random() * freeSlots.length)];
+
+		if (!chosenSlot) return;
+
+		const lane: Lane = chosenSlot.y < 4 ? 'top' : 'bottom';
+		this.sim.build(this.team, chosenBuilding.id, chosenSlot.x, chosenSlot.y, lane);
 	}
 }
