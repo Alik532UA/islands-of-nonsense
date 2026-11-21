@@ -14,7 +14,7 @@ import type {
 } from './types';
 import { SpatialHashGrid } from './spatialGrid';
 import { calculateDamage } from './damageMatrix';
-import { getBuilding, getUnit, getSpawnCooldown, RACES_LIST } from './gameData';
+import { getBuilding, getUnit, getSpawnCooldown, resolveUnitAbility, RACES_LIST } from './gameData';
 import { getRaceAbility } from './raceAbilities';
 import { getRandomBoss } from './bosses';
 import { CASTLE_ITEMS } from './items';
@@ -621,7 +621,9 @@ export class Simulation {
 				unitDef.attack_type === 'siege' || unitDef.raw_fields?.ua1w === 'msplash' ? 110 : undefined,
 			isScavenger: building.race === 'Сборщики',
 			reflectDamagePct:
-				building.race === 'Нічні ельфи' && unitDef.armor_type === 'heavy' ? 0.2 : undefined
+				building.race === 'Нічні ельфи' && unitDef.armor_type === 'heavy' ? 0.2 : undefined,
+			abilityType: resolveUnitAbility(unitDef),
+			abilityCooldownTimer: 0
 		};
 
 		this.units.push(unit);
@@ -648,6 +650,8 @@ export class Simulation {
 		splashRadius?: number;
 		reflectDamagePct?: number;
 		isScavenger?: boolean;
+		abilityType?: 'ensnare' | 'poison' | 'heal' | 'bash' | 'aura_dmg' | 'none';
+		flying?: boolean;
 	}): Unit {
 		const unit: Unit = {
 			instanceId: `test_unit_${this.nextUnitId++}`,
@@ -672,15 +676,17 @@ export class Simulation {
 			cooldownTimer: options.cooldownTimer ?? 0,
 			range: options.range ?? 100,
 			speed: options.speed ?? 100,
-			flying: false,
+			flying: !!options.flying,
 			currentTargetId: null,
 			targetX: options.team === 'west' ? ARENA_WIDTH - 80 : 80,
 			targetY: options.y,
 			state: 'WALKING',
-			size: 15,
+			size: options.flying ? 20 : 15,
 			splashRadius: options.splashRadius,
 			reflectDamagePct: options.reflectDamagePct,
-			isScavenger: options.isScavenger
+			isScavenger: options.isScavenger,
+			abilityType: options.abilityType || 'none',
+			abilityCooldownTimer: 0
 		};
 		this.units.push(unit);
 		return unit;
@@ -745,7 +751,7 @@ export class Simulation {
 			if (u.buffs && u.buffs.length > 0) {
 				for (const b of u.buffs) {
 					b.timer -= dt;
-					if (b.type === 'infect') {
+					if (b.type === 'infect' || b.type === 'poison') {
 						u.hp -= b.value * dt;
 					}
 				}
@@ -753,6 +759,80 @@ export class Simulation {
 				if (u.hp <= 0) {
 					u.state = 'DEAD';
 					continue;
+				}
+			}
+
+			// Stun check: stunned units cannot move or attack
+			const isStunned = u.buffs?.some((b) => b.type === 'stun');
+			u.isStunned = !!isStunned;
+			if (isStunned) {
+				continue;
+			}
+
+			// Ensnare check: grounded while ensnared
+			const isEnsnared = u.buffs?.some((b) => b.type === 'ensnare');
+			u.isEnsnared = !!isEnsnared;
+			if (isEnsnared) {
+				u.flying = false;
+			}
+
+			// Tactical abilities cooldown tick
+			if (u.abilityCooldownTimer && u.abilityCooldownTimer > 0) {
+				u.abilityCooldownTimer = Math.max(0, u.abilityCooldownTimer - dt);
+			}
+
+			// 1. Ensnare ability (Web down flying enemies)
+			if (u.abilityType === 'ensnare' && (!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0)) {
+				const enemyFlying = this.units.find(
+					(other) =>
+						other.team !== u.team &&
+						other.lane === u.lane &&
+						other.state !== 'DEAD' &&
+						other.flying &&
+						Math.hypot(other.x - u.x, other.y - u.y) <= 450
+				);
+				if (enemyFlying) {
+					enemyFlying.buffs = enemyFlying.buffs || [];
+					enemyFlying.buffs.push({ type: 'ensnare', timer: 6.0, value: 0 });
+					enemyFlying.flying = false;
+					enemyFlying.isEnsnared = true;
+					u.abilityCooldownTimer = 12.0;
+					this.addFloatingText('Сітка!', enemyFlying.x, enemyFlying.y - 20, '#a3e635');
+				}
+			}
+
+			// 2. Heal ability (Support wounded allies)
+			if (u.abilityType === 'heal' && (!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0)) {
+				const injuredAlly = this.units.find(
+					(other) =>
+						other.team === u.team &&
+						other.lane === u.lane &&
+						other.state !== 'DEAD' &&
+						other.hp < other.maxHp &&
+						Math.hypot(other.x - u.x, other.y - u.y) <= 350
+				);
+				if (injuredAlly) {
+					injuredAlly.hp = Math.min(injuredAlly.maxHp, injuredAlly.hp + 65);
+					u.abilityCooldownTimer = 3.5;
+					this.addFloatingText('+65 HP', injuredAlly.x, injuredAlly.y - 20, '#10b981');
+				}
+			}
+
+			// 3. Command Aura (Buff nearby allies damage)
+			if (u.abilityType === 'aura_dmg') {
+				for (const ally of this.units) {
+					if (
+						ally.team === u.team &&
+						ally.lane === u.lane &&
+						ally.state !== 'DEAD' &&
+						ally.instanceId !== u.instanceId &&
+						Math.hypot(ally.x - u.x, ally.y - u.y) <= 300
+					) {
+						ally.buffs = ally.buffs || [];
+						if (!ally.buffs.some((b) => b.type === 'dmg' && b.value === 0.15)) {
+							ally.buffs.push({ type: 'dmg', timer: 1.5, value: 0.15 });
+						}
+					}
 				}
 			}
 
@@ -949,6 +1029,20 @@ export class Simulation {
 		if (attacker.critChance && Math.random() < attacker.critChance) {
 			rawDmg *= 2;
 			isCrit = true;
+		}
+
+		// Tactical on-attack procs: Bash & Poison
+		if (attacker.abilityType === 'bash' && Math.random() < 0.2) {
+			target.buffs = target.buffs || [];
+			target.buffs.push({ type: 'stun', timer: 1.2, value: 0 });
+			target.isStunned = true;
+			this.addFloatingText('*Оглушення!*', target.x, target.y - 25, '#f59e0b');
+		}
+		if (attacker.abilityType === 'poison') {
+			target.buffs = target.buffs || [];
+			target.buffs.push({ type: 'poison', timer: 5.0, value: 15 });
+			target.buffs.push({ type: 'slow', timer: 5.0, value: 0.3 });
+			this.addFloatingText('Отрута', target.x, target.y - 20, '#10b981');
 		}
 
 		if (attacker.range > 150) {

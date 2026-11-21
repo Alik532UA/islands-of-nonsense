@@ -53,7 +53,17 @@ export interface RaceDefinition {
 }
 
 export interface ActiveBuff {
-	type: 'dmg' | 'as' | 'shield' | 'evade' | 'slow' | 'infect' | 'weakness';
+	type:
+		| 'dmg'
+		| 'as'
+		| 'shield'
+		| 'evade'
+		| 'slow'
+		| 'infect'
+		| 'weakness'
+		| 'ensnare'
+		| 'poison'
+		| 'stun';
 	timer: number;
 	value: number;
 }
@@ -94,6 +104,10 @@ export interface Unit {
 	splashRadius?: number;
 	reflectDamagePct?: number;
 	isScavenger?: boolean;
+	abilityType?: 'ensnare' | 'poison' | 'heal' | 'bash' | 'aura_dmg' | 'none';
+	abilityCooldownTimer?: number;
+	isStunned?: boolean;
+	isEnsnared?: boolean;
 }
 
 export interface Building {

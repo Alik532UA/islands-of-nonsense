@@ -109,3 +109,65 @@ export function getSpawnCooldown(building: BuildingDefinition, unit?: UnitDefini
 	const cost = building.gold_cost || 200;
 	return Math.round(10 + (cost / 400) * 8);
 }
+
+/**
+ * Resolves tactical WC3 unit ability archetype (Ensnare, Poison, Heal, Bash, Aura).
+ */
+export function resolveUnitAbility(
+	def?: UnitDefinition
+): 'ensnare' | 'poison' | 'heal' | 'bash' | 'aura_dmg' | 'none' {
+	if (!def) return 'none';
+	const name = (def.name || '').toLowerCase();
+
+	if (
+		name.includes('капкан') ||
+		name.includes('ловец') ||
+		name.includes('паук') ||
+		def.id === 'n01O'
+	) {
+		return 'ensnare';
+	}
+	if (
+		name.includes('чум') ||
+		name.includes('яд') ||
+		name.includes('убийца') ||
+		def.id === 'u007' ||
+		def.id === 'n00K'
+	) {
+		return 'poison';
+	}
+	if (
+		name.includes('паладин') ||
+		name.includes('друид') ||
+		name.includes('жрец') ||
+		name.includes('волшебник') ||
+		def.id === 'h03C' ||
+		def.id === 'e00J' ||
+		def.id === 'h00W'
+	) {
+		return 'heal';
+	}
+	if (
+		name.includes('магнатор') ||
+		name.includes('вандиго') ||
+		name.includes('страж') ||
+		name.includes('топор') ||
+		def.id === 'n016' ||
+		def.id === 'n013' ||
+		def.id === 'n00X'
+	) {
+		return 'bash';
+	}
+	if (
+		name.includes('кодой') ||
+		name.includes('чемпион') ||
+		name.includes('мастер-меч') ||
+		def.id === 'o008' ||
+		def.id === 'o006' ||
+		def.id === 'n00Z'
+	) {
+		return 'aura_dmg';
+	}
+
+	return 'none';
+}
