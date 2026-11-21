@@ -1,6 +1,7 @@
 import { Application, Container, Graphics } from 'pixi.js';
 import type { Simulation } from '../engine/simulation';
 import type { Castle } from '../engine/types';
+import { getBuilding, isLegendaryBuilding } from '../engine/gameData';
 import {
 	ARENA_WIDTH,
 	ARENA_HEIGHT,
@@ -351,7 +352,25 @@ export class ArenaRenderer {
 				g.fill({ color: 0x3b0764 });
 			}
 
-			// Spawn or attack timer progress bar
+			// Legendary Apex Badge
+			const bDef = getBuilding(b.defId);
+			const isLeg = isLegendaryBuilding(bDef);
+			if (isLeg) {
+				g.poly([
+					px + CELL_SIZE / 2,
+					py + 4,
+					px + CELL_SIZE / 2 + 5,
+					py + 9,
+					px + CELL_SIZE / 2,
+					py + 14,
+					px + CELL_SIZE / 2 - 5,
+					py + 9
+				]);
+				g.fill({ color: 0xfbbf24 });
+				g.stroke({ color: 0xfef08a, width: 1 });
+			}
+
+			// Spawn or attack timer progress bar above building
 			if (!b.specialType || b.specialType === 'repair' || b.specialType === 'tower') {
 				const maxCd =
 					b.specialType === 'repair'
@@ -361,14 +380,38 @@ export class ArenaRenderer {
 							: b.spawnCooldown;
 				const currentTimer = b.specialType === 'tower' ? b.attackTimer || 0 : b.spawnTimer;
 				const pct = Math.max(0, Math.min(1, 1 - currentTimer / maxCd));
-				const barW = CELL_SIZE - 10;
-				g.rect(px + 5, py + CELL_SIZE - 7, barW, 4);
-				g.fill({ color: 0x334155 });
-				g.rect(px + 5, py + CELL_SIZE - 7, barW * pct, 4);
-				g.fill({
-					color:
-						b.specialType === 'tower' ? 0xa855f7 : b.specialType === 'repair' ? 0x10b981 : 0x38bdf8
-				});
+
+				const barX = px + 4;
+				const barY = py - 7;
+				const barW = CELL_SIZE - 8;
+				const barH = 5;
+
+				// Background container with dark border
+				g.roundRect(barX - 1, barY - 1, barW + 2, barH + 2, 2);
+				g.fill({ color: 0x090d16 });
+				g.stroke({ color: 0x334155, width: 1 });
+
+				// Bar fill color
+				let fillColor = 0x38bdf8; // Azure spawner
+				if (isLeg) {
+					fillColor = 0xfbbf24; // Legendary gold
+				} else if (b.specialType === 'tower') {
+					fillColor = 0xa855f7; // Tower purple
+				} else if (b.specialType === 'repair') {
+					fillColor = 0x10b981; // Repair green
+				}
+
+				if (pct > 0) {
+					g.roundRect(barX, barY, barW * pct, barH, 1.5);
+					g.fill({ color: fillColor });
+				}
+
+				// Flash highlight when imminent spawn (pct > 0.9)
+				if (pct > 0.9 && !b.specialType) {
+					const pulse = 0.5 + Math.sin(this.sim.gameTime * 20) * 0.5;
+					g.roundRect(barX + barW * pct - 3, barY, 3, barH, 1);
+					g.fill({ color: 0xffffff, alpha: pulse });
+				}
 			}
 		}
 	}
