@@ -222,7 +222,8 @@
 	<div class="flex items-center gap-4">
 		<div class="text-center">
 			<div class="text-[11px] uppercase tracking-wider text-slate-400 font-bold">
-				Раунд {sim.round} ({sim.score.west} : {sim.score.east})
+				Раунд {sim.round} • {sim.score.west} : {sim.score.east}
+				<span class="text-[10px] text-amber-400/90 font-mono">(до {sim.targetWins})</span>
 			</div>
 			<div class="text-sm font-mono font-bold text-slate-200">
 				{formatTime(sim.gameTime)}

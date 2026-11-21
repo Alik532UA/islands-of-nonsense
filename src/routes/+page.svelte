@@ -147,8 +147,12 @@
 	});
 
 	function handleNextRound() {
-		sim.round++;
-		sim.resetRound();
+		if (sim.matchWinner) {
+			sim.startNewMatch();
+		} else {
+			sim.round++;
+			sim.resetRound();
+		}
 		uiTick = sim.stateVersion;
 		isCommanderOpen = true;
 	}

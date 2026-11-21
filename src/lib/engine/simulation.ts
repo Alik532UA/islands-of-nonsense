@@ -48,6 +48,7 @@ export interface SimulationConfig {
 	allRandom?: boolean;
 	westRace?: string;
 	eastRace?: string;
+	targetWins?: number;
 }
 
 export class Simulation {
@@ -72,6 +73,9 @@ export class Simulation {
 	public spatialGrid = new SpatialHashGrid(80);
 
 	public winner: MatchTeam | null = null;
+	public roundWinner: MatchTeam | null = null;
+	public matchWinner: MatchTeam | null = null;
+	public targetWins = 2;
 	public round = 1;
 	public score = { west: 0, east: 0 };
 
@@ -131,6 +135,7 @@ export class Simulation {
 
 	constructor(config: SimulationConfig = { botDifficulty: 0, startGold: 500 }) {
 		this.config = config;
+		this.targetWins = config.targetWins ?? 2;
 		this.castles = {
 			west: { team: 'west', x: 60, y: 400, hp: 14000, maxHp: 14000 },
 			east: { team: 'east', x: 2340, y: 400, hp: 14000, maxHp: 14000 }
@@ -264,6 +269,17 @@ export class Simulation {
 		this.stateVersion++;
 	}
 
+	public startNewMatch(targetWins?: number): void {
+		if (targetWins) {
+			this.targetWins = targetWins;
+		}
+		this.score = { west: 0, east: 0 };
+		this.round = 1;
+		this.matchWinner = null;
+		this.roundWinner = null;
+		this.resetRound();
+	}
+
 	public resetRound(newRaces?: { west?: string; east?: string }): void {
 		this.units = [];
 		this.buildings = [];
@@ -292,6 +308,7 @@ export class Simulation {
 		this.goldCoins = [];
 		this.coinSpawnTimer = this.coinSpawnInterval;
 		this.winner = null;
+		this.roundWinner = null;
 
 		for (const team of ['west', 'east'] as MatchTeam[]) {
 			const p = this.players[team];
@@ -393,12 +410,20 @@ export class Simulation {
 		// 9. Check Win Condition
 		if (this.castles.west.hp <= 0 && !this.winner) {
 			this.winner = 'east';
+			this.roundWinner = 'east';
 			this.score.east++;
+			if (this.score.east >= this.targetWins) {
+				this.matchWinner = 'east';
+			}
 			this.onRoundEnd?.('east');
 			this.notifyStateChanged();
 		} else if (this.castles.east.hp <= 0 && !this.winner) {
 			this.winner = 'west';
+			this.roundWinner = 'west';
 			this.score.west++;
+			if (this.score.west >= this.targetWins) {
+				this.matchWinner = 'west';
+			}
 			this.onRoundEnd?.('west');
 			this.notifyStateChanged();
 		}

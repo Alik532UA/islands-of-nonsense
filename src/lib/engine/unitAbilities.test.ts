@@ -142,7 +142,10 @@ describe('Point 3: Unit Abilities & Passives (Ensnare, Poison, Heal, Bash, Aura)
 			hp: 1000
 		});
 
-		// Force bash proc by directly triggering attack loop
+		// Guarantee bash proc deterministically
+		const origRandom = Math.random;
+		Math.random = () => 0.05;
+
 		let stunned = false;
 		for (let i = 0; i < 50; i++) {
 			sim.step(0.05);
@@ -151,6 +154,7 @@ describe('Point 3: Unit Abilities & Passives (Ensnare, Poison, Heal, Bash, Aura)
 				break;
 			}
 		}
+		Math.random = origRandom;
 		expect(stunned).toBe(true);
 	});
 });

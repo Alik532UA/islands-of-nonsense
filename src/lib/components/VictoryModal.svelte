@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Simulation } from '../engine/simulation';
-	import { Trophy, Skull, RotateCcw } from 'lucide-svelte';
+	import { Trophy, Skull, RotateCcw, Award } from 'lucide-svelte';
 
 	let {
 		sim,
@@ -11,6 +11,7 @@
 	} = $props();
 
 	let isWestWin = $derived(sim.winner === 'west');
+	let isMatchOver = $derived(!!sim.matchWinner);
 	let statsWest = $derived(sim.players.west.stats);
 	let statsEast = $derived(sim.players.east.stats);
 </script>
@@ -20,17 +21,31 @@
 		class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 select-none"
 	>
 		<div
-			class="bg-slate-900 border {isWestWin
-				? 'border-blue-500/80 shadow-blue-500/20'
-				: 'border-red-500/80 shadow-red-500/20'} rounded-3xl w-full max-w-md shadow-2xl p-7 text-white text-center"
+			class="bg-slate-900 border {isMatchOver
+				? isWestWin
+					? 'border-amber-400 shadow-amber-500/30 ring-2 ring-amber-400/50'
+					: 'border-red-600 shadow-red-600/30'
+				: isWestWin
+					? 'border-blue-500/80 shadow-blue-500/20'
+					: 'border-red-500/80 shadow-red-500/20'} rounded-3xl w-full max-w-md shadow-2xl p-7 text-white text-center"
 		>
 			<!-- Big Trophy or Skull Icon -->
 			<div
-				class="inline-flex p-4 rounded-2xl mb-4 {isWestWin
-					? 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
-					: 'bg-red-500/20 text-red-400 border border-red-500/40'}"
+				class="inline-flex p-4 rounded-2xl mb-4 {isMatchOver
+					? isWestWin
+						? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+						: 'bg-red-500/20 text-red-400 border border-red-500/40'
+					: isWestWin
+						? 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
+						: 'bg-red-500/20 text-red-400 border border-red-500/40'}"
 			>
-				{#if isWestWin}
+				{#if isMatchOver}
+					{#if isWestWin}
+						<Award class="w-12 h-12 text-amber-400 animate-bounce" />
+					{:else}
+						<Skull class="w-12 h-12 text-red-400" />
+					{/if}
+				{:else if isWestWin}
 					<Trophy class="w-12 h-12" />
 				{:else}
 					<Skull class="w-12 h-12" />
@@ -39,15 +54,27 @@
 
 			<!-- Title -->
 			<h2
-				class="text-2xl font-black uppercase tracking-wider mb-1 {isWestWin
-					? 'text-blue-400'
-					: 'text-red-400'}"
+				class="text-2xl font-black uppercase tracking-wider mb-1 {isMatchOver
+					? isWestWin
+						? 'text-amber-400'
+						: 'text-red-400'
+					: isWestWin
+						? 'text-blue-400'
+						: 'text-red-400'}"
 			>
-				{isWestWin ? 'Перемога Заходу!' : 'Поразка Замку!'}
+				{#if isMatchOver}
+					{isWestWin ? 'Тріумф! Перемога у матчі!' : 'Матч програно!'}
+				{:else}
+					{isWestWin ? 'Перемога у раунді!' : 'Поразка у раунді!'}
+				{/if}
 			</h2>
-			<p class="text-xs text-slate-400 mb-6">
-				Рахунок матчу: <span class="font-mono font-bold text-white text-sm">
+
+			<p class="text-xs text-slate-400 mb-2">
+				Рахунок серії: <span class="font-mono font-bold text-white text-sm">
 					{sim.score.west} : {sim.score.east}
+				</span>
+				<span class="text-slate-500 text-[11px]">
+					({isMatchOver ? `Серія до ${sim.targetWins}` : `гра до ${sim.targetWins} перемог`})
 				</span>
 			</p>
 
@@ -81,15 +108,23 @@
 				</div>
 			</div>
 
-			<!-- Next Round Button -->
+			<!-- Action Button -->
 			<button
 				onclick={onNextRound}
-				class="w-full py-3.5 px-6 rounded-xl font-bold text-sm tracking-wide transition flex items-center justify-center gap-2 cursor-pointer shadow-lg {isWestWin
-					? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30'
-					: 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/30'}"
+				class="w-full py-3.5 px-6 rounded-xl font-bold text-sm tracking-wide transition flex items-center justify-center gap-2 cursor-pointer shadow-lg {isMatchOver
+					? isWestWin
+						? 'bg-amber-600 hover:bg-amber-500 text-slate-950 shadow-amber-600/30 font-black'
+						: 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/30'
+					: isWestWin
+						? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30'
+						: 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/30'}"
 			>
 				<RotateCcw class="w-4 h-4" />
-				Розпочати наступний раунд
+				{#if isMatchOver}
+					Розпочати новий матч
+				{:else}
+					Розпочати раунд {sim.round + 1}
+				{/if}
 			</button>
 		</div>
 	</div>
