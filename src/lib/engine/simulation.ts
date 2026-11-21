@@ -778,6 +778,70 @@ export class Simulation {
 				}
 			}
 		}
+
+		// Apply Crowd Physics & Boids Separation
+		this.applyCrowdSeparation(dt);
+	}
+
+	/**
+	 * Applies soft Boids-style separation repulsion between ground units to prevent single-point stacking
+	 * and create authentic frontline spread across the lane corridor width.
+	 */
+	private applyCrowdSeparation(dt: number): void {
+		const collisionRadius = 26;
+		const maxPushPerSec = 75;
+
+		for (let i = 0; i < this.units.length; i++) {
+			const u = this.units[i];
+			if (u.state === 'DEAD' || u.flying) continue;
+
+			let pushX = 0;
+			let pushY = 0;
+
+			// Check against other ground units on the same lane
+			for (let j = 0; j < this.units.length; j++) {
+				if (i === j) continue;
+				const other = this.units[j];
+				if (other.state === 'DEAD' || other.flying || other.lane !== u.lane) continue;
+
+				let dx = u.x - other.x;
+				let dy = u.y - other.y;
+				let dist = Math.hypot(dx, dy);
+
+				// If exactly overlapping, give a deterministic non-zero perpendicular nudge
+				if (dist < 0.1) {
+					const seed =
+						(u.instanceId.charCodeAt(u.instanceId.length - 1) || 1) % 2 === 0 ? 1 : -1;
+					dx = seed * 0.5;
+					dy = (seed === 1 ? -1 : 1) * 2;
+					dist = Math.hypot(dx, dy);
+				}
+
+				if (dist < collisionRadius) {
+					const overlap = (collisionRadius - dist) / collisionRadius;
+					const weight = u.team === other.team ? 1.0 : 0.6;
+					pushX += (dx / dist) * overlap * weight;
+					pushY += (dy / dist) * overlap * weight;
+				}
+			}
+
+			if (pushX !== 0 || pushY !== 0) {
+				const pushMag = Math.hypot(pushX, pushY);
+				const clampedMag = Math.min(pushMag, 1.5) * maxPushPerSec * dt;
+				u.x += (pushX / pushMag) * clampedMag;
+				u.y += (pushY / pushMag) * clampedMag;
+			}
+
+			// Keep unit bounded within its lane corridor when between castles
+			if (u.x >= 200 && u.x <= ARENA_WIDTH - 200) {
+				const laneCenterY = u.lane === 'top' ? TOP_LANE_Y : BOTTOM_LANE_Y;
+				u.y = Math.max(laneCenterY - 45, Math.min(laneCenterY + 45, u.y));
+			} else {
+				// In castle siege zone (x < 200 or x > 2200), allow units to converge on castle
+				u.y = Math.max(100, Math.min(ARENA_HEIGHT - 100, u.y));
+			}
+			u.x = Math.max(80, Math.min(ARENA_WIDTH - 80, u.x));
+		}
 	}
 
 	private performAttack(attacker: Unit, target: Unit): void {
