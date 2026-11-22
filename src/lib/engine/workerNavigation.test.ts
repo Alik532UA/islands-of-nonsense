@@ -54,21 +54,21 @@ describe('Worker Navigation and Building Order (v10 Canon)', () => {
 			expect(path[0].y).toBe(250);
 		});
 
-		it('navigates around the dividing stone wall when target is on the opposite courtyard', () => {
+		it('navigates around the solid castle structure when target is on the opposite courtyard', () => {
 			const sim = new Simulation();
-			// Wall is at y=370..430, x=70..460.
-			// Start in upper courtyard (y=200), target in lower courtyard (y=600)
-			const path = sim.findWorkerPath('west', 200, 200, 200, 600);
+			// West Castle solid footprint is at x=80..320, y=1060..1340.
+			// Start in upper courtyard (y=900), target in lower courtyard (y=1500)
+			const path = sim.findWorkerPath('west', 200, 900, 200, 1500);
 			expect(path.length).toBeGreaterThan(1);
 
-			// The path must round the end of the wall (x > 450)
-			const roundsWall = path.some((pt) => pt.x >= 440);
-			expect(roundsWall).toBe(true);
+			// The path must round the exterior of the castle (x > 320)
+			const roundsCastle = path.some((pt) => pt.x >= 320);
+			expect(roundsCastle).toBe(true);
 
-			// None of the waypoints may be inside the wall
+			// None of the waypoints may be inside the castle footprint
 			for (const pt of path) {
-				const inWall = pt.x >= 75 && pt.x <= 455 && pt.y >= 375 && pt.y <= 425;
-				expect(inWall).toBe(false);
+				const inCastle = pt.x >= 85 && pt.x <= 315 && pt.y >= 1065 && pt.y <= 1335;
+				expect(inCastle).toBe(false);
 			}
 		});
 
@@ -80,23 +80,24 @@ describe('Worker Navigation and Building Order (v10 Canon)', () => {
 			if (!worker) return;
 
 			worker.x = 200;
-			worker.y = 200;
+			worker.y = 900;
 
-			// Order worker to lower courtyard
-			sim.moveWorker('west', 200, 600);
+			// Order worker to lower courtyard across the castle
+			sim.moveWorker('west', 200, 1500);
 			expect(worker.path).toBeDefined();
 			expect(worker.path!.length).toBeGreaterThan(1);
 
 			// Step simulation for 8 seconds (160 ticks of 0.05s)
 			for (let i = 0; i < 160; i++) {
 				sim.step(0.05);
-				// Verify worker never penetrates the dividing stone wall
-				const insideWall = worker.x >= 75 && worker.x <= 455 && worker.y >= 375 && worker.y <= 425;
-				expect(insideWall).toBe(false);
+				// Verify worker never penetrates the castle
+				const insideCastle =
+					worker.x >= 85 && worker.x <= 315 && worker.y >= 1065 && worker.y <= 1335;
+				expect(insideCastle).toBe(false);
 			}
 
-			// Worker must have made progress towards the lower courtyard (y > 350)
-			expect(worker.y).toBeGreaterThan(300);
+			// Worker must have made progress towards the lower courtyard (y > 950)
+			expect(worker.y).toBeGreaterThan(950);
 		});
 	});
 });

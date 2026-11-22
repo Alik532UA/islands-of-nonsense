@@ -286,14 +286,10 @@ export class BotAI {
 		}
 
 		// 6. Building placement decision:
-		const occupied = new Set(
-			this.sim.buildings.filter((b) => b.team === this.team).map((b) => `${b.tileX}:${b.tileY}`)
-		);
-
 		const freeSlots: { x: number; y: number }[] = [];
-		for (let x = 0; x < 3; x++) {
-			for (let y = 0; y < 8; y++) {
-				if (!occupied.has(`${x}:${y}`) && this.sim.canBuild(this.team, x, y)) {
+		for (let x = 0; x <= 16; x += 2) {
+			for (let y = 0; y <= 24; y += 2) {
+				if (this.sim.canBuild(this.team, x, y)) {
 					freeSlots.push({ x, y });
 				}
 			}

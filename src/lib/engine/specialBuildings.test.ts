@@ -52,9 +52,9 @@ describe('Point 6: Special Non-Spawning Buildings (Treasure Box, Repair, Recycle
 		sim.step(0.05); // triggers income
 		const goldGainedWith1Box = sim.players.west.gold - goldBefore;
 
-		// Build a second Treasure Box at (1, 0)
+		// Build a second Treasure Box at (2, 0)
 		sim.players.west.gold = 2000;
-		sim.build('west', 'h008', 1, 0);
+		sim.build('west', 'h008', 2, 0);
 
 		sim.incomeTimer = 0.05;
 		const goldBefore2 = sim.players.west.gold;

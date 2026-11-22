@@ -20,7 +20,7 @@ describe('Castle Fight - Neutral Central Bosses', () => {
 		}
 	});
 
-	it('should spawn first boss on Top lane at center X=1200 with neutral team', () => {
+	it('should spawn first boss on Top lane at center X=arenaWidth/2 with neutral team', () => {
 		expect(sim.bossSpawnTimer).toBe(180);
 		expect(sim.activeBossInstanceId).toBeNull();
 
@@ -28,7 +28,7 @@ describe('Castle Fight - Neutral Central Bosses', () => {
 		expect(boss).toBeDefined();
 		expect(boss.team).toBe('neutral');
 		expect(boss.lane).toBe('top');
-		expect(boss.x).toBe(1200);
+		expect(boss.x).toBe(sim.arenaWidth / 2);
 		expect(boss.y).toBe(sim.topLaneY);
 		expect(boss.isBoss).toBe(true);
 		expect(sim.bossIndex).toBe(1);

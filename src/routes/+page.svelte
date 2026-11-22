@@ -25,9 +25,9 @@
 	let selectedEntity = $state<SelectedEntity>({ type: 'worker' });
 
 	// RTS Camera Viewport state
-	let cameraX = $state(450);
-	let cameraY = $state(400);
-	let zoom = $state(1.0);
+	let cameraX = $state(800);
+	let cameraY = $state(1200);
+	let zoom = $state(0.85);
 
 	// Match Lifecycle Phases
 	type MatchPhase = 'SETUP' | 'COUNTDOWN' | 'BATTLE';
@@ -102,13 +102,13 @@
 				}
 			}
 		} else if (e.key === 'ArrowLeft') {
-			renderer?.setCamera(cameraX - 120, cameraY);
+			renderer?.setCamera(cameraX - 240, cameraY);
 		} else if (e.key === 'ArrowRight') {
-			renderer?.setCamera(cameraX + 120, cameraY);
+			renderer?.setCamera(cameraX + 240, cameraY);
 		} else if (e.key === 'ArrowUp') {
-			renderer?.setCamera(cameraX, cameraY - 120);
+			renderer?.setCamera(cameraX, cameraY - 240);
 		} else if (e.key === 'ArrowDown') {
-			renderer?.setCamera(cameraX, cameraY + 120);
+			renderer?.setCamera(cameraX, cameraY + 240);
 		}
 	}
 
@@ -214,7 +214,7 @@
 
 		let lastTime = performance.now();
 		let accumulator = 0;
-		const FIXED_STEP = 0.05; // 20 FPS simulation rate
+		const FIXED_STEP = 1 / 60; // 60 FPS silky-smooth simulation rate
 
 		function gameLoop(now: number) {
 			const rawDelta = Math.min(0.25, (now - lastTime) / 1000);

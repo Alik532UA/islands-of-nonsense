@@ -149,6 +149,9 @@ export interface UnitDefinition {
 	flying: boolean;
 	gold_cost: number;
 	raw_fields?: Record<string, unknown>;
+	splashRadius?: number;
+	reflectDamagePct?: number;
+	isScavenger?: boolean;
 }
 
 export interface BuildingDefinition {

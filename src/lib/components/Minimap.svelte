@@ -86,57 +86,86 @@
 			// Cobblestone continuous roads: West Castle -> Top & Bottom Lanes -> East Castle
 			ctx.fillStyle = '#6b573e';
 
-			// Straight highways
+			// Straight highways (between ramparts)
 			ctx.fillRect(
-				30 * scaleX,
-				(TOP_LANE_Y - 25) * scaleY,
-				(ARENA_WIDTH - 60) * scaleX,
-				50 * scaleY
+				1440 * scaleX,
+				(TOP_LANE_Y - 80) * scaleY,
+				(ARENA_WIDTH - 2880) * scaleX,
+				160 * scaleY
 			);
 			ctx.fillRect(
-				30 * scaleX,
-				(BOTTOM_LANE_Y - 25) * scaleY,
-				(ARENA_WIDTH - 60) * scaleX,
-				50 * scaleY
+				1440 * scaleX,
+				(BOTTOM_LANE_Y - 80) * scaleY,
+				(ARENA_WIDTH - 2880) * scaleX,
+				160 * scaleY
 			);
 
-			// Road curves towards Castle Gates
+			// Road curves from Castle Plazas to Lane Gates
+			// West fan-out
 			ctx.beginPath();
-			ctx.moveTo(60 * scaleX, 400 * scaleY);
-			ctx.lineTo(250 * scaleX, TOP_LANE_Y * scaleY);
-			ctx.lineTo(250 * scaleX, BOTTOM_LANE_Y * scaleY);
+			ctx.moveTo(200 * scaleX, 1200 * scaleY);
+			ctx.lineTo(1440 * scaleX, (TOP_LANE_Y - 80) * scaleY);
+			ctx.lineTo(1440 * scaleX, (TOP_LANE_Y + 80) * scaleY);
 			ctx.closePath();
 			ctx.fill();
 
 			ctx.beginPath();
-			ctx.moveTo((ARENA_WIDTH - 60) * scaleX, 400 * scaleY);
-			ctx.lineTo((ARENA_WIDTH - 250) * scaleX, TOP_LANE_Y * scaleY);
-			ctx.lineTo((ARENA_WIDTH - 250) * scaleX, BOTTOM_LANE_Y * scaleY);
+			ctx.moveTo(200 * scaleX, 1200 * scaleY);
+			ctx.lineTo(1440 * scaleX, (BOTTOM_LANE_Y - 80) * scaleY);
+			ctx.lineTo(1440 * scaleX, (BOTTOM_LANE_Y + 80) * scaleY);
+			ctx.closePath();
+			ctx.fill();
+
+			// East fan-out
+			ctx.beginPath();
+			ctx.moveTo((ARENA_WIDTH - 200) * scaleX, 1200 * scaleY);
+			ctx.lineTo((ARENA_WIDTH - 1440) * scaleX, (TOP_LANE_Y - 80) * scaleY);
+			ctx.lineTo((ARENA_WIDTH - 1440) * scaleX, (TOP_LANE_Y + 80) * scaleY);
+			ctx.closePath();
+			ctx.fill();
+
+			ctx.beginPath();
+			ctx.moveTo((ARENA_WIDTH - 200) * scaleX, 1200 * scaleY);
+			ctx.lineTo((ARENA_WIDTH - 1440) * scaleX, (BOTTOM_LANE_Y - 80) * scaleY);
+			ctx.lineTo((ARENA_WIDTH - 1440) * scaleX, (BOTTOM_LANE_Y + 80) * scaleY);
 			ctx.closePath();
 			ctx.fill();
 
 			// Central River
 			ctx.fillStyle = '#0284c7';
-			ctx.fillRect((ARENA_WIDTH / 2 - 50) * scaleX, 0, 100 * scaleX, MAP_HEIGHT);
+			ctx.fillRect((ARENA_WIDTH / 2 - 140) * scaleX, 0, 280 * scaleX, MAP_HEIGHT);
 
 			// Bridges
 			ctx.fillStyle = '#78716c';
 			ctx.fillRect(
-				(ARENA_WIDTH / 2 - 60) * scaleX,
-				(TOP_LANE_Y - 30) * scaleY,
-				120 * scaleX,
-				60 * scaleY
+				(ARENA_WIDTH / 2 - 140) * scaleX,
+				(TOP_LANE_Y - 90) * scaleY,
+				280 * scaleX,
+				180 * scaleY
 			);
 			ctx.fillRect(
-				(ARENA_WIDTH / 2 - 60) * scaleX,
-				(BOTTOM_LANE_Y - 30) * scaleY,
-				120 * scaleX,
-				60 * scaleY
+				(ARENA_WIDTH / 2 - 140) * scaleX,
+				(BOTTOM_LANE_Y - 90) * scaleY,
+				280 * scaleX,
+				180 * scaleY
 			);
 
 			// Central dividing mountain ridge
 			ctx.fillStyle = '#334155';
-			ctx.fillRect(450 * scaleX, 350 * scaleY, (ARENA_WIDTH - 900) * scaleX, 100 * scaleY);
+			ctx.fillRect(1460 * scaleX, 1040 * scaleY, (ARENA_WIDTH - 2920) * scaleX, 320 * scaleY);
+
+			// Ramparts with open road gates
+			ctx.fillStyle = '#475569';
+			// West ramparts
+			ctx.fillRect(1440 * scaleX, 60 * scaleY, 40 * scaleX, 500 * scaleY);
+			ctx.fillRect(1440 * scaleX, 760 * scaleY, 40 * scaleX, 280 * scaleY);
+			ctx.fillRect(1440 * scaleX, 1360 * scaleY, 40 * scaleX, 280 * scaleY);
+			ctx.fillRect(1440 * scaleX, 1840 * scaleY, 40 * scaleX, 500 * scaleY);
+			// East ramparts
+			ctx.fillRect((ARENA_WIDTH - 1480) * scaleX, 60 * scaleY, 40 * scaleX, 500 * scaleY);
+			ctx.fillRect((ARENA_WIDTH - 1480) * scaleX, 760 * scaleY, 40 * scaleX, 280 * scaleY);
+			ctx.fillRect((ARENA_WIDTH - 1480) * scaleX, 1360 * scaleY, 40 * scaleX, 280 * scaleY);
+			ctx.fillRect((ARENA_WIDTH - 1480) * scaleX, 1840 * scaleY, 40 * scaleX, 500 * scaleY);
 		}
 
 		// 2. Castles
@@ -208,8 +237,8 @@
 		}
 
 		// 7. Camera Viewport Box (Frustum)
-		const viewWorldW = 1000 / zoom;
-		const viewWorldH = 500 / zoom;
+		const viewWorldW = 1200 / zoom;
+		const viewWorldH = 750 / zoom;
 		const camBoxX = (cameraX - viewWorldW / 2) * scaleX;
 		const camBoxY = (cameraY - viewWorldH / 2) * scaleY;
 		const camBoxW = viewWorldW * scaleX;

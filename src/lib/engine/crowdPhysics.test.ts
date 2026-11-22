@@ -145,13 +145,12 @@ describe('Point 10: Crowd Physics & Unit Separation (Boids Collision Repulsion)'
 	});
 
 	it('should reject building on the road or dividing walls via canBuild', () => {
-		// Attempting to build on the dividing stone wall
-		// Dividing wall is at y = 400 (tileY = 4)
-		const canBuildOnWall = sim.canBuild('west', 0, 4);
-		expect(canBuildOnWall).toBe(false);
+		// Attempting to build on the road fan-out to castle (tileY = 28, y = 1136)
+		const canBuildOnRoad = sim.canBuild('west', 0, 28);
+		expect(canBuildOnRoad).toBe(false);
 
 		// Attempting to build outside base bounds
-		const canBuildOutside = sim.canBuild('west', 15, 0);
+		const canBuildOutside = sim.canBuild('west', 50, 0);
 		expect(canBuildOutside).toBe(false);
 
 		// Valid slot (0, 0) in courtyard must be buildable
