@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { Simulation } from '../engine/simulation';
-	import { ARENA_WIDTH, ARENA_HEIGHT, TOP_LANE_Y, BOTTOM_LANE_Y } from '../engine/simulation';
+	import { ARENA_WIDTH, ARENA_HEIGHT, TOP_LANE_Y, BOTTOM_LANE_Y } from '../engine/constants';
 	import { Crosshair, Map as MapIcon, Users, Castle } from 'lucide-svelte';
 	import { sound } from '../services/audio';
 

@@ -1,5 +1,5 @@
 import type { Graphics } from 'pixi.js';
-import { ARENA_WIDTH, ARENA_HEIGHT, TOP_LANE_Y, BOTTOM_LANE_Y } from '../engine/simulation';
+import { ARENA_WIDTH, ARENA_HEIGHT, TOP_LANE_Y, BOTTOM_LANE_Y } from '../engine/constants';
 
 export class TerrainRenderer {
 	public drawStaticTerrain(g: Graphics): void {

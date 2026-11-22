@@ -10,7 +10,7 @@ import {
 	EAST_GRID_START_Y,
 	GRID_STEP,
 	CELL_SIZE
-} from './simulation';
+} from './constants';
 import type { MatchTeam, Lane, Building, Unit, ArmorType, AttackType } from './types';
 import {
 	getBuilding,

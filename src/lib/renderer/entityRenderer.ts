@@ -1,7 +1,7 @@
 import type { Graphics } from 'pixi.js';
 import type { Simulation } from '../engine/simulation';
 import type { Castle, MatchTeam } from '../engine/types';
-import { CELL_SIZE } from '../engine/simulation';
+import { CELL_SIZE } from '../engine/constants';
 
 export type SelectedEntity =
 	| { type: 'worker' }

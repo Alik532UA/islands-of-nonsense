@@ -1,5 +1,5 @@
 import type { Simulation } from './simulation';
-import { ARENA_WIDTH, TOP_LANE_Y, BOTTOM_LANE_Y } from './simulation';
+import { ARENA_WIDTH, TOP_LANE_Y, BOTTOM_LANE_Y } from './constants';
 import type { MatchTeam, Lane, GoldCoin } from './types';
 import { getRaceAbility } from './raceAbilities';
 import { CASTLE_ITEMS } from './items';

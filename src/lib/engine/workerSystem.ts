@@ -1,29 +1,8 @@
 import type { Simulation } from './simulation';
-import { ARENA_WIDTH, ARENA_HEIGHT, CELL_SIZE } from './simulation';
+import { ARENA_WIDTH, ARENA_HEIGHT, CELL_SIZE, SOLID_MAP_OBSTACLES } from './constants';
 import type { MatchTeam, WorkerState } from './types';
 
-export const SOLID_MAP_OBSTACLES = [
-	// West Castle (solid stone fortress)
-	{ minX: 80, maxX: 320, minY: 1060, maxY: 1340 },
-	// East Castle (solid stone fortress)
-	{ minX: ARENA_WIDTH - 320, maxX: ARENA_WIDTH - 80, minY: 1060, maxY: 1340 },
-	// Central Mountain Ridge (dividing Top and Bottom lanes)
-	{ minX: 1460, maxX: ARENA_WIDTH - 1460, minY: 1040, maxY: 1360 },
-	// Arena Upper Perimeter Wall
-	{ minX: 0, maxX: ARENA_WIDTH, minY: 0, maxY: 60 },
-	// Arena Lower Perimeter Wall
-	{ minX: 0, maxX: ARENA_WIDTH, minY: ARENA_HEIGHT - 60, maxY: ARENA_HEIGHT },
-	// West Base Ramparts with open Road Gates (Top gate at 560..760, Bot gate at 1640..1840)
-	{ minX: 1440, maxX: 1500, minY: 60, maxY: 560 },
-	{ minX: 1440, maxX: 1500, minY: 760, maxY: 1040 },
-	{ minX: 1440, maxX: 1500, minY: 1360, maxY: 1640 },
-	{ minX: 1440, maxX: 1500, minY: 1840, maxY: ARENA_HEIGHT - 60 },
-	// East Base Ramparts with open Road Gates
-	{ minX: ARENA_WIDTH - 1500, maxX: ARENA_WIDTH - 1440, minY: 60, maxY: 560 },
-	{ minX: ARENA_WIDTH - 1500, maxX: ARENA_WIDTH - 1440, minY: 760, maxY: 1040 },
-	{ minX: ARENA_WIDTH - 1500, maxX: ARENA_WIDTH - 1440, minY: 1360, maxY: 1640 },
-	{ minX: ARENA_WIDTH - 1500, maxX: ARENA_WIDTH - 1440, minY: 1840, maxY: ARENA_HEIGHT - 60 }
-];
+export { SOLID_MAP_OBSTACLES } from './constants';
 
 /**
  * WorkerSystem handles worker navigation, A* pathfinding,

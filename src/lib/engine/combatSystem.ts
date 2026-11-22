@@ -1,5 +1,5 @@
 import type { Simulation } from './simulation';
-import { ARENA_WIDTH, ARENA_HEIGHT, TOP_LANE_Y, BOTTOM_LANE_Y, CELL_SIZE } from './simulation';
+import { ARENA_WIDTH, ARENA_HEIGHT, TOP_LANE_Y, BOTTOM_LANE_Y, CELL_SIZE } from './constants';
 import type { Unit, Building, Castle, MatchTeam, Team, Lane, AttackType } from './types';
 import { calculateDamage } from './damageMatrix';
 import { getBuilding, isLegendaryBuilding } from './gameData';

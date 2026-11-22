@@ -21,20 +21,8 @@ import { BuildingSystem } from './buildingSystem';
 import { CombatSystem } from './combatSystem';
 import { EconomySystem } from './economySystem';
 
-export const ARENA_WIDTH = 7200;
-export const ARENA_HEIGHT = 2400;
-
-export const TOP_LANE_Y = 660;
-export const BOTTOM_LANE_Y = 1740;
-
-export const WEST_GRID_START_X = 360;
-export const WEST_GRID_START_Y = 240;
-
-export const EAST_GRID_START_X = 6240;
-export const EAST_GRID_START_Y = 240;
-
-export const GRID_STEP = 32;
-export const CELL_SIZE = 64; // Building footprint: 2x2 grid steps (64x64 px)
+import { ARENA_WIDTH, ARENA_HEIGHT, TOP_LANE_Y, BOTTOM_LANE_Y } from './constants';
+export * from './constants';
 
 export interface SimulationConfig {
 	botDifficulty: number; // 0, 15, 30, 80
