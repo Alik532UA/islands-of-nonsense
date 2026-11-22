@@ -195,6 +195,9 @@
 				case 'upgrade':
 					sound.playUpgrade();
 					break;
+				case 'coin':
+					sound.playCoin();
+					break;
 			}
 		};
 	}
@@ -221,7 +224,7 @@
 					}
 				} else {
 					const existing = sim.buildings.find(
-						(b) => b.team === 'west' && b.tileX === tileX && b.tileY === tileY
+						(b) => b.tileX === tileX && b.tileY === tileY
 					);
 					selectedPlacedBuildingId = existing ? existing.instanceId : null;
 					selectedEntity = existing

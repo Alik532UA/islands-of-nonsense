@@ -87,12 +87,26 @@ describe('Castle Fight Simulation - Economy & Gold', () => {
 		sim.players.west.gold = 500;
 		sim.build('west', 'h003', 2, 2, 'bottom');
 		const building = sim.buildings[0];
+		building.isUnderConstruction = false;
 		const goldBeforeSell = sim.players.west.gold;
 
 		const sellSuccess = sim.sellBuilding('west', building.instanceId);
 		expect(sellSuccess).toBe(true);
 		expect(sim.buildings.length).toBe(0);
 		expect(sim.players.west.gold).toBe(goldBeforeSell + Math.floor(building.goldCost * 0.5));
+	});
+
+	it('should refund 75% gold when cancelling a building under construction', () => {
+		sim.players.west.gold = 500;
+		sim.build('west', 'h003', 2, 2, 'bottom');
+		const building = sim.buildings[0];
+		expect(building.isUnderConstruction).toBe(true);
+		const goldBeforeCancel = sim.players.west.gold;
+
+		const cancelSuccess = sim.sellBuilding('west', building.instanceId);
+		expect(cancelSuccess).toBe(true);
+		expect(sim.buildings.length).toBe(0);
+		expect(sim.players.west.gold).toBe(goldBeforeCancel + Math.floor(building.goldCost * 0.75));
 	});
 });
 

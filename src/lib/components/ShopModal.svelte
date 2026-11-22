@@ -34,7 +34,22 @@
 			sound.playCoin();
 		}
 	}
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (!isOpen) return;
+		if (e.key === 'Escape') {
+			isOpen = false;
+			return;
+		}
+		const num = parseInt(e.key, 10);
+		if (num >= 1 && num <= CASTLE_ITEMS_LIST.length) {
+			const item = CASTLE_ITEMS_LIST[num - 1];
+			if (item) handleBuy(item.id);
+		}
+	}
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 {#if isOpen}
 	<div class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -64,7 +79,7 @@
 
 			<!-- Item Cards (Scrollable) -->
 			<div class="flex flex-col gap-2.5 overflow-y-auto pr-1.5 flex-1 min-h-0">
-				{#each CASTLE_ITEMS_LIST as item}
+				{#each CASTLE_ITEMS_LIST as item, idx}
 					{@const cd = sim.getItemCooldown('west', item.id)}
 					{@const canAfford = player.gold >= item.cost}
 					{@const canBuy = canAfford && cd <= 0}

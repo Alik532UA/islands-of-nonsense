@@ -153,6 +153,7 @@ export class EconomySystem {
 		this.sim.players[team].gold += coin.value;
 		this.sim.players[team].stats.coinsCollected++;
 		this.sim.addFloatingText(`+${coin.value}g Монета!`, coin.x, coin.y - 20, '#fbbf24');
+		this.sim.onSoundEffect?.('coin');
 		this.sim.notifyStateChanged();
 		return true;
 	}

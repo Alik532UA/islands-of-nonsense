@@ -346,12 +346,29 @@ export class BuildingSystem {
 		if (isLegendaryBuilding(currentDef)) {
 			player.food = Math.max(0, player.food - 1);
 		}
-		const refund = Math.floor(building.goldCost * 0.5);
+		// Cancelled construction refunds 75%; fully built refunds 50%
+		const refundRate = building.isUnderConstruction ? 0.75 : 0.5;
+		const refund = Math.floor(building.goldCost * refundRate);
 
 		player.gold += refund;
 
+		// Cancel active worker construction/repair
+		const worker = player.worker;
+		if (
+			worker &&
+			(worker.targetBuildingId === buildingInstanceId ||
+				worker.targetRepairBuildingId === buildingInstanceId)
+		) {
+			worker.isBuilding = false;
+			worker.isRepairing = false;
+			worker.targetBuildingId = null;
+			worker.targetRepairBuildingId = null;
+			worker.path = [];
+		}
+
 		this.sim.buildings.splice(idx, 1);
-		this.sim.addFloatingText(`+${refund}g (Знесено)`, building.x, building.y - 20, '#fbbf24');
+		const tag = building.isUnderConstruction ? 'Скасовано' : 'Знесено';
+		this.sim.addFloatingText(`+${refund}g (${tag})`, building.x, building.y - 20, '#fbbf24');
 		this.sim.notifyStateChanged();
 		return true;
 	}
@@ -412,12 +429,18 @@ export class BuildingSystem {
 
 		const laneY = lane === 'top' ? TOP_LANE_Y : BOTTOM_LANE_Y;
 		const isWest = building.team === 'west';
-		// Spawn at the front doorway facing the road (outside solid building core)
-		const rawSpawnX = isWest ? building.x + CELL_SIZE + 16 : building.x - 16;
-		const rawSpawnY = building.y + CELL_SIZE / 2;
+		// Find unblocked doorway perimeter spot outside solid core
+		const frontX = isWest ? building.x + CELL_SIZE + 16 : building.x - 16;
+		const frontY = building.y + CELL_SIZE / 2;
 		const spawnPos = unitDef.flying
-			? { x: rawSpawnX, y: rawSpawnY }
-			: this.sim.workerSystem.resolveGroundObstacles(rawSpawnX, rawSpawnY, 12);
+			? { x: frontX, y: frontY }
+			: this.sim.workerSystem.getBestConstructionSpot(
+					building.team,
+					frontX,
+					frontY,
+					building.x,
+					building.y
+				);
 		const spawnX = spawnPos.x;
 		const spawnY = spawnPos.y;
 

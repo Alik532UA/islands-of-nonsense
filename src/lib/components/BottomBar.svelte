@@ -75,8 +75,7 @@
 	// Placed building state
 	let placedBuilding = $derived(
 		selectedPlacedBuildingId
-			? sim.buildings.find((b) => b.instanceId === selectedPlacedBuildingId && b.team === 'west') ||
-					null
+			? sim.buildings.find((b) => b.instanceId === selectedPlacedBuildingId) || null
 			: null
 	);
 	let placedUnit = $derived(placedBuilding ? getUnit(placedBuilding.spawnUnitId) : null);

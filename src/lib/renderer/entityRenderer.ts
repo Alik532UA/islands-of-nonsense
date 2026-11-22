@@ -273,6 +273,25 @@ export class EntityRenderer {
 		g.rect(barX, barY, barWidth * hpPct, barHeight);
 		g.fill({ color: hpPct > 0.5 ? 0x22c55e : hpPct > 0.25 ? 0xeab308 : 0xef4444 });
 
+		// Damaged Castle: Smoke & Fire particles rising from battlements
+		if (hpPct < 0.6) {
+			const time = this.sim.gameTime;
+			for (let i = 0; i < 4; i++) {
+				const smokeX = cx - 45 + i * 30 + Math.sin(time * 3 + i) * 6;
+				const smokeY = cy - keepH / 2 - 8 - ((time * 25 + i * 14) % 36);
+				const radius = 5 + ((time * 6 + i * 3) % 8);
+				g.circle(smokeX, smokeY, radius);
+				g.fill({ color: 0x334155, alpha: 0.35 });
+
+				if (hpPct < 0.35) {
+					const fireX = cx - 35 + i * 24 + Math.cos(time * 10 + i) * 4;
+					const fireY = cy - keepH / 2 + 8 - ((time * 35 + i * 8) % 18);
+					g.circle(fireX, fireY, 4.5);
+					g.fill({ color: 0xf97316, alpha: 0.75 });
+				}
+			}
+		}
+
 		// Azure Dome Invulnerability Shield
 		if (this.sim.castleInvulnerableTimer[castle.team] > 0) {
 			g.circle(cx, cy, 140);

@@ -8,9 +8,9 @@
 	let {
 		sim,
 		uiTick: _uiTick = 0,
-		cameraX = 450,
-		cameraY = 400,
-		zoom = 1.0,
+		cameraX = 800,
+		cameraY = 1200,
+		zoom = 0.85,
 		onMinimapClick
 	}: {
 		sim: Simulation;

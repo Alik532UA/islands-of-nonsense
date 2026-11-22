@@ -856,7 +856,8 @@ export class CombatSystem {
 						damage: isOvercharged ? 170 : 85,
 						attackType: 'siege',
 						isCrit: isOvercharged,
-						team
+						team,
+						splashRadius: 90
 					});
 				}
 			}

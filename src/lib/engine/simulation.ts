@@ -130,8 +130,27 @@ export class Simulation {
 	public onFloatingText?: (text: FloatingText) => void;
 	public onRoundEnd?: (winner: MatchTeam) => void;
 	public onSoundEffect?: (
-		sound: 'hit' | 'sword' | 'bow' | 'magic' | 'death' | 'buildingDestroyed' | 'upgrade'
+		sound:
+			| 'hit'
+			| 'sword'
+			| 'bow'
+			| 'magic'
+			| 'death'
+			| 'buildingDestroyed'
+			| 'upgrade'
+			| 'coin'
 	) => void;
+
+	public setPlayerPreferredLane(team: MatchTeam, lane: 'auto' | 'top' | 'bottom'): void {
+		if (this.players[team]) {
+			this.players[team].preferredLane = lane;
+			this.notifyStateChanged();
+		}
+	}
+
+	public getPlayerPreferredLane(team: MatchTeam): 'auto' | 'top' | 'bottom' {
+		return this.players[team]?.preferredLane ?? 'auto';
+	}
 
 	public get dayNightCycle(): 'day' | 'night' {
 		return Math.floor(this.gameTime / 60) % 2 === 0 ? 'day' : 'night';
