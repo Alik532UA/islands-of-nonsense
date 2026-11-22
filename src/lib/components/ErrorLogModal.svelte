@@ -14,6 +14,7 @@
 
 	type FilterType = 'all' | Level;
 	let activeFilter = $state<FilterType>('all');
+	let selectedCategory = $state<string>('all');
 	let copied = $state(false);
 	let copyTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -22,8 +23,12 @@
 	const warnCount = $derived(entries.filter((e) => e.level === 'warn').length);
 	const infoCount = $derived(entries.filter((e) => e.level === 'info').length);
 
+	const categories = $derived(['all', ...Array.from(new Set(entries.map((e) => e.category)))]);
+
 	const filteredList = $derived(
-		(activeFilter === 'all' ? entries : entries.filter((e) => e.level === activeFilter))
+		entries
+			.filter((e) => activeFilter === 'all' || e.level === activeFilter)
+			.filter((e) => selectedCategory === 'all' || e.category === selectedCategory)
 			.slice()
 			.reverse()
 	);
@@ -179,6 +184,22 @@
 				</div>
 			</div>
 
+			{#if categories.length > 2}
+				<div class="category-toolbar">
+					<span class="category-label">Тема:</span>
+					{#each categories as cat}
+						<button
+							type="button"
+							class="cat-chip"
+							class:cat-chip--active={selectedCategory === cat}
+							onclick={() => (selectedCategory = cat)}
+						>
+							{cat.toUpperCase()}
+						</button>
+					{/each}
+				</div>
+			{/if}
+
 			<div class="modal-body" data-testid="error-log-modal-list">
 				{#if filteredList.length === 0}
 					<div class="empty-state" data-testid="error-log-modal-empty-message">
@@ -296,6 +317,39 @@
 		padding: 10px 20px;
 		border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
 		background: rgba(0, 0, 0, 0.15);
+	}
+	.category-toolbar {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 6px;
+		padding: 8px 20px;
+		background: rgba(0, 0, 0, 0.25);
+		border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+	}
+	.category-label {
+		font-size: 0.75rem;
+		opacity: 0.6;
+		margin-right: 4px;
+	}
+	.cat-chip {
+		padding: 2px 8px;
+		border: 1px solid rgba(255, 255, 255, 0.15);
+		border-radius: 9999px;
+		background: transparent;
+		color: inherit;
+		font-size: 0.6875rem;
+		font-weight: 500;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+	.cat-chip:hover {
+		background: rgba(255, 255, 255, 0.1);
+	}
+	.cat-chip--active {
+		background: #3b82f6;
+		border-color: #60a5fa;
+		color: #ffffff;
 	}
 	.tabs {
 		display: flex;

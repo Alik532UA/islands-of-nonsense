@@ -376,7 +376,7 @@ export class BotAI {
 
 		// 6. Building placement decision across base platform:
 		const freeSlots: { x: number; y: number }[] = [];
-		for (let x = 0; x <= 42; x += 2) {
+		for (let x = 0; x <= 96; x += 2) {
 			for (let y = 0; y <= 70; y += 2) {
 				if (this.sim.canBuild(this.team, x, y)) {
 					freeSlots.push({ x, y });

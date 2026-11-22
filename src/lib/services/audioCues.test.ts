@@ -176,7 +176,7 @@ describe('Point 10: Authentic WC3 Ambient Audio Cues and Voice Alerts', () => {
 				completedBuildingInstance = b.instanceId;
 			};
 
-			const success = sim.build('west', 'h003', 0, 0);
+			const success = sim.build('west', 'h003', 25, 20);
 			expect(success).toBe(true);
 			const bld = sim.buildings[0];
 			expect(bld.isUnderConstruction).toBe(true);

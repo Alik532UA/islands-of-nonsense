@@ -5,6 +5,14 @@ import {
 	TOP_LANE_Y,
 	MID_LANE_Y,
 	BOTTOM_LANE_Y,
+	BRIDGE_SPAN_MIN_X,
+	BRIDGE_SPAN_MAX_X,
+	WEST_ISLAND_CENTER_X,
+	WEST_ISLAND_CENTER_Y,
+	EAST_ISLAND_CENTER_X,
+	EAST_ISLAND_CENTER_Y,
+	ISLAND_RADIUS_X,
+	ISLAND_RADIUS_Y,
 	WEST_GRID_START_X,
 	WEST_GRID_START_Y,
 	EAST_GRID_START_X,
@@ -30,8 +38,101 @@ export class BuildingSystem {
 	constructor(private sim: Simulation) {}
 
 	/**
+	 * Determines whether a world coordinate is on solid island landmass (and not in the ocean).
+	 */
+	public isPointOnIsland(team: MatchTeam, x: number, y: number, margin = 20): boolean {
+		if (team === 'west') {
+			const cx = WEST_ISLAND_CENTER_X;
+			const cy = WEST_ISLAND_CENTER_Y;
+			const rx = ISLAND_RADIUS_X - margin;
+			const ry = ISLAND_RADIUS_Y - margin;
+
+			if (x < 160 + margin || x > BRIDGE_SPAN_MIN_X - margin) return false;
+			if (y < 160 + margin || y > ARENA_HEIGHT - 160 - margin) return false;
+
+			const dx = x - cx;
+			const dy = y - cy;
+
+			if (dx <= 0) {
+				return (dx / (rx - 40)) ** 2 + (dy / ry) ** 2 <= 1.0;
+			}
+			// East half towards bridges
+			const ellipseVal = (dx / (rx + 150)) ** 2 + (dy / ry) ** 2;
+			if (ellipseVal <= 1.0) return true;
+			// Bridgehead approaches
+			if (
+				x <= BRIDGE_SPAN_MIN_X - margin &&
+				(Math.abs(y - TOP_LANE_Y) < 180 ||
+					Math.abs(y - MID_LANE_Y) < 180 ||
+					Math.abs(y - BOTTOM_LANE_Y) < 180)
+			) {
+				return true;
+			}
+			return false;
+		} else {
+			const cx = EAST_ISLAND_CENTER_X;
+			const cy = EAST_ISLAND_CENTER_Y;
+			const rx = ISLAND_RADIUS_X - margin;
+			const ry = ISLAND_RADIUS_Y - margin;
+
+			if (x < BRIDGE_SPAN_MAX_X + margin || x > ARENA_WIDTH - 160 - margin) return false;
+			if (y < 160 + margin || y > ARENA_HEIGHT - 160 - margin) return false;
+
+			const dx = x - cx;
+			const dy = y - cy;
+
+			if (dx >= 0) {
+				return (dx / (rx - 40)) ** 2 + (dy / ry) ** 2 <= 1.0;
+			}
+			const ellipseVal = (dx / (rx + 150)) ** 2 + (dy / ry) ** 2;
+			if (ellipseVal <= 1.0) return true;
+			if (
+				x >= BRIDGE_SPAN_MAX_X + margin &&
+				(Math.abs(y - TOP_LANE_Y) < 180 ||
+					Math.abs(y - MID_LANE_Y) < 180 ||
+					Math.abs(y - BOTTOM_LANE_Y) < 180)
+			) {
+				return true;
+			}
+			return false;
+		}
+	}
+
+	/**
+	 * Checks if a point is on a road or within a given clearance from roads.
+	 */
+	public isPointNearRoad(x: number, y: number, clearance = 145): boolean {
+		// Central strait / river / bridges
+		if (x > BRIDGE_SPAN_MIN_X - 100 && x < BRIDGE_SPAN_MAX_X + 100) {
+			return true;
+		}
+
+		// West Island roads fanning out from castle (1600, 1200) to bridges at 3240
+		if (x >= 1500 && x <= BRIDGE_SPAN_MIN_X + 20) {
+			const prog = (x - 1500) / (BRIDGE_SPAN_MIN_X - 1500);
+			const topY = 1200 + prog * (TOP_LANE_Y - 1200);
+			if (Math.abs(y - topY) < clearance) return true;
+			if (Math.abs(y - MID_LANE_Y) < clearance) return true;
+			const botY = 1200 + prog * (BOTTOM_LANE_Y - 1200);
+			if (Math.abs(y - botY) < clearance) return true;
+		}
+
+		// East Island roads fanning out from castle (5600, 1200) to bridges at 3960
+		if (x >= BRIDGE_SPAN_MAX_X - 20 && x <= 5700) {
+			const prog = (5700 - x) / (5700 - BRIDGE_SPAN_MAX_X);
+			const topY = 1200 + prog * (TOP_LANE_Y - 1200);
+			if (Math.abs(y - topY) < clearance) return true;
+			if (Math.abs(y - MID_LANE_Y) < clearance) return true;
+			const botY = 1200 + prog * (BOTTOM_LANE_Y - 1200);
+			if (Math.abs(y - botY) < clearance) return true;
+		}
+
+		return false;
+	}
+
+	/**
 	 * Checks whether a given plot is valid for building.
-	 * Disallows road surfaces, dividing walls, existing buildings, and castle footprints.
+	 * Disallows water, road surfaces, dividing walls, existing buildings, decorative obstacles, and castle footprints.
 	 */
 	public canBuild(team: MatchTeam, tileX: number, tileY: number): boolean {
 		const startX = team === 'west' ? WEST_GRID_START_X : EAST_GRID_START_X;
@@ -41,29 +142,26 @@ export class BuildingSystem {
 		const bWidth = CELL_SIZE;
 		const bHeight = CELL_SIZE;
 
-		// 1. Boundary & Base territory checks (Full Warcraft III Courtyard coverage)
-		if (team === 'west') {
-			if (worldX < 64 || worldX + bWidth > 1440) return false;
-			if (worldY < 64 || worldY + bHeight > ARENA_HEIGHT - 64) return false;
-			// Clear of West Castle footprint [80..320, 1060..1340]
-			if (worldX + bWidth > 70 && worldX < 330 && worldY + bHeight > 1050 && worldY < 1350) {
-				return false;
-			}
-		} else {
-			if (worldX < ARENA_WIDTH - 1440 || worldX + bWidth > ARENA_WIDTH - 64) return false;
-			if (worldY < 64 || worldY + bHeight > ARENA_HEIGHT - 64) return false;
-			// Clear of East Castle footprint
-			if (
-				worldX + bWidth > ARENA_WIDTH - 330 &&
-				worldX < ARENA_WIDTH - 70 &&
-				worldY + bHeight > 1050 &&
-				worldY < 1350
-			) {
-				return false;
-			}
+		// 1. Water check: All four corners of building footprint must be on solid island landmass
+		if (
+			!this.isPointOnIsland(team, worldX, worldY, 15) ||
+			!this.isPointOnIsland(team, worldX + bWidth, worldY, 15) ||
+			!this.isPointOnIsland(team, worldX, worldY + bHeight, 15) ||
+			!this.isPointOnIsland(team, worldX + bWidth, worldY + bHeight, 15)
+		) {
+			return false;
 		}
 
-		// 2. Overlap with Existing Buildings (allowing 0 gap, 1 gap, 2 gap...)
+		// 2. Castle footprint clearance
+		const castleX = team === 'west' ? WEST_ISLAND_CENTER_X : EAST_ISLAND_CENTER_X;
+		const castleY = team === 'west' ? WEST_ISLAND_CENTER_Y : EAST_ISLAND_CENTER_Y;
+		const dx = worldX + bWidth / 2 - castleX;
+		const dy = worldY + bHeight / 2 - castleY;
+		if (Math.abs(dx) < 140 && Math.abs(dy) < 140) {
+			return false;
+		}
+
+		// 3. Overlap with Existing Buildings
 		for (const b of this.sim.buildings) {
 			if (b.team !== team) continue;
 			const overlapX = Math.max(0, Math.min(worldX + bWidth, b.x + bWidth) - Math.max(worldX, b.x));
@@ -76,22 +174,17 @@ export class BuildingSystem {
 			}
 		}
 
-		// 3. Overlap with Base Ramparts with open Road Gates
-		if (team === 'west') {
-			if (worldX + bWidth > 1440 && worldX < 1500) {
-				const isTopGate = worldY >= 560 && worldY + bHeight <= 760;
-				const isBotGate = worldY >= 1640 && worldY + bHeight <= 1840;
-				if (!isTopGate && !isBotGate) return false;
-			}
-		} else {
-			if (worldX + bWidth > ARENA_WIDTH - 1500 && worldX < ARENA_WIDTH - 1440) {
-				const isTopGate = worldY >= 560 && worldY + bHeight <= 760;
-				const isBotGate = worldY >= 1640 && worldY + bHeight <= 1840;
-				if (!isTopGate && !isBotGate) return false;
+		// 4. Overlap with Natural Decorations (monoliths, crystals, mushrooms, braziers, bushes)
+		for (const d of this.sim.decorations) {
+			if (d.team !== team) continue;
+			const cX = Math.max(worldX, Math.min(worldX + bWidth, d.x));
+			const cY = Math.max(worldY, Math.min(worldY + bHeight, d.y));
+			if (Math.hypot(d.x - cX, d.y - cY) < d.radius + 6) {
+				return false;
 			}
 		}
 
-		// 4. Overlap with Cobblestone Road Network
+		// 5. Overlap with Cobblestone Road Network
 		if (this.isBoxOnRoad(worldX, worldY, bWidth, bHeight)) {
 			return false;
 		}
@@ -100,45 +193,40 @@ export class BuildingSystem {
 	}
 
 	public isBoxOnRoad(rx: number, ry: number, rw: number, rh: number): boolean {
-		const roadHeight = 160;
+		const roadHeight = 150;
 		const rMaxX = rx + rw;
-		const rMaxY = ry + rh;
+		const rMidX = rx + rw / 2;
 		const rMidY = ry + rh / 2;
 
-		// Top highway (between base courtyards)
-		const topMinY = TOP_LANE_Y - roadHeight / 2;
-		const topMaxY = TOP_LANE_Y + roadHeight / 2;
-		if (rMaxX > 1440 && rx < ARENA_WIDTH - 1440 && rMaxY > topMinY && ry < topMaxY) {
+		// Bridges strait area is always road / water
+		if (rMaxX > 3160 && rx < 4040) {
 			return true;
 		}
 
-		// Bottom highway (between base courtyards)
-		const botMinY = BOTTOM_LANE_Y - roadHeight / 2;
-		const botMaxY = BOTTOM_LANE_Y + roadHeight / 2;
-		if (rMaxX > 1440 && rx < ARENA_WIDTH - 1440 && rMaxY > botMinY && ry < botMaxY) {
-			return true;
+		// West Island roads fanning out from Castle (1600, 1200) to bridges at 3240
+		if (rMidX >= 1550 && rMidX <= 3240) {
+			const prog = (rMidX - 1550) / (3240 - 1550);
+			// Top road: 1200 -> 660
+			const topY = 1200 + prog * (TOP_LANE_Y - 1200);
+			if (Math.abs(rMidY - topY) < roadHeight / 2 + 10) return true;
+			// Mid road: 1200 -> 1200
+			if (Math.abs(rMidY - MID_LANE_Y) < roadHeight / 2 + 10) return true;
+			// Bottom road: 1200 -> 1740
+			const botY = 1200 + prog * (BOTTOM_LANE_Y - 1200);
+			if (Math.abs(rMidY - botY) < roadHeight / 2 + 10) return true;
 		}
 
-		// West road fan-out to castle from x = 200 to x = 1440
-		if (rx >= 180 && rx < 1440) {
-			const progress = (rx - 180) / (1440 - 180);
-			const expectedTopY = 1140 + progress * (TOP_LANE_Y - 1140);
-			if (Math.abs(rMidY - expectedTopY) < roadHeight / 2 + 10) return true;
-
-			const expectedBotY = 1260 + progress * (BOTTOM_LANE_Y - 1260);
-			if (Math.abs(rMidY - expectedBotY) < roadHeight / 2 + 10) return true;
-		}
-
-		// East road fan-out to castle
-		const eastStart = ARENA_WIDTH - 1440;
-		const eastEnd = ARENA_WIDTH - 180;
-		if (rMaxX > eastStart && rx <= eastEnd) {
-			const progress = (rx - eastStart) / (eastEnd - eastStart);
-			const expectedTopY = TOP_LANE_Y + progress * (1140 - TOP_LANE_Y);
-			if (Math.abs(rMidY - expectedTopY) < roadHeight / 2 + 10) return true;
-
-			const expectedBotY = BOTTOM_LANE_Y + progress * (1260 - BOTTOM_LANE_Y);
-			if (Math.abs(rMidY - expectedBotY) < roadHeight / 2 + 10) return true;
+		// East Island roads fanning out from Castle (5600, 1200) to bridges at 3960
+		if (rMidX >= 3960 && rMidX <= 5650) {
+			const prog = (5650 - rMidX) / (5650 - 3960);
+			// Top road: 1200 -> 660
+			const topY = 1200 + prog * (TOP_LANE_Y - 1200);
+			if (Math.abs(rMidY - topY) < roadHeight / 2 + 10) return true;
+			// Mid road: 1200 -> 1200
+			if (Math.abs(rMidY - MID_LANE_Y) < roadHeight / 2 + 10) return true;
+			// Bottom road: 1200 -> 1740
+			const botY = 1200 + prog * (BOTTOM_LANE_Y - 1200);
+			if (Math.abs(rMidY - botY) < roadHeight / 2 + 10) return true;
 		}
 
 		return false;
@@ -150,7 +238,8 @@ export class BuildingSystem {
 		tileX: number,
 		tileY: number,
 		_lane: Lane = 'top',
-		playerInput?: PlayerState
+		playerInput?: PlayerState,
+		shiftKey = false
 	): boolean {
 		const bDef = getBuilding(defId);
 		if (!bDef) return false;
@@ -298,33 +387,53 @@ export class BuildingSystem {
 			player.food++;
 		}
 		if (player.worker) {
-			// Push worker out if caught inside footprint
-			const resolved = this.sim.workerSystem.resolveGroundObstacles(
-				player.worker.x,
-				player.worker.y,
-				14
-			);
-			player.worker.x = resolved.x;
-			player.worker.y = resolved.y;
+			const isBusy =
+				player.worker.isBuilding ||
+				(player.worker.targetBuildingId &&
+					this.sim.buildings.some(
+						(b) => b.instanceId === player.worker!.targetBuildingId && b.isUnderConstruction
+					)) ||
+				player.worker.isRepairing;
 
-			const spot = this.sim.workerSystem.getBestConstructionSpot(
-				team,
-				player.worker.x,
-				player.worker.y,
-				worldX,
-				worldY
-			);
-			player.worker.targetX = spot.x;
-			player.worker.targetY = spot.y;
-			player.worker.targetBuildingId = building.instanceId;
-			player.worker.isBuilding = false;
-			player.worker.path = this.sim.workerSystem.findWorkerPath(
-				team,
-				player.worker.x,
-				player.worker.y,
-				spot.x,
-				spot.y
-			);
+			if (shiftKey && isBusy) {
+				// Warcraft 3 Shift-Queue: Keep worker working on current task, queue this new building!
+				player.worker.buildQueue = player.worker.buildQueue || [];
+				player.worker.buildQueue.push(building.instanceId);
+				this.sim.addFloatingText('У черзі', worldX + CELL_SIZE / 2, worldY - 20, '#38bdf8');
+			} else {
+				// Normal build: leave current building and immediately proceed to build new one
+				player.worker.buildQueue = [];
+				player.worker.isBuilding = false;
+				player.worker.isRepairing = false;
+				player.worker.targetRepairBuildingId = null;
+
+				// Push worker out if caught inside footprint
+				const resolved = this.sim.workerSystem.resolveGroundObstacles(
+					player.worker.x,
+					player.worker.y,
+					14
+				);
+				player.worker.x = resolved.x;
+				player.worker.y = resolved.y;
+
+				const spot = this.sim.workerSystem.getBestConstructionSpot(
+					team,
+					player.worker.x,
+					player.worker.y,
+					worldX,
+					worldY
+				);
+				player.worker.targetX = spot.x;
+				player.worker.targetY = spot.y;
+				player.worker.targetBuildingId = building.instanceId;
+				player.worker.path = this.sim.workerSystem.findWorkerPath(
+					team,
+					player.worker.x,
+					player.worker.y,
+					spot.x,
+					spot.y
+				);
+			}
 		}
 		this.sim.addFloatingText(`-${cost}g`, worldX, worldY - 20, '#fbbf24');
 
@@ -487,6 +596,9 @@ export class BuildingSystem {
 
 		// Cancel active worker construction/repair
 		const worker = player.worker;
+		if (worker?.buildQueue) {
+			worker.buildQueue = worker.buildQueue.filter((id) => id !== buildingInstanceId);
+		}
 		if (
 			worker &&
 			(worker.targetBuildingId === buildingInstanceId ||
@@ -497,6 +609,7 @@ export class BuildingSystem {
 			worker.targetBuildingId = null;
 			worker.targetRepairBuildingId = null;
 			worker.path = [];
+			this.sim.workerSystem.processNextQueuedBuilding(team, worker, player);
 		}
 
 		this.sim.buildings.splice(idx, 1);
@@ -581,7 +694,20 @@ export class BuildingSystem {
 
 		// Calculate commander & forge bonuses
 		let damageBonusPct = player.forge.attack * 0.08;
-		const armorBonus = player.forge.armor * 1.0;
+		let armorBonus = player.forge.armor * 1.0;
+
+		// Authentic WC3 Castle Fight Forge Team Bonus:
+		// Allied forge upgrades at Level 3+ grant 50% bonus to teammates!
+		for (const ally of this.sim.allPlayers) {
+			if (ally.team === player.team && ally.id !== player.id) {
+				if (ally.forge.attack >= 3) {
+					damageBonusPct += (ally.forge.attack - 2) * 0.5 * 0.08;
+				}
+				if (ally.forge.armor >= 3) {
+					armorBonus += (ally.forge.armor - 2) * 0.5 * 1.0;
+				}
+			}
+		}
 		let attackSpeedMult = 1.0;
 
 		// Commander 3 (Dima): +24% damage

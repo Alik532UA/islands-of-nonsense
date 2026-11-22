@@ -12,10 +12,13 @@
 	import VictoryModal from '../lib/components/VictoryModal.svelte';
 	import ShopModal from '../lib/components/ShopModal.svelte';
 	import StartMatchModal from '../lib/components/StartMatchModal.svelte';
+	import { storage } from '../lib/services/storage';
+	import { createKeySequence, listenForSequences } from '../lib/debug/keySequence';
+	import { logService } from '../lib/services/logService.svelte';
 
 	let canvasEl: HTMLCanvasElement;
-	let sim = $state(new Simulation({ botDifficulty: 15, startGold: 500 }));
-	let botAI = new BotAI(sim);
+	let sim = $state(new Simulation({ botDifficulty: 15, startGold: 500, isRunning: false }));
+	let botAI: BotAI | null = null;
 	let renderer: ArenaRenderer | null = null;
 
 	let uiTick = $state(0);
@@ -42,6 +45,7 @@
 	let isSettingsOpen = $state(true);
 
 	let animFrameId: number;
+	let unlistenSequences: (() => void) | null = null;
 
 	function handleKeyDown(e: KeyboardEvent) {
 		if (e.key === 'Escape') {
@@ -253,7 +257,27 @@
 	}
 
 	onMount(async () => {
+		botAI = new BotAI(sim);
 		attachAudioHandlers(sim);
+		const skipStartModal = storage.getJSON<boolean>('skip_start_modal', false);
+		if (skipStartModal) {
+			isSettingsOpen = false;
+			const saved = storage.getJSON<Partial<SimulationConfig>>('match_settings', {});
+			handleStartNewMatch({
+				botDifficulty: saved.botDifficulty ?? 15,
+				startGold: saved.startGold ?? 500,
+				modeId: saved.modeId ?? 'standard',
+				teamSize: (saved.teamSize as 1 | 2 | 3) ?? 1,
+				targetWins: saved.targetWins ?? 2,
+				coinMode: (saved.coinMode as 'none' | 'normal' | 'crazy') ?? 'normal',
+				fogOfWar: saved.fogOfWar ?? true,
+				botVsBot: saved.botVsBot ?? false
+			});
+		} else {
+			isSettingsOpen = true;
+			sim.isRunning = false;
+		}
+
 		renderer = new ArenaRenderer({
 			canvas: canvasEl,
 			sim,
@@ -262,14 +286,24 @@
 				cameraY = cy;
 				zoom = cz;
 			},
-			onTileClick: (tileX: number, tileY: number) => {
+			onTileClick: (tileX: number, tileY: number, shiftKey = false) => {
 				if (selectedBuildingId) {
-					const success = sim.build('west', selectedBuildingId, tileX, tileY);
+					const success = sim.build(
+						'west',
+						selectedBuildingId,
+						tileX,
+						tileY,
+						'top',
+						undefined,
+						shiftKey
+					);
 					if (success) {
 						sound.playBuild();
-						selectedBuildingId = null;
-						selectedPlacedBuildingId = null;
-						selectedEntity = { type: 'worker' };
+						if (!shiftKey) {
+							selectedBuildingId = null;
+							selectedPlacedBuildingId = null;
+							selectedEntity = { type: 'worker' };
+						}
 						uiTick = sim.stateVersion;
 					} else {
 						sound.playErrorResource();
@@ -314,14 +348,14 @@
 			const rawDelta = Math.min(0.25, (now - lastTime) / 1000);
 			lastTime = now;
 
-			if (sim.isRunning) {
+			if (sim.isRunning && !isSettingsOpen) {
 				accumulator += rawDelta * sim.speed;
 				while (accumulator >= FIXED_STEP) {
 					sim.step(FIXED_STEP);
 					if (sim.bots && sim.bots.length > 0) {
 						sim.updateBots(FIXED_STEP);
 					} else {
-						botAI.update(FIXED_STEP);
+						botAI?.update(FIXED_STEP);
 					}
 					accumulator -= FIXED_STEP;
 				}
@@ -332,13 +366,61 @@
 		}
 
 		animFrameId = requestAnimationFrame(gameLoop);
+
+		unlistenSequences = listenForSequences(
+			createKeySequence({
+				letter: 'l',
+				threshold: 5,
+				windowMs: 2500,
+				onComplete: handleCopyUnitLog
+			})
+		);
 	});
 
 	onDestroy(() => {
 		if (animFrameId) cancelAnimationFrame(animFrameId);
 		if (countdownTimer) clearInterval(countdownTimer);
+		if (unlistenSequences) unlistenSequences();
 		renderer?.destroy();
 	});
+
+	function handleCopyUnitLog() {
+		const activeUnitId =
+			selectedUnitId || (selectedEntity?.type === 'unit' ? selectedEntity.instanceId : null);
+		const unit = activeUnitId ? sim.units.find((u) => u.instanceId === activeUnitId) : null;
+
+		if (!unit) {
+			sound.playErrorResource();
+			sim.addFloatingText('Спочатку виберіть юніта!', cameraX, cameraY, '#f87171');
+			uiTick = sim.stateVersion;
+			return;
+		}
+
+		const report = logService.getUnitReport(unit, sim);
+
+		if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+			navigator.clipboard.writeText(report).catch(() => {
+				const textarea = document.createElement('textarea');
+				textarea.value = report;
+				document.body.appendChild(textarea);
+				textarea.select();
+				document.execCommand('copy');
+				document.body.removeChild(textarea);
+			});
+		} else if (typeof document !== 'undefined') {
+			const textarea = document.createElement('textarea');
+			textarea.value = report;
+			document.body.appendChild(textarea);
+			textarea.select();
+			document.execCommand('copy');
+			document.body.removeChild(textarea);
+		}
+
+		sound.playCoin();
+		sim.addFloatingText('Лог юніта скопійовано! (5x L)', unit.x, unit.y - 35, '#38bdf8');
+		logService.info('ui', `Copied diagnostic log for unit ${unit.name} (${unit.instanceId})`);
+		uiTick = sim.stateVersion;
+	}
 
 	function handleNextRound() {
 		if (sim.matchWinner) {
@@ -365,7 +447,7 @@
 		renderer?.setSimulation(sim);
 		uiTick = sim.stateVersion;
 
-		if (newConfig.allRandom) {
+		if (newConfig.allRandom || newConfig.botVsBot) {
 			matchPhase = 'BATTLE';
 			sim.isRunning = true;
 			sound.playHorn();
@@ -530,7 +612,12 @@
 	<StartMatchModal
 		isOpen={isSettingsOpen}
 		currentConfig={sim.config}
-		onClose={() => (isSettingsOpen = false)}
+		onClose={() => {
+			isSettingsOpen = false;
+			if (matchPhase === 'SETUP') {
+				handleStartNewMatch(sim.config);
+			}
+		}}
 		onStartMatch={handleStartNewMatch}
 	/>
 </main>

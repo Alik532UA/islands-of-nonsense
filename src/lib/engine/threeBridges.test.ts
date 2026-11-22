@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Simulation } from './simulation';
-import { TOP_LANE_Y, MID_LANE_Y, BOTTOM_LANE_Y } from './constants';
+import { TOP_LANE_Y, BOTTOM_LANE_Y } from './constants';
 
 describe('Three Bridges & Twin Islands Mechanics', () => {
 	let sim: Simulation;

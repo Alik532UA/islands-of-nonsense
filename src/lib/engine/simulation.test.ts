@@ -18,7 +18,7 @@ describe('Castle Fight Simulation - Economy & Gold', () => {
 		expect(bDef).toBeDefined();
 		const cost = bDef!.gold_cost || 140;
 
-		const success = sim.build('west', 'h003', 0, 0, 'top');
+		const success = sim.build('west', 'h003', 25, 20, 'top');
 		expect(success).toBe(true);
 		expect(sim.players.west.gold).toBe(initialGold - cost);
 		expect(sim.players.west.stats.goldSpent).toBe(cost);
@@ -35,12 +35,12 @@ describe('Castle Fight Simulation - Economy & Gold', () => {
 	});
 
 	it('should not allow building on an already occupied tile and not deduct gold', () => {
-		const success1 = sim.build('west', 'h003', 1, 1, 'top');
+		const success1 = sim.build('west', 'h003', 25, 20, 'top');
 		expect(success1).toBe(true);
 		const goldAfterFirst = sim.players.west.gold;
 
-		// Attempt to build on the exact same tile (1, 1)
-		const success2 = sim.build('west', 'h003', 1, 1, 'top');
+		// Attempt to build on the exact same tile (25, 20)
+		const success2 = sim.build('west', 'h003', 25, 20, 'top');
 		expect(success2).toBe(false);
 		expect(sim.players.west.gold).toBe(goldAfterFirst);
 		expect(sim.buildings.length).toBe(1);
@@ -63,7 +63,7 @@ describe('Castle Fight Simulation - Economy & Gold', () => {
 	it('should allow upgrading an existing building, updating spawned unit and deducting extra cost', () => {
 		// Build base building h003 (Лагерь стрелков, cost 140)
 		sim.players.west.gold = 500;
-		const buildSuccess = sim.build('west', 'h003', 0, 0, 'top');
+		const buildSuccess = sim.build('west', 'h003', 25, 20, 'top');
 		expect(buildSuccess).toBe(true);
 		const initialBuilding = sim.buildings[0];
 		expect(initialBuilding.defId).toBe('h003');
@@ -85,7 +85,7 @@ describe('Castle Fight Simulation - Economy & Gold', () => {
 
 	it('should refund 50% gold when selling a building', () => {
 		sim.players.west.gold = 500;
-		sim.build('west', 'h003', 2, 2, 'bottom');
+		sim.build('west', 'h003', 25, 20, 'bottom');
 		const building = sim.buildings[0];
 		building.isUnderConstruction = false;
 		const goldBeforeSell = sim.players.west.gold;
@@ -98,7 +98,7 @@ describe('Castle Fight Simulation - Economy & Gold', () => {
 
 	it('should refund 75% gold when cancelling a building under construction', () => {
 		sim.players.west.gold = 500;
-		sim.build('west', 'h003', 2, 2, 'bottom');
+		sim.build('west', 'h003', 25, 20, 'bottom');
 		const building = sim.buildings[0];
 		expect(building.isUnderConstruction).toBe(true);
 		const goldBeforeCancel = sim.players.west.gold;
@@ -185,5 +185,45 @@ describe('Castle Fight Simulation - Lane Separation', () => {
 
 		// Units on the same lane should have fought and damaged each other
 		expect(eastUnit.hp).toBeLessThan(500);
+	});
+
+	it('Fog of War: verifies vision dissipation from castle, worker, buildings, units, and decorations', () => {
+		// Fog of War active
+		sim.config.fogOfWar = true;
+
+		// 1. Castle reveals its courtyard
+		expect(sim.isPointRevealed('west', sim.castles.west.x, sim.castles.west.y)).toBe(true);
+		expect(sim.isPointRevealed('west', sim.castles.west.x + 300, sim.castles.west.y)).toBe(true);
+
+		// 2. Far away in enemy territory with no units is hidden
+		expect(sim.isPointRevealed('west', sim.castles.east.x, sim.castles.east.y)).toBe(false);
+
+		// 3. Alive West unit reveals area around itself
+		const unit = sim.spawnUnitDirectly({
+			team: 'west',
+			lane: 'mid',
+			x: 3600,
+			y: sim.midLaneY,
+			hp: 400
+		});
+		expect(sim.isPointRevealed('west', 3600, sim.midLaneY)).toBe(true);
+		expect(sim.isPointRevealed('west', 3800, sim.midLaneY)).toBe(true);
+		expect(sim.isPointRevealed('west', 4400, sim.midLaneY)).toBe(false);
+
+		// 4. Dead unit stops revealing
+		unit.state = 'DEAD';
+		expect(sim.isPointRevealed('west', 3600, sim.midLaneY)).toBe(false);
+
+		// 5. West decorations reveal their immediate glade
+		if (sim.decorations && sim.decorations.length > 0) {
+			const westDecor = sim.decorations.find((d) => d.team === 'west');
+			if (westDecor) {
+				expect(sim.isPointRevealed('west', westDecor.x, westDecor.y)).toBe(true);
+			}
+		}
+
+		// 6. When fogOfWar is false, all areas are visible
+		sim.config.fogOfWar = false;
+		expect(sim.isPointRevealed('west', sim.castles.east.x, sim.castles.east.y)).toBe(true);
 	});
 });

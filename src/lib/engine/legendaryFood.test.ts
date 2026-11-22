@@ -27,7 +27,7 @@ describe('Point 4: Food Cap & Legendary Buildings (Golden Cheese I004)', () => {
 		expect(legDef).toBeDefined();
 
 		// Cannot build because food (0) >= maxFood (0)
-		const built = sim.build('west', 'h05F', 0, 0);
+		const built = sim.build('west', 'h05F', 25, 20);
 		expect(built).toBe(false);
 		expect(sim.buildings.length).toBe(0);
 	});
@@ -46,7 +46,7 @@ describe('Point 4: Food Cap & Legendary Buildings (Golden Cheese I004)', () => {
 
 		sim.players.west.gold = 3000;
 		sim.players.west.lumber = 1000;
-		const built = sim.build('west', 'h05F', 0, 0);
+		const built = sim.build('west', 'h05F', 25, 20);
 		expect(built).toBe(true);
 
 		// Consumed 1 food
@@ -54,7 +54,7 @@ describe('Point 4: Food Cap & Legendary Buildings (Golden Cheese I004)', () => {
 		expect(sim.players.west.maxFood).toBe(1);
 
 		// Second legendary building blocked because food is full (1/1)
-		const builtSecond = sim.build('west', 'h00X', 1, 0);
+		const builtSecond = sim.build('west', 'h00X', 25, 24);
 		expect(builtSecond).toBe(false);
 	});
 
@@ -62,7 +62,7 @@ describe('Point 4: Food Cap & Legendary Buildings (Golden Cheese I004)', () => {
 		sim.buyCastleItem('west', 'I004');
 		sim.players.west.gold = 3000;
 		sim.players.west.lumber = 1000;
-		sim.build('west', 'h05F', 0, 0);
+		sim.build('west', 'h05F', 25, 20);
 		expect(sim.players.west.food).toBe(1);
 
 		const bldInstance = sim.buildings[0].instanceId;

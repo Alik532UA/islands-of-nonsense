@@ -269,6 +269,12 @@ export interface Unit {
 	targetY: number;
 	state: UnitState;
 	size: number;
+	path?: { x: number; y: number }[];
+	pathTargetX?: number;
+	pathTargetY?: number;
+	stuckTimer?: number;
+	lastMoveX?: number;
+	lastMoveY?: number;
 	critChance?: number;
 	evadeChance?: number;
 	buffs?: ActiveBuff[];
@@ -291,6 +297,7 @@ export interface Unit {
 	buildingDefId?: string;
 	buildingName?: string;
 	targetBuildingId?: string | null;
+	avoidanceBias?: 1 | -1;
 	deathTimer?: number;
 	attackAnimTimer?: number;
 	mana?: number;
@@ -413,9 +420,14 @@ export interface WorkerState {
 	isBuilding?: boolean;
 	buildTimer?: number;
 	targetBuildingId?: string | null;
+	avoidanceBias?: 1 | -1;
 	isRepairing?: boolean;
 	targetRepairBuildingId?: string | null;
 	path?: { x: number; y: number }[];
+	stuckTimer?: number;
+	lastMoveX?: number;
+	lastMoveY?: number;
+	buildQueue?: string[];
 }
 
 export interface PlayerState {

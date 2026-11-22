@@ -1,5 +1,4 @@
-import type { Container, Graphics } from 'pixi.js';
-import { Text } from 'pixi.js';
+import { Container, Graphics, Sprite, Texture, Text } from 'pixi.js';
 import type { Simulation } from '../engine/simulation';
 import type { FloatingText } from '../engine/types';
 import {
@@ -14,6 +13,10 @@ import {
 export class OverlayRenderer {
 	private sim: Simulation;
 	private textPool: Text[] = [];
+	private fogCanvas: HTMLCanvasElement | null = null;
+	private fogCtx: CanvasRenderingContext2D | null = null;
+	private fogTexture: Texture | null = null;
+	private fogSprite: Sprite | null = null;
 
 	constructor(sim: Simulation) {
 		this.sim = sim;
@@ -33,7 +36,7 @@ export class OverlayRenderer {
 		// Only during building placement planning does a subtle guide grid appear.
 		// Renders authentic 1x1 cells across the courtyard
 		if (selectedDefId) {
-			for (let x = 0; x <= 42; x++) {
+			for (let x = 0; x <= 96; x++) {
 				for (let y = 0; y <= 70; y++) {
 					const px = WEST_GRID_START_X + x * GRID_STEP;
 					const py = WEST_GRID_START_Y + y * GRID_STEP;
@@ -71,6 +74,7 @@ export class OverlayRenderer {
 		g: Graphics,
 		moveMarkers: { x: number; y: number; timer: number; maxTimer: number }[]
 	): void {
+		g.clear();
 		for (let i = moveMarkers.length - 1; i >= 0; i--) {
 			const m = moveMarkers[i];
 			m.timer -= 0.016;
@@ -88,42 +92,134 @@ export class OverlayRenderer {
 				const ang = (a * Math.PI) / 2 + Math.PI / 4;
 				const cx = m.x + Math.cos(ang) * radius;
 				const cy = m.y + Math.sin(ang) * radius;
+				g.beginPath();
 				g.circle(cx, cy, 3);
 				g.fill({ color: 0x22c55e, alpha });
 			}
+			g.beginPath();
 			g.ellipse(m.x, m.y, radius * 0.8, radius * 0.4);
 			g.stroke({ color: 0x4ade80, width: 2, alpha });
 		}
 	}
 
-	public drawFogOfWar(g: Graphics, enableFog: boolean): void {
-		g.clear();
-		if (!enableFog) return;
+	private initFogCanvas(): void {
+		if (typeof document === 'undefined') return;
+		if (this.fogCanvas) return;
 
-		// Atmospheric dark mist covering east side beyond ramparts
-		g.rect(1550, 0, ARENA_WIDTH - 1550, ARENA_HEIGHT);
-		g.fill({ color: 0x070b14, alpha: 0.62 });
+		this.fogCanvas = document.createElement('canvas');
+		this.fogCanvas.width = 1120;
+		this.fogCanvas.height = 480;
+		this.fogCtx = this.fogCanvas.getContext('2d');
 
-		// Clear vision circles around friendly player entities
-		for (const u of this.sim.units) {
-			if (u.team === 'west' && u.state !== 'DEAD' && u.x >= 1400) {
-				g.circle(u.x, u.y, 450);
-				g.cut();
+		this.fogTexture = Texture.from(this.fogCanvas);
+		this.fogSprite = new Sprite(this.fogTexture);
+		this.fogSprite.x = -2000;
+		this.fogSprite.y = -1200;
+		this.fogSprite.scale.set(10, 10);
+		this.fogSprite.alpha = 0.45;
+	}
+
+	public drawFogOfWar(container: Container, enableFog: boolean): void {
+		if (!enableFog) {
+			if (this.fogSprite) this.fogSprite.visible = false;
+			return;
+		}
+
+		this.initFogCanvas();
+		if (!this.fogCanvas || !this.fogCtx || !this.fogSprite || !this.fogTexture) return;
+
+		if (container.children.length === 0 || !container.children.includes(this.fogSprite)) {
+			container.removeChildren();
+			container.addChild(this.fogSprite);
+		}
+		this.fogSprite.visible = true;
+		this.fogSprite.x = -2000;
+		this.fogSprite.y = -1200;
+		this.fogSprite.scale.set(10, 10);
+
+		const ctx = this.fogCtx;
+		const w = this.fogCanvas.width;
+		const h = this.fogCanvas.height;
+
+		// 1. Shroud the battlefield in authentic dimmed/darkened Fog of War (translucent ~45% darkness)
+		ctx.globalCompositeOperation = 'source-over';
+		ctx.fillStyle = '#000000';
+		ctx.fillRect(0, 0, w, h);
+
+		// 2. Smooth feathered radial dissipation using destination-out
+		ctx.globalCompositeOperation = 'destination-out';
+
+		const scale = 0.1; // 1120 / 11200
+		const offsetX = 2000;
+		const offsetY = 1200;
+
+		const addVision = (worldX: number, worldY: number, radius: number) => {
+			const cx = (worldX + offsetX) * scale;
+			const cy = (worldY + offsetY) * scale;
+			const r = radius * scale;
+			if (r <= 0) return;
+
+			// Smooth radial falloff gradient
+			const grad = ctx.createRadialGradient(cx, cy, r * 0.45, cx, cy, r);
+			grad.addColorStop(0, 'rgba(0, 0, 0, 1.0)');
+			grad.addColorStop(0.7, 'rgba(0, 0, 0, 0.85)');
+			grad.addColorStop(1, 'rgba(0, 0, 0, 0.0)');
+
+			ctx.fillStyle = grad;
+			ctx.beginPath();
+			ctx.arc(cx, cy, r, 0, Math.PI * 2);
+			ctx.fill();
+		};
+
+		// A. West Castle (wide panoramic vision)
+		addVision(this.sim.castles.west.x, this.sim.castles.west.y, 750);
+
+		// B. West Worker(s)
+		for (const p of this.sim.teamMembers?.west || [this.sim.players.west]) {
+			if (p?.worker) {
+				addVision(p.worker.x, p.worker.y, 520);
 			}
 		}
 
-		const worker = this.sim.players.west.worker;
-		if (worker && worker.x >= 1400) {
-			g.circle(worker.x, worker.y, 480);
-			g.cut();
-		}
-
+		// C. West Buildings
 		for (const b of this.sim.buildings) {
-			if (b.team === 'west' && b.x >= 1400) {
-				g.circle(b.x + CELL_SIZE / 2, b.y + CELL_SIZE / 2, 450);
-				g.cut();
+			if (b.team === 'west') {
+				addVision(b.x + CELL_SIZE / 2, b.y + CELL_SIZE / 2, 500);
 			}
 		}
+
+		// D. West Units (Living Mobs advancing across arena)
+		for (const u of this.sim.units) {
+			if (u.team === 'west' && u.state !== 'DEAD') {
+				addVision(u.x, u.y, 480);
+			}
+		}
+
+		// E. West Island Decorations (Natural fixtures: braziers, spires, monoliths, flowers, mushrooms)
+		if (this.sim.decorations) {
+			for (const d of this.sim.decorations) {
+				if (d.team === 'west') {
+					addVision(d.x, d.y, 160);
+				}
+			}
+		}
+
+		// Reset composite operation to default
+		ctx.globalCompositeOperation = 'source-over';
+
+		// Upload updated canvas pixels to GPU texture
+		this.fogTexture.source.update();
+		this.fogSprite.scale.set(10, 10);
+	}
+
+	public destroy(): void {
+		if (this.fogTexture) {
+			this.fogTexture.destroy(true);
+			this.fogTexture = null;
+		}
+		this.fogSprite = null;
+		this.fogCanvas = null;
+		this.fogCtx = null;
 	}
 
 	public drawSelectionUI(
@@ -141,6 +237,7 @@ export class OverlayRenderer {
 			const w = Math.abs(boxStartWorld.x - boxCurrentWorld.x);
 			const h = Math.abs(boxStartWorld.y - boxCurrentWorld.y);
 
+			g.beginPath();
 			g.rect(x, y, w, h);
 			g.fill({ color: 0x22c55e, alpha: 0.15 });
 			g.stroke({ color: 0x4ade80, width: 1.5 });

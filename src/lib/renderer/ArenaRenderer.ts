@@ -20,7 +20,7 @@ export type { SelectedEntity };
 export interface RendererOptions {
 	canvas: HTMLCanvasElement;
 	sim: Simulation;
-	onTileClick: (tileX: number, tileY: number) => void;
+	onTileClick: (tileX: number, tileY: number, shiftKey?: boolean) => void;
 	onSelectEntity?: (entity: SelectedEntity) => void;
 	getSelectedEntity?: () => SelectedEntity;
 	getSelectedBuildingDefId: () => string | null;
@@ -31,7 +31,7 @@ export interface RendererOptions {
 export class ArenaRenderer {
 	private app: Application;
 	public sim: Simulation;
-	private onTileClick: (tileX: number, tileY: number) => void;
+	private onTileClick: (tileX: number, tileY: number, shiftKey?: boolean) => void;
 	private onSelectEntity?: (entity: SelectedEntity) => void;
 	private getSelectedEntity?: () => SelectedEntity;
 	private getSelectedBuildingDefId: () => string | null;
@@ -42,7 +42,7 @@ export class ArenaRenderer {
 	public cameraX = 800;
 	public cameraY = 1200;
 	public zoom = 0.85;
-	public minZoom = 0.35;
+	public minZoom = 0.16;
 	public maxZoom = 2.0;
 	private isPanning = false;
 	private panStartX = 0;
@@ -74,8 +74,9 @@ export class ArenaRenderer {
 	private unitsLayer: Graphics;
 	private projectilesLayer: Graphics;
 	private dayNightLayer: Graphics;
-	private fogLayer: Graphics;
+	private fogLayer: Container;
 	private floatingTextsLayer: Container;
+	private markersLayer: Graphics;
 	private uiLayer: Graphics;
 
 	private hoveredTile: { x: number; y: number } | null = null;
@@ -107,8 +108,9 @@ export class ArenaRenderer {
 		this.unitsLayer = new Graphics();
 		this.projectilesLayer = new Graphics();
 		this.dayNightLayer = new Graphics();
-		this.fogLayer = new Graphics();
+		this.fogLayer = new Container();
 		this.floatingTextsLayer = new Container();
+		this.markersLayer = new Graphics();
 		this.uiLayer = new Graphics();
 
 		this.terrainRenderer = new TerrainRenderer();
@@ -134,7 +136,7 @@ export class ArenaRenderer {
 			canvas,
 			width: initWidth,
 			height: initHeight,
-			backgroundColor: 0x090d16,
+			backgroundColor: 0x014f86,
 			resolution: window.devicePixelRatio || 1,
 			autoDensity: true
 		});
@@ -150,6 +152,7 @@ export class ArenaRenderer {
 		this.rootContainer.addChild(this.dayNightLayer);
 		this.rootContainer.addChild(this.fogLayer);
 		this.rootContainer.addChild(this.floatingTextsLayer);
+		this.rootContainer.addChild(this.markersLayer);
 		this.rootContainer.addChild(this.uiLayer);
 
 		this.setupInteraction(canvas);
@@ -307,9 +310,15 @@ export class ArenaRenderer {
 				return;
 			}
 
-			// RIGHT CLICK: Move Worker / Order Action / Repair
+			// RIGHT CLICK: Cancel Building Placement OR Move Worker / Order Action / Repair
 			if (e.button === 2) {
 				e.preventDefault();
+
+				// If in building placement mode, cancel placement (Warcraft 3 style)
+				if (this.getSelectedBuildingDefId()) {
+					this.onSelectEntity?.({ type: 'worker' });
+					return;
+				}
 
 				// Spawn animated RTS order chevron
 				this.moveMarkers.push({
@@ -404,7 +413,7 @@ export class ArenaRenderer {
 			if (this.getSelectedBuildingDefId()) {
 				const tileX = Math.round((world.x - WEST_GRID_START_X) / GRID_STEP);
 				const tileY = Math.round((world.y - WEST_GRID_START_Y) / GRID_STEP);
-				if (tileX >= 0 && tileX <= 42 && tileY >= 0 && tileY <= 70) {
+				if (tileX >= 0 && tileX <= 96 && tileY >= 0 && tileY <= 70) {
 					this.hoveredTile = { x: tileX, y: tileY };
 				} else {
 					this.hoveredTile = null;
@@ -495,7 +504,7 @@ export class ArenaRenderer {
 			if (this.getSelectedBuildingDefId()) {
 				if (this.hoveredTile) {
 					if (this.sim.canBuild('west', this.hoveredTile.x, this.hoveredTile.y)) {
-						this.onTileClick(this.hoveredTile.x, this.hoveredTile.y);
+						this.onTileClick(this.hoveredTile.x, this.hoveredTile.y, e.shiftKey);
 					} else {
 						const px = WEST_GRID_START_X + this.hoveredTile.x * GRID_STEP;
 						const py = WEST_GRID_START_Y + this.hoveredTile.y * GRID_STEP;
@@ -574,7 +583,12 @@ export class ArenaRenderer {
 	}
 
 	public drawStaticTerrain(): void {
-		this.terrainRenderer.drawStaticTerrain(this.terrainLayer, this.sim.brokenBridge);
+		this.terrainRenderer.drawStaticTerrain(
+			this.terrainLayer,
+			this.sim.brokenBridge,
+			1337,
+			this.sim.decorations
+		);
 		this.lastDrawnBrokenBridge = this.sim.brokenBridge;
 	}
 
@@ -589,16 +603,16 @@ export class ArenaRenderer {
 		const isWorkerSelected = selectedEntity?.type === 'worker';
 
 		this.overlayRenderer.drawGridLayer(this.gridLayer, selectedDefId, this.hoveredTile);
-		this.entityRenderer.drawBuildingsLayer(this.buildingsLayer, selectedPlacedId);
-		this.entityRenderer.drawWorkersLayer(this.workersLayer, isWorkerSelected);
+		this.entityRenderer.drawBuildingsLayer(this.buildingsLayer, selectedPlacedId, this.enableFog);
+		this.entityRenderer.drawWorkersLayer(this.workersLayer, isWorkerSelected, this.enableFog);
 		this.entityRenderer.drawUnitsLayer(this.unitsLayer, selectedEntity, this.enableFog);
-		this.entityRenderer.drawCoinsLayer(this.coinsLayer);
-		this.entityRenderer.drawCastles(this.buildingsLayer, selectedEntity);
+		this.entityRenderer.drawCoinsLayer(this.coinsLayer, this.enableFog);
+		this.entityRenderer.drawCastles(this.buildingsLayer, selectedEntity, this.enableFog);
 		this.entityRenderer.drawProjectilesLayer(this.projectilesLayer);
 		this.entityRenderer.drawRescueStrikeEffects(this.projectilesLayer);
 		this.entityRenderer.drawLightningEffects(this.projectilesLayer);
 		this.overlayRenderer.drawDayNight(this.dayNightLayer, this.sim.dayNightCycle);
-		this.overlayRenderer.drawOrderMarkers(this.uiLayer, this.moveMarkers);
+		this.overlayRenderer.drawOrderMarkers(this.markersLayer, this.moveMarkers);
 		this.overlayRenderer.drawFogOfWar(this.fogLayer, this.enableFog);
 		this.overlayRenderer.drawFloatingTexts(this.floatingTextsLayer, this.sim.floatingTexts);
 		this.overlayRenderer.drawSelectionUI(
@@ -611,6 +625,7 @@ export class ArenaRenderer {
 
 	public destroy(): void {
 		this.isDestroyed = true;
+		this.overlayRenderer.destroy();
 		this.app.destroy(true, { children: true });
 	}
 }

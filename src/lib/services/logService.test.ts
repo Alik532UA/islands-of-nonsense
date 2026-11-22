@@ -109,4 +109,84 @@ describe('журнал (DEBUGGING § 1)', () => {
 		expect(report).toMatch(/^DATE: \d{4}-\d\d-\d\dT[\d:.]+Z$/m);
 		expect(report).toContain(`VERSION: ${__APP_VERSION__}`);
 	});
+
+	it('логування за темами (topic-based logging, MindStep style)', async () => {
+		const logService = await load();
+		logService.navigation('Worker path calculated to (1800, 1200)', { waypoints: 3 });
+		logService.collision('Unit steered around obstacle', { unit: 'Мечник', bias: 1 });
+		const report = logService.getLogReport();
+		expect(report).toContain('[NAVIGATION] Worker path calculated');
+		expect(report).toContain('[COLLISION] Unit steered around obstacle');
+	});
+
+	it('читання errorCount та запис servedVersion не кидає через приватні поля в Proxy', async () => {
+		const logService = await load();
+		expect(() => logService.errorCount).not.toThrow();
+		expect(typeof logService.errorCount).toBe('number');
+		expect(() => {
+			logService.servedVersion = '1.2.3';
+		}).not.toThrow();
+		expect(logService.servedVersion).toBe('1.2.3');
+	});
+
+	it('генерація детального діагностичного звіту конкретного юніта getUnitReport', async () => {
+		const logService = await load();
+		logService.collision('Unit path calculated', { unit: 'Вогнеметник', unitId: 'unit_diag_1' });
+
+		const mockSim = {
+			castles: {
+				west: { x: 1600, y: 1200 },
+				east: { x: 5600, y: 1200 }
+			},
+			buildings: [
+				{
+					instanceId: 'bld_1',
+					name: 'Бараки',
+					team: 'east',
+					x: 2000,
+					y: 1200,
+					hp: 1000,
+					maxHp: 1000
+				}
+			],
+			decorations: [],
+			brokenBridge: 'mid',
+			workerSystem: {
+				isGroundLineClear: () => false,
+				resolveGroundObstacles: (x: number, y: number) => ({ x, y })
+			}
+		} as unknown as import('../engine/simulation').Simulation;
+
+		const mockUnit = {
+			instanceId: 'unit_diag_1',
+			defId: 'u_flame',
+			name: 'Вогнеметник',
+			team: 'west',
+			lane: 'mid',
+			flying: false,
+			hp: 450,
+			maxHp: 500,
+			state: 'WALKING',
+			speed: 240,
+			size: 16,
+			x: 1950,
+			y: 1200,
+			targetX: 5600,
+			targetY: 1200,
+			path: [{ x: 1970, y: 1220 }],
+			pathTargetX: 5600,
+			pathTargetY: 1200
+		} as unknown as import('../engine/types').Unit;
+
+		const unitReport = logService.getUnitReport(mockUnit, mockSim);
+
+		expect(unitReport).toContain('=== UNIT DIAGNOSTIC REPORT ===');
+		expect(unitReport).toContain('Вогнеметник');
+		expect(unitReport).toContain('unit_diag_1');
+		expect(unitReport).toContain('--- PATHFINDING & WAYPOINTS ---');
+		expect(unitReport).toContain('--- PROXIMITY OBSTACLES & COLLISION ---');
+		expect(unitReport).toContain('Бараки');
+		expect(unitReport).toContain('--- LOG HISTORY FOR THIS UNIT');
+		expect(unitReport).toContain('[COLLISION] Unit path calculated');
+	});
 });

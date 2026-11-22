@@ -91,85 +91,64 @@
 			ctx.fillStyle = '#0284c7';
 			ctx.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
 
-			// 2. Twin Islands (West and East)
+			// 2. Twin Procedural Oval Islands (West and East)
 			ctx.fillStyle = '#16a34a';
 
-			// West Island (surrounded by water)
-			const wIslandX = 60 * scaleX;
-			const wIslandY = 60 * scaleY;
-			const wIslandW = (BRIDGE_SPAN_MIN_X - 60) * scaleX;
-			const wIslandH = (ARENA_HEIGHT - 120) * scaleY;
+			// West Island (surrounded by water, oval-round)
 			ctx.beginPath();
-			ctx.roundRect(wIslandX, wIslandY, wIslandW, wIslandH, 4);
+			ctx.ellipse(1600 * scaleX, 1200 * scaleY, 1450 * scaleX, 1050 * scaleY, 0, 0, Math.PI * 2);
 			ctx.fill();
 
-			// East Island (surrounded by water)
-			const eIslandX = BRIDGE_SPAN_MAX_X * scaleX;
-			const eIslandY = 60 * scaleY;
-			const eIslandW = (ARENA_WIDTH - BRIDGE_SPAN_MAX_X - 60) * scaleX;
-			const eIslandH = (ARENA_HEIGHT - 120) * scaleY;
+			// East Island (surrounded by water, oval-round)
 			ctx.beginPath();
-			ctx.roundRect(eIslandX, eIslandY, eIslandW, eIslandH, 4);
+			ctx.ellipse(5600 * scaleX, 1200 * scaleY, 1450 * scaleX, 1050 * scaleY, 0, 0, Math.PI * 2);
 			ctx.fill();
 
-			// 3. Cobblestone Highways across the Islands
+			// 3. Cobblestone Highways from Castle Centers to Bridges
 			ctx.fillStyle = '#78716c';
 
-			// West Island Highways
-			const westHwLen = (BRIDGE_SPAN_MIN_X - 1500) * scaleX;
-			ctx.fillRect(1500 * scaleX, (TOP_LANE_Y - 50) * scaleY, westHwLen, 100 * scaleY);
-			ctx.fillRect(1500 * scaleX, (MID_LANE_Y - 50) * scaleY, westHwLen, 100 * scaleY);
-			ctx.fillRect(1500 * scaleX, (BOTTOM_LANE_Y - 50) * scaleY, westHwLen, 100 * scaleY);
+			// West Island Highways fanning out from castle at (1600, 1200)
+			ctx.beginPath();
+			ctx.moveTo(1600 * scaleX, 1200 * scaleY);
+			ctx.lineTo(BRIDGE_SPAN_MIN_X * scaleX, (TOP_LANE_Y - 40) * scaleY);
+			ctx.lineTo(BRIDGE_SPAN_MIN_X * scaleX, (TOP_LANE_Y + 40) * scaleY);
+			ctx.closePath();
+			ctx.fill();
 
-			// East Island Highways
-			const eastHwLen = (ARENA_WIDTH - 1500 - BRIDGE_SPAN_MAX_X) * scaleX;
-			ctx.fillRect(BRIDGE_SPAN_MAX_X * scaleX, (TOP_LANE_Y - 50) * scaleY, eastHwLen, 100 * scaleY);
-			ctx.fillRect(BRIDGE_SPAN_MAX_X * scaleX, (MID_LANE_Y - 50) * scaleY, eastHwLen, 100 * scaleY);
+			ctx.beginPath();
+			ctx.moveTo(1600 * scaleX, 1200 * scaleY);
+			ctx.lineTo(BRIDGE_SPAN_MIN_X * scaleX, (BOTTOM_LANE_Y - 40) * scaleY);
+			ctx.lineTo(BRIDGE_SPAN_MIN_X * scaleX, (BOTTOM_LANE_Y + 40) * scaleY);
+			ctx.closePath();
+			ctx.fill();
+
 			ctx.fillRect(
-				BRIDGE_SPAN_MAX_X * scaleX,
-				(BOTTOM_LANE_Y - 50) * scaleY,
-				eastHwLen,
-				100 * scaleY
+				1600 * scaleX,
+				(MID_LANE_Y - 40) * scaleY,
+				(BRIDGE_SPAN_MIN_X - 1600) * scaleX,
+				80 * scaleY
 			);
 
-			// Courtyard Fan-outs from Castle Plazas to Gates
-			// West fan-out
+			// East Island Highways fanning out from castle at (5600, 1200)
 			ctx.beginPath();
-			ctx.moveTo(200 * scaleX, 1200 * scaleY);
-			ctx.lineTo(1500 * scaleX, (TOP_LANE_Y - 50) * scaleY);
-			ctx.lineTo(1500 * scaleX, (TOP_LANE_Y + 50) * scaleY);
+			ctx.moveTo(5600 * scaleX, 1200 * scaleY);
+			ctx.lineTo(BRIDGE_SPAN_MAX_X * scaleX, (TOP_LANE_Y - 40) * scaleY);
+			ctx.lineTo(BRIDGE_SPAN_MAX_X * scaleX, (TOP_LANE_Y + 40) * scaleY);
 			ctx.closePath();
 			ctx.fill();
 
 			ctx.beginPath();
-			ctx.moveTo(200 * scaleX, 1200 * scaleY);
-			ctx.lineTo(1500 * scaleX, (BOTTOM_LANE_Y - 50) * scaleY);
-			ctx.lineTo(1500 * scaleX, (BOTTOM_LANE_Y + 50) * scaleY);
-			ctx.closePath();
-			ctx.fill();
-
-			ctx.fillRect(200 * scaleX, (MID_LANE_Y - 50) * scaleY, 1300 * scaleX, 100 * scaleY);
-
-			// East fan-out
-			ctx.beginPath();
-			ctx.moveTo((ARENA_WIDTH - 200) * scaleX, 1200 * scaleY);
-			ctx.lineTo((ARENA_WIDTH - 1500) * scaleX, (TOP_LANE_Y - 50) * scaleY);
-			ctx.lineTo((ARENA_WIDTH - 1500) * scaleX, (TOP_LANE_Y + 50) * scaleY);
-			ctx.closePath();
-			ctx.fill();
-
-			ctx.beginPath();
-			ctx.moveTo((ARENA_WIDTH - 200) * scaleX, 1200 * scaleY);
-			ctx.lineTo((ARENA_WIDTH - 1500) * scaleX, (BOTTOM_LANE_Y - 50) * scaleY);
-			ctx.lineTo((ARENA_WIDTH - 1500) * scaleX, (BOTTOM_LANE_Y + 50) * scaleY);
+			ctx.moveTo(5600 * scaleX, 1200 * scaleY);
+			ctx.lineTo(BRIDGE_SPAN_MAX_X * scaleX, (BOTTOM_LANE_Y - 40) * scaleY);
+			ctx.lineTo(BRIDGE_SPAN_MAX_X * scaleX, (BOTTOM_LANE_Y + 40) * scaleY);
 			ctx.closePath();
 			ctx.fill();
 
 			ctx.fillRect(
-				(ARENA_WIDTH - 1500) * scaleX,
-				(MID_LANE_Y - 50) * scaleY,
-				1300 * scaleX,
-				100 * scaleY
+				BRIDGE_SPAN_MAX_X * scaleX,
+				(MID_LANE_Y - 40) * scaleY,
+				(5600 - BRIDGE_SPAN_MAX_X) * scaleX,
+				80 * scaleY
 			);
 
 			// 4. Three Bridges spanning the Central Strait
@@ -213,24 +192,6 @@
 					ctx.stroke();
 				}
 			}
-
-			// Ramparts with open road gates
-			ctx.fillStyle = '#475569';
-			// West ramparts
-			ctx.fillRect(1440 * scaleX, 60 * scaleY, 40 * scaleX, 500 * scaleY);
-			ctx.fillRect(1440 * scaleX, 760 * scaleY, 40 * scaleX, 340 * scaleY);
-			ctx.fillRect(1440 * scaleX, 1300 * scaleY, 40 * scaleX, 340 * scaleY);
-			ctx.fillRect(1440 * scaleX, 1840 * scaleY, 40 * scaleX, (ARENA_HEIGHT - 1900) * scaleY);
-			// East ramparts
-			ctx.fillRect((ARENA_WIDTH - 1480) * scaleX, 60 * scaleY, 40 * scaleX, 500 * scaleY);
-			ctx.fillRect((ARENA_WIDTH - 1480) * scaleX, 760 * scaleY, 40 * scaleX, 340 * scaleY);
-			ctx.fillRect((ARENA_WIDTH - 1480) * scaleX, 1300 * scaleY, 40 * scaleX, 340 * scaleY);
-			ctx.fillRect(
-				(ARENA_WIDTH - 1480) * scaleX,
-				1840 * scaleY,
-				40 * scaleX,
-				(ARENA_HEIGHT - 1900) * scaleY
-			);
 		}
 
 		// 2. Castles
@@ -252,33 +213,9 @@
 		ctx.lineWidth = 1;
 		ctx.strokeRect(eCastX - 4, eCastY - 8, 8, 16);
 
-		const fogOfWar = sim.config.fogOfWar ?? true;
-
-		function isRevealedToWest(x: number, y: number): boolean {
-			if (!fogOfWar) return true;
-			if (x <= 1500) return true;
-			for (const p of sim.teamMembers?.west || [sim.players.west]) {
-				const w = p.worker;
-				if (w && Math.hypot(w.x - x, w.y - y) <= 480) return true;
-			}
-			for (const b of sim.buildings) {
-				if (b.team === 'west' && Math.hypot(b.x + 32 - x, b.y + 32 - y) <= 450) return true;
-			}
-			for (const ally of sim.units) {
-				if (
-					ally.team === 'west' &&
-					ally.state !== 'DEAD' &&
-					Math.hypot(ally.x - x, ally.y - y) <= 450
-				) {
-					return true;
-				}
-			}
-			return false;
-		}
-
 		// 3. Placed Buildings (2x2 footprint)
 		for (const b of sim.buildings) {
-			if (b.team === 'east' && !isRevealedToWest(b.x, b.y)) continue;
+			if (b.team === 'east' && !sim.isPointRevealed('west', b.x, b.y)) continue;
 			const bx = b.x * scaleX;
 			const by = b.y * scaleY;
 			ctx.fillStyle = b.team === 'west' ? westColor : eastColor;
@@ -288,8 +225,7 @@
 		// 4. Units
 		for (const u of sim.units) {
 			if (u.state === 'DEAD') continue;
-			if (u.team === 'east' && !isRevealedToWest(u.x, u.y)) continue;
-			if (u.team === 'neutral' && !isRevealedToWest(u.x, u.y)) continue;
+			if (u.team !== 'west' && !sim.isPointRevealed('west', u.x, u.y)) continue;
 
 			const ux = u.x * scaleX;
 			const uy = u.y * scaleY;
@@ -313,7 +249,7 @@
 		for (const p of sim.allPlayers || [sim.players.west]) {
 			const worker = p.worker;
 			if (!worker) continue;
-			if (p.team === 'east' && !isRevealedToWest(worker.x, worker.y)) continue;
+			if (p.team !== 'west' && !sim.isPointRevealed('west', worker.x, worker.y)) continue;
 			const wx = worker.x * scaleX;
 			const wy = worker.y * scaleY;
 			ctx.fillStyle = p.color?.hex || (p.team === 'west' ? '#06b6d4' : '#ef4444');
@@ -328,7 +264,7 @@
 		// 6. Gold coins (Filtered by visibility)
 		ctx.fillStyle = '#fde047';
 		for (const coin of sim.goldCoins) {
-			if (coin.x > 1500 && !isRevealedToWest(coin.x, coin.y)) continue;
+			if (!sim.isPointRevealed('west', coin.x, coin.y)) continue;
 			ctx.fillRect(coin.x * scaleX - 1, coin.y * scaleY - 1, 2, 2);
 		}
 

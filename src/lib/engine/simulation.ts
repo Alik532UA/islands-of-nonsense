@@ -31,9 +31,31 @@ import {
 	TOP_LANE_Y,
 	MID_LANE_Y,
 	BOTTOM_LANE_Y,
-	type CoinMode
+	WEST_CASTLE_X,
+	WEST_CASTLE_Y,
+	EAST_CASTLE_X,
+	EAST_CASTLE_Y,
+	WEST_ISLAND_CENTER_X,
+	WEST_ISLAND_CENTER_Y,
+	EAST_ISLAND_CENTER_X,
+	EAST_ISLAND_CENTER_Y,
+	ISLAND_RADIUS_X,
+	ISLAND_RADIUS_Y,
+	CELL_SIZE,
+	type CoinMode,
+	type DecorationObstacle,
+	type DecorationType
 } from './constants';
 export * from './constants';
+
+export interface DebrisItem {
+	id: string;
+	x: number;
+	y: number;
+	team: MatchTeam;
+	value: number;
+	lifeTime: number;
+}
 
 export interface SimulationConfig {
 	botDifficulty: number; // 0, 15, 30, 80
@@ -47,6 +69,8 @@ export interface SimulationConfig {
 	fogOfWar?: boolean;
 	coinMode?: CoinMode;
 	teamSize?: 1 | 2 | 3;
+	botVsBot?: boolean; // Spectator mode: bots play against each other without human player
+	isRunning?: boolean;
 }
 
 /**
@@ -73,6 +97,8 @@ export class Simulation {
 	public buildings: Building[] = [];
 	public projectiles: Projectile[] = [];
 	public floatingTexts: FloatingText[] = [];
+	public debris: DebrisItem[] = [];
+	public decorations: DecorationObstacle[] = [];
 
 	public castles: Record<MatchTeam, Castle>;
 	public players: Record<MatchTeam, PlayerState>;
@@ -193,6 +219,9 @@ export class Simulation {
 
 	constructor(config: SimulationConfig = { botDifficulty: 0, startGold: 500 }) {
 		this.config = config;
+		if (config.isRunning !== undefined) {
+			this.isRunning = config.isRunning;
+		}
 		this.teamSize = config.teamSize ?? 1;
 		this.gameModeConfig = getGameMode(config.modeId || 'standard');
 		if (config.allRandom !== undefined) {
@@ -211,8 +240,8 @@ export class Simulation {
 		this.brokenBridge = bridges[Math.floor(Math.random() * 3)];
 		const castleHp = Math.round(14000 * (this.gameModeConfig.castleHpMultiplier || 1.0));
 		this.castles = {
-			west: { team: 'west', x: 200, y: 1200, hp: castleHp, maxHp: castleHp },
-			east: { team: 'east', x: ARENA_WIDTH - 200, y: 1200, hp: castleHp, maxHp: castleHp }
+			west: { team: 'west', x: WEST_CASTLE_X, y: WEST_CASTLE_Y, hp: castleHp, maxHp: castleHp },
+			east: { team: 'east', x: EAST_CASTLE_X, y: EAST_CASTLE_Y, hp: castleHp, maxHp: castleHp }
 		};
 
 		const availableRaces = RACES_LIST.map((r) => r.race);
@@ -265,12 +294,14 @@ export class Simulation {
 		const westGold = westIsRandom ? Math.round(config.startGold * 1.3) : config.startGold;
 		const eastGold = eastIsRandom ? Math.round(config.startGold * 1.3) : config.startGold;
 
+		const isBotVsBot = !!config.botVsBot;
+
 		const p1: PlayerState = {
 			id: 'p1',
 			slot: 1,
 			team: 'west',
-			isBot: false,
-			name: 'Гравець',
+			isBot: isBotVsBot,
+			name: isBotVsBot ? 'Бот (Захід)' : 'Гравець',
 			color: WC3_PLAYER_COLORS[0],
 			race: westRace,
 			isRandomRace: westIsRandom,
@@ -284,10 +315,10 @@ export class Simulation {
 			preferredLane: 'auto',
 			worker: {
 				name: getBuilderNameForRace(westRace),
-				x: 450,
-				y: 1200,
-				targetX: 450,
-				targetY: 1200,
+				x: WEST_CASTLE_X + 160,
+				y: WEST_CASTLE_Y,
+				targetX: WEST_CASTLE_X + 160,
+				targetY: WEST_CASTLE_Y,
 				hp: 220,
 				maxHp: 220,
 				armor: 'Неуразливий',
@@ -325,10 +356,10 @@ export class Simulation {
 			preferredLane: 'auto',
 			worker: {
 				name: getBuilderNameForRace(eastRace),
-				x: ARENA_WIDTH - 450,
-				y: 1200,
-				targetX: ARENA_WIDTH - 450,
-				targetY: 1200,
+				x: EAST_CASTLE_X - 160,
+				y: EAST_CASTLE_Y,
+				targetX: EAST_CASTLE_X - 160,
+				targetY: EAST_CASTLE_Y,
 				hp: 220,
 				maxHp: 220,
 				armor: 'Неуразливий',
@@ -383,9 +414,9 @@ export class Simulation {
 				preferredLane: 'auto',
 				worker: {
 					name: getBuilderNameForRace(p3Choice.race),
-					x: 450,
+					x: WEST_CASTLE_X + 160,
 					y: 700,
-					targetX: 450,
+					targetX: WEST_CASTLE_X + 160,
 					targetY: 700,
 					hp: 220,
 					maxHp: 220,
@@ -424,9 +455,9 @@ export class Simulation {
 				preferredLane: 'auto',
 				worker: {
 					name: getBuilderNameForRace(p4Choice.race),
-					x: ARENA_WIDTH - 450,
+					x: EAST_CASTLE_X - 160,
 					y: 700,
-					targetX: ARENA_WIDTH - 450,
+					targetX: EAST_CASTLE_X - 160,
 					targetY: 700,
 					hp: 220,
 					maxHp: 220,
@@ -476,9 +507,9 @@ export class Simulation {
 				preferredLane: 'auto',
 				worker: {
 					name: getBuilderNameForRace(p5Choice.race),
-					x: 450,
+					x: WEST_CASTLE_X + 160,
 					y: 1700,
-					targetX: 450,
+					targetX: WEST_CASTLE_X + 160,
 					targetY: 1700,
 					hp: 220,
 					maxHp: 220,
@@ -517,9 +548,9 @@ export class Simulation {
 				preferredLane: 'auto',
 				worker: {
 					name: getBuilderNameForRace(p6Choice.race),
-					x: ARENA_WIDTH - 450,
+					x: EAST_CASTLE_X - 160,
 					y: 1700,
-					targetX: ARENA_WIDTH - 450,
+					targetX: EAST_CASTLE_X - 160,
 					targetY: 1700,
 					hp: 220,
 					maxHp: 220,
@@ -556,6 +587,9 @@ export class Simulation {
 		this.buildingSystem = new BuildingSystem(this);
 		this.combatSystem = new CombatSystem(this);
 		this.economySystem = new EconomySystem(this);
+
+		// Initialize procedural decorations across both islands
+		this.initDecorations(1337);
 	}
 
 	public updateBots(dt: number): void {
@@ -696,9 +730,11 @@ export class Simulation {
 		this.lastBossId = -1;
 		this.activeBossInstanceId = null;
 		this.goldCoins = [];
+		this.debris = [];
 		this.coinSpawnTimer = this.coinSpawnInterval;
 		const bridges: ('top' | 'mid' | 'bottom')[] = ['top', 'mid', 'bottom'];
 		this.brokenBridge = bridges[Math.floor(Math.random() * 3)];
+		this.initDecorations(1337 + this.round * 31);
 		this.winner = null;
 		this.roundWinner = null;
 		this.buildingStats = {};
@@ -729,7 +765,7 @@ export class Simulation {
 				let defaultY = 1200;
 				if (p.slot === 3 || p.slot === 4) defaultY = 700;
 				else if (p.slot === 5 || p.slot === 6) defaultY = 1700;
-				const defaultX = isWest ? 450 : ARENA_WIDTH - 450;
+				const defaultX = isWest ? WEST_CASTLE_X + 160 : EAST_CASTLE_X - 160;
 				p.worker.x = defaultX;
 				p.worker.y = defaultY;
 				p.worker.targetX = defaultX;
@@ -1112,9 +1148,10 @@ export class Simulation {
 		tileX: number,
 		tileY: number,
 		lane: Lane = 'top',
-		player?: PlayerState
+		player?: PlayerState,
+		shiftKey = false
 	): boolean {
-		return this.buildingSystem.build(team, defId, tileX, tileY, lane, player);
+		return this.buildingSystem.build(team, defId, tileX, tileY, lane, player, shiftKey);
 	}
 
 	public upgradeBuilding(
@@ -1151,6 +1188,15 @@ export class Simulation {
 
 	public collectCoin(coinId: string, team: MatchTeam, player?: PlayerState): boolean {
 		return this.economySystem.collectCoin(coinId, team, player);
+	}
+
+	public moveWorkerToCoin(team: MatchTeam, coinId: string): boolean {
+		const coin = this.goldCoins.find((c) => c.id === coinId);
+		if (!coin) return false;
+		const worker = this.players[team]?.worker;
+		if (!worker) return false;
+		this.moveWorker(team, coin.x, coin.y);
+		return true;
 	}
 
 	public spawnCoinDirectly(lane: Lane, x: number, y: number, value = 50): GoldCoin {
@@ -1207,5 +1253,133 @@ export class Simulation {
 
 	public triggerRescueStrike(team: MatchTeam): { hitCount: number; damageDealt: number } | null {
 		return this.economySystem.triggerRescueStrike(team);
+	}
+
+	public isPointOnIsland(team: MatchTeam, x: number, y: number, margin = 20): boolean {
+		return this.buildingSystem.isPointOnIsland(team, x, y, margin);
+	}
+
+	public isPointNearRoad(x: number, y: number, clearance = 145): boolean {
+		return this.buildingSystem.isPointNearRoad(x, y, clearance);
+	}
+
+	/**
+	 * Checks if a world position (x, y) is revealed to a team under Fog of War.
+	 * Reveals vision around:
+	 * - Castle (750px radius)
+	 * - Team Worker(s) (520px radius)
+	 * - Team Buildings (500px radius)
+	 * - Team Living Units / Mobs (480px radius)
+	 * - Team Island Decorations (240px radius)
+	 */
+	public isPointRevealed(team: MatchTeam, x: number, y: number): boolean {
+		if (this.config.fogOfWar === false) return true;
+
+		// 1. Team Castle (wide 750px radius)
+		const castle = this.castles[team];
+		if (castle && Math.hypot(castle.x - x, castle.y - y) <= 750) {
+			return true;
+		}
+
+		// 2. Team Workers (520px radius)
+		const members = this.teamMembers?.[team] || [this.players[team]];
+		for (const p of members) {
+			if (p?.worker && Math.hypot(p.worker.x - x, p.worker.y - y) <= 520) {
+				return true;
+			}
+		}
+
+		// 3. Team Buildings (500px radius)
+		for (const b of this.buildings) {
+			if (b.team === team && Math.hypot(b.x + CELL_SIZE / 2 - x, b.y + CELL_SIZE / 2 - y) <= 500) {
+				return true;
+			}
+		}
+
+		// 4. Team Units / Mobs (480px radius)
+		for (const u of this.units) {
+			if (u.team === team && u.state !== 'DEAD' && Math.hypot(u.x - x, u.y - y) <= 480) {
+				return true;
+			}
+		}
+
+		// 5. Team Island Decorations (160px radius around natural island fixtures)
+		if (this.decorations) {
+			for (const d of this.decorations) {
+				if (d.team === team && Math.hypot(d.x - x, d.y - y) <= 160) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	public initDecorations(seed = 1337): void {
+		this.decorations = [];
+
+		let s = seed;
+		const nextRand = () => {
+			s = (s * 1664525 + 1013904223) % 4294967296;
+			return s / 4294967296;
+		};
+
+		const teams: MatchTeam[] = ['west', 'east'];
+		const types: DecorationType[] = ['mushroom', 'crystal', 'monolith', 'bush', 'brazier'];
+		const typeRadii: Record<DecorationType, number> = {
+			mushroom: 16,
+			crystal: 18,
+			monolith: 22,
+			bush: 18,
+			brazier: 18
+		};
+
+		let decorId = 1;
+		for (const team of teams) {
+			const cx = team === 'west' ? WEST_ISLAND_CENTER_X : EAST_ISLAND_CENTER_X;
+			const cy = team === 'west' ? WEST_ISLAND_CENTER_Y : EAST_ISLAND_CENTER_Y;
+
+			let attempts = 0;
+			let placedCount = 0;
+			const targetCount = 65;
+
+			while (placedCount < targetCount && attempts < 400) {
+				attempts++;
+				const angle = nextRand() * Math.PI * 2;
+				const distNorm = 0.22 + nextRand() * 0.68;
+				const rx = (ISLAND_RADIUS_X - 140) * distNorm;
+				const ry = (ISLAND_RADIUS_Y - 110) * distNorm;
+
+				const x = Math.round(cx + Math.cos(angle) * rx);
+				const y = Math.round(cy + Math.sin(angle) * ry);
+
+				// 1. Must be on island meadow
+				if (!this.buildingSystem.isPointOnIsland(team, x, y, 70)) continue;
+
+				// 2. Must not be on castle plaza
+				if (Math.hypot(x - cx, y - cy) < 260) continue;
+
+				// 3. Must not be on road or within 1 cell (64px) margin from road
+				if (this.buildingSystem.isPointNearRoad(x, y, 145)) continue;
+
+				// 4. Must not overlap existing decorations
+				const tooClose = this.decorations.some((d) => Math.hypot(d.x - x, d.y - y) < 64);
+				if (tooClose) continue;
+
+				const type = types[Math.floor(nextRand() * types.length)];
+				const variant = Math.floor(nextRand() * 4);
+
+				this.decorations.push({
+					id: `decor_${team}_${decorId++}`,
+					x,
+					y,
+					radius: typeRadii[type],
+					type,
+					team,
+					variant
+				});
+				placedCount++;
+			}
+		}
 	}
 }

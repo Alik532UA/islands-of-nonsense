@@ -57,9 +57,9 @@ describe('Point 9: Detailed Post-Round / Match Breakdown & MVP Building', () => 
 	});
 
 	it('records building kills and damage to determine MVP building of the match', () => {
-		// Build 2 buildings for west (adjacent footprint with step 2 = 64px)
-		sim.build('west', 'h037', 0, 0); // Церква
-		sim.build('west', 'h006', 0, 2); // Вартова вежа
+		// Build 2 buildings for west (adjacent footprint with step 4 = 128px)
+		sim.build('west', 'h037', 25, 20); // Церква
+		sim.build('west', 'h006', 25, 24); // Вартова вежа
 
 		const church = sim.buildings.find((b) => b.defId === 'h037')!;
 		const tower = sim.buildings.find((b) => b.defId === 'h006')!;

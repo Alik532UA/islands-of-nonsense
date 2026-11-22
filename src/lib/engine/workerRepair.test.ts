@@ -10,7 +10,7 @@ describe('Point 8: Worker Building & Castle Repair Mechanic', () => {
 	});
 
 	it('наказує робітнику відремонтувати пошкоджену союзну споруду', () => {
-		sim.build('west', 'h003', 0, 0, 'top');
+		sim.build('west', 'h003', 25, 20, 'top');
 		const bld = sim.buildings[0];
 		bld.isUnderConstruction = false;
 		bld.hp = Math.round(bld.maxHp * 0.5); // 50% HP
@@ -25,7 +25,7 @@ describe('Point 8: Worker Building & Castle Repair Mechanic', () => {
 	});
 
 	it('робітник відновлює HP споруди та списує золото під час ремонту', () => {
-		sim.build('west', 'h003', 0, 0, 'top');
+		sim.build('west', 'h003', 25, 20, 'top');
 		const bld = sim.buildings[0];
 		bld.isUnderConstruction = false;
 		bld.hp = 100;
@@ -51,7 +51,7 @@ describe('Point 8: Worker Building & Castle Repair Mechanic', () => {
 	});
 
 	it('завершує ремонт і скидає стан робітника при досягненні 100% HP', () => {
-		sim.build('west', 'h003', 0, 0, 'top');
+		sim.build('west', 'h003', 25, 20, 'top');
 		const bld = sim.buildings[0];
 		bld.isUnderConstruction = false;
 		bld.hp = bld.maxHp - 10; // almost full
@@ -72,7 +72,7 @@ describe('Point 8: Worker Building & Castle Repair Mechanic', () => {
 	});
 
 	it('зупиняє ремонт якщо у гравця закінчилося золото', () => {
-		sim.build('west', 'h003', 0, 0, 'top');
+		sim.build('west', 'h003', 25, 20, 'top');
 		const bld = sim.buildings[0];
 		bld.isUnderConstruction = false;
 		bld.hp = 100;
@@ -117,7 +117,7 @@ describe('Point 8: Worker Building & Castle Repair Mechanic', () => {
 		const bot = new BotAI(botSim);
 
 		// Build a structure for East bot
-		botSim.build('east', 'h003', 0, 0, 'top');
+		botSim.build('east', 'h003', 25, 20, 'top');
 		const botBld = botSim.buildings.find((b) => b.team === 'east');
 		expect(botBld).toBeDefined();
 		if (!botBld) return;

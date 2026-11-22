@@ -21,7 +21,7 @@ describe('Point 5: Full Lumber (Wood) Economy & Tech Tiers', () => {
 	it('завершення будівництва споруди приносить робітником +25 деревини', () => {
 		sim.players.west.gold = 500;
 		sim.players.west.lumber = 100;
-		const buildSuccess = sim.build('west', 'h003', 0, 0, 'top');
+		const buildSuccess = sim.build('west', 'h003', 25, 20, 'top');
 		expect(buildSuccess).toBe(true);
 
 		const bld = sim.buildings[0];
@@ -62,7 +62,7 @@ describe('Point 5: Full Lumber (Wood) Economy & Tech Tiers', () => {
 		sim.players.west.food = 0;
 		sim.players.west.maxFood = 5;
 
-		sim.build('west', 'h04B', 0, 0, 'top');
+		sim.build('west', 'h04B', 25, 20, 'top');
 		const parentBld = sim.buildings[0];
 		parentBld.isUnderConstruction = false;
 
@@ -85,7 +85,7 @@ describe('Point 5: Full Lumber (Wood) Economy & Tech Tiers', () => {
 		sim.players.west.lumber = 500;
 
 		// Build a structure with lumber cost
-		sim.build('west', 'h04B', 0, 0, 'top');
+		sim.build('west', 'h04B', 25, 20, 'top');
 		const bld = sim.buildings[0];
 		bld.lumberCost = 200;
 		sim.players.west.lumber = 300;

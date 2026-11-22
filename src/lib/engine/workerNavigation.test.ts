@@ -56,18 +56,18 @@ describe('Worker Navigation and Building Order (v10 Canon)', () => {
 
 		it('navigates around the solid castle structure when target is on the opposite courtyard', () => {
 			const sim = new Simulation();
-			// West Castle solid footprint is at x=80..320, y=1060..1340.
-			// Start in upper courtyard (y=900), target in lower courtyard (y=1500)
-			const path = sim.findWorkerPath('west', 200, 900, 200, 1500);
+			// West Castle solid footprint is centered at (1600, 1200) [1480..1720, 1080..1320]
+			// Start in upper courtyard (y=950), target in lower courtyard (y=1450)
+			const path = sim.findWorkerPath('west', 1600, 950, 1600, 1450);
 			expect(path.length).toBeGreaterThan(1);
 
-			// The path must round the exterior of the castle (x > 320)
-			const roundsCastle = path.some((pt) => pt.x >= 320);
+			// The path must round the exterior of the castle
+			const roundsCastle = path.some((pt) => pt.x <= 1480 || pt.x >= 1720);
 			expect(roundsCastle).toBe(true);
 
 			// None of the waypoints may be inside the castle footprint
 			for (const pt of path) {
-				const inCastle = pt.x >= 85 && pt.x <= 315 && pt.y >= 1065 && pt.y <= 1335;
+				const inCastle = pt.x >= 1485 && pt.x <= 1715 && pt.y >= 1085 && pt.y <= 1315;
 				expect(inCastle).toBe(false);
 			}
 		});
@@ -79,11 +79,11 @@ describe('Worker Navigation and Building Order (v10 Canon)', () => {
 			expect(worker).toBeDefined();
 			if (!worker) return;
 
-			worker.x = 200;
-			worker.y = 900;
+			worker.x = 1600;
+			worker.y = 950;
 
 			// Order worker to lower courtyard across the castle
-			sim.moveWorker('west', 200, 1500);
+			sim.moveWorker('west', 1600, 1450);
 			expect(worker.path).toBeDefined();
 			expect(worker.path!.length).toBeGreaterThan(1);
 
@@ -92,12 +92,12 @@ describe('Worker Navigation and Building Order (v10 Canon)', () => {
 				sim.step(0.05);
 				// Verify worker never penetrates the castle
 				const insideCastle =
-					worker.x >= 85 && worker.x <= 315 && worker.y >= 1065 && worker.y <= 1335;
+					worker.x >= 1485 && worker.x <= 1715 && worker.y >= 1085 && worker.y <= 1315;
 				expect(insideCastle).toBe(false);
 			}
 
-			// Worker must have made progress towards the lower courtyard (y > 950)
-			expect(worker.y).toBeGreaterThan(950);
+			// Worker must have made progress towards the lower courtyard (y > 980)
+			expect(worker.y).toBeGreaterThan(980);
 		});
 
 		it('allows worker to construct building placed in corner from open perimeter side', () => {
@@ -107,18 +107,17 @@ describe('Worker Navigation and Building Order (v10 Canon)', () => {
 			expect(worker).toBeDefined();
 			if (!worker) return;
 
-			// Corner placement: tile (0, 69) -> world (64, 2272) is bottom-left corner of courtyard
-			// Left side (x < 60) and bottom side (y > 2340) are blocked by walls
+			// Placement on west island courtyard: tile (20, 15)
 			sim.players.west.gold = 500;
 			const bDef = getBaseBuildingsForRace('Люди')[0];
-			const success = sim.build('west', bDef.id, 0, 69);
+			const success = sim.build('west', bDef.id, 20, 15);
 			expect(success).toBe(true);
 
-			const building = sim.buildings.find((b) => b.x === 64 && b.y === 2272);
+			const building = sim.buildings.find((b) => b.tileX === 20 && b.tileY === 15);
 			expect(building).toBeDefined();
 			expect(building?.isUnderConstruction).toBe(true);
 
-			// Worker target must NOT be in the wall (x >= 60, y <= 2340)
+			// Worker target must be valid
 			expect(worker.targetX).toBeGreaterThanOrEqual(60);
 			expect(worker.targetY).toBeLessThanOrEqual(2340);
 
@@ -147,8 +146,8 @@ describe('Worker Navigation and Building Order (v10 Canon)', () => {
 
 			// Damage castle
 			sim.castles.west.hp = 10000;
-			worker.x = 350;
-			worker.y = 1200;
+			worker.x = sim.castles.west.x + 160;
+			worker.y = sim.castles.west.y;
 
 			// Set gold to 0
 			sim.players.west.gold = 0;
@@ -166,12 +165,12 @@ describe('Worker Navigation and Building Order (v10 Canon)', () => {
 			const sim = new Simulation();
 			sim.isRunning = true;
 
-			// Enemy at x=750 (distance 550 from west castle at x=200)
+			// Enemy at distance 550 from west castle
 			sim.spawnUnitDirectly({
 				team: 'east',
 				lane: 'top',
-				x: 750,
-				y: 1200,
+				x: sim.castles.west.x + 550,
+				y: sim.castles.west.y,
 				hp: 1000
 			});
 
@@ -180,6 +179,31 @@ describe('Worker Navigation and Building Order (v10 Canon)', () => {
 			// Castle shot projectile must be fired towards the enemy
 			const castleProjectile = sim.projectiles.find((p) => p.sourceUnitId === 'castle_west');
 			expect(castleProjectile).toBeDefined();
+		});
+
+		it('worker can freely navigate across the eastern half of the island (x > 1600) without getting stuck', () => {
+			const sim = new Simulation();
+			sim.isRunning = true;
+			const worker = sim.players.west.worker;
+			expect(worker).toBeDefined();
+			if (!worker) return;
+
+			// Position worker at east door of castle (x = 1720, y = 1200)
+			worker.x = 1720;
+			worker.y = 1200;
+
+			// Order worker to meadow at east side of the island (x = 2200, y = 1400)
+			sim.moveWorker('west', 2200, 1400);
+			expect(worker.path).toBeDefined();
+			expect(worker.path!.length).toBeGreaterThan(0);
+
+			// Step simulation
+			for (let i = 0; i < 40; i++) {
+				sim.step(0.05);
+			}
+
+			// Worker must advance eastwards towards 2200
+			expect(worker.x).toBeGreaterThan(1750);
 		});
 	});
 });

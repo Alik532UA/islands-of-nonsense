@@ -107,11 +107,11 @@ describe('Point 9: Game Modes & Random Race Bonus (+30% Gold)', () => {
 		});
 
 		// cg07_recycler is a special recycler building
-		const builtSpecial = sim.build('west', 'cg07_recycler', 0, 0);
+		const builtSpecial = sim.build('west', 'cg07_recycler', 25, 20);
 		expect(builtSpecial).toBe(false);
 
 		// h03Q is Frost Tower - defensive towers are allowed
-		const builtTower = sim.build('west', 'h03Q', 0, 0);
+		const builtTower = sim.build('west', 'h03Q', 25, 20);
 		expect(builtTower).toBe(true);
 	});
 
@@ -124,11 +124,11 @@ describe('Point 9: Game Modes & Random Race Bonus (+30% Gold)', () => {
 		});
 
 		// cg0a is Garbage Ballista (attack_type: siege)
-		const builtArtillery = sim.build('west', 'cg0a', 0, 0);
+		const builtArtillery = sim.build('west', 'cg0a', 25, 20);
 		expect(builtArtillery).toBe(false);
 
 		// Guard Tower (h006) is allowed
-		const builtNormal = sim.build('west', 'h006', 0, 0);
+		const builtNormal = sim.build('west', 'h006', 25, 20);
 		expect(builtNormal).toBe(true);
 	});
 

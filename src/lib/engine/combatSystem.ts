@@ -4,6 +4,7 @@ import type { Unit, Building, Castle, MatchTeam, Team, Lane, AttackType } from '
 import { calculateDamage, getDamageMultiplier } from './damageMatrix';
 import { DefenseSystem } from './defenseSystem';
 import { applyCrowdSeparation } from './crowdPhysics';
+import { logService } from '../services/logService.svelte';
 
 /**
  * CombatSystem handles unit state machines, targeting, pathing towards objectives,
@@ -121,6 +122,15 @@ export class CombatSystem {
 	}
 
 	public updateUnits(dt: number): void {
+		// Update battlefield scrap debris decay
+		for (let i = this.sim.debris.length - 1; i >= 0; i--) {
+			const d = this.sim.debris[i];
+			d.lifeTime -= dt;
+			if (d.lifeTime <= 0) {
+				this.sim.debris.splice(i, 1);
+			}
+		}
+
 		for (const u of this.sim.units) {
 			if (u.state === 'DEAD') {
 				u.deathTimer = (u.deathTimer ?? 0.7) - dt;
@@ -469,6 +479,13 @@ export class CombatSystem {
 
 			const targetLaneY =
 				u.lane === 'top' ? TOP_LANE_Y : u.lane === 'mid' ? MID_LANE_Y : BOTTOM_LANE_Y;
+			const effectiveCrossingLane = this.getEffectiveCrossingLane(u);
+			const crossingLaneY =
+				effectiveCrossingLane === 'top'
+					? TOP_LANE_Y
+					: effectiveCrossingLane === 'mid'
+						? MID_LANE_Y
+						: BOTTOM_LANE_Y;
 
 			// Target Acquisition (WC3 Threat & Aggro System)
 			let enemyTarget = this.findBestTarget(u);
@@ -479,7 +496,7 @@ export class CombatSystem {
 				const enemyTeam: MatchTeam = u.team === 'west' ? 'east' : 'west';
 				const targetCastle = u.team === 'west' ? this.sim.castles.east : this.sim.castles.west;
 				const distToCastle = Math.hypot(targetCastle.x - u.x, targetCastle.y - u.y) - 60;
-				const isNearEnemyBase = u.team === 'west' ? u.x >= ARENA_WIDTH - 1600 : u.x <= 1600;
+				const isNearEnemyBase = u.team === 'west' ? u.x >= 3960 : u.x <= 3240;
 
 				let hasBuildingTarget = distToCastle <= u.range + 65;
 				if (!hasBuildingTarget && isNearEnemyBase) {
@@ -502,53 +519,62 @@ export class CombatSystem {
 			}
 
 			if (enemyTarget && enemyTarget.hp > 0 && enemyTarget.lane === u.lane) {
-				const dx = enemyTarget.x - u.x;
-				const dy = enemyTarget.y - u.y;
-				const dist = Math.hypot(dx, dy);
+				const isAcrossRiver =
+					(u.x < 3600 && enemyTarget.x > 3600) || (u.x > 3600 && enemyTarget.x < 3600);
+				const bridgeBroken = !u.flying && this.sim.brokenBridge && u.lane === this.sim.brokenBridge;
 
-				// Attack range check with hysteresis to prevent state toggling / jitter
-				const attackRange = u.range;
-				const keepAttackRange = attackRange + 25;
-
-				if (
-					dist <=
-					(u.state === 'ATTACKING' && u.currentTargetId === enemyTarget.instanceId
-						? keepAttackRange
-						: attackRange)
-				) {
-					// In range -> ATTACK
-					u.state = 'ATTACKING';
-					u.currentTargetId = enemyTarget.instanceId;
-					u.targetBuildingId = null;
-
-					if (u.cooldownTimer <= 0) {
-						let cd = u.attackCooldown;
-						if (u.buffs?.some((b) => b.type === 'as')) {
-							cd *= 0.75;
-						}
-						if (u.buffs?.some((b) => b.type === 'bloodlust')) {
-							cd *= 0.7;
-						}
-						if (u.buffs?.some((b) => b.type === 'frost')) {
-							cd *= 1.35;
-						}
-						if (u.buffs?.some((b) => b.type === 'slow')) {
-							cd *= 1.3;
-						}
-						if (u.buffs?.some((b) => b.type === 'weakness')) {
-							cd *= 1.4;
-						}
-						u.cooldownTimer = cd;
-						this.performAttack(u, enemyTarget);
-					}
-				} else {
-					// Move smoothly towards enemy on the lane
+				if (isAcrossRiver && bridgeBroken) {
+					// Cannot cross broken bridge in straight line: detour across intact bridge first!
+					const crossingX = u.team === 'west' ? 4000 : 3200;
 					u.state = 'WALKING';
 					u.currentTargetId = enemyTarget.instanceId;
-					const dirX = dx / dist;
-					const dirY = dy / dist;
-					u.x += dirX * currentSpeed * dt;
-					u.y += dirY * currentSpeed * dt;
+					this.moveUnitTowards(u, crossingX, crossingLaneY, currentSpeed, dt);
+				} else {
+					const dx = enemyTarget.x - u.x;
+					const dy = enemyTarget.y - u.y;
+					const dist = Math.hypot(dx, dy);
+
+					// Attack range check with hysteresis to prevent state toggling / jitter
+					const attackRange = u.range;
+					const keepAttackRange = attackRange + 25;
+
+					if (
+						dist <=
+						(u.state === 'ATTACKING' && u.currentTargetId === enemyTarget.instanceId
+							? keepAttackRange
+							: attackRange)
+					) {
+						// In range -> ATTACK
+						u.state = 'ATTACKING';
+						u.currentTargetId = enemyTarget.instanceId;
+						u.targetBuildingId = null;
+
+						if (u.cooldownTimer <= 0) {
+							let cd = u.attackCooldown;
+							if (u.buffs?.some((b) => b.type === 'as')) {
+								cd *= 0.75;
+							}
+							if (u.buffs?.some((b) => b.type === 'bloodlust')) {
+								cd *= 0.7;
+							}
+							if (u.buffs?.some((b) => b.type === 'frost')) {
+								cd *= 1.35;
+							}
+							if (u.buffs?.some((b) => b.type === 'slow')) {
+								cd *= 1.3;
+							}
+							if (u.buffs?.some((b) => b.type === 'weakness')) {
+								cd *= 1.4;
+							}
+							u.cooldownTimer = cd;
+							this.performAttack(u, enemyTarget);
+						}
+					} else {
+						// Move smoothly towards enemy on the lane
+						u.state = 'WALKING';
+						u.currentTargetId = enemyTarget.instanceId;
+						this.moveUnitTowards(u, enemyTarget.x, enemyTarget.y, currentSpeed, dt);
+					}
 				}
 			} else if (u.team === 'neutral') {
 				// Boss Leash & Patrol: Patrol across river crossing
@@ -560,8 +586,7 @@ export class CombatSystem {
 				const dist = Math.hypot(dx, dy);
 				if (dist > 12) {
 					u.state = 'WALKING';
-					u.x += (dx / dist) * currentSpeed * dt;
-					u.y += (dy / dist) * currentSpeed * dt;
+					this.moveUnitTowards(u, patrolTargetX, targetLaneY, currentSpeed, dt);
 				} else {
 					u.state = 'WALKING';
 				}
@@ -569,8 +594,12 @@ export class CombatSystem {
 				// No enemy units on this lane -> Target enemy buildings OR the enemy castle!
 				const enemyTeam: MatchTeam = u.team === 'west' ? 'east' : 'west';
 				const targetCastle = u.team === 'west' ? this.sim.castles.east : this.sim.castles.west;
-				const distToCastle = Math.hypot(targetCastle.x - u.x, targetCastle.y - u.y) - 60;
-				const isNearEnemyBase = u.team === 'west' ? u.x >= ARENA_WIDTH - 1600 : u.x <= 1600;
+				const castleRadius = 110;
+				const distToCastle = Math.max(
+					0,
+					Math.hypot(targetCastle.x - u.x, targetCastle.y - u.y) - castleRadius
+				);
+				const isNearEnemyBase = u.team === 'west' ? u.x >= 3960 : u.x <= 3240;
 
 				let closestBld: Building | null = null;
 				let closestBldDist = Infinity;
@@ -588,23 +617,22 @@ export class CombatSystem {
 					}
 				}
 
-				const westGateX = 1480;
-				const eastGateX = ARENA_WIDTH - 1480;
-
 				// Check whether Castle or Building should be targeted:
 				// If in attack range of Castle, or Castle is closer than any building, attack Castle!
-				const castleInRange = distToCastle <= u.range + 65;
+				const castleInRange = distToCastle <= u.range + 35;
 				const buildingInRange = closestBld && closestBldDist <= u.range + 35;
 
 				if (castleInRange || (!buildingInRange && distToCastle < closestBldDist)) {
 					// Target & Attack Castle!
 					if (
 						distToCastle <=
-						(u.state === 'ATTACKING' && !u.targetBuildingId ? u.range + 75 : u.range + 50)
+						(u.state === 'ATTACKING' && u.targetBuildingId?.startsWith('castle')
+							? u.range + 45
+							: u.range + 25)
 					) {
 						u.state = 'ATTACKING';
 						u.currentTargetId = null;
-						u.targetBuildingId = null;
+						u.targetBuildingId = targetCastle.team === 'west' ? 'castle_west' : 'castle_east';
 						if (u.cooldownTimer <= 0) {
 							let cd = u.attackCooldown;
 							if (u.buffs?.some((b) => b.type === 'as')) cd *= 0.75;
@@ -615,40 +643,21 @@ export class CombatSystem {
 					} else {
 						u.state = 'WALKING';
 						u.currentTargetId = null;
-						u.targetBuildingId = null;
+						u.targetBuildingId = targetCastle.team === 'west' ? 'castle_west' : 'castle_east';
 
-						// If not yet inside enemy base courtyard, navigate through gate first!
+						// If not yet across bridges into enemy island, navigate along lane and across bridge!
 						let navTargetX = targetCastle.x;
 						let navTargetY = targetCastle.y;
-						if (u.team === 'west' && u.x < eastGateX) {
-							navTargetX = eastGateX;
-							navTargetY = targetLaneY;
-
-							// Ground units detour around broken bridge across central ocean channel
-							if (!u.flying && this.sim.brokenBridge && u.lane === this.sim.brokenBridge) {
-								const crossingMid = this.sim.brokenBridge !== 'mid';
-								const detourY = crossingMid ? MID_LANE_Y : TOP_LANE_Y;
-								if (u.x < 3960) {
-									navTargetY = detourY;
-								}
-							}
-						} else if (u.team === 'east' && u.x > westGateX) {
-							navTargetX = westGateX;
-							navTargetY = targetLaneY;
-
-							// Ground units detour around broken bridge across central ocean channel
-							if (!u.flying && this.sim.brokenBridge && u.lane === this.sim.brokenBridge) {
-								const crossingMid = this.sim.brokenBridge !== 'mid';
-								const detourY = crossingMid ? MID_LANE_Y : TOP_LANE_Y;
-								if (u.x > 3240) {
-									navTargetY = detourY;
-								}
-							}
+						if (u.team === 'west' && u.x < 3960) {
+							navTargetX = 4000;
+							navTargetY = crossingLaneY;
+						} else if (u.team === 'east' && u.x > 3240) {
+							navTargetX = 3200;
+							navTargetY = crossingLaneY;
 						}
 						const dNav = Math.hypot(navTargetX - u.x, navTargetY - u.y);
 						if (dNav > 5) {
-							u.x += ((navTargetX - u.x) / dNav) * currentSpeed * dt;
-							u.y += ((navTargetY - u.y) / dNav) * currentSpeed * dt;
+							this.moveUnitTowards(u, navTargetX, navTargetY, currentSpeed, dt, undefined, true);
 						}
 					}
 				} else if (closestBld) {
@@ -676,131 +685,222 @@ export class CombatSystem {
 						const bx = closestBld.x + CELL_SIZE / 2;
 						const by = closestBld.y + CELL_SIZE / 2;
 
-						// If outside enemy base courtyard, navigate through gate first!
+						// If outside enemy base courtyard, navigate across bridge first!
 						let navTargetX = bx;
 						let navTargetY = by;
-						if (u.team === 'west' && u.x < eastGateX) {
-							navTargetX = eastGateX;
-							navTargetY = targetLaneY;
-						} else if (u.team === 'east' && u.x > westGateX) {
-							navTargetX = westGateX;
-							navTargetY = targetLaneY;
+						if (u.team === 'west' && u.x < 3960) {
+							navTargetX = 4000;
+							navTargetY = crossingLaneY;
+						} else if (u.team === 'east' && u.x > 3240) {
+							navTargetX = 3200;
+							navTargetY = crossingLaneY;
 						}
 
 						const d = Math.hypot(navTargetX - u.x, navTargetY - u.y);
 						if (d > 5) {
-							const dirX = (navTargetX - u.x) / d;
-							const dirY = (navTargetY - u.y) / d;
-							u.x += dirX * currentSpeed * dt;
-							u.y += dirY * currentSpeed * dt;
+							this.moveUnitTowards(
+								u,
+								navTargetX,
+								navTargetY,
+								currentSpeed,
+								dt,
+								closestBld.instanceId
+							);
 						}
 					}
 				} else {
 					// March towards Enemy Castle!
 					u.currentTargetId = null;
-					u.targetBuildingId = null;
+					u.targetBuildingId = targetCastle.team === 'west' ? 'castle_west' : 'castle_east';
 					u.state = 'WALKING';
 
 					const isWest = u.team === 'west';
-					const ownGateX = isWest ? westGateX : eastGateX;
-					const inOwnCourtyard = isWest ? u.x < westGateX : u.x > eastGateX;
-					const onHighway = isWest ? u.x < eastGateX : u.x > westGateX;
+					let navX = targetCastle.x;
+					let navY = targetCastle.y;
 
-					if (inOwnCourtyard) {
-						// Detour around solid castle if marching from opposite courtyard corner
-						let wpX = ownGateX;
-						let wpY = targetLaneY;
-						if (isWest && u.x < 360) {
-							if (u.y < 1060 && targetLaneY > 1200) {
-								wpX = 380;
-								wpY = 950;
-							} else if (u.y > 1340 && targetLaneY < 1200) {
-								wpX = 380;
-								wpY = 1450;
-							}
-						} else if (!isWest && u.x > ARENA_WIDTH - 360) {
-							if (u.y < 1060 && targetLaneY > 1200) {
-								wpX = ARENA_WIDTH - 380;
-								wpY = 950;
-							} else if (u.y > 1340 && targetLaneY < 1200) {
-								wpX = ARENA_WIDTH - 380;
-								wpY = 1450;
-							}
+					if (isWest) {
+						if (u.x < 3960) {
+							navX = 4000;
+							navY = crossingLaneY;
 						}
-						const gdx = wpX - u.x;
-						const gdy = wpY - u.y;
-						const gdist = Math.hypot(gdx, gdy);
-						if (gdist > 5) {
-							u.x += (gdx / gdist) * currentSpeed * dt;
-							u.y += (gdy / gdist) * currentSpeed * dt;
-						}
-					} else if (onHighway) {
-						// Step 2: On highway corridor -> march along lane
-						const stepX = (isWest ? 1 : -1) * currentSpeed * dt;
-						let stepY = 0;
-						const laneDistY = u.y - targetLaneY;
-						if (Math.abs(laneDistY) > 35) {
-							stepY =
-								-Math.sign(laneDistY) * Math.min(Math.abs(laneDistY) - 35, currentSpeed * dt * 0.5);
-						}
-						u.x += stepX;
-						u.y += stepY;
 					} else {
-						// Step 3: Inside enemy base courtyard -> steer directly to Castle
-						const dirX = (targetCastle.x - u.x) / (distToCastle + 60);
-						const dirY = (targetCastle.y - u.y) / (distToCastle + 60);
-						u.x += dirX * currentSpeed * dt;
-						u.y += dirY * currentSpeed * dt;
+						if (u.x > 3240) {
+							navX = 3200;
+							navY = crossingLaneY;
+						}
+					}
+
+					const d = Math.hypot(navX - u.x, navY - u.y);
+					if (d > 5) {
+						this.moveUnitTowards(u, navX, navY, currentSpeed, dt, undefined, true);
 					}
 				}
 			}
 
 			// Enforce solid obstacle collision with tangent sliding for ground units
 			if (!u.flying) {
-				const intendedDist = Math.hypot(u.x - u.prevX, u.y - u.prevY);
 				const resolved = this.sim.workerSystem.resolveGroundObstacles(u.x, u.y, u.size);
-				const movedDist = Math.hypot(resolved.x - u.prevX, resolved.y - u.prevY);
-
-				if (intendedDist > 0.5 && movedDist < intendedDist * 0.35) {
-					// Blocked by wall or building: slide along tangent
-					const dirX = (u.x - u.prevX) / intendedDist;
-					const dirY = (u.y - u.prevY) / intendedDist;
-					const perpX = -dirY;
-					const perpY = dirX;
-
-					const s1 = this.sim.workerSystem.resolveGroundObstacles(
-						u.prevX + perpX * currentSpeed * dt,
-						u.prevY + perpY * currentSpeed * dt,
-						u.size
-					);
-					const s2 = this.sim.workerSystem.resolveGroundObstacles(
-						u.prevX - perpX * currentSpeed * dt,
-						u.prevY - perpY * currentSpeed * dt,
-						u.size
-					);
-
-					const d1 = Math.abs(s1.y - targetLaneY);
-					const d2 = Math.abs(s2.y - targetLaneY);
-
-					if (d1 <= d2 && Math.hypot(s1.x - u.prevX, s1.y - u.prevY) > intendedDist * 0.3) {
-						u.x = s1.x;
-						u.y = s1.y;
-					} else if (Math.hypot(s2.x - u.prevX, s2.y - u.prevY) > intendedDist * 0.3) {
-						u.x = s2.x;
-						u.y = s2.y;
-					} else {
-						u.x = resolved.x;
-						u.y = resolved.y;
-					}
-				} else {
-					u.x = resolved.x;
-					u.y = resolved.y;
-				}
+				u.x = resolved.x;
+				u.y = resolved.y;
 			}
 		}
 
 		// Apply Crowd Physics & Boids Separation
 		this.applyCrowdSeparation(dt);
+	}
+
+	private getEffectiveCrossingLane(u: Unit): 'top' | 'mid' | 'bottom' {
+		if (!u.flying && this.sim.brokenBridge && u.lane === this.sim.brokenBridge) {
+			return this.sim.brokenBridge === 'mid' ? 'top' : 'mid';
+		}
+		return u.lane;
+	}
+
+	/**
+	 * Moves a unit towards a target coordinate with intelligent waypoint pathfinding & obstacle avoidance
+	 * for ground units, smoothly navigating around buildings, castles, walls, and decorations without teleporting.
+	 */
+	public moveUnitTowards(
+		u: Unit,
+		targetX: number,
+		targetY: number,
+		speed: number,
+		dt: number,
+		ignoreBuildingId?: string,
+		ignoreCastle?: boolean
+	): void {
+		const dx = targetX - u.x;
+		const dy = targetY - u.y;
+		const dist = Math.hypot(dx, dy);
+		if (dist < 1) return;
+
+		// Flying units soar unimpeded over ground obstacles
+		if (u.flying) {
+			const moveDist = Math.min(dist, speed * dt);
+			u.x += (dx / dist) * moveDist;
+			u.y += (dy / dist) * moveDist;
+			return;
+		}
+
+		// Track movement progress for ground unit stuck detection
+		const lastX = u.lastMoveX ?? u.x;
+		const lastY = u.lastMoveY ?? u.y;
+		const stepMoved = Math.hypot(u.x - lastX, u.y - lastY);
+		u.lastMoveX = u.x;
+		u.lastMoveY = u.y;
+
+		if (stepMoved < speed * dt * 0.15) {
+			const prevStuck = u.stuckTimer || 0;
+			u.stuckTimer = prevStuck + dt;
+			if (prevStuck <= 0.6 && u.stuckTimer > 0.6) {
+				logService.collision('Unit stuck against obstacle', {
+					unit: u.name,
+					unitId: u.instanceId,
+					pos: { x: Math.round(u.x), y: Math.round(u.y) },
+					target: { x: Math.round(targetX), y: Math.round(targetY) }
+				});
+			}
+		} else {
+			u.stuckTimer = 0;
+		}
+
+		// 1. Direct line check: if unobstructed, move straight towards target
+		const lineClear = this.sim.workerSystem.isGroundLineClear(
+			u.x,
+			u.y,
+			targetX,
+			targetY,
+			u.size,
+			ignoreBuildingId,
+			ignoreCastle
+		);
+
+		if (lineClear) {
+			u.path = undefined;
+			const step = Math.min(dist, speed * dt);
+			u.x += (dx / dist) * step;
+			u.y += (dy / dist) * step;
+			return;
+		}
+
+		// 2. Obstacle ahead: utilize A* waypoint pathfinding (same high-quality algorithm as worker)
+		const targetMoved =
+			u.pathTargetX === undefined ||
+			Math.hypot(u.pathTargetX - targetX, (u.pathTargetY ?? 0) - targetY) > 50;
+
+		if (!u.path || u.path.length === 0 || targetMoved || (u.stuckTimer && u.stuckTimer > 0.6)) {
+			u.path = this.sim.workerSystem.findGroundPath(
+				u.team as MatchTeam,
+				u.x,
+				u.y,
+				targetX,
+				targetY,
+				u.size,
+				ignoreBuildingId,
+				ignoreCastle
+			);
+			u.pathTargetX = targetX;
+			u.pathTargetY = targetY;
+			u.stuckTimer = 0;
+			if (u.path.length > 1) {
+				logService.collision('Unit path calculated', {
+					unit: u.name,
+					unitId: u.instanceId,
+					waypoints: u.path.length,
+					start: { x: Math.round(u.x), y: Math.round(u.y) },
+					dest: { x: Math.round(targetX), y: Math.round(targetY) }
+				});
+			}
+		}
+
+		if (u.path && u.path.length > 0) {
+			let curWp = u.path[0];
+			let wpDist = Math.hypot(curWp.x - u.x, curWp.y - u.y);
+
+			while (wpDist < 20 && u.path.length > 0) {
+				u.path.shift();
+				if (u.path.length === 0) break;
+				curWp = u.path[0];
+				wpDist = Math.hypot(curWp.x - u.x, curWp.y - u.y);
+			}
+
+			if (u.path.length === 0) {
+				u.path = undefined;
+			} else if (wpDist > 0.001) {
+				const step = Math.min(wpDist, speed * dt);
+				u.x += ((curWp.x - u.x) / wpDist) * step;
+				u.y += ((curWp.y - u.y) / wpDist) * step;
+				return;
+			}
+		}
+
+		// 3. Fallback smooth raycast avoidance
+		const baseAngle = Math.atan2(dy, dx);
+		const lookAhead = Math.min(dist, Math.max(28, u.size + speed * dt * 6));
+		let moveAngle = baseAngle;
+
+		const testOffsets = [0.45, -0.45, 0.85, -0.85, 1.3, -1.3, 1.75, -1.75];
+		for (const offset of testOffsets) {
+			const candAngle = baseAngle + offset;
+			const cx = u.x + Math.cos(candAngle) * lookAhead;
+			const cy = u.y + Math.sin(candAngle) * lookAhead;
+			if (
+				!this.sim.workerSystem.isPointBlockedForGround(
+					cx,
+					cy,
+					u.size,
+					ignoreBuildingId,
+					ignoreCastle
+				)
+			) {
+				moveAngle = candAngle;
+				break;
+			}
+		}
+
+		const step = Math.min(dist, speed * dt);
+		u.x += Math.cos(moveAngle) * step;
+		u.y += Math.sin(moveAngle) * step;
 	}
 
 	/**
@@ -1059,8 +1159,16 @@ export class CombatSystem {
 				);
 			}
 
-			// Recycler scrap salvage on unit death
+			// Recycler scrap salvage on unit death & drop visible debris
 			if (target.team === 'west' || target.team === 'east') {
+				this.sim.debris.push({
+					id: `deb_${Date.now()}_${Math.random()}`,
+					x: target.x,
+					y: target.y,
+					team: target.team,
+					value: 15,
+					lifeTime: 30.0
+				});
 				const recyclers = this.sim.buildings.filter(
 					(b) => b.team === target.team && b.specialType === 'recycler'
 				);

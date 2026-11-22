@@ -54,7 +54,7 @@ describe('Point 5: Defensive Guard Towers for Each Race', () => {
 	});
 
 	it('successfully builds a tower and never spawns units', () => {
-		const success = sim.build('west', 'h006', 0, 0);
+		const success = sim.build('west', 'h006', 25, 20);
 		expect(success).toBe(true);
 
 		const tower = sim.buildings.find((b) => b.defId === 'h006');
@@ -72,8 +72,8 @@ describe('Point 5: Defensive Guard Towers for Each Race', () => {
 	});
 
 	it('fires projectiles at approaching enemies in range', () => {
-		// Build Human guard tower at (0, 0)
-		sim.build('west', 'h006', 0, 0);
+		// Build Human guard tower at (25, 20)
+		sim.build('west', 'h006', 25, 20);
 		const tower = sim.buildings.find((b) => b.defId === 'h006')!;
 
 		// Spawn an enemy grunt within tower range
@@ -99,7 +99,7 @@ describe('Point 5: Defensive Guard Towers for Each Race', () => {
 	});
 
 	it('Frost Tower slows enemy upon projectile hit', () => {
-		sim.build('west', 'h03Q', 0, 0);
+		sim.build('west', 'h03Q', 25, 20);
 		const frostTower = sim.buildings.find((b) => b.defId === 'h03Q')!;
 
 		const enemy = sim.spawnUnitDirectly({
@@ -123,7 +123,7 @@ describe('Point 5: Defensive Guard Towers for Each Race', () => {
 	});
 
 	it('Plague Tower poisons enemy upon projectile hit', () => {
-		sim.build('west', 'n01J', 0, 0);
+		sim.build('west', 'n01J', 25, 20);
 		const plagueTower = sim.buildings.find((b) => b.defId === 'n01J')!;
 
 		const enemy = sim.spawnUnitDirectly({

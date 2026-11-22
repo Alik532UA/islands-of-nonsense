@@ -1,5 +1,13 @@
 import type { Simulation } from './simulation';
-import { ARENA_WIDTH, ARENA_HEIGHT, TOP_LANE_Y, BOTTOM_LANE_Y } from './constants';
+import {
+	ARENA_WIDTH,
+	ARENA_HEIGHT,
+	TOP_LANE_Y,
+	MID_LANE_Y,
+	BOTTOM_LANE_Y,
+	BRIDGE_SPAN_MIN_X,
+	BRIDGE_SPAN_MAX_X
+} from './constants';
 
 /**
  * Applies hard non-penetration and soft Boids-style separation repulsion between ground units
@@ -32,19 +40,19 @@ export function applyCrowdSeparation(sim: Simulation, dt: number): void {
 			const minPhysicalDist = (u.size + other.size) * 0.95;
 
 			if (dist < minPhysicalDist) {
-				// Instant positional overlap resolution (mobs cannot occupy the exact same spot!)
-				const overlap = minPhysicalDist - dist;
+				// Smooth positional overlap resolution capped to prevent sudden teleports
+				const overlap = Math.min(minPhysicalDist - dist, 10);
 				const nx = dx / dist;
 				const ny = dy / dist;
 
 				let uWeight = 0.5;
 				let otherWeight = 0.5;
 				if (u.state === 'ATTACKING' && other.state === 'WALKING') {
-					uWeight = 0.2;
-					otherWeight = 0.8;
+					uWeight = 0.15;
+					otherWeight = 0.85;
 				} else if (u.state === 'WALKING' && other.state === 'ATTACKING') {
-					uWeight = 0.8;
-					otherWeight = 0.2;
+					uWeight = 0.85;
+					otherWeight = 0.15;
 				}
 
 				u.x += nx * overlap * uWeight;
@@ -54,7 +62,7 @@ export function applyCrowdSeparation(sim: Simulation, dt: number): void {
 			} else if (dist < collisionRadius) {
 				// Soft Boids-style separation to spread the formation across the lane corridor
 				const overlap = (collisionRadius - dist) / collisionRadius;
-				const push = overlap * 60 * dt;
+				const push = Math.min(overlap * 50 * dt, 4);
 				const nx = dx / dist;
 				const ny = dy / dist;
 
@@ -72,14 +80,25 @@ export function applyCrowdSeparation(sim: Simulation, dt: number): void {
 			u.y = resolved.y;
 		}
 
-		// Keep unit bounded within its lane corridor when between castles
-		if (u.x >= 1480 && u.x <= ARENA_WIDTH - 1480) {
-			const laneCenterY = u.lane === 'top' ? TOP_LANE_Y : BOTTOM_LANE_Y;
-			u.y = Math.max(laneCenterY - 80, Math.min(laneCenterY + 80, u.y));
+		// Keep ground units on their respective bridge ONLY when crossing the central ocean channel
+		if (!u.flying && u.team !== 'neutral' && u.x >= BRIDGE_SPAN_MIN_X && u.x <= BRIDGE_SPAN_MAX_X) {
+			const effectiveCrossingLane: 'top' | 'mid' | 'bottom' =
+				sim.brokenBridge && u.lane === sim.brokenBridge
+					? sim.brokenBridge === 'mid'
+						? 'top'
+						: 'mid'
+					: u.lane;
+			const laneCenterY =
+				effectiveCrossingLane === 'top'
+					? TOP_LANE_Y
+					: effectiveCrossingLane === 'mid'
+						? MID_LANE_Y
+						: BOTTOM_LANE_Y;
+			u.y = Math.max(laneCenterY - 65, Math.min(laneCenterY + 65, u.y));
 		} else {
-			// In castle siege zone, allow units to spread around castle
-			u.y = Math.max(100, Math.min(ARENA_HEIGHT - 100, u.y));
+			// On the islands & courtyard, units spread out and navigate towards targets & castle
+			u.y = Math.max(80, Math.min(ARENA_HEIGHT - 80, u.y));
 		}
-		u.x = Math.max(100, Math.min(ARENA_WIDTH - 100, u.x));
+		u.x = Math.max(80, Math.min(ARENA_WIDTH - 80, u.x));
 	}
 }

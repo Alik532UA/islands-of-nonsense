@@ -7,6 +7,7 @@ describe('Castle Fight - Neutral Central Bosses', () => {
 
 	beforeEach(() => {
 		sim = new Simulation({ botDifficulty: 0, startGold: 500 });
+		sim.brokenBridge = null;
 	});
 
 	it('should have 10 configured Warcraft heroes as bosses', () => {

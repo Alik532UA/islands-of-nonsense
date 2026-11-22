@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Simulation, TOP_LANE_Y } from './simulation';
+import { CELL_SIZE } from './constants';
+import type { Unit } from './types';
 
 describe('Point 10: Crowd Physics & Unit Separation (Boids Collision Repulsion)', () => {
 	let sim: Simulation;
@@ -98,8 +100,8 @@ describe('Point 10: Crowd Physics & Unit Separation (Boids Collision Repulsion)'
 	});
 
 	it('should prevent ground units and workers from walking through solid 2x2 buildings', () => {
-		// Build building at (0, 0)
-		sim.build('west', 'h003', 0, 0);
+		// Build building at (25, 20)
+		sim.build('west', 'h003', 25, 20);
 		const b = sim.buildings[0];
 		expect(b).toBeDefined();
 		expect(b.width).toBe(2);
@@ -123,7 +125,7 @@ describe('Point 10: Crowd Physics & Unit Separation (Boids Collision Repulsion)'
 	});
 
 	it('should allow flying units to glide over buildings without obstacle collision', () => {
-		sim.build('west', 'h003', 0, 0);
+		sim.build('west', 'h003', 25, 20);
 		const b = sim.buildings[0];
 
 		// Spawn flying unit right on the building
@@ -145,16 +147,117 @@ describe('Point 10: Crowd Physics & Unit Separation (Boids Collision Repulsion)'
 	});
 
 	it('should reject building on the road or dividing walls via canBuild', () => {
-		// Attempting to build on the road fan-out to castle (tileX = 13, tileY = 30, x = 480, y = 1024)
-		const canBuildOnRoad = sim.canBuild('west', 13, 30);
+		// Attempting to build on the road fan-out to castle (tileX = 73, tileY = 35)
+		const canBuildOnRoad = sim.canBuild('west', 73, 35);
 		expect(canBuildOnRoad).toBe(false);
 
 		// Attempting to build outside base bounds
-		const canBuildOutside = sim.canBuild('west', 50, 0);
+		const canBuildOutside = sim.canBuild('west', 120, 0);
 		expect(canBuildOutside).toBe(false);
 
-		// Valid slot (0, 0) in courtyard must be buildable
-		const canBuildValid = sim.canBuild('west', 0, 0);
+		// Attempting to build in the ocean water (tile 0, 0) must be rejected!
+		const canBuildWater = sim.canBuild('west', 0, 0);
+		expect(canBuildWater).toBe(false);
+
+		// Valid slot (25, 20) in courtyard meadow must be buildable
+		const canBuildValid = sim.canBuild('west', 25, 20);
 		expect(canBuildValid).toBe(true);
+	});
+
+	it('should repel ground units and workers away from natural decorations and block building on them', () => {
+		expect(sim.decorations.length).toBeGreaterThan(0);
+		const decor = sim.decorations[0];
+		expect(decor).toBeDefined();
+
+		// Units must be pushed outside the decoration obstacle radius
+		const resolved = sim.resolveGroundObstacles(decor.x, decor.y, 14);
+		const dist = Math.hypot(resolved.x - decor.x, resolved.y - decor.y);
+		expect(dist).toBeGreaterThanOrEqual(decor.radius + 13.9);
+
+		// Workers must be blocked by decorations
+		const blocked = sim.workerSystem.isPointBlockedForWorker(decor.team, decor.x, decor.y);
+		expect(blocked).toBe(true);
+	});
+
+	it('should steer ground units around obstacles when path is blocked instead of getting stuck', () => {
+		// Spawn a building directly in front of a ground unit
+		const bldX = 1000;
+		const bldY = 600;
+		sim.buildings.push({
+			defId: 'h000',
+			instanceId: 'test_obstacle_bld',
+			name: 'Бараки',
+			team: 'east',
+			tileX: 0,
+			tileY: 0,
+			goldCost: 100,
+			spawnUnitId: 'u000',
+			lane: 'mid',
+			upgradeFrom: null,
+			race: 'Люди',
+			x: bldX,
+			y: bldY,
+			hp: 1000,
+			maxHp: 1000,
+			armor: 2,
+			armorType: 'large',
+			isUnderConstruction: false,
+			spawnTimer: 10,
+			spawnCooldown: 10
+		});
+
+		// Unit placed 50px directly to the west of the building, aiming towards east
+		const unit: Unit = {
+			defId: 'u000',
+			instanceId: 'test_walker',
+			team: 'west',
+			name: 'Мечник',
+			x: bldX - 50,
+			y: bldY + 32, // aiming right at the center of the building
+			prevX: bldX - 50,
+			prevY: bldY + 32,
+			hp: 500,
+			maxHp: 500,
+			size: 14,
+			speed: 250,
+			attackCooldown: 1.2,
+			cooldownTimer: 0,
+			damageMin: 30,
+			damageMax: 35,
+			damageBonusPct: 0,
+			armorBonus: 0,
+			attackType: 'normal',
+			range: 50,
+			armor: 2,
+			armorType: 'medium',
+			state: 'WALKING',
+			lane: 'mid',
+			flying: false,
+			currentTargetId: null,
+			targetX: bldX + 200,
+			targetY: bldY + 32
+		};
+		sim.units.push(unit);
+
+		const targetX = bldX + 200;
+		const targetY = bldY + 32;
+
+		// Move unit forward over several simulation steps
+		for (let step = 0; step < 20; step++) {
+			sim.combatSystem.moveUnitTowards(unit, targetX, targetY, unit.speed, 0.05);
+			const resolved = sim.workerSystem.resolveGroundObstacles(unit.x, unit.y, unit.size);
+			unit.x = resolved.x;
+			unit.y = resolved.y;
+		}
+
+		// Unit must have made significant forward progress towards targetX and steered off y
+		expect(unit.x).toBeGreaterThan(bldX - 50);
+		// Must not be stuck inside building bounding box [bldX, bldX + CELL_SIZE] x [bldY, bldY + CELL_SIZE]
+		const insideBuilding =
+			unit.x >= bldX - 10 &&
+			unit.x <= bldX + CELL_SIZE + 10 &&
+			unit.y >= bldY - 10 &&
+			unit.y <= bldY + CELL_SIZE + 10;
+		expect(insideBuilding).toBe(false);
 	});
 });

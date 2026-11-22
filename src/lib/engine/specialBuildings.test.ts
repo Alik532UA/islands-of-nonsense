@@ -29,8 +29,8 @@ describe('Point 6: Special Non-Spawning Buildings (Treasure Box, Repair, Recycle
 	});
 
 	it('Treasure Box (h008) increases income by +20% per box without spawning units', () => {
-		// Build 1 Treasure Box at (0, 0)
-		const success = sim.build('west', 'h008', 0, 0);
+		// Build 1 Treasure Box at (25, 20)
+		const success = sim.build('west', 'h008', 25, 20);
 		expect(success).toBe(true);
 
 		const box = sim.buildings.find((b) => b.defId === 'h008');
@@ -52,9 +52,9 @@ describe('Point 6: Special Non-Spawning Buildings (Treasure Box, Repair, Recycle
 		sim.step(0.05); // triggers income
 		const goldGainedWith1Box = sim.players.west.gold - goldBefore;
 
-		// Build a second Treasure Box at (2, 0)
+		// Build a second Treasure Box at (25, 24)
 		sim.players.west.gold = 2000;
-		sim.build('west', 'h008', 2, 0);
+		sim.build('west', 'h008', 25, 24);
 
 		sim.incomeTimer = 0.05;
 		const goldBefore2 = sim.players.west.gold;
@@ -69,7 +69,7 @@ describe('Point 6: Special Non-Spawning Buildings (Treasure Box, Repair, Recycle
 		const westCastle = sim.castles.west;
 		westCastle.hp = 10000;
 
-		const success = sim.build('west', 'cg09_repair', 0, 1);
+		const success = sim.build('west', 'cg09_repair', 25, 20);
 		expect(success).toBe(true);
 		// Mark constructed to test repair mechanism in isolation
 		sim.buildings[0].isUnderConstruction = false;
@@ -89,7 +89,7 @@ describe('Point 6: Special Non-Spawning Buildings (Treasure Box, Repair, Recycle
 	});
 
 	it('Recycler (cg07_recycler) awards scrap gold whenever a friendly unit dies', () => {
-		const success = sim.build('west', 'cg07_recycler', 0, 2);
+		const success = sim.build('west', 'cg07_recycler', 25, 20);
 		expect(success).toBe(true);
 
 		sim.players.west.gold = 100;

@@ -124,8 +124,8 @@ describe('Point 1: Castle Shop & Complete Consumables Roster', () => {
 		const enemy = sim.spawnUnitDirectly({
 			team: 'east',
 			lane: 'top',
-			x: 350,
-			y: 220,
+			x: sim.castles.west.x + 300,
+			y: sim.castles.west.y,
 			hp: 1000
 		});
 
@@ -168,16 +168,16 @@ describe('Point 1: Castle Shop & Complete Consumables Roster', () => {
 		const enemy = sim.spawnUnitDirectly({
 			team: 'east',
 			lane: 'bottom',
-			x: 200,
-			y: 400,
+			x: sim.castles.west.x + 200,
+			y: sim.castles.west.y + 100,
 			hp: 1000
 		});
 
 		const distantEnemy = sim.spawnUnitDirectly({
 			team: 'east',
 			lane: 'bottom',
-			x: 2200,
-			y: 400,
+			x: sim.castles.west.x + 2200,
+			y: sim.castles.west.y,
 			hp: 1000
 		});
 
@@ -194,29 +194,32 @@ describe('Point 1: Castle Shop & Complete Consumables Roster', () => {
 		const westCastle = sim.castles.west;
 		const initialHp = westCastle.hp;
 
-		sim.spawnUnitDirectly({
+		const enemy = sim.spawnUnitDirectly({
 			team: 'east',
-			lane: 'top',
-			x: westCastle.x + 30,
+			lane: 'mid',
+			x: westCastle.x + 150,
 			y: westCastle.y,
 			hp: 2000,
 			damage: 300,
-			range: 80,
+			range: 100,
 			attackCooldown: 0.1
 		});
 
 		sim.buyCastleItem('west', 'I00F');
 		expect(sim.castleInvulnerableTimer.west).toBe(6.0);
 
-		for (let i = 0; i < 40; i++) {
-			sim.step(0.05);
-		}
+		// Attack while under invulnerability dome deals no damage
+		sim.combatSystem.defenseSystem.attackCastle(enemy, westCastle);
 		expect(westCastle.hp).toBe(initialHp);
 
-		for (let i = 0; i < 100; i++) {
+		// Advance simulation by 7s (140 ticks) so invulnerability timer expires
+		for (let i = 0; i < 140; i++) {
 			sim.step(0.05);
 		}
 		expect(sim.castleInvulnerableTimer.west).toBe(0);
+
+		// Attack after dome wears off successfully damages castle
+		sim.combatSystem.defenseSystem.attackCastle(enemy, westCastle);
 		expect(westCastle.hp).toBeLessThan(initialHp);
 	});
 

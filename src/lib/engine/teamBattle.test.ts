@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Simulation } from './simulation';
 import { WC3_PLAYER_COLORS } from './types';
-import { ARENA_WIDTH } from './constants';
 
 describe('Point 9: Authentic WC3 Team Battle (2v2 and 3v3)', () => {
 	it('should correctly configure 2v2 match with 4 distinct players and authentic WC3 slots', () => {
@@ -26,7 +25,7 @@ describe('Point 9: Authentic WC3 Team Battle (2v2 and 3v3)', () => {
 		expect(p1.isBot).toBe(false);
 		expect(p1.color.num).toBe(WC3_PLAYER_COLORS[0].num);
 		expect(p1.worker).toBeDefined();
-		expect(p1.worker?.x).toBe(450);
+		expect(p1.worker?.x).toBe(sim.castles.west.x + 160);
 		expect(p1.worker?.y).toBe(1200);
 
 		// East Slot 2 (Blue, Bot 1)
@@ -37,7 +36,7 @@ describe('Point 9: Authentic WC3 Team Battle (2v2 and 3v3)', () => {
 		expect(p2.isBot).toBe(true);
 		expect(p2.color.num).toBe(WC3_PLAYER_COLORS[1].num);
 		expect(p2.worker).toBeDefined();
-		expect(p2.worker?.x).toBe(ARENA_WIDTH - 450);
+		expect(p2.worker?.x).toBe(sim.castles.east.x - 160);
 		expect(p2.worker?.y).toBe(1200);
 
 		// West Slot 3 (Teal, Bot Ally 1)
@@ -48,7 +47,7 @@ describe('Point 9: Authentic WC3 Team Battle (2v2 and 3v3)', () => {
 		expect(p3.isBot).toBe(true);
 		expect(p3.color.num).toBe(WC3_PLAYER_COLORS[2].num);
 		expect(p3.worker).toBeDefined();
-		expect(p3.worker?.x).toBe(450);
+		expect(p3.worker?.x).toBe(sim.castles.west.x + 160);
 		expect(p3.worker?.y).toBe(700);
 
 		// East Slot 4 (Purple, Enemy Bot 2)
@@ -59,7 +58,7 @@ describe('Point 9: Authentic WC3 Team Battle (2v2 and 3v3)', () => {
 		expect(p4.isBot).toBe(true);
 		expect(p4.color.num).toBe(WC3_PLAYER_COLORS[3].num);
 		expect(p4.worker).toBeDefined();
-		expect(p4.worker?.x).toBe(ARENA_WIDTH - 450);
+		expect(p4.worker?.x).toBe(sim.castles.east.x - 160);
 		expect(p4.worker?.y).toBe(700);
 
 		// Check bots instantiated for bot players
@@ -127,13 +126,13 @@ describe('Point 9: Authentic WC3 Team Battle (2v2 and 3v3)', () => {
 		const p3 = sim.teamMembers.west[1];
 
 		// P1 builds a structure
-		sim.build('west', 'h003', 0, 0, 'top', p1);
+		sim.build('west', 'h003', 25, 20, 'top', p1);
 		expect(sim.buildings.length).toBe(1);
 		expect(sim.buildings[0].playerId).toBe('p1');
 		expect(sim.buildings[0].playerSlot).toBe(1);
 
 		// P3 builds a structure
-		sim.build('west', 'h003', 4, 4, 'top', p3);
+		sim.build('west', 'h003', 25, 24, 'top', p3);
 		expect(sim.buildings.length).toBe(2);
 		expect(sim.buildings[1].playerId).toBe('p3');
 		expect(sim.buildings[1].playerSlot).toBe(3);
@@ -159,7 +158,7 @@ describe('Point 9: Authentic WC3 Team Battle (2v2 and 3v3)', () => {
 		});
 
 		const p3 = sim.teamMembers.west[1]; // West Bot Ally
-		sim.build('west', 'h003', 2, 2, 'top', p3);
+		sim.build('west', 'h003', 25, 20, 'top', p3);
 		const bld = sim.buildings[0];
 		bld.isUnderConstruction = false;
 
@@ -212,7 +211,7 @@ describe('Point 9: Authentic WC3 Team Battle (2v2 and 3v3)', () => {
 		const initialGold = p3.gold;
 
 		// Spawn coin near p3 worker
-		const _coin = sim.economySystem.spawnCoinDirectly('top', 450, 710, 50);
+		const _coin = sim.economySystem.spawnCoinDirectly('top', p3.worker!.x, p3.worker!.y + 10, 50);
 		expect(sim.goldCoins.length).toBe(1);
 
 		// Step simulation so worker collects coin
@@ -241,7 +240,7 @@ describe('Point 9: Authentic WC3 Team Battle (2v2 and 3v3)', () => {
 
 		expect(p3.gold).toBe(500);
 		expect(p3.lumber).toBe(125);
-		expect(p3.worker?.x).toBe(450);
+		expect(p3.worker?.x).toBe(sim.castles.west.x + 160);
 		expect(p3.worker?.y).toBe(700);
 	});
 });

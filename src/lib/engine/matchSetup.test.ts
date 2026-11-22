@@ -94,4 +94,43 @@ describe('Point 7: Start Match Setup & Configuration', () => {
 		expect(sim.winner).toBe('west');
 		expect(sim.matchWinner).toBe('west');
 	});
+
+	it('supports botVsBot mode without human player where both teams are controlled by BotAI', () => {
+		const sim = new Simulation({
+			botDifficulty: 15,
+			startGold: 500,
+			botVsBot: true
+		});
+
+		expect(sim.players.west.isBot).toBe(true);
+		expect(sim.players.east.isBot).toBe(true);
+		expect(sim.players.west.name).toBe('Бот (Захід)');
+
+		// Both West and East bots must be registered in sim.bots
+		const westBot = sim.bots.find((b) => b.getTeam() === 'west');
+		const eastBot = sim.bots.find((b) => b.getTeam() === 'east');
+
+		expect(westBot).toBeDefined();
+		expect(eastBot).toBeDefined();
+		expect(sim.bots.length).toBeGreaterThanOrEqual(2);
+
+		// Step simulation with updateBots
+		for (let s = 0; s < 10; s++) {
+			sim.step(0.1);
+			sim.updateBots(0.1);
+		}
+
+		// West bot should have been able to operate its worker / economy
+		expect(sim.players.west.worker).toBeDefined();
+	});
+
+	it('persists and retrieves skip_start_modal debug preference in safe storage', () => {
+		expect(storage.getJSON<boolean>('skip_start_modal', false)).toBe(false);
+
+		storage.setJSON('skip_start_modal', true);
+		expect(storage.getJSON<boolean>('skip_start_modal', false)).toBe(true);
+
+		storage.setJSON('skip_start_modal', false);
+		expect(storage.getJSON<boolean>('skip_start_modal', false)).toBe(false);
+	});
 });
