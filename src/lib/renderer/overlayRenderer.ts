@@ -278,19 +278,26 @@ export class OverlayRenderer {
 		}
 	}
 
-	public drawDayNight(g: Graphics, cycle: 'day' | 'night'): void {
+	public drawDayNight(g: Graphics, _cycle?: 'day' | 'night'): void {
 		g.clear();
-		if (cycle === 'night') {
-			// Midnight blue atmospheric ambient tint
-			g.rect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
-			g.fill({ color: 0x0f172a, alpha: 0.22 });
+		const alpha = this.sim.dayNightAmbientAlpha;
+		if (alpha <= 0.005) return;
 
-			// Warm castle lantern glows
-			g.circle(this.sim.castles.west.x, this.sim.castles.west.y, 350);
-			g.fill({ color: 0xfbbf24, alpha: 0.08 });
+		const phase = this.sim.dayNightPhase;
+		// Atmospheric ambient color:
+		// During dusk/dawn: rich twilight tone (indigo-violet)
+		// During night: deep midnight slate (0x0f172a)
+		const ambientColor = phase === 'dusk' ? 0x1e1b4b : phase === 'dawn' ? 0x2e1065 : 0x0f172a;
 
-			g.circle(this.sim.castles.east.x, this.sim.castles.east.y, 350);
-			g.fill({ color: 0xfbbf24, alpha: 0.08 });
-		}
+		g.rect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
+		g.fill({ color: ambientColor, alpha });
+
+		// Warm castle lantern glows that smoothly illuminate during dusk and night
+		const lanternAlpha = Math.min(0.14, alpha * 0.5);
+		g.circle(this.sim.castles.west.x, this.sim.castles.west.y, 380);
+		g.fill({ color: 0xfbbf24, alpha: lanternAlpha });
+
+		g.circle(this.sim.castles.east.x, this.sim.castles.east.y, 380);
+		g.fill({ color: 0xfbbf24, alpha: lanternAlpha });
 	}
 }

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Simulation } from '../engine/simulation';
-	import { Trophy, Skull, RotateCcw, Award, Crown } from 'lucide-svelte';
+	import { Trophy, Skull, RotateCcw, Award, Crown, Pause, Play, Clock } from 'lucide-svelte';
 
 	let {
 		sim,
@@ -15,6 +15,31 @@
 	let statsWest = $derived(sim.players.west.stats);
 	let statsEast = $derived(sim.players.east.stats);
 	let westMvp = $derived(sim.getMvpBuilding('west'));
+
+	let countdown = $state(10);
+	let isPaused = $state(false);
+
+	$effect(() => {
+		if (!sim.winner) {
+			countdown = 10;
+			isPaused = false;
+			return;
+		}
+
+		if (isPaused) return;
+
+		const timer = setInterval(() => {
+			if (countdown > 1) {
+				countdown--;
+			} else {
+				countdown = 0;
+				clearInterval(timer);
+				onNextRound();
+			}
+		}, 1000);
+
+		return () => clearInterval(timer);
+	});
 </script>
 
 {#if sim.winner}
@@ -177,6 +202,48 @@
 				</div>
 			</div>
 
+			<!-- Countdown Timer & Auto-Restart Notice -->
+			<div class="mb-4 bg-slate-950/60 border border-slate-800 rounded-xl p-2.5 text-xs">
+				<div class="flex items-center justify-between mb-1.5 text-slate-300">
+					<div class="flex items-center gap-1.5">
+						<Clock class="w-3.5 h-3.5 text-amber-400" />
+						{#if isPaused}
+							<span class="text-amber-400 font-bold">Таймер на паузі</span>
+						{:else}
+							<span>
+								Автостарт {isMatchOver ? 'нового матчу' : 'наступного раунду'}:
+								<span class="font-mono font-bold text-white text-sm">{countdown}с</span>
+							</span>
+						{/if}
+					</div>
+
+					<button
+						type="button"
+						onclick={() => (isPaused = !isPaused)}
+						class="text-[10px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition flex items-center gap-1 cursor-pointer"
+						title={isPaused ? 'Відновити зворотний відлік' : 'Призупинити зворотний відлік'}
+					>
+						{#if isPaused}
+							<Play class="w-2.5 h-2.5 text-emerald-400" />
+							<span>Відновити</span>
+						{:else}
+							<Pause class="w-2.5 h-2.5 text-amber-400" />
+							<span>Пауза</span>
+						{/if}
+					</button>
+				</div>
+
+				<!-- Smooth visual countdown bar -->
+				<div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+					<div
+						class="h-full transition-all duration-1000 ease-linear rounded-full {isWestWin
+							? 'bg-amber-400'
+							: 'bg-red-500'}"
+						style="width: {(countdown / 10) * 100}%"
+					></div>
+				</div>
+			</div>
+
 			<!-- Action Button -->
 			<button
 				onclick={onNextRound}
@@ -190,9 +257,9 @@
 			>
 				<RotateCcw class="w-4 h-4" />
 				{#if isMatchOver}
-					Розпочати новий матч
+					Розпочати новий матч {!isPaused ? `(${countdown}с)` : ''}
 				{:else}
-					Розпочати раунд {sim.round + 1}
+					Розпочати раунд {sim.round + 1} {!isPaused ? `(${countdown}с)` : ''}
 				{/if}
 			</button>
 		</div>

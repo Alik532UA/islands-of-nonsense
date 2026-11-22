@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { BotAI } from './botAI';
 import { Simulation } from './simulation';
-import { UNITS_MAP } from './gameData';
+import { UNITS_MAP, getBaseBuildingsForRace } from './gameData';
+import { EAST_GRID_START_X, WEST_GRID_START_X } from './constants';
 import type { BuildingDefinition, UnitDefinition } from './types';
 
 describe('Point 8: Tactical Counter-Pick Bot AI', () => {
@@ -217,5 +218,160 @@ describe('Point 8: Tactical Counter-Pick Bot AI', () => {
 		expect(
 			worker.isRepairing || worker.targetRepairBuildingId || worker.targetX > 6800
 		).toBeTruthy();
+	});
+
+	it('should prioritize building placement behind castle away from enemy base (99% probability)', () => {
+		const emptyScan = {
+			flyingCount: 0,
+			heavyCount: 0,
+			lightCount: 0,
+			fortCount: 0,
+			mediumCount: 0,
+			totalCount: 0,
+			topPressure: 0,
+			bottomPressure: 0
+		};
+
+		// Test East bot: behind castle means worldX > 5600 (towards outer eastern edge)
+		let eastBehindCount = 0;
+		const totalEastTrials = 40;
+		for (let i = 0; i < totalEastTrials; i++) {
+			const slot = botAI.findBestPlacementSlot(emptyScan, []);
+			expect(slot).toBeDefined();
+			if (!slot) continue;
+			// EAST_GRID_START_X + slot.x * 32
+			const worldX = EAST_GRID_START_X + slot.x * 32;
+			if (worldX > 5600) {
+				eastBehindCount++;
+			}
+		}
+		expect(eastBehindCount / totalEastTrials).toBeGreaterThanOrEqual(0.9);
+
+		// Test West bot: behind castle means worldX < 1600 (towards outer western edge)
+		const westBot = new BotAI(sim, 'west');
+		let westBehindCount = 0;
+		const totalWestTrials = 40;
+		for (let i = 0; i < totalWestTrials; i++) {
+			const slot = westBot.findBestPlacementSlot(emptyScan, []);
+			expect(slot).toBeDefined();
+			if (!slot) continue;
+			// WEST_GRID_START_X + slot.x * 32
+			const worldX = WEST_GRID_START_X + slot.x * 32;
+			if (worldX < 1600) {
+				westBehindCount++;
+			}
+		}
+		expect(westBehindCount / totalWestTrials).toBeGreaterThanOrEqual(0.9);
+	});
+
+	it('should prioritize 1-tile gap (>= 32px) from existing buildings with high probability', () => {
+		const emptyScan = {
+			flyingCount: 0,
+			heavyCount: 0,
+			lightCount: 0,
+			fortCount: 0,
+			mediumCount: 0,
+			totalCount: 0,
+			topPressure: 0,
+			bottomPressure: 0
+		};
+
+		// Place an initial building behind East castle
+		sim.players.east.race = 'Люди';
+		sim.players.east.gold = 1000;
+		const bldDefId = getBaseBuildingsForRace('Люди')[0].id;
+		const initialSlot = botAI.findBestPlacementSlot(emptyScan, []);
+		expect(initialSlot).toBeDefined();
+		if (!initialSlot) return;
+
+		sim.build('east', bldDefId, initialSlot.x, initialSlot.y, 'top');
+		const existingBuildings = sim.buildings.filter((b) => b.team === 'east');
+		expect(existingBuildings.length).toBe(1);
+
+		let gapCount = 0;
+		const trials = 30;
+		for (let i = 0; i < trials; i++) {
+			const slot = botAI.findBestPlacementSlot(emptyScan, existingBuildings);
+			expect(slot).toBeDefined();
+			if (!slot) continue;
+
+			const worldX = EAST_GRID_START_X + slot.x * 32;
+			const worldY = 64 + slot.y * 32;
+
+			let hasGap = true;
+			for (const b of existingBuildings) {
+				const gapX = Math.max(0, Math.max(worldX, b.x) - Math.min(worldX + 64, b.x + 64));
+				const gapY = Math.max(0, Math.max(worldY, b.y) - Math.min(worldY + 64, b.y + 64));
+				if (gapX < 32 && gapY < 32) {
+					hasGap = false;
+					break;
+				}
+			}
+			if (hasGap) gapCount++;
+		}
+
+		// At least 80% should maintain a 1-tile gap
+		expect(gapCount / trials).toBeGreaterThanOrEqual(0.8);
+	});
+
+	it('should prioritize 1-tile gap (>= 32px) from ally buildings as well as own buildings', () => {
+		const emptyScan = {
+			flyingCount: 0,
+			heavyCount: 0,
+			lightCount: 0,
+			fortCount: 0,
+			mediumCount: 0,
+			totalCount: 0,
+			topPressure: 0,
+			bottomPressure: 0
+		};
+
+		// Simulate an ally building on the same team ('east') but belonging to a different player ('ally_bot_2')
+		sim.players.east.race = 'Люди';
+		sim.players.east.gold = 1000;
+		const bldDefId = getBaseBuildingsForRace('Люди')[0].id;
+		const initialSlot = botAI.findBestPlacementSlot(emptyScan, []);
+		expect(initialSlot).toBeDefined();
+		if (!initialSlot) return;
+
+		// Build building attributed to ally
+		const allyPlayer = {
+			...sim.players.east,
+			id: 'ally_bot_2',
+			name: 'Ally Bot'
+		};
+		sim.build('east', bldDefId, initialSlot.x, initialSlot.y, 'top', allyPlayer);
+
+		const allyBuilding = sim.buildings.find((b) => b.team === 'east');
+		expect(allyBuilding).toBeDefined();
+		if (!allyBuilding) return;
+		expect(allyBuilding.playerId).toBe('ally_bot_2');
+
+		// Now East Bot (whose player id is 'east_bot' or 'east') decides a placement slot.
+		// It MUST account for the ally's building and maintain >= 32px clearance in >= 80% of trials
+		let gapCount = 0;
+		const trials = 30;
+		for (let i = 0; i < trials; i++) {
+			const teamBuildings = sim.buildings.filter((b) => b.team === 'east');
+			const slot = botAI.findBestPlacementSlot(emptyScan, teamBuildings);
+			expect(slot).toBeDefined();
+			if (!slot) continue;
+
+			const worldX = EAST_GRID_START_X + slot.x * 32;
+			const worldY = 64 + slot.y * 32;
+
+			let hasGap = true;
+			for (const b of teamBuildings) {
+				const gapX = Math.max(0, Math.max(worldX, b.x) - Math.min(worldX + 64, b.x + 64));
+				const gapY = Math.max(0, Math.max(worldY, b.y) - Math.min(worldY + 64, b.y + 64));
+				if (gapX < 32 && gapY < 32) {
+					hasGap = false;
+					break;
+				}
+			}
+			if (hasGap) gapCount++;
+		}
+
+		expect(gapCount / trials).toBeGreaterThanOrEqual(0.8);
 	});
 });

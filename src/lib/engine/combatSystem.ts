@@ -1,5 +1,13 @@
 import type { Simulation } from './simulation';
-import { ARENA_WIDTH, TOP_LANE_Y, MID_LANE_Y, BOTTOM_LANE_Y, CELL_SIZE } from './constants';
+import {
+	ARENA_WIDTH,
+	TOP_LANE_Y,
+	MID_LANE_Y,
+	BOTTOM_LANE_Y,
+	CELL_SIZE,
+	BRIDGE_SPAN_MIN_X,
+	BRIDGE_SPAN_MAX_X
+} from './constants';
 import type { Unit, Building, Castle, MatchTeam, Team, Lane, AttackType } from './types';
 import { calculateDamage, getDamageMultiplier } from './damageMatrix';
 import { DefenseSystem } from './defenseSystem';
@@ -525,10 +533,15 @@ export class CombatSystem {
 
 				if (isAcrossRiver && bridgeBroken) {
 					// Cannot cross broken bridge in straight line: detour across intact bridge first!
-					const crossingX = u.team === 'west' ? 4000 : 3200;
+					const navTarget = this.getStrategicNavTarget(
+						u,
+						enemyTarget.x,
+						enemyTarget.y,
+						crossingLaneY
+					);
 					u.state = 'WALKING';
 					u.currentTargetId = enemyTarget.instanceId;
-					this.moveUnitTowards(u, crossingX, crossingLaneY, currentSpeed, dt);
+					this.moveUnitTowards(u, navTarget.x, navTarget.y, currentSpeed, dt);
 				} else {
 					const dx = enemyTarget.x - u.x;
 					const dy = enemyTarget.y - u.y;
@@ -645,19 +658,16 @@ export class CombatSystem {
 						u.currentTargetId = null;
 						u.targetBuildingId = targetCastle.team === 'west' ? 'castle_west' : 'castle_east';
 
-						// If not yet across bridges into enemy island, navigate along lane and across bridge!
-						let navTargetX = targetCastle.x;
-						let navTargetY = targetCastle.y;
-						if (u.team === 'west' && u.x < 3960) {
-							navTargetX = 4000;
-							navTargetY = crossingLaneY;
-						} else if (u.team === 'east' && u.x > 3240) {
-							navTargetX = 3200;
-							navTargetY = crossingLaneY;
-						}
-						const dNav = Math.hypot(navTargetX - u.x, navTargetY - u.y);
+						// Strategic stage-based navigation across bridges without snapping
+						const navTarget = this.getStrategicNavTarget(
+							u,
+							targetCastle.x,
+							targetCastle.y,
+							crossingLaneY
+						);
+						const dNav = Math.hypot(navTarget.x - u.x, navTarget.y - u.y);
 						if (dNav > 5) {
-							this.moveUnitTowards(u, navTargetX, navTargetY, currentSpeed, dt, undefined, true);
+							this.moveUnitTowards(u, navTarget.x, navTarget.y, currentSpeed, dt, undefined, true);
 						}
 					}
 				} else if (closestBld) {
@@ -685,23 +695,15 @@ export class CombatSystem {
 						const bx = closestBld.x + CELL_SIZE / 2;
 						const by = closestBld.y + CELL_SIZE / 2;
 
-						// If outside enemy base courtyard, navigate across bridge first!
-						let navTargetX = bx;
-						let navTargetY = by;
-						if (u.team === 'west' && u.x < 3960) {
-							navTargetX = 4000;
-							navTargetY = crossingLaneY;
-						} else if (u.team === 'east' && u.x > 3240) {
-							navTargetX = 3200;
-							navTargetY = crossingLaneY;
-						}
+						// Strategic stage-based navigation towards bridge and building
+						const navTarget = this.getStrategicNavTarget(u, bx, by, crossingLaneY);
 
-						const d = Math.hypot(navTargetX - u.x, navTargetY - u.y);
+						const d = Math.hypot(navTarget.x - u.x, navTarget.y - u.y);
 						if (d > 5) {
 							this.moveUnitTowards(
 								u,
-								navTargetX,
-								navTargetY,
+								navTarget.x,
+								navTarget.y,
 								currentSpeed,
 								dt,
 								closestBld.instanceId
@@ -714,25 +716,16 @@ export class CombatSystem {
 					u.targetBuildingId = targetCastle.team === 'west' ? 'castle_west' : 'castle_east';
 					u.state = 'WALKING';
 
-					const isWest = u.team === 'west';
-					let navX = targetCastle.x;
-					let navY = targetCastle.y;
+					const navTarget = this.getStrategicNavTarget(
+						u,
+						targetCastle.x,
+						targetCastle.y,
+						crossingLaneY
+					);
 
-					if (isWest) {
-						if (u.x < 3960) {
-							navX = 4000;
-							navY = crossingLaneY;
-						}
-					} else {
-						if (u.x > 3240) {
-							navX = 3200;
-							navY = crossingLaneY;
-						}
-					}
-
-					const d = Math.hypot(navX - u.x, navY - u.y);
+					const d = Math.hypot(navTarget.x - u.x, navTarget.y - u.y);
 					if (d > 5) {
-						this.moveUnitTowards(u, navX, navY, currentSpeed, dt, undefined, true);
+						this.moveUnitTowards(u, navTarget.x, navTarget.y, currentSpeed, dt, undefined, true);
 					}
 				}
 			}
@@ -754,6 +747,66 @@ export class CombatSystem {
 			return this.sim.brokenBridge === 'mid' ? 'top' : 'mid';
 		}
 		return u.lane;
+	}
+
+	/**
+	 * Computes intelligent advance strategic waypoints for units approaching and crossing bridges.
+	 * Units merge onto the highway and align to lane center well before reaching the bridge,
+	 * ensuring perfectly smooth transitions without any abrupt snapping or teleportation.
+	 */
+	public getStrategicNavTarget(
+		u: Unit,
+		finalTargetX: number,
+		finalTargetY: number,
+		crossingLaneY: number
+	): { x: number; y: number } {
+		if (u.flying) {
+			const laneY = u.lane === 'top' ? TOP_LANE_Y : u.lane === 'mid' ? MID_LANE_Y : BOTTOM_LANE_Y;
+			if (u.team === 'west') {
+				if (u.x < BRIDGE_SPAN_MAX_X + 20) {
+					return { x: BRIDGE_SPAN_MAX_X + 40, y: laneY };
+				}
+			} else {
+				if (u.x > BRIDGE_SPAN_MIN_X - 20) {
+					return { x: BRIDGE_SPAN_MIN_X - 40, y: laneY };
+				}
+			}
+			return { x: finalTargetX, y: finalTargetY };
+		}
+
+		const isWest = u.team === 'west';
+		if (isWest) {
+			// 1. Stage A: Castle courtyard to Highway merge zone
+			if (u.x < 2400) {
+				return { x: 2500, y: crossingLaneY };
+			}
+			// 2. Stage B: Pre-bridge approach highway (straight run into bridge mouth)
+			if (u.x < BRIDGE_SPAN_MIN_X - 10) {
+				return { x: BRIDGE_SPAN_MIN_X - 5, y: crossingLaneY };
+			}
+			// 3. Stage C: On the bridge spanning the central ocean channel
+			if (u.x <= BRIDGE_SPAN_MAX_X + 25) {
+				return { x: BRIDGE_SPAN_MAX_X + 45, y: crossingLaneY };
+			}
+			// 4. Stage D: Across bridge on East island - march towards final objective
+			return { x: finalTargetX, y: finalTargetY };
+		} else {
+			// East team unit moving west towards West island
+			// 1. Stage A: East courtyard to Highway merge zone
+			if (u.x > 4800) {
+				return { x: 4700, y: crossingLaneY };
+			}
+			// 2. Stage B: Pre-bridge approach highway
+			if (u.x > BRIDGE_SPAN_MAX_X + 10) {
+				return { x: BRIDGE_SPAN_MAX_X + 5, y: crossingLaneY };
+			}
+			// 3. Stage C: On the bridge
+			if (u.x >= BRIDGE_SPAN_MIN_X - 25) {
+				return { x: BRIDGE_SPAN_MIN_X - 45, y: crossingLaneY };
+			}
+			// 4. Stage D: Across bridge on West island
+			return { x: finalTargetX, y: finalTargetY };
+		}
 	}
 
 	/**

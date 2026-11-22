@@ -298,4 +298,57 @@ describe('Mob Castle Assault & Obstacle Navigation without Teleportation', () =>
 		const inChasm = resolved.x >= 3380 && resolved.x <= 3820 && Math.abs(resolved.y - 1740) <= 80;
 		expect(inChasm).toBe(false);
 	});
+
+	it('units approaching the bridge move continuously without teleportation or snapping onto the bridge deck', () => {
+		const sim = new Simulation({ botDifficulty: 0, startGold: 500 });
+		sim.brokenBridge = null;
+
+		const unit: Unit = {
+			defId: 'u_smooth',
+			instanceId: 'smooth_walker',
+			team: 'west',
+			name: 'Вартовий',
+			x: 3000,
+			y: TOP_LANE_Y + 40,
+			prevX: 3000,
+			prevY: TOP_LANE_Y + 40,
+			hp: 400,
+			maxHp: 400,
+			size: 16,
+			speed: 200,
+			attackCooldown: 1.0,
+			cooldownTimer: 0,
+			damageMin: 20,
+			damageMax: 25,
+			damageBonusPct: 0,
+			armorBonus: 0,
+			attackType: 'normal',
+			range: 90,
+			armor: 2,
+			armorType: 'medium' as ArmorType,
+			state: 'WALKING',
+			lane: 'top',
+			flying: false,
+			currentTargetId: null,
+			targetX: 4000,
+			targetY: TOP_LANE_Y
+		};
+		sim.units.push(unit);
+
+		let maxStepDistance = 0;
+		for (let s = 0; s < 50; s++) {
+			const px = unit.x;
+			const py = unit.y;
+			sim.step(0.05);
+			const stepDist = Math.hypot(unit.x - px, unit.y - py);
+			if (stepDist > maxStepDistance) maxStepDistance = stepDist;
+		}
+
+		// Unit should have advanced across the bridge entrance (~3240)
+		expect(unit.x).toBeGreaterThan(3240);
+		// Movement must be smooth and continuous: maximum single step cannot exceed normal travel speed (200 * 0.05 = 10 px)
+		expect(maxStepDistance).toBeLessThanOrEqual(25);
+		// Unit is safely on the bridge
+		expect(Math.abs(unit.y - TOP_LANE_Y)).toBeLessThanOrEqual(62);
+	});
 });

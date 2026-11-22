@@ -1,5 +1,15 @@
 import type { Simulation } from './simulation';
-import { ARENA_WIDTH } from './constants';
+import {
+	ARENA_WIDTH,
+	WEST_GRID_START_X,
+	WEST_GRID_START_Y,
+	EAST_GRID_START_X,
+	EAST_GRID_START_Y,
+	WEST_CASTLE_X,
+	EAST_CASTLE_X,
+	GRID_STEP,
+	CELL_SIZE
+} from './constants';
 import type { MatchTeam, Building, BuildingDefinition, Lane, PlayerState } from './types';
 import {
 	getBaseBuildingsForRace,
@@ -374,19 +384,7 @@ export class BotAI {
 			return;
 		}
 
-		// 6. Building placement decision across base platform:
-		const freeSlots: { x: number; y: number }[] = [];
-		for (let x = 0; x <= 96; x += 2) {
-			for (let y = 0; y <= 70; y += 2) {
-				if (this.sim.canBuild(this.team, x, y)) {
-					freeSlots.push({ x, y });
-				}
-			}
-		}
-
-		if (freeSlots.length === 0) return;
-
-		// Candidate buildings pool
+		// 6. Building candidate selection
 		const baseBuildings = getBaseBuildingsForRace(player.race);
 		let candidateList: BuildingDefinition[] = [...baseBuildings];
 
@@ -439,32 +437,129 @@ export class BotAI {
 		scoredCandidates.sort((a, b) => b.score - a.score);
 		const chosenBuilding = scoredCandidates[0].building;
 
-		// Tactical lane selection based on lane pressure & balance across 60-row arena grid
-		const midTileY = 30;
-		let preferredSlots: { x: number; y: number }[] = [];
-		if (scan.topPressure > scan.bottomPressure + 300) {
-			preferredSlots = freeSlots.filter((s) => s.y < midTileY);
-		} else if (scan.bottomPressure > scan.topPressure + 300) {
-			preferredSlots = freeSlots.filter((s) => s.y >= midTileY);
-		} else {
-			// Balance lane building count
-			const topCount = myBuildings.filter((b) => b.tileY < midTileY).length;
-			const bottomCount = myBuildings.filter((b) => b.tileY >= midTileY).length;
-			if (topCount < bottomCount) {
-				preferredSlots = freeSlots.filter((s) => s.y < midTileY);
-			} else if (bottomCount < topCount) {
-				preferredSlots = freeSlots.filter((s) => s.y >= midTileY);
+		// 7. Optimal building placement slot selection
+		// Consider all buildings on the team (both own and allies) for spacing and clearance
+		const teamBuildings = this.sim.buildings.filter((b) => b.team === this.team);
+		const chosenSlot = this.findBestPlacementSlot(scan, teamBuildings);
+		if (!chosenSlot) return;
+
+		const lane: Lane = chosenSlot.y < 35 ? 'top' : 'bottom';
+		this.sim.build(this.team, chosenBuilding.id, chosenSlot.x, chosenSlot.y, lane, player);
+	}
+
+	/**
+	 * Selects the optimal building placement slot:
+	 * - 99% probability to build behind castle (outer edge of island, away from enemy base).
+	 * - 90% probability to leave a 1-tile gap (>= 32px clearance) between all team buildings (both own and ally) rather than placing them flush.
+	 * - Priority: build as far as possible from the enemy base.
+	 * - Natural chaotic distribution along the furthest tier of candidate slots.
+	 * - Graceful fallback to any valid island slot if behind-castle slots or gap slots are full.
+	 */
+	public findBestPlacementSlot(
+		scan: EnemyArmyScan,
+		teamBuildings: Building[] = this.sim.buildings.filter((b) => b.team === this.team)
+	): { x: number; y: number } | null {
+		const startX = this.team === 'west' ? WEST_GRID_START_X : EAST_GRID_START_X;
+		const startY = this.team === 'west' ? WEST_GRID_START_Y : EAST_GRID_START_Y;
+		const enemyTeam = this.team === 'west' ? 'east' : 'west';
+		const enemyCastle = this.sim.castles[enemyTeam];
+		const myCastleX = this.team === 'west' ? WEST_CASTLE_X : EAST_CASTLE_X;
+
+		interface CandidateSlot {
+			x: number;
+			y: number;
+			worldX: number;
+			worldY: number;
+			isBehind: boolean;
+			hasGap: boolean;
+			distToEnemy: number;
+		}
+
+		const validSlots: CandidateSlot[] = [];
+
+		for (let x = 2; x <= 94; x += 1) {
+			for (let y = 2; y <= 68; y += 1) {
+				if (!this.sim.canBuild(this.team, x, y)) continue;
+
+				const worldX = startX + x * GRID_STEP;
+				const worldY = startY + y * GRID_STEP;
+
+				// Behind castle: West is worldX < myCastleX, East is worldX > myCastleX
+				const isBehind = this.team === 'west' ? worldX < myCastleX - 40 : worldX > myCastleX + 40;
+
+				// 1-tile gap check (at least 32px clearance to every existing friendly and ally building)
+				let hasGap = true;
+				for (const b of teamBuildings) {
+					const gapX = Math.max(
+						0,
+						Math.max(worldX, b.x) - Math.min(worldX + CELL_SIZE, b.x + CELL_SIZE)
+					);
+					const gapY = Math.max(
+						0,
+						Math.max(worldY, b.y) - Math.min(worldY + CELL_SIZE, b.y + CELL_SIZE)
+					);
+					if (gapX < GRID_STEP && gapY < GRID_STEP) {
+						hasGap = false;
+						break;
+					}
+				}
+
+				// Distance to enemy castle (we want maximum distance, furthest away)
+				const distToEnemy = Math.hypot(worldX - enemyCastle.x, worldY - enemyCastle.y);
+
+				validSlots.push({ x, y, worldX, worldY, isBehind, hasGap, distToEnemy });
 			}
 		}
 
-		const chosenSlot =
-			preferredSlots.length > 0
-				? preferredSlots[Math.floor(Math.random() * preferredSlots.length)]
-				: freeSlots[Math.floor(Math.random() * freeSlots.length)];
+		if (validSlots.length === 0) return null;
 
-		if (!chosenSlot) return;
+		// 1. Prioritize behind castle (99% probability)
+		const behindSlots = validSlots.filter((s) => s.isBehind);
+		let pool: CandidateSlot[];
 
-		const lane: Lane = chosenSlot.y < 4 ? 'top' : 'bottom';
-		this.sim.build(this.team, chosenBuilding.id, chosenSlot.x, chosenSlot.y, lane, player);
+		if (Math.random() < 0.99 && behindSlots.length > 0) {
+			pool = behindSlots;
+		} else if (behindSlots.length > 0) {
+			pool = validSlots;
+		} else {
+			// Behind castle slots are exhausted! Fallback to any valid island slot!
+			pool = validSlots;
+		}
+
+		// 2. Prioritize 1-tile gap (90% probability)
+		const gapSlots = pool.filter((s) => s.hasGap);
+		if (Math.random() < 0.9 && gapSlots.length > 0) {
+			pool = gapSlots;
+		} else if (gapSlots.length === 0) {
+			// No gap slots left, use available slots
+		}
+
+		// 3. Prioritize distance: build as far as possible from enemy base
+		pool.sort((a, b) => b.distToEnemy - a.distToEnemy);
+
+		// Take the furthest tier (within 250px of the maximum distance) for natural chaotic variety
+		const maxDist = pool[0].distToEnemy;
+		const furthestTier = pool.filter((s) => s.distToEnemy >= maxDist - 250);
+
+		// 4. Tactical lane pressure consideration on the chosen tier
+		const midTileY = 35;
+		let laneFiltered: CandidateSlot[] = [];
+		if (scan.topPressure > scan.bottomPressure + 300) {
+			laneFiltered = furthestTier.filter((s) => s.y < midTileY);
+		} else if (scan.bottomPressure > scan.topPressure + 300) {
+			laneFiltered = furthestTier.filter((s) => s.y >= midTileY);
+		} else {
+			const topCount = teamBuildings.filter((b) => b.tileY < midTileY).length;
+			const bottomCount = teamBuildings.filter((b) => b.tileY >= midTileY).length;
+			if (topCount < bottomCount) {
+				laneFiltered = furthestTier.filter((s) => s.y < midTileY);
+			} else if (bottomCount < topCount) {
+				laneFiltered = furthestTier.filter((s) => s.y >= midTileY);
+			}
+		}
+
+		const finalSelection = laneFiltered.length > 0 ? laneFiltered : furthestTier;
+		const chosen = finalSelection[Math.floor(Math.random() * finalSelection.length)];
+		return chosen ? { x: chosen.x, y: chosen.y } : null;
 	}
 }

@@ -48,6 +48,11 @@
 
 	let raceAbility = $derived(uiTick >= 0 ? getRaceAbility(player.race) : getRaceAbility('Люди'));
 	let canCastRaceSkill = $derived(uiTick >= 0 ? sim.canUseRaceSkill('west') : false);
+
+	const baseSpeeds = [1, 2, 3, 5];
+	const devSpeeds = [10, 50, 100];
+	const isDev = Boolean(import.meta.env?.DEV);
+	const availableSpeeds = isDev ? [...baseSpeeds, ...devSpeeds] : baseSpeeds;
 	let raceSkillCd = $derived(uiTick >= 0 ? sim.raceSkillCooldown.west : 0);
 	let raceSkillUnlockLeft = $derived(
 		uiTick >= 0 ? Math.max(0, 300 - Math.floor(sim.gameTime)) : 300
@@ -61,8 +66,9 @@
 	);
 
 	// Day/Night Cycle calculation (every 120s full day/night cycle)
-	let isDay = $derived(Math.floor(sim.gameTime / 60) % 2 === 0);
-	let sunAngle = $derived(((sim.gameTime % 120) / 120) * 360);
+	let isDay = $derived(uiTick >= 0 ? sim.dayNightCycle === 'day' : true);
+	let dayPhase = $derived(uiTick >= 0 ? sim.dayNightPhase : 'day');
+	let sunAngle = $derived(uiTick >= 0 ? sim.dayNightProgress * 360 : 0);
 
 	function formatTime(sec: number): string {
 		const m = Math.floor(sec / 60);
@@ -187,18 +193,29 @@
 	<div class="flex items-center gap-4">
 		<!-- Authentic Warcraft III Circular Day/Night Clock Dial -->
 		<div
-			class="relative w-10 h-10 rounded-full border-2 border-[#8c7456] bg-[#0c1017] flex items-center justify-center shadow-lg overflow-hidden shrink-0"
-			title={isDay ? 'День (Сонце)' : 'Ніч (Місяць)'}
+			class="relative w-10 h-10 rounded-full border-2 border-[#8c7456] bg-[#0c1017] flex items-center justify-center shadow-lg overflow-hidden shrink-0 transition-colors duration-700 {isDay
+				? 'shadow-amber-500/10'
+				: 'shadow-indigo-500/20'}"
+			title={dayPhase === 'day'
+				? 'День (Сонце)'
+				: dayPhase === 'dusk'
+					? 'Сутінки (Захід сонця)'
+					: dayPhase === 'night'
+						? 'Ніч (Місяць)'
+						: 'Світанок (Схід сонця)'}
 			style="box-shadow: inset 0 0 6px rgba(0,0,0,0.8), 0 2px 8px rgba(0,0,0,0.6);"
+			data-testid="day-night-dial"
+			data-phase={dayPhase}
+			data-cycle={isDay ? 'day' : 'night'}
 		>
 			<div
-				class="absolute inset-0 flex items-center justify-center transition-transform duration-1000"
+				class="absolute inset-0 flex items-center justify-center transition-transform duration-500 ease-linear"
 				style="transform: rotate({sunAngle}deg);"
 			>
 				{#if isDay}
-					<Sun class="w-5 h-5 text-amber-400" />
+					<Sun class="w-5 h-5 text-amber-400 transition-all duration-500" />
 				{:else}
-					<Moon class="w-5 h-5 text-indigo-300" />
+					<Moon class="w-5 h-5 text-indigo-300 transition-all duration-500" />
 				{/if}
 			</div>
 		</div>
@@ -246,16 +263,28 @@
 				{/if}
 			</button>
 
-			<button
-				onclick={() => {
-					sim.speed = sim.speed === 1.0 ? 2.0 : sim.speed === 2.0 ? 3.0 : 1.0;
-					sim.notifyStateChanged();
-				}}
-				class="px-1.5 py-0.5 rounded hover:bg-[#2a241b] text-[10px] font-mono font-bold text-slate-300 transition cursor-pointer"
-				title="Швидкість гри"
-			>
-				{sim.speed}x
-			</button>
+			<div class="h-3.5 w-px bg-[#544738]/70"></div>
+
+			<!-- Ergonomic Segmented Speed Selector -->
+			<div class="flex items-center gap-0.5">
+				{#each availableSpeeds as sp}
+					<button
+						onclick={() => {
+							sim.speed = sp;
+							sim.notifyStateChanged();
+						}}
+						class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold transition cursor-pointer {sim.speed ===
+						sp
+							? 'bg-amber-500/25 text-amber-300 border border-amber-500/60 shadow-sm shadow-amber-500/20'
+							: sp >= 10
+								? 'text-cyan-400/80 hover:text-cyan-200 hover:bg-[#2a241b]'
+								: 'text-slate-400 hover:text-slate-200 hover:bg-[#2a241b]'}"
+						title={sp >= 10 ? `DEV турбо швидкість x${sp}` : `Швидкість гри x${sp}`}
+					>
+						{sp >= 10 ? `x${sp}` : `${sp}x`}
+					</button>
+				{/each}
+			</div>
 		</div>
 	</div>
 

@@ -416,6 +416,36 @@ export class EntityRenderer {
 			g.ellipse(wx + 3, wy + 16, 18, 8);
 			g.fill({ color: 0x000000, alpha: 0.4 });
 
+			// Motion Blur Trail for Moving Worker (Fluid Cinematic Motion)
+			const distToTarget = Math.hypot(w.targetX - wx, w.targetY - wy);
+			if (distToTarget > 6) {
+				const dirX = (w.targetX - wx) / distToTarget;
+				const dirY = (w.targetY - wy) / distToTarget;
+				const trailLen = Math.min(18, (w.speed || 260) * 0.05);
+
+				// Trailing ghost silhouette 1
+				g.beginPath();
+				g.roundRect(
+					wx - dirX * trailLen * 0.6 - 8,
+					wy - dirY * trailLen * 0.6 - 4 + bob,
+					16,
+					16,
+					4
+				);
+				g.fill({ color: playerColor, alpha: 0.22 });
+
+				// Trailing ghost silhouette 2
+				g.beginPath();
+				g.roundRect(
+					wx - dirX * trailLen * 1.2 - 6,
+					wy - dirY * trailLen * 1.2 - 3 + bob,
+					12,
+					12,
+					3
+				);
+				g.fill({ color: playerColor, alpha: 0.1 });
+			}
+
 			// Worker Body & Tunic
 			g.beginPath();
 			g.roundRect(wx - 9, wy - 5 + bob, 18, 18, 5);
@@ -571,13 +601,43 @@ export class EntityRenderer {
 			}
 
 			// =====================================================================
-			// B. 2.5D CONTACT DROP SHADOW
+			// B. 2.5D CONTACT DROP SHADOW & MOTION BLUR
 			// =====================================================================
 			const shadowY = u.y + radius * 0.65;
 			const shadowAlpha = u.flying ? 0.22 : 0.45;
 			g.beginPath();
 			g.ellipse(u.x + 3, shadowY, radius * (u.flying ? 0.75 : 1.1), radius * 0.45);
 			g.fill({ color: 0x000000, alpha: shadowAlpha });
+
+			// Motion Blur Trail for Moving Units (Fluid RTS Motion)
+			if (u.state === 'WALKING' && u.prevX !== undefined && u.prevY !== undefined) {
+				const dx = u.x - u.prevX;
+				const dy = u.y - u.prevY;
+				const moveDist = Math.hypot(dx, dy);
+				if (moveDist > 0.2) {
+					const normX = dx / moveDist;
+					const normY = dy / moveDist;
+					const trailLen = Math.min(radius * 0.9, moveDist * 2.5);
+
+					g.beginPath();
+					g.ellipse(
+						u.x - normX * trailLen * 0.6,
+						renderY - normY * trailLen * 0.6,
+						radius * 0.85,
+						radius * 0.85
+					);
+					g.fill({ color: unitColor, alpha: 0.2 });
+
+					g.beginPath();
+					g.ellipse(
+						u.x - normX * trailLen * 1.2,
+						renderY - normY * trailLen * 1.2,
+						radius * 0.6,
+						radius * 0.6
+					);
+					g.fill({ color: unitColor, alpha: 0.08 });
+				}
+			}
 
 			// =====================================================================
 			// C. VOLUMETRIC 2.5D CHARACTER TOKEN (Specific Archetype from \раси)

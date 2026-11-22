@@ -66,6 +66,7 @@ export class ArenaRenderer {
 
 	// Layers
 	private rootContainer: Container;
+	private waterLayer: Graphics;
 	private terrainLayer: Graphics;
 	private gridLayer: Graphics;
 	private buildingsLayer: Graphics;
@@ -100,6 +101,7 @@ export class ArenaRenderer {
 
 		this.app = new Application();
 		this.rootContainer = new Container();
+		this.waterLayer = new Graphics();
 		this.terrainLayer = new Graphics();
 		this.gridLayer = new Graphics();
 		this.buildingsLayer = new Graphics();
@@ -142,6 +144,7 @@ export class ArenaRenderer {
 		});
 
 		this.app.stage.addChild(this.rootContainer);
+		this.rootContainer.addChild(this.waterLayer);
 		this.rootContainer.addChild(this.terrainLayer);
 		this.rootContainer.addChild(this.gridLayer);
 		this.rootContainer.addChild(this.buildingsLayer);
@@ -596,6 +599,8 @@ export class ArenaRenderer {
 		if (this.lastDrawnBrokenBridge !== this.sim.brokenBridge) {
 			this.drawStaticTerrain();
 		}
+
+		this.terrainRenderer.drawDynamicWater(this.waterLayer, performance.now() * 0.001);
 
 		const selectedDefId = this.getSelectedBuildingDefId?.() || null;
 		const selectedPlacedId = this.getSelectedPlacedBuildingId?.() || null;

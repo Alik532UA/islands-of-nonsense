@@ -211,6 +211,50 @@ export class Simulation {
 		return Math.floor(this.gameTime / 60) % 2 === 0 ? 'day' : 'night';
 	}
 
+	/**
+	 * Normalized progress through the 120s Day/Night cycle (0.0 to 1.0).
+	 */
+	public get dayNightProgress(): number {
+		return (((this.gameTime % 120) + 120) % 120) / 120;
+	}
+
+	/**
+	 * Current discrete atmospheric phase of the 120s Day/Night cycle:
+	 * - 0s..45s: 'day' (clear sunny daylight)
+	 * - 45s..60s: 'dusk' (smooth sunset transition)
+	 * - 60s..105s: 'night' (moonlight night)
+	 * - 105s..120s: 'dawn' (smooth sunrise transition)
+	 */
+	public get dayNightPhase(): 'day' | 'dusk' | 'night' | 'dawn' {
+		const cycleTime = ((this.gameTime % 120) + 120) % 120;
+		if (cycleTime < 45) return 'day';
+		if (cycleTime < 60) return 'dusk';
+		if (cycleTime < 105) return 'night';
+		return 'dawn';
+	}
+
+	/**
+	 * Smooth continuous atmospheric darkness alpha (0.0 during daytime,
+	 * smoothly transitioning with cosine ease up to 0.28 during dusk/night, and fading back to 0.0 at dawn).
+	 */
+	public get dayNightAmbientAlpha(): number {
+		const cycleTime = ((this.gameTime % 120) + 120) % 120;
+		const maxNightAlpha = 0.28;
+
+		if (cycleTime < 45) {
+			return 0;
+		}
+		if (cycleTime < 60) {
+			const p = (cycleTime - 45) / 15;
+			return maxNightAlpha * (0.5 - 0.5 * Math.cos(p * Math.PI));
+		}
+		if (cycleTime < 105) {
+			return maxNightAlpha;
+		}
+		const p = (cycleTime - 105) / 15;
+		return maxNightAlpha * (0.5 + 0.5 * Math.cos(p * Math.PI));
+	}
+
 	public nextUnitId = 1;
 	public nextBuildingId = 1;
 	public nextProjectileId = 1;

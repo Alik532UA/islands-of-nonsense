@@ -350,7 +350,9 @@
 
 			if (sim.isRunning && !isSettingsOpen) {
 				accumulator += rawDelta * sim.speed;
-				while (accumulator >= FIXED_STEP) {
+				let stepsCount = 0;
+				const maxStepsPerFrame = Math.max(120, Math.ceil(sim.speed * 2));
+				while (accumulator >= FIXED_STEP && stepsCount < maxStepsPerFrame) {
 					sim.step(FIXED_STEP);
 					if (sim.bots && sim.bots.length > 0) {
 						sim.updateBots(FIXED_STEP);
@@ -358,6 +360,10 @@
 						botAI?.update(FIXED_STEP);
 					}
 					accumulator -= FIXED_STEP;
+					stepsCount++;
+				}
+				if (accumulator >= FIXED_STEP) {
+					accumulator = 0;
 				}
 				uiTick = sim.stateVersion;
 			}
@@ -429,8 +435,9 @@
 			sim.round++;
 			sim.resetRound();
 		}
+		sim.isRunning = true;
 		uiTick = sim.stateVersion;
-		isCommanderOpen = true;
+		isCommanderOpen = false;
 	}
 
 	function handleStartNewMatch(newConfig: SimulationConfig) {

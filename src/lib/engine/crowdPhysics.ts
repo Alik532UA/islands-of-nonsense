@@ -80,7 +80,7 @@ export function applyCrowdSeparation(sim: Simulation, dt: number): void {
 			u.y = resolved.y;
 		}
 
-		// Keep ground units on their respective bridge ONLY when crossing the central ocean channel
+		// Keep ground units on their respective bridge railing boundary ONLY when crossing the central ocean channel
 		if (!u.flying && u.team !== 'neutral' && u.x >= BRIDGE_SPAN_MIN_X && u.x <= BRIDGE_SPAN_MAX_X) {
 			const effectiveCrossingLane: 'top' | 'mid' | 'bottom' =
 				sim.brokenBridge && u.lane === sim.brokenBridge
@@ -94,7 +94,12 @@ export function applyCrowdSeparation(sim: Simulation, dt: number): void {
 					: effectiveCrossingLane === 'mid'
 						? MID_LANE_Y
 						: BOTTOM_LANE_Y;
-			u.y = Math.max(laneCenterY - 65, Math.min(laneCenterY + 65, u.y));
+			const maxBridgeOffset = 62;
+			if (u.y > laneCenterY + maxBridgeOffset) {
+				u.y = laneCenterY + maxBridgeOffset;
+			} else if (u.y < laneCenterY - maxBridgeOffset) {
+				u.y = laneCenterY - maxBridgeOffset;
+			}
 		} else {
 			// On the islands & courtyard, units spread out and navigate towards targets & castle
 			u.y = Math.max(80, Math.min(ARENA_HEIGHT - 80, u.y));
