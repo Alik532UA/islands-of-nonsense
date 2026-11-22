@@ -163,6 +163,7 @@ export interface BuildingDefinition {
 	armor_type: ArmorType | string;
 	attack_type: AttackType | string;
 	gold_cost: number;
+	lumber_cost?: number;
 	unit: string;
 	upgrade_from: string | null;
 	upgrade_extra_cost: number;
@@ -318,6 +319,7 @@ export interface Building {
 	armor: number;
 	armorType: ArmorType;
 	goldCost: number;
+	lumberCost?: number;
 	spawnUnitId: string;
 	spawnCooldown: number;
 	spawnTimer: number;

@@ -250,6 +250,14 @@ export const GUARD_TOWERS: BuildingDefinition[] = [
 ];
 
 for (const b of rawBuildings as BuildingDefinition[]) {
+	if (b.raw_fields && typeof b.raw_fields.ulum === 'number' && b.raw_fields.ulum > 0) {
+		b.lumber_cost = b.raw_fields.ulum;
+	} else if (!b.lumber_cost && b.upgrade_from) {
+		const extraCost = b.upgrade_extra_cost || 0;
+		if (extraCost >= 200 || (b.gold_cost || 0) >= 280) {
+			b.lumber_cost = 60;
+		}
+	}
 	BUILDINGS_MAP.set(b.id, b);
 }
 

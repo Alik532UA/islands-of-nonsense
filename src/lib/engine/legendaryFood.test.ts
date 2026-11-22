@@ -45,6 +45,7 @@ describe('Point 4: Food Cap & Legendary Buildings (Golden Cheese I004)', () => {
 		expect(sim.players.west.maxFood).toBe(1);
 
 		sim.players.west.gold = 3000;
+		sim.players.west.lumber = 1000;
 		const built = sim.build('west', 'h05F', 0, 0);
 		expect(built).toBe(true);
 
@@ -60,6 +61,7 @@ describe('Point 4: Food Cap & Legendary Buildings (Golden Cheese I004)', () => {
 	it('frees food when a legendary building is sold', () => {
 		sim.buyCastleItem('west', 'I004');
 		sim.players.west.gold = 3000;
+		sim.players.west.lumber = 1000;
 		sim.build('west', 'h05F', 0, 0);
 		expect(sim.players.west.food).toBe(1);
 

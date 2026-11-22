@@ -69,9 +69,19 @@ export class EconomySystem {
 				const myCastle = this.sim.castles[team];
 				const payout = this.calculateIncome(team);
 				player.gold += payout;
+				const activeBlds = this.sim.buildings.filter(
+					(b) => b.team === team && !b.isUnderConstruction
+				).length;
+				const lumberPayout = 5 + Math.min(20, activeBlds * 2);
+				player.lumber += lumberPayout;
 
 				// Spawn income text above castle
-				this.sim.addFloatingText(`+${payout}g`, myCastle.x, myCastle.y - 50, '#fbbf24');
+				this.sim.addFloatingText(
+					`+${payout}g +${lumberPayout}🪵`,
+					myCastle.x,
+					myCastle.y - 50,
+					'#fbbf24'
+				);
 			}
 
 			// Domination Mode (-dm / -dom): bonus +15g per controlled lane center
@@ -229,9 +239,26 @@ export class EconomySystem {
 		let price = baseCost + currentLevel * costStep;
 		if (isAlik) price = Math.round(price * 0.5);
 
+		let lumberPrice = 0;
+		if (currentLevel >= 2) {
+			lumberPrice = (currentLevel - 1) * 35;
+		}
+		if (lumberPrice > 0 && player.lumber < lumberPrice) {
+			this.sim.addFloatingText(
+				`Потрібна Деревина! (${lumberPrice}🪵)`,
+				this.sim.castles[team].x,
+				this.sim.castles[team].y - 50,
+				'#10b981'
+			);
+			return false;
+		}
+
 		if (player.gold < price) return false;
 
 		player.gold -= price;
+		if (lumberPrice > 0) {
+			player.lumber -= lumberPrice;
+		}
 		player.forge[type]++;
 		player.stats.goldSpent += price;
 
@@ -264,6 +291,15 @@ export class EconomySystem {
 		let price = baseCost + currentLevel * costStep;
 		if (isAlik) price = Math.round(price * 0.5);
 		return price;
+	}
+
+	public getForgeLumberPrice(team: MatchTeam, type: 'attack' | 'armor' | 'econ'): number {
+		const player = this.sim.players[team];
+		const currentLevel = player.forge[type];
+		if (currentLevel >= 2) {
+			return (currentLevel - 1) * 35;
+		}
+		return 0;
 	}
 
 	public canUseRaceSkill(team: MatchTeam): boolean {

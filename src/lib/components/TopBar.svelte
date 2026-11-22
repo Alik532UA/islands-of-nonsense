@@ -279,16 +279,18 @@
 				<span class="text-[9px] text-amber-400/90 font-mono">{Math.ceil(sim.incomeTimer)}с</span>
 			</div>
 
-			<!-- 🌲 Lumber (if > 0) -->
-			{#if sim.players.west.lumber > 0}
-				<div
-					class="flex items-center gap-1 text-xs text-emerald-300 border-l border-[#3b3226] pl-2.5"
-					title="Дерево для особливих технологій"
-				>
-					<TreePine class="w-3.5 h-3.5 text-emerald-400" />
-					<span class="font-mono font-bold">{sim.players.west.lumber}</span>
-				</div>
-			{/if}
+			<!-- 🌲 Lumber (Wood) Reserve -->
+			<div
+				class="flex items-center gap-1 text-xs {sim.players.west.lumber > 0
+					? 'text-emerald-300'
+					: 'text-slate-500'} border-l border-[#3b3226] pl-2.5"
+				title="Запас деревини для вдосконалення технологій та будівель вищого тиру"
+			>
+				<TreePine
+					class="w-3.5 h-3.5 {sim.players.west.lumber > 0 ? 'text-emerald-400' : 'text-slate-500'}"
+				/>
+				<span class="font-mono font-bold">{sim.players.west.lumber}</span>
+			</div>
 
 			<!-- 🥩 Food Cap (Legendary Building Limit) -->
 			<div

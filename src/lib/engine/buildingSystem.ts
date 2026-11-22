@@ -220,12 +220,27 @@ export class BuildingSystem {
 			return false;
 		}
 
+		// Check lumber requirements
+		const lumberCost = bDef.lumber_cost || 0;
+		if (lumberCost > 0 && player.lumber < lumberCost) {
+			this.sim.addFloatingText(
+				`Потрібна Деревина! (${lumberCost}🪵)`,
+				worldX,
+				worldY - 20,
+				'#10b981'
+			);
+			return false;
+		}
+
 		// Validate build plot
 		if (!this.canBuild(team, tileX, tileY)) return false;
 
-		// Deduct gold
+		// Deduct gold and lumber
 		player.gold -= cost;
 		player.stats.goldSpent += cost;
+		if (lumberCost > 0) {
+			player.lumber -= lumberCost;
+		}
 
 		const spawnCd = getSpawnCooldown(bDef, getUnit(bDef.unit));
 
@@ -250,6 +265,7 @@ export class BuildingSystem {
 			armor: bDef.armor ?? 5,
 			armorType: (bDef.armor_type as ArmorType) || 'fort',
 			goldCost: cost,
+			lumberCost,
 			spawnUnitId: bDef.unit,
 			spawnCooldown: spawnCd,
 			spawnTimer: bDef.specialType === 'repair' ? 0 : spawnCd,
@@ -388,6 +404,17 @@ export class BuildingSystem {
 			return false;
 		}
 
+		const upgradeLumber = targetDef.lumber_cost || 0;
+		if (upgradeLumber > 0 && player.lumber < upgradeLumber) {
+			this.sim.addFloatingText(
+				`Потрібна Деревина! (${upgradeLumber}🪵)`,
+				building.x,
+				building.y - 20,
+				'#10b981'
+			);
+			return false;
+		}
+
 		const upgradeCost =
 			targetDef.upgrade_extra_cost > 0
 				? targetDef.upgrade_extra_cost
@@ -397,6 +424,10 @@ export class BuildingSystem {
 
 		player.gold -= upgradeCost;
 		player.stats.goldSpent += upgradeCost;
+		if (upgradeLumber > 0) {
+			player.lumber -= upgradeLumber;
+		}
+		building.lumberCost = (building.lumberCost || 0) + upgradeLumber;
 		if (targetIsLeg && !currentIsLeg) {
 			player.food++;
 		}
@@ -433,8 +464,12 @@ export class BuildingSystem {
 		// Cancelled construction refunds 75%; fully built refunds 50%
 		const refundRate = building.isUnderConstruction ? 0.75 : 0.5;
 		const refund = Math.floor(building.goldCost * refundRate);
+		const lumberRefund = Math.floor((building.lumberCost || 0) * refundRate);
 
 		player.gold += refund;
+		if (lumberRefund > 0) {
+			player.lumber += lumberRefund;
+		}
 
 		// Cancel active worker construction/repair
 		const worker = player.worker;

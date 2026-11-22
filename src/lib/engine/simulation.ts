@@ -874,6 +874,10 @@ export class Simulation {
 		return this.economySystem.getForgePrice(team, type);
 	}
 
+	public getForgeLumberPrice(team: MatchTeam, type: 'attack' | 'armor' | 'econ'): number {
+		return this.economySystem.getForgeLumberPrice(team, type);
+	}
+
 	public canUseRaceSkill(team: MatchTeam): boolean {
 		return this.economySystem.canUseRaceSkill(team);
 	}

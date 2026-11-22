@@ -98,14 +98,15 @@
 							up.upgrade_extra_cost > 0
 								? up.upgrade_extra_cost
 								: Math.max(50, (up.gold_cost || 200) - placedBuilding.goldCost)}
-						{@const canAfford = playerGold >= upCost}
+						{@const upLumber = up.lumber_cost || 0}
+						{@const canAfford = playerGold >= upCost && (player.lumber ?? 0) >= upLumber}
 						<button
 							onclick={() => onUpgradeBuilding?.(placedBuilding.instanceId, up.id)}
 							disabled={!canAfford}
 							class="relative w-16 h-10 rounded border flex flex-col items-center justify-center p-1 transition cursor-pointer {canAfford
 								? 'bg-[#1e3a5f] hover:bg-[#2563eb] border-blue-400 text-white shadow'
 								: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
-							title="{up.name} ({upCost}g)"
+							title="{up.name} ({upCost}g{upLumber > 0 ? `, ${upLumber}w` : ''})"
 						>
 							<span
 								class="absolute top-0.5 right-1 text-[8px] font-mono font-bold text-amber-300 drop-shadow"
@@ -113,7 +114,12 @@
 								[{uIdx + 1}]
 							</span>
 							<span class="text-[10px] font-bold truncate max-w-[50px]">{up.name}</span>
-							<span class="text-[9px] text-amber-300 font-mono font-bold">🪙 {upCost}</span>
+							<div class="flex items-center gap-1 text-[8px] font-mono font-bold">
+								<span class="text-amber-300">🪙{upCost}</span>
+								{#if upLumber > 0}
+									<span class="text-emerald-400">🪵{upLumber}</span>
+								{/if}
+							</div>
 						</button>
 					{/each}
 					<!-- Sell button in slot 11 -->
@@ -302,7 +308,9 @@
 		<div class="grid grid-cols-4 gap-1.5">
 			{#each availableBuildings as bld, idx}
 				{@const isSelected = selectedBuildingId === bld.id}
-				{@const isAffordable = playerGold >= (bld.gold_cost || 200)}
+				{@const bldLumber = bld.lumber_cost || 0}
+				{@const isAffordable =
+					playerGold >= (bld.gold_cost || 200) && (player.lumber ?? 0) >= bldLumber}
 				{@const isLeg = isLegendaryBuilding(bld)}
 				{@const lacksFood = isLeg && player.food >= player.maxFood}
 				{@const hotkey = HOTKEYS[idx] || ''}
@@ -318,7 +326,9 @@
 							: isAffordable
 								? 'bg-[#1b2230] hover:bg-[#28354d] border-[#544738] hover:border-[#8c7456]'
 								: 'bg-[#12161f] border-[#2d3748] opacity-60 cursor-not-allowed'}"
-					title="{bld.name} ({bld.gold_cost}g) [Гаряча клавіша: {hotkey}]"
+					title="{bld.name} ({bld.gold_cost}g{bldLumber > 0
+						? `, ${bldLumber}w`
+						: ''}) [Гаряча клавіша: {hotkey}]"
 				>
 					<!-- Hotkey in top-right corner -->
 					<span
@@ -347,14 +357,17 @@
 						</span>
 					</div>
 
-					<!-- Gold Cost in bottom-right -->
-					<span
-						class="text-[8px] font-mono font-bold self-end flex items-center gap-0.5 {isAffordable
-							? 'text-amber-300'
-							: 'text-red-400'}"
-					>
-						🪙 {bld.gold_cost}
-					</span>
+					<!-- Cost in bottom-right -->
+					<div class="flex items-center gap-0.5 self-end text-[8px] font-mono font-bold">
+						<span class={playerGold >= (bld.gold_cost || 200) ? 'text-amber-300' : 'text-red-400'}>
+							🪙{bld.gold_cost}
+						</span>
+						{#if bldLumber > 0}
+							<span class={(player.lumber ?? 0) >= bldLumber ? 'text-emerald-400' : 'text-red-400'}>
+								🪵{bldLumber}
+							</span>
+						{/if}
+					</div>
 				</button>
 			{/each}
 		</div>
@@ -368,10 +381,17 @@
 		>
 			<div class="flex items-center justify-between border-b border-[#3b3226] pb-1.5 mb-1.5">
 				<span class="font-bold text-[#fef08a] text-sm">{hoveredBuilding.name}</span>
-				<span class="font-mono font-bold text-amber-300 flex items-center gap-1">
-					<Coins class="w-3.5 h-3.5" />
-					{hoveredBuilding.gold_cost}g
-				</span>
+				<div class="flex items-center gap-2 font-mono font-bold">
+					<span class="text-amber-300 flex items-center gap-1">
+						<Coins class="w-3.5 h-3.5" />
+						{hoveredBuilding.gold_cost}g
+					</span>
+					{#if hoveredBuilding.lumber_cost}
+						<span class="text-emerald-400 flex items-center gap-1">
+							🪵 {hoveredBuilding.lumber_cost}
+						</span>
+					{/if}
+				</div>
 			</div>
 
 			{#if hoveredUnit}

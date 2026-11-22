@@ -598,11 +598,11 @@ export class WorkerSystem {
 						targetBld.isUnderConstruction = false;
 						targetBld.hp = targetBld.maxHp;
 						targetBld.spawnTimer = targetBld.specialType === 'repair' ? 0 : targetBld.spawnCooldown;
-						targetBld.spawnTimer = targetBld.specialType === 'repair' ? 0 : targetBld.spawnCooldown;
 						w.isBuilding = false;
 						w.targetBuildingId = null;
+						this.sim.players[team].lumber += 25;
 						this.sim.addFloatingText(
-							'+Готово!',
+							'+Готово! (+25🪵)',
 							targetBld.x + CELL_SIZE / 2,
 							targetBld.y - 15,
 							'#22c55e'
