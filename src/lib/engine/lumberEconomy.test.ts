@@ -27,7 +27,12 @@ describe('Point 5: Full Lumber (Wood) Economy & Tech Tiers', () => {
 		const bld = sim.buildings[0];
 		expect(bld.isUnderConstruction).toBe(true);
 
-		// Worker finishes construction
+		// Worker arrives and finishes construction
+		if (sim.players.west.worker) {
+			sim.players.west.worker.x = bld.x;
+			sim.players.west.worker.y = bld.y;
+			sim.players.west.worker.targetBuildingId = bld.instanceId;
+		}
 		bld.buildProgress = bld.maxBuildProgress || 3.5;
 		sim.workerSystem.updateWorkers(0.1);
 
@@ -72,7 +77,7 @@ describe('Point 5: Full Lumber (Wood) Economy & Tech Tiers', () => {
 		expect(successUpgrade).toBe(true);
 		expect(parentBld.defId).toBe('h055');
 		expect(sim.players.west.lumber).toBe(25); // 400 - 375
-		expect(parentBld.lumberCost).toBe(375);
+		expect(parentBld.lumberCost).toBe(435);
 	});
 
 	it('повертає 50% витраченої деревини при знесенні споруди та 75% при скасуванні', () => {

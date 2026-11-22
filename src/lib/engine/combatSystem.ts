@@ -1,7 +1,7 @@
 import type { Simulation } from './simulation';
 import { ARENA_WIDTH, TOP_LANE_Y, BOTTOM_LANE_Y, CELL_SIZE } from './constants';
 import type { Unit, Building, Castle, MatchTeam, Team, Lane, AttackType } from './types';
-import { calculateDamage } from './damageMatrix';
+import { calculateDamage, getDamageMultiplier } from './damageMatrix';
 import { DefenseSystem } from './defenseSystem';
 import { applyCrowdSeparation } from './crowdPhysics';
 
@@ -35,6 +35,89 @@ export class CombatSystem {
 					primaryTargetId
 				)
 		});
+	}
+
+	/**
+	 * Authentic WC3 threat and aggro targeting calculation.
+	 * Evaluates candidate targets based on distance, direct attacker threat,
+	 * ally assist calls, attack-vs-armor tactical affinity, low-HP focus, and stickiness.
+	 */
+	public findBestTarget(u: Unit): Unit | null {
+		const acquisitionRange = Math.max(u.range + 80, 420);
+		const canHitAir = u.range > 120 || !!u.flying;
+
+		const candidates = this.sim.spatialGrid.queryRadius(u.x, u.y, acquisitionRange, (candidate) => {
+			if (candidate.team === u.team) return false;
+			if (candidate.lane !== u.lane) return false;
+			if (candidate.state === 'DEAD' || candidate.hp <= 0) return false;
+			if (candidate.flying && !canHitAir) return false;
+			return true;
+		});
+
+		if (candidates.length === 0) return null;
+
+		let bestCandidate: Unit | null = null;
+		let highestScore = -Infinity;
+
+		for (const enemy of candidates) {
+			const dist = Math.hypot(enemy.x - u.x, enemy.y - u.y);
+
+			// Base distance component: proximity is dominant in melee/skirmish
+			let score = 1000 - dist * 3.0;
+
+			// 1. Direct Threat: Enemy is targeting me
+			if (enemy.currentTargetId === u.instanceId) {
+				score += 550;
+			}
+
+			// 2. Direct Recent Attacker (for hit-and-run or ranged assailants not currently targeting me)
+			if (
+				enemy.currentTargetId !== u.instanceId &&
+				u.lastAttackerId === enemy.instanceId &&
+				this.sim.gameTime - (u.lastAttackedTime || 0) < 3.5
+			) {
+				score += 350;
+			}
+
+			// 3. Call For Help / Ally Protection: Enemy is attacking a nearby friendly squad member (not myself)
+			if (enemy.currentTargetId) {
+				const ally = this.sim.units.find(
+					(a) =>
+						a.instanceId === enemy.currentTargetId &&
+						a.team === u.team &&
+						a.lane === u.lane &&
+						a.instanceId !== u.instanceId
+				);
+				if (ally && Math.hypot(ally.x - u.x, ally.y - u.y) <= 350) {
+					score += 250;
+				}
+			}
+
+			// 4. Tactical Matrix Advantage: bonus damage vs target armor
+			const mult = getDamageMultiplier(u.attackType, enemy.armorType);
+			score += (mult - 1.0) * 200;
+
+			// 5. Finishing Off / Focus Fire: Enemy low on health percentage or absolute HP
+			if (enemy.hp <= 50) {
+				score += (50 - enemy.hp) * 2;
+			}
+			if (enemy.maxHp > 0) {
+				const missingHpRatio = 1 - Math.max(0, enemy.hp / enemy.maxHp);
+				score += missingHpRatio * 100;
+			}
+
+			// 6. Target Stickiness / Commitment: avoid erratic flipping
+			if (u.currentTargetId === enemy.instanceId) {
+				score += 200;
+			}
+
+			if (score > highestScore) {
+				highestScore = score;
+				bestCandidate = enemy;
+			}
+		}
+
+		return bestCandidate;
 	}
 
 	public updateUnits(dt: number): void {
@@ -364,16 +447,36 @@ export class CombatSystem {
 
 			const targetLaneY = u.lane === 'top' ? TOP_LANE_Y : BOTTOM_LANE_Y;
 
-			// Target Acquisition:
-			// STRICT LANE SEPARATION: only find enemy on the same lane!
-			const enemyTarget = this.sim.spatialGrid.findClosestEnemy(
-				u.x,
-				u.y,
-				Math.max(u.range, 350),
-				u.team,
-				u.lane, // Filters strictly to u.lane!
-				u.range > 120 || !!u.flying // ranged units or flying units can hit air
-			);
+			// Target Acquisition (WC3 Threat & Aggro System)
+			let enemyTarget = this.findBestTarget(u);
+
+			// Authentic WC3 Siege Priority:
+			// Siege weapons prioritize buildings, defensive towers, and castles when in range
+			if (u.attackType === 'siege' && (u.team === 'west' || u.team === 'east')) {
+				const enemyTeam: MatchTeam = u.team === 'west' ? 'east' : 'west';
+				const targetCastle = u.team === 'west' ? this.sim.castles.east : this.sim.castles.west;
+				const distToCastle = Math.hypot(targetCastle.x - u.x, targetCastle.y - u.y) - 60;
+				const isNearEnemyBase = u.team === 'west' ? u.x >= ARENA_WIDTH - 1600 : u.x <= 1600;
+
+				let hasBuildingTarget = distToCastle <= u.range + 65;
+				if (!hasBuildingTarget && isNearEnemyBase) {
+					for (const b of this.sim.buildings) {
+						if (b.team === enemyTeam && b.hp > 0) {
+							const bx = b.x + CELL_SIZE / 2;
+							const by = b.y + CELL_SIZE / 2;
+							const d = Math.hypot(bx - u.x, by - u.y) - CELL_SIZE / 2;
+							if (d <= u.range + 35) {
+								hasBuildingTarget = true;
+								break;
+							}
+						}
+					}
+				}
+
+				if (hasBuildingTarget) {
+					enemyTarget = null; // Bypass unit combat to bombard structures!
+				}
+			}
 
 			if (enemyTarget && enemyTarget.hp > 0 && enemyTarget.lane === u.lane) {
 				const dx = enemyTarget.x - u.x;
@@ -861,6 +964,34 @@ export class CombatSystem {
 			target.y - 15,
 			isCrit ? '#f59e0b' : target.team === 'west' ? '#ef4444' : '#38bdf8'
 		);
+
+		// WC3 Threat: Direct Attacker Retaliation & Call For Help
+		if (attackerUnit && target.state !== 'DEAD' && target.team !== attackerUnit.team) {
+			target.lastAttackerId = attackerUnit.instanceId;
+			target.lastAttackedTime = this.sim.gameTime;
+
+			// If target is walking and has no target, turn to retaliate against attacker
+			if (
+				target.state === 'WALKING' &&
+				!target.currentTargetId &&
+				target.lane === attackerUnit.lane
+			) {
+				target.currentTargetId = attackerUnit.instanceId;
+			}
+
+			// Call for Help: nearby walking allies also acquire this attacker
+			for (const ally of this.sim.units) {
+				if (
+					ally.team === target.team &&
+					ally.lane === target.lane &&
+					ally.state === 'WALKING' &&
+					!ally.currentTargetId &&
+					Math.hypot(ally.x - target.x, ally.y - target.y) <= 350
+				) {
+					ally.currentTargetId = attackerUnit.instanceId;
+				}
+			}
+		}
 
 		if (target.hp <= 0) {
 			// Reincarnation check

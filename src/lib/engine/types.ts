@@ -295,6 +295,8 @@ export interface Unit {
 	attackAnimTimer?: number;
 	mana?: number;
 	maxMana?: number;
+	lastAttackerId?: string | null;
+	lastAttackedTime?: number;
 }
 
 export interface BuildingPerformance {

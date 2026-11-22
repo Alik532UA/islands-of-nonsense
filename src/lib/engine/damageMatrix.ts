@@ -65,13 +65,11 @@ export const DAMAGE_MULTIPLIERS: Record<AttackType, Record<ArmorType, number>> =
 };
 
 /**
- * Calculates effective damage after applying attack-armor matrix and armor rating reduction.
+ * Gets the standard Warcraft III damage multiplier for attack type vs armor type.
  */
-export function calculateDamage(
+export function getDamageMultiplier(
 	attackType: AttackType | string,
-	armorType: ArmorType | string,
-	rawDamage: number,
-	targetArmor: number
+	armorType: ArmorType | string
 ): number {
 	const aType = (attackType?.toLowerCase() || 'normal') as AttackType;
 
@@ -82,7 +80,19 @@ export function calculateDamage(
 	if (normalizedArmor === 'fortified') normalizedArmor = 'fort';
 
 	const defType = normalizedArmor as ArmorType;
-	const typeMultiplier = DAMAGE_MULTIPLIERS[aType]?.[defType] ?? 1.0;
+	return DAMAGE_MULTIPLIERS[aType]?.[defType] ?? 1.0;
+}
+
+/**
+ * Calculates effective damage after applying attack-armor matrix and armor rating reduction.
+ */
+export function calculateDamage(
+	attackType: AttackType | string,
+	armorType: ArmorType | string,
+	rawDamage: number,
+	targetArmor: number
+): number {
+	const typeMultiplier = getDamageMultiplier(attackType, armorType);
 
 	let armorFactor: number;
 	if (targetArmor >= 0) {
