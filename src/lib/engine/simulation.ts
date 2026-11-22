@@ -130,15 +130,7 @@ export class Simulation {
 	public onFloatingText?: (text: FloatingText) => void;
 	public onRoundEnd?: (winner: MatchTeam) => void;
 	public onSoundEffect?: (
-		sound:
-			| 'hit'
-			| 'sword'
-			| 'bow'
-			| 'magic'
-			| 'death'
-			| 'buildingDestroyed'
-			| 'upgrade'
-			| 'coin'
+		sound: 'hit' | 'sword' | 'bow' | 'magic' | 'death' | 'buildingDestroyed' | 'upgrade' | 'coin'
 	) => void;
 
 	public setPlayerPreferredLane(team: MatchTeam, lane: 'auto' | 'top' | 'bottom'): void {
@@ -607,9 +599,16 @@ export class Simulation {
 		splashRadius?: number;
 		reflectDamagePct?: number;
 		isScavenger?: boolean;
-		abilityType?: 'ensnare' | 'poison' | 'heal' | 'bash' | 'aura_dmg' | 'none';
+		abilityType?: import('./types').UnitAbilityType;
+		abilities?: import('./types').UnitAbilityDef[];
 		flying?: boolean;
 		size?: number;
+		critChance?: number;
+		evadeChance?: number;
+		frostOnHit?: boolean;
+		pulverizeChance?: number;
+		immolationDps?: number;
+		hasReincarnated?: boolean;
 	}): Unit {
 		const unit: Unit = {
 			instanceId: `test_unit_${this.nextUnitId++}`,
@@ -640,11 +639,32 @@ export class Simulation {
 			targetY: options.y,
 			state: 'WALKING',
 			size: options.size ?? (options.flying ? 22 : 16),
+			critChance: options.critChance,
+			evadeChance: options.evadeChance,
 			splashRadius: options.splashRadius,
 			reflectDamagePct: options.reflectDamagePct,
 			isScavenger: options.isScavenger,
 			abilityType: options.abilityType || 'none',
-			abilityCooldownTimer: 0
+			abilities:
+				options.abilities ||
+				(options.abilityType && options.abilityType !== 'none'
+					? [
+							{
+								id: `abil_${options.abilityType}`,
+								type: options.abilityType,
+								isPassive: false,
+								nameUk: options.abilityType,
+								nameEn: options.abilityType,
+								descriptionUk: '',
+								descriptionEn: ''
+							}
+						]
+					: []),
+			abilityCooldownTimer: 0,
+			frostOnHit: options.frostOnHit,
+			pulverizeChance: options.pulverizeChance,
+			immolationDps: options.immolationDps,
+			hasReincarnated: options.hasReincarnated
 		};
 		this.units.push(unit);
 		return unit;

@@ -1,17 +1,41 @@
 import type { Simulation } from './simulation';
-import { ARENA_WIDTH, ARENA_HEIGHT, TOP_LANE_Y, BOTTOM_LANE_Y, CELL_SIZE } from './constants';
+import { ARENA_WIDTH, TOP_LANE_Y, BOTTOM_LANE_Y, CELL_SIZE } from './constants';
 import type { Unit, Building, Castle, MatchTeam, Team, Lane, AttackType } from './types';
 import { calculateDamage } from './damageMatrix';
-import { getBuilding, isLegendaryBuilding } from './gameData';
+import { DefenseSystem } from './defenseSystem';
+import { applyCrowdSeparation } from './crowdPhysics';
 
 /**
  * CombatSystem handles unit state machines, targeting, pathing towards objectives,
  * melee & ranged attacks, projectiles, AoE splash, tower defense, castle attacks, and damage calculations.
  */
 export class CombatSystem {
-	public castleCooldowns: Record<MatchTeam, number> = { west: 0, east: 0 };
+	public defenseSystem: DefenseSystem;
 
-	constructor(private sim: Simulation) {}
+	constructor(private sim: Simulation) {
+		this.defenseSystem = new DefenseSystem(sim, {
+			applyUnitDamage: (target, rawDamage, attackType, attackerTeam, isCrit, attackerUnit) =>
+				this.applyUnitDamage(target, rawDamage, attackType, attackerTeam, !!isCrit, attackerUnit),
+			triggerSplashDamage: (
+				targetX,
+				targetY,
+				radius,
+				rawDamage,
+				attackType,
+				attackerTeam,
+				primaryTargetId
+			) =>
+				this.triggerSplashDamage(
+					targetX,
+					targetY,
+					radius,
+					rawDamage,
+					attackType,
+					attackerTeam,
+					primaryTargetId
+				)
+		});
+	}
 
 	public updateUnits(dt: number): void {
 		for (const u of this.sim.units) {
@@ -109,13 +133,230 @@ export class CombatSystem {
 				}
 			}
 
+			// 4. Bloodlust ability
+			const hasBloodlust =
+				u.abilityType === 'bloodlust' || u.abilities?.some((a) => a.type === 'bloodlust');
+			if (hasBloodlust && (!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0)) {
+				const unbuffedAlly = this.sim.units.find(
+					(other) =>
+						other.team === u.team &&
+						other.lane === u.lane &&
+						other.state !== 'DEAD' &&
+						other.instanceId !== u.instanceId &&
+						!other.buffs?.some((b) => b.type === 'bloodlust') &&
+						Math.hypot(other.x - u.x, other.y - u.y) <= 400
+				);
+				if (unbuffedAlly) {
+					unbuffedAlly.buffs = unbuffedAlly.buffs || [];
+					unbuffedAlly.buffs.push({ type: 'bloodlust', timer: 10.0, value: 0.4 });
+					u.abilityCooldownTimer = 10.0;
+					this.sim.addFloatingText(
+						'Лють! (+40% шв.)',
+						unbuffedAlly.x,
+						unbuffedAlly.y - 20,
+						'#ef4444'
+					);
+				}
+			}
+
+			// 5. Slow ability
+			const hasSlow = u.abilityType === 'slow' || u.abilities?.some((a) => a.type === 'slow');
+			if (hasSlow && (!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0)) {
+				const enemyTarget = this.sim.units.find(
+					(other) =>
+						other.team !== u.team &&
+						other.lane === u.lane &&
+						other.state !== 'DEAD' &&
+						!other.buffs?.some((b) => b.type === 'slow') &&
+						Math.hypot(other.x - u.x, other.y - u.y) <= 450
+				);
+				if (enemyTarget) {
+					enemyTarget.buffs = enemyTarget.buffs || [];
+					enemyTarget.buffs.push({ type: 'slow', timer: 6.0, value: 0.35 });
+					u.abilityCooldownTimer = 8.0;
+					this.sim.addFloatingText('Уповільнення!', enemyTarget.x, enemyTarget.y - 20, '#93c5fd');
+				}
+			}
+
+			// 6. Curse ability
+			const hasCurse = u.abilityType === 'curse' || u.abilities?.some((a) => a.type === 'curse');
+			if (hasCurse && (!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0)) {
+				const enemyTarget = this.sim.units.find(
+					(other) =>
+						other.team !== u.team &&
+						other.lane === u.lane &&
+						other.state !== 'DEAD' &&
+						!other.buffs?.some((b) => b.type === 'curse') &&
+						Math.hypot(other.x - u.x, other.y - u.y) <= 450
+				);
+				if (enemyTarget) {
+					enemyTarget.buffs = enemyTarget.buffs || [];
+					enemyTarget.buffs.push({ type: 'curse', timer: 8.0, value: 0.33 });
+					u.abilityCooldownTimer = 9.0;
+					this.sim.addFloatingText('Прокляття!', enemyTarget.x, enemyTarget.y - 20, '#c084fc');
+				}
+			}
+
+			// 7. Inner Fire ability
+			const hasInnerFire =
+				u.abilityType === 'inner_fire' || u.abilities?.some((a) => a.type === 'inner_fire');
+			if (hasInnerFire && (!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0)) {
+				const unbuffedAlly = this.sim.units.find(
+					(other) =>
+						other.team === u.team &&
+						other.lane === u.lane &&
+						other.state !== 'DEAD' &&
+						other.instanceId !== u.instanceId &&
+						!other.buffs?.some((b) => b.type === 'inner_fire') &&
+						Math.hypot(other.x - u.x, other.y - u.y) <= 400
+				);
+				if (unbuffedAlly) {
+					unbuffedAlly.buffs = unbuffedAlly.buffs || [];
+					unbuffedAlly.buffs.push({ type: 'inner_fire', timer: 12.0, value: 0.25 });
+					u.abilityCooldownTimer = 12.0;
+					this.sim.addFloatingText('Вогонь віри!', unbuffedAlly.x, unbuffedAlly.y - 20, '#fbbf24');
+				}
+			}
+
+			// 8. Thunderbolt (Storm Bolt)
+			const hasThunderbolt =
+				u.abilityType === 'thunderbolt' || u.abilities?.some((a) => a.type === 'thunderbolt');
+			if (hasThunderbolt && (!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0)) {
+				const enemyTarget = this.sim.units.find(
+					(other) =>
+						other.team !== u.team &&
+						other.lane === u.lane &&
+						other.state !== 'DEAD' &&
+						Math.hypot(other.x - u.x, other.y - u.y) <= 450
+				);
+				if (enemyTarget) {
+					enemyTarget.buffs = enemyTarget.buffs || [];
+					enemyTarget.buffs.push({ type: 'stun', timer: 2.0, value: 0 });
+					enemyTarget.isStunned = true;
+					this.applyUnitDamage(enemyTarget, 100, 'magic', u.team, true, u);
+					u.abilityCooldownTimer = 12.0;
+					this.sim.addFloatingText(
+						'*Громовий удар!*',
+						enemyTarget.x,
+						enemyTarget.y - 25,
+						'#38bdf8'
+					);
+				}
+			}
+
+			// 9. Chain Lightning
+			const hasChainLightning =
+				u.abilityType === 'chain_lightning' ||
+				u.abilities?.some((a) => a.type === 'chain_lightning');
+			if (hasChainLightning && (!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0)) {
+				const enemies = this.sim.units.filter(
+					(other) =>
+						other.team !== u.team &&
+						other.lane === u.lane &&
+						other.state !== 'DEAD' &&
+						Math.hypot(other.x - u.x, other.y - u.y) <= 500
+				);
+				if (enemies.length > 0) {
+					enemies.sort(
+						(a, b) => Math.hypot(a.x - u.x, a.y - u.y) - Math.hypot(b.x - u.x, b.y - u.y)
+					);
+					const chainTargets = enemies.slice(0, 4);
+					const damages = [120, 90, 65, 45];
+					chainTargets.forEach((target, idx) => {
+						this.applyUnitDamage(target, damages[idx] || 40, 'magic', u.team, false, u);
+					});
+					u.abilityCooldownTimer = 12.0;
+					this.sim.addFloatingText('Блискавка!', u.x, u.y - 25, '#67e8f9');
+				}
+			}
+
+			// 10. War Stomp
+			const hasStomp = u.abilityType === 'stomp' || u.abilities?.some((a) => a.type === 'stomp');
+			if (hasStomp && (!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0)) {
+				const nearbyEnemies = this.sim.units.filter(
+					(other) =>
+						other.team !== u.team &&
+						other.lane === u.lane &&
+						other.state !== 'DEAD' &&
+						!other.flying &&
+						Math.hypot(other.x - u.x, other.y - u.y) <= 180
+				);
+				if (nearbyEnemies.length >= 1) {
+					for (const enemy of nearbyEnemies) {
+						enemy.buffs = enemy.buffs || [];
+						enemy.buffs.push({ type: 'stun', timer: 1.5, value: 0 });
+						enemy.isStunned = true;
+						this.applyUnitDamage(enemy, 75, 'normal', u.team, false, u);
+					}
+					u.abilityCooldownTimer = 10.0;
+					this.sim.addFloatingText('Громовий тупіт!', u.x, u.y - 25, '#d97706');
+				}
+			}
+
+			// 11. Immolation Aura
+			if (u.immolationDps && u.immolationDps > 0) {
+				for (const enemy of this.sim.units) {
+					if (
+						enemy.team !== u.team &&
+						enemy.lane === u.lane &&
+						enemy.state !== 'DEAD' &&
+						Math.hypot(enemy.x - u.x, enemy.y - u.y) <= 200
+					) {
+						enemy.hp -= u.immolationDps * dt;
+						if (enemy.hp <= 0) {
+							this.applyUnitDamage(enemy, 1, 'magic', u.team, false, u);
+						}
+					}
+				}
+			}
+
+			// 12. Auras: Devotion & Endurance
+			if (u.abilityType === 'aura_armor' || u.abilities?.some((a) => a.type === 'aura_armor')) {
+				for (const ally of this.sim.units) {
+					if (
+						ally.team === u.team &&
+						ally.lane === u.lane &&
+						ally.state !== 'DEAD' &&
+						ally.instanceId !== u.instanceId &&
+						Math.hypot(ally.x - u.x, ally.y - u.y) <= 300
+					) {
+						ally.buffs = ally.buffs || [];
+						if (!ally.buffs.some((b) => b.type === 'armor_buff')) {
+							ally.buffs.push({ type: 'armor_buff', timer: 1.5, value: 3 });
+						}
+					}
+				}
+			}
+			if (u.abilityType === 'aura_speed' || u.abilities?.some((a) => a.type === 'aura_speed')) {
+				for (const ally of this.sim.units) {
+					if (
+						ally.team === u.team &&
+						ally.lane === u.lane &&
+						ally.state !== 'DEAD' &&
+						ally.instanceId !== u.instanceId &&
+						Math.hypot(ally.x - u.x, ally.y - u.y) <= 300
+					) {
+						ally.buffs = ally.buffs || [];
+						if (!ally.buffs.some((b) => b.type === 'as')) {
+							ally.buffs.push({ type: 'as', timer: 1.5, value: 0.2 });
+						}
+					}
+				}
+			}
+
 			u.prevX = u.x;
 			u.prevY = u.y;
 			u.cooldownTimer -= dt;
 
 			let currentSpeed = u.speed;
 			if (u.buffs?.some((b) => b.type === 'slow')) {
-				currentSpeed *= 0.5;
+				currentSpeed *= 0.6;
+			}
+			if (u.buffs?.some((b) => b.type === 'frost')) {
+				currentSpeed *= 0.65;
+			}
+			if (u.buffs?.some((b) => b.type === 'bloodlust')) {
+				currentSpeed *= 1.25;
 			}
 			if (u.buffs?.some((b) => b.type === 'weakness')) {
 				currentSpeed *= 0.75;
@@ -158,6 +399,15 @@ export class CombatSystem {
 						let cd = u.attackCooldown;
 						if (u.buffs?.some((b) => b.type === 'as')) {
 							cd *= 0.75;
+						}
+						if (u.buffs?.some((b) => b.type === 'bloodlust')) {
+							cd *= 0.7;
+						}
+						if (u.buffs?.some((b) => b.type === 'frost')) {
+							cd *= 1.35;
+						}
+						if (u.buffs?.some((b) => b.type === 'slow')) {
+							cd *= 1.3;
 						}
 						if (u.buffs?.some((b) => b.type === 'weakness')) {
 							cd *= 1.4;
@@ -414,87 +664,18 @@ export class CombatSystem {
 	 * to prevent stacking and create authentic frontline spread across the lane corridor width.
 	 */
 	public applyCrowdSeparation(dt: number): void {
-		const collisionRadius = 36;
-
-		for (let i = 0; i < this.sim.units.length; i++) {
-			const u = this.sim.units[i];
-			if (u.state === 'DEAD' || u.flying) continue;
-
-			for (let j = i + 1; j < this.sim.units.length; j++) {
-				const other = this.sim.units[j];
-				if (other.state === 'DEAD' || other.flying || other.lane !== u.lane) continue;
-
-				let dx = u.x - other.x;
-				let dy = u.y - other.y;
-				let dist = Math.hypot(dx, dy);
-
-				// If exactly overlapping, give deterministic separation nudge
-				if (dist < 0.1) {
-					const seed = (u.instanceId.charCodeAt(u.instanceId.length - 1) || 1) % 2 === 0 ? 1 : -1;
-					dx = seed * 0.5;
-					dy = (seed === 1 ? -1 : 1) * 2;
-					dist = Math.hypot(dx, dy);
-				}
-
-				// Hard non-penetration threshold
-				const minPhysicalDist = (u.size + other.size) * 0.95;
-
-				if (dist < minPhysicalDist) {
-					// Instant positional overlap resolution (mobs cannot occupy the exact same spot!)
-					const overlap = minPhysicalDist - dist;
-					const nx = dx / dist;
-					const ny = dy / dist;
-
-					let uWeight = 0.5;
-					let otherWeight = 0.5;
-					if (u.state === 'ATTACKING' && other.state === 'WALKING') {
-						uWeight = 0.2;
-						otherWeight = 0.8;
-					} else if (u.state === 'WALKING' && other.state === 'ATTACKING') {
-						uWeight = 0.8;
-						otherWeight = 0.2;
-					}
-
-					u.x += nx * overlap * uWeight;
-					u.y += ny * overlap * uWeight;
-					other.x -= nx * overlap * otherWeight;
-					other.y -= ny * overlap * otherWeight;
-				} else if (dist < collisionRadius) {
-					// Soft Boids-style separation to spread the formation across the lane corridor
-					const overlap = (collisionRadius - dist) / collisionRadius;
-					const push = overlap * 60 * dt;
-					const nx = dx / dist;
-					const ny = dy / dist;
-
-					u.x += nx * push * 0.5;
-					u.y += ny * push * 0.5;
-					other.x -= nx * push * 0.5;
-					other.y -= ny * push * 0.5;
-				}
-			}
-
-			// Enforce solid obstacle collision for ground units AFTER all movement and crowd pushes!
-			if (!u.flying) {
-				const resolved = this.sim.workerSystem.resolveGroundObstacles(u.x, u.y, u.size);
-				u.x = resolved.x;
-				u.y = resolved.y;
-			}
-
-			// Keep unit bounded within its lane corridor when between castles
-			if (u.x >= 1480 && u.x <= ARENA_WIDTH - 1480) {
-				const laneCenterY = u.lane === 'top' ? TOP_LANE_Y : BOTTOM_LANE_Y;
-				u.y = Math.max(laneCenterY - 80, Math.min(laneCenterY + 80, u.y));
-			} else {
-				// In castle siege zone, allow units to spread around castle
-				u.y = Math.max(100, Math.min(ARENA_HEIGHT - 100, u.y));
-			}
-			u.x = Math.max(100, Math.min(ARENA_WIDTH - 100, u.x));
-		}
+		applyCrowdSeparation(this.sim, dt);
 	}
 
 	public performAttack(attacker: Unit, target: Unit): void {
 		// Double check lane separation
 		if (attacker.lane !== target.lane) return;
+
+		// Curse check: 33% chance to miss attacks
+		if (attacker.buffs?.some((b) => b.type === 'curse') && Math.random() < 0.33) {
+			this.sim.addFloatingText('Промах! (Прокляття)', attacker.x, attacker.y - 20, '#a855f7');
+			return;
+		}
 
 		// Evade check
 		let effectiveEvade = target.evadeChance || 0;
@@ -514,6 +695,9 @@ export class CombatSystem {
 		if (attacker.buffs?.some((b) => b.type === 'dmg')) {
 			rawDmg = Math.round(rawDmg * 1.25);
 		}
+		if (attacker.buffs?.some((b) => b.type === 'inner_fire')) {
+			rawDmg = Math.round(rawDmg * 1.25);
+		}
 
 		let isCrit = false;
 		if (attacker.critChance && Math.random() < attacker.critChance) {
@@ -521,18 +705,39 @@ export class CombatSystem {
 			isCrit = true;
 		}
 
-		// Tactical on-attack procs: Bash & Poison
-		if (attacker.abilityType === 'bash' && Math.random() < 0.2) {
+		// Tactical on-attack procs: Bash, Poison, Frost, Pulverize
+		if (
+			(attacker.abilityType === 'bash' || attacker.abilities?.some((a) => a.type === 'bash')) &&
+			Math.random() < 0.2
+		) {
 			target.buffs = target.buffs || [];
 			target.buffs.push({ type: 'stun', timer: 1.2, value: 0 });
 			target.isStunned = true;
 			this.sim.addFloatingText('*Оглушення!*', target.x, target.y - 25, '#f59e0b');
 		}
-		if (attacker.abilityType === 'poison') {
+		if (attacker.abilityType === 'poison' || attacker.abilities?.some((a) => a.type === 'poison')) {
 			target.buffs = target.buffs || [];
 			target.buffs.push({ type: 'poison', timer: 5.0, value: 15 });
 			target.buffs.push({ type: 'slow', timer: 5.0, value: 0.3 });
 			this.sim.addFloatingText('Отрута', target.x, target.y - 20, '#10b981');
+		}
+		if (attacker.frostOnHit || attacker.abilities?.some((a) => a.type === 'frost')) {
+			target.buffs = target.buffs || [];
+			target.buffs.push({ type: 'frost', timer: 3.5, value: 0.35 });
+			this.sim.addFloatingText('Холод', target.x, target.y - 20, '#38bdf8');
+		}
+		if (attacker.pulverizeChance && Math.random() < attacker.pulverizeChance) {
+			this.triggerSplashDamage(
+				target.x,
+				target.y,
+				140,
+				50,
+				'normal',
+				attacker.team,
+				target.instanceId,
+				attacker.lane
+			);
+			this.sim.addFloatingText('*Розтрощення!*', target.x, target.y - 25, '#f59e0b');
 		}
 
 		if (attacker.range > 150) {
@@ -628,6 +833,12 @@ export class CombatSystem {
 		if (target.buffs?.some((b) => b.type === 'shield')) {
 			effectiveArmor += 5;
 		}
+		if (target.buffs?.some((b) => b.type === 'inner_fire')) {
+			effectiveArmor += 5;
+		}
+		if (target.buffs?.some((b) => b.type === 'armor_buff')) {
+			effectiveArmor += 3;
+		}
 		const finalDamage = calculateDamage(attackType, target.armorType, rawDmg, effectiveArmor);
 		target.hp -= finalDamage;
 
@@ -652,6 +863,19 @@ export class CombatSystem {
 		);
 
 		if (target.hp <= 0) {
+			// Reincarnation check
+			const canReincarnate =
+				target.hasReincarnated === false &&
+				(target.abilities?.some((a) => a.type === 'reincarnation') ||
+					target.name.toLowerCase().includes('таурен') ||
+					target.name.toLowerCase().includes('фенікс'));
+			if (canReincarnate) {
+				target.hp = target.maxHp;
+				target.hasReincarnated = true;
+				this.sim.addFloatingText('Переродження! (100% HP)', target.x, target.y - 25, '#facc15');
+				return;
+			}
+
 			target.state = 'DEAD';
 
 			if (attackerUnit?.buildingDefId && (attackerTeam === 'west' || attackerTeam === 'east')) {
@@ -712,79 +936,11 @@ export class CombatSystem {
 	}
 
 	public attackCastle(attacker: Unit, castle: Castle): void {
-		if (this.sim.castleInvulnerableTimer[castle.team] > 0) {
-			this.sim.addFloatingText('Невразливий!', castle.x, castle.y - 30, '#38bdf8');
-			return;
-		}
-
-		attacker.attackAnimTimer = 0.25;
-		const rawDmg =
-			attacker.damageMin +
-			Math.floor(Math.random() * (attacker.damageMax - attacker.damageMin + 1));
-		const finalDamage = calculateDamage(attacker.attackType, 'fort', rawDmg, 5);
-		castle.hp = Math.max(0, castle.hp - finalDamage);
-		this.sim.onSoundEffect?.('hit');
-
-		if (attacker.team === 'west' || attacker.team === 'east') {
-			this.sim.players[attacker.team].stats.damageToCastle += finalDamage;
-			this.sim.players[attacker.team].stats.totalDamageDealt += finalDamage;
-			if (attacker.buildingDefId) {
-				this.sim.recordBuildingDamage(
-					attacker.buildingDefId,
-					attacker.buildingName || attacker.name,
-					attacker.team,
-					finalDamage
-				);
-			}
-		}
-
-		this.sim.addFloatingText(`-${finalDamage}`, castle.x, castle.y - 30, '#ef4444');
-		this.sim.notifyStateChanged();
+		this.defenseSystem.attackCastle(attacker, castle);
 	}
 
 	public performAttackBuilding(attacker: Unit, target: Building): void {
-		attacker.attackAnimTimer = 0.25;
-		let rawDmg =
-			attacker.damageMin +
-			Math.floor(Math.random() * (attacker.damageMax - attacker.damageMin + 1));
-		if (attacker.buffs?.some((b) => b.type === 'dmg')) {
-			rawDmg = Math.round(rawDmg * 1.25);
-		}
-
-		if (attacker.range > 150) {
-			const dist = Math.hypot(
-				target.x + CELL_SIZE / 2 - attacker.x,
-				target.y + CELL_SIZE / 2 - attacker.y
-			);
-			this.sim.projectiles.push({
-				id: `proj_${this.sim.nextProjectileId++}`,
-				sourceUnitId: attacker.instanceId,
-				targetUnitId: target.instanceId,
-				x: attacker.x,
-				y: attacker.y,
-				targetX: target.x + CELL_SIZE / 2,
-				targetY: target.y + CELL_SIZE / 2,
-				originX: attacker.x,
-				originY: attacker.y,
-				totalDist: dist,
-				arcHeight: attacker.attackType === 'pierce' ? 35 : attacker.attackType === 'siege' ? 65 : 0,
-				speed: 650,
-				damage: rawDmg,
-				attackType: attacker.attackType,
-				isCrit: false,
-				team: attacker.team,
-				splashRadius: attacker.splashRadius
-			});
-			if (attacker.attackType === 'magic') {
-				this.sim.onSoundEffect?.('magic');
-			} else {
-				this.sim.onSoundEffect?.('bow');
-			}
-		} else {
-			const mTeam: MatchTeam = attacker.team === 'east' ? 'east' : 'west';
-			this.damageBuilding(target, rawDmg, attacker.attackType, mTeam);
-			this.sim.onSoundEffect?.('sword');
-		}
+		this.defenseSystem.performAttackBuilding(attacker, target);
 	}
 
 	public damageBuilding(
@@ -793,197 +949,18 @@ export class CombatSystem {
 		attackType: AttackType,
 		attackerTeam: MatchTeam
 	): void {
-		if (building.hp <= 0) return;
-		const damage = calculateDamage(attackType, building.armorType, rawDamage, building.armor);
-		building.hp -= damage;
-		this.sim.addFloatingText(`-${damage}`, building.x + CELL_SIZE / 2, building.y - 15, '#f87171');
-
-		const player = this.sim.players[attackerTeam];
-		if (player) {
-			player.stats.totalDamageDealt += damage;
-		}
-
-		if (building.hp <= 0) {
-			building.hp = 0;
-			this.sim.buildings = this.sim.buildings.filter((b) => b.instanceId !== building.instanceId);
-			const bDef = getBuilding(building.defId);
-			if (bDef && isLegendaryBuilding(bDef)) {
-				const owner = this.sim.players[building.team];
-				if (owner && owner.food > 0) owner.food--;
-			}
-			this.sim.addFloatingText(
-				`Зруйновано: ${building.name}`,
-				building.x + CELL_SIZE / 2,
-				building.y - 25,
-				'#ef4444'
-			);
-			this.sim.onSoundEffect?.('buildingDestroyed');
-		}
-		this.sim.notifyStateChanged();
+		this.defenseSystem.damageBuilding(building, rawDamage, attackType, attackerTeam);
 	}
 
 	public updateCastles(dt: number): void {
-		for (const team of ['west', 'east'] as MatchTeam[]) {
-			const castle = this.sim.castles[team];
-			this.castleCooldowns[team] -= dt;
-
-			if (this.castleCooldowns[team] <= 0) {
-				const enemy = this.sim.spatialGrid.findClosestEnemy(
-					castle.x,
-					castle.y,
-					800,
-					team,
-					undefined,
-					true
-				);
-				if (enemy) {
-					const isOvercharged = this.sim.castleOverchargeTimer[team] > 0;
-					this.castleCooldowns[team] = isOvercharged ? 0.5 : 1.0;
-					const dist = Math.hypot(enemy.x - castle.x, enemy.y - castle.y);
-					this.sim.projectiles.push({
-						id: `castle_shot_${this.sim.nextProjectileId++}`,
-						sourceUnitId: 'castle_' + team,
-						targetUnitId: enemy.instanceId,
-						x: castle.x,
-						y: castle.y,
-						targetX: enemy.x,
-						targetY: enemy.y,
-						originX: castle.x,
-						originY: castle.y,
-						totalDist: dist,
-						arcHeight: 50,
-						speed: 700,
-						damage: isOvercharged ? 170 : 85,
-						attackType: 'siege',
-						isCrit: isOvercharged,
-						team,
-						splashRadius: 90
-					});
-				}
-			}
-		}
+		this.defenseSystem.updateCastles(dt);
 	}
 
 	public updateTowers(dt: number): void {
-		for (const b of this.sim.buildings) {
-			if (b.specialType !== 'tower') continue;
-
-			if (b.attackTimer === undefined) {
-				b.attackTimer = 0;
-			}
-			b.attackTimer -= dt;
-
-			if (b.attackTimer <= 0) {
-				const range = b.attackRange || 500;
-				const enemy = this.sim.spatialGrid.findClosestEnemy(
-					b.x,
-					b.y,
-					range,
-					b.team,
-					undefined,
-					true
-				);
-				if (enemy) {
-					b.attackTimer = b.attackCooldown || 1.0;
-					const dmg = b.damageMin || 50;
-					const isSplash = b.defId === 'h073' || b.defId === 'cg0a';
-					const tDist = Math.hypot(enemy.x - b.x, enemy.y - b.y);
-					this.sim.projectiles.push({
-						id: `tower_shot_${this.sim.nextProjectileId++}`,
-						sourceUnitId: b.instanceId,
-						targetUnitId: enemy.instanceId,
-						x: b.x,
-						y: b.y,
-						targetX: enemy.x,
-						targetY: enemy.y,
-						originX: b.x,
-						originY: b.y,
-						totalDist: tDist,
-						arcHeight: 30,
-						speed: 650,
-						damage: dmg,
-						attackType: b.attackType || 'pierce',
-						isCrit: false,
-						team: b.team,
-						splashRadius: isSplash ? 65 : undefined
-					});
-				}
-			}
-		}
+		this.defenseSystem.updateTowers(dt);
 	}
 
 	public updateProjectiles(dt: number): void {
-		for (const p of this.sim.projectiles) {
-			const target = this.sim.units.find((u) => u.instanceId === p.targetUnitId);
-			const targetBuilding = !target
-				? this.sim.buildings.find((b) => b.instanceId === p.targetUnitId)
-				: null;
-
-			if (target && target.state !== 'DEAD') {
-				p.targetX = target.x;
-				p.targetY = target.y;
-			} else if (targetBuilding) {
-				p.targetX = targetBuilding.x + CELL_SIZE / 2;
-				p.targetY = targetBuilding.y + CELL_SIZE / 2;
-			}
-
-			const dx = p.targetX - p.x;
-			const dy = p.targetY - p.y;
-			const dist = Math.hypot(dx, dy);
-
-			const step = p.speed * dt;
-			if (dist <= step) {
-				if (target && target.state !== 'DEAD') {
-					const attackerUnit = this.sim.units.find((u) => u.instanceId === p.sourceUnitId);
-					this.applyUnitDamage(target, p.damage, p.attackType, p.team, p.isCrit, attackerUnit);
-
-					// Tower special on-hit effects & stats
-					if (p.sourceUnitId.startsWith('bld_')) {
-						if (!target.buffs) target.buffs = [];
-						const tower = this.sim.buildings.find((b) => b.instanceId === p.sourceUnitId);
-						if (tower) {
-							this.sim.recordBuildingDamage(tower.defId, tower.name, tower.team, p.damage);
-							if (target.hp <= 0) {
-								this.sim.recordBuildingKill(tower.defId, tower.name, tower.team);
-							}
-						}
-						if (tower?.defId === 'h03Q') {
-							// Frost tower chill slow
-							const slowBuff = target.buffs.find((b) => b.type === 'slow');
-							if (slowBuff) {
-								slowBuff.timer = Math.max(slowBuff.timer, 2.0);
-							} else {
-								target.buffs.push({ type: 'slow', timer: 2.0, value: 0.3 });
-							}
-						} else if (tower?.defId === 'n01J') {
-							// Plague tower poison
-							const poisonBuff = target.buffs.find((b) => b.type === 'poison');
-							if (poisonBuff) {
-								poisonBuff.timer = Math.max(poisonBuff.timer, 3.0);
-							} else {
-								target.buffs.push({ type: 'poison', timer: 3.0, value: 12 });
-							}
-						}
-					}
-				} else if (targetBuilding && targetBuilding.hp > 0) {
-					this.damageBuilding(targetBuilding, p.damage, p.attackType, p.team as MatchTeam);
-				}
-				if (p.splashRadius) {
-					this.triggerSplashDamage(
-						p.targetX,
-						p.targetY,
-						p.splashRadius,
-						p.damage * 0.5,
-						p.attackType,
-						p.team,
-						p.targetUnitId
-					);
-				}
-				p.damage = 0;
-			} else {
-				p.x += (dx / dist) * step;
-				p.y += (dy / dist) * step;
-			}
-		}
+		this.defenseSystem.updateProjectiles(dt);
 	}
 }

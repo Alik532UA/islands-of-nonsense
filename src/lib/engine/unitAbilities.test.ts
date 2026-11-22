@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Simulation } from './simulation';
-import { resolveUnitAbility, getUnit } from './gameData';
+import { resolveUnitAbility, getUnit, getUnitAbilities } from './gameData';
 
 describe('Point 3: Unit Abilities & Passives (Ensnare, Poison, Heal, Bash, Aura)', () => {
 	let sim: Simulation;
@@ -156,5 +156,169 @@ describe('Point 3: Unit Abilities & Passives (Ensnare, Poison, Heal, Bash, Aura)
 		}
 		Math.random = origRandom;
 		expect(stunned).toBe(true);
+	});
+
+	it('Bloodlust ability casts on unbuffed allies granting attack and move speed', () => {
+		const shaman = sim.spawnUnitDirectly({
+			team: 'west',
+			lane: 'top',
+			x: 500,
+			y: 220,
+			abilityType: 'bloodlust'
+		});
+
+		const grunt = sim.spawnUnitDirectly({
+			team: 'west',
+			lane: 'top',
+			x: 530,
+			y: 220,
+			hp: 600
+		});
+
+		sim.step(0.05);
+
+		const buff = grunt.buffs?.find((b) => b.type === 'bloodlust');
+		expect(buff).toBeDefined();
+		expect(buff?.value).toBe(0.4);
+		expect(shaman.abilityCooldownTimer).toBeGreaterThan(0);
+	});
+
+	it('Frost attack applies chill slowing target move and attack speed', () => {
+		sim.spawnUnitDirectly({
+			team: 'west',
+			lane: 'top',
+			x: 500,
+			y: 220,
+			range: 100,
+			frostOnHit: true
+		});
+
+		const enemy = sim.spawnUnitDirectly({
+			team: 'east',
+			lane: 'top',
+			x: 530,
+			y: 220,
+			hp: 1000
+		});
+
+		sim.step(0.05); // Triggers melee attack
+
+		const frostBuff = enemy.buffs?.find((b) => b.type === 'frost');
+		expect(frostBuff).toBeDefined();
+		expect(frostBuff?.value).toBe(0.35);
+	});
+
+	it('Reincarnation revives unit with full HP upon lethal damage once', () => {
+		const tauren = sim.spawnUnitDirectly({
+			team: 'west',
+			lane: 'top',
+			x: 500,
+			y: 220,
+			hp: 100,
+			maxHp: 1000,
+			hasReincarnated: false,
+			abilities: [
+				{
+					id: 'abil_reincarnation',
+					nameUk: 'Переродження',
+					nameEn: 'Reincarnation',
+					type: 'reincarnation',
+					isPassive: true,
+					descriptionUk: '',
+					descriptionEn: ''
+				}
+			]
+		});
+
+		// Deal lethal damage to tauren
+		sim.combatSystem.applyUnitDamage(tauren, 200, 'chaos', 'east', false);
+
+		// Must have revived back to max HP and marked as reincarnated!
+		expect(tauren.state).not.toBe('DEAD');
+		expect(tauren.hp).toBe(1000);
+		expect(tauren.hasReincarnated).toBe(true);
+
+		// Next lethal damage should now kill it
+		sim.combatSystem.applyUnitDamage(tauren, 2000, 'chaos', 'east', false);
+		expect(tauren.state).toBe('DEAD');
+	});
+
+	it('Thorns reflects melee damage back to the attacker', () => {
+		const _turtle = sim.spawnUnitDirectly({
+			team: 'west',
+			lane: 'top',
+			x: 500,
+			y: 220,
+			hp: 1000,
+			reflectDamagePct: 0.25
+		});
+
+		const attacker = sim.spawnUnitDirectly({
+			team: 'east',
+			lane: 'top',
+			x: 530,
+			y: 220,
+			range: 100,
+			damage: 100,
+			hp: 500
+		});
+
+		const initialAttackerHp = attacker.hp;
+		sim.step(0.05); // Attacker strikes turtle in melee
+
+		expect(attacker.hp).toBeLessThan(initialAttackerHp);
+	});
+
+	it('Thunderbolt damages and stuns target', () => {
+		const stormCaller = sim.spawnUnitDirectly({
+			team: 'west',
+			lane: 'top',
+			x: 500,
+			y: 220,
+			abilityType: 'thunderbolt'
+		});
+
+		const enemy = sim.spawnUnitDirectly({
+			team: 'east',
+			lane: 'top',
+			x: 650,
+			y: 220,
+			hp: 500
+		});
+
+		sim.step(0.05);
+
+		expect(enemy.hp).toBeLessThan(500);
+		expect(enemy.isStunned).toBe(true);
+		expect(stormCaller.abilityCooldownTimer).toBeGreaterThan(0);
+	});
+
+	it('Chain Lightning strikes multiple enemies in chain', () => {
+		sim.spawnUnitDirectly({
+			team: 'west',
+			lane: 'top',
+			x: 500,
+			y: 220,
+			abilityType: 'chain_lightning'
+		});
+
+		const e1 = sim.spawnUnitDirectly({ team: 'east', lane: 'top', x: 600, y: 220, hp: 500 });
+		const e2 = sim.spawnUnitDirectly({ team: 'east', lane: 'top', x: 650, y: 220, hp: 500 });
+		const e3 = sim.spawnUnitDirectly({ team: 'east', lane: 'top', x: 700, y: 220, hp: 500 });
+
+		sim.step(0.05);
+
+		expect(e1.hp).toBeLessThan(500);
+		expect(e2.hp).toBeLessThan(500);
+		expect(e3.hp).toBeLessThan(500);
+	});
+
+	it('getUnitAbilities returns rich abilities parsed from raw Warcraft III data', () => {
+		const paladin = getUnit('h03C'); // Паладин
+		const abils = getUnitAbilities(paladin);
+		expect(abils.length).toBeGreaterThan(0);
+		expect(
+			abils.some((a) => a.type === 'heal' || a.type === 'inner_fire' || a.type === 'aura_armor')
+		).toBe(true);
 	});
 });

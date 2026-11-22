@@ -79,7 +79,7 @@
 
 			<!-- Item Cards (Scrollable) -->
 			<div class="flex flex-col gap-2.5 overflow-y-auto pr-1.5 flex-1 min-h-0">
-				{#each CASTLE_ITEMS_LIST as item, idx}
+				{#each CASTLE_ITEMS_LIST as item, _idx}
 					{@const cd = sim.getItemCooldown('west', item.id)}
 					{@const canAfford = player.gold >= item.cost}
 					{@const canBuy = canAfford && cd <= 0}

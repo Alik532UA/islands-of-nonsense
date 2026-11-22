@@ -152,6 +152,7 @@ export interface UnitDefinition {
 	splashRadius?: number;
 	reflectDamagePct?: number;
 	isScavenger?: boolean;
+	abilities?: UnitAbilityDef[];
 }
 
 export interface BuildingDefinition {
@@ -171,6 +172,44 @@ export interface BuildingDefinition {
 	range?: number | null;
 	damage_base?: number | null;
 	raw_fields?: Record<string, unknown>;
+	abilities?: UnitAbilityDef[];
+}
+
+export type UnitAbilityType =
+	| 'none'
+	| 'ensnare'
+	| 'poison'
+	| 'heal'
+	| 'bash'
+	| 'aura_dmg'
+	| 'aura_armor'
+	| 'aura_speed'
+	| 'bloodlust'
+	| 'slow'
+	| 'crit'
+	| 'evasion'
+	| 'cleave'
+	| 'frost'
+	| 'thorns'
+	| 'reincarnation'
+	| 'pulverize'
+	| 'immolation'
+	| 'curse'
+	| 'inner_fire'
+	| 'thunderbolt'
+	| 'chain_lightning'
+	| 'stomp';
+
+export interface UnitAbilityDef {
+	id: string;
+	nameUk: string;
+	nameEn: string;
+	type: UnitAbilityType;
+	isPassive: boolean;
+	cooldown?: number;
+	descriptionUk: string;
+	descriptionEn: string;
+	icon?: string;
 }
 
 export interface RaceDefinition {
@@ -190,7 +229,12 @@ export interface ActiveBuff {
 		| 'weakness'
 		| 'ensnare'
 		| 'poison'
-		| 'stun';
+		| 'stun'
+		| 'bloodlust'
+		| 'frost'
+		| 'curse'
+		| 'inner_fire'
+		| 'armor_buff';
 	timer: number;
 	value: number;
 }
@@ -231,8 +275,16 @@ export interface Unit {
 	splashRadius?: number;
 	reflectDamagePct?: number;
 	isScavenger?: boolean;
-	abilityType?: 'ensnare' | 'poison' | 'heal' | 'bash' | 'aura_dmg' | 'none';
+	abilityType?: UnitAbilityType;
+	abilities?: UnitAbilityDef[];
 	abilityCooldownTimer?: number;
+	hasReincarnated?: boolean;
+	reincarnationTimer?: number;
+	frostOnHit?: boolean;
+	thornsPercent?: number;
+	cleavePercent?: number;
+	pulverizeChance?: number;
+	immolationDps?: number;
 	isStunned?: boolean;
 	isEnsnared?: boolean;
 	buildingDefId?: string;

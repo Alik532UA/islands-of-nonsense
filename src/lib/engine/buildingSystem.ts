@@ -17,6 +17,7 @@ import {
 	getUnit,
 	getSpawnCooldown,
 	resolveUnitAbility,
+	getUnitAbilities,
 	isLegendaryBuilding
 } from './gameData';
 
@@ -461,6 +462,22 @@ export class BuildingSystem {
 
 		const cooldown = Math.max(0.4, (unitDef.cooldown ?? 1.5) / attackSpeedMult);
 
+		const abilities = unitDef.abilities || getUnitAbilities(unitDef);
+		const hasCrit = abilities.some((a) => a.type === 'crit');
+		const hasEvasion = abilities.some((a) => a.type === 'evasion');
+		const hasThorns = abilities.some((a) => a.type === 'thorns');
+		const hasCleave = abilities.some((a) => a.type === 'cleave');
+		const hasFrost = abilities.some((a) => a.type === 'frost');
+		const hasReincarnation = abilities.some((a) => a.type === 'reincarnation');
+		const hasPulverize = abilities.some((a) => a.type === 'pulverize');
+		const hasImmolation = abilities.some((a) => a.type === 'immolation');
+
+		let unitCritChance = player.commander === 5 ? 0.25 : 0;
+		if (hasCrit) unitCritChance = Math.min(0.75, unitCritChance + 0.22);
+
+		let unitEvadeChance = player.commander === 6 ? 0.2 : 0;
+		if (hasEvasion) unitEvadeChance = Math.min(0.75, unitEvadeChance + 0.2);
+
 		const unit: Unit = {
 			instanceId: `unit_${this.sim.nextUnitId++}`,
 			defId: unitDef.id,
@@ -490,12 +507,18 @@ export class BuildingSystem {
 			targetY: laneY,
 			state: 'WALKING',
 			size: unitDef.flying ? 22 : 16,
-			critChance: player.commander === 5 ? 0.25 : 0,
-			splashRadius: unitDef.splashRadius,
-			reflectDamagePct: unitDef.reflectDamagePct,
+			critChance: unitCritChance,
+			evadeChance: unitEvadeChance,
+			splashRadius: hasCleave ? 120 : unitDef.splashRadius,
+			reflectDamagePct: hasThorns ? 0.25 : unitDef.reflectDamagePct,
 			isScavenger: unitDef.isScavenger,
 			abilityType: resolveUnitAbility(unitDef),
+			abilities,
 			abilityCooldownTimer: 0,
+			frostOnHit: hasFrost,
+			hasReincarnated: !hasReincarnation,
+			pulverizeChance: hasPulverize ? 0.2 : 0,
+			immolationDps: hasImmolation ? 18 : 0,
 			buildingDefId: building.defId,
 			buildingName: building.name
 		};
