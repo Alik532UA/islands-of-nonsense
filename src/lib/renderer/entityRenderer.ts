@@ -1,6 +1,6 @@
 import type { Graphics } from 'pixi.js';
 import type { Simulation } from '../engine/simulation';
-import { WC3_PLAYER_COLORS, type Castle, type MatchTeam } from '../engine/types';
+import { WC3_PLAYER_COLORS, type Castle, type MatchTeam, type Unit } from '../engine/types';
 import { CELL_SIZE } from '../engine/constants';
 
 export type SelectedEntity =
@@ -46,10 +46,8 @@ export class EntityRenderer {
 			}
 
 			// 2. Volumetric Stone Foundation Slab (2x2 footprint)
-			// Lower stone rim
 			g.roundRect(px, py + 4, CELL_SIZE, CELL_SIZE - 4, 6);
 			g.fill({ color: 0x475569 });
-			// Upper stone top
 			g.roundRect(px, py, CELL_SIZE, CELL_SIZE - 4, 6);
 			g.fill({ color: 0x64748b });
 			g.stroke({ color: isSelected ? 0xfbbf24 : 0x334155, width: 2 });
@@ -85,10 +83,8 @@ export class EntityRenderer {
 			};
 			const roofColor = raceColors[b.race] || 0x1e3a8a;
 
-			// Shingled roof base
 			g.roundRect(px + 6, py + 5, CELL_SIZE - 12, CELL_SIZE - 14, 5);
 			g.fill({ color: roofColor });
-			// Roof ridge bevel highlight
 			g.roundRect(px + 8, py + 6, CELL_SIZE - 16, (CELL_SIZE - 14) / 2, 4);
 			g.fill({ color: 0xffffff, alpha: 0.2 });
 
@@ -103,7 +99,6 @@ export class EntityRenderer {
 				g.roundRect(cp.x, cp.y, 12, 12, 3);
 				g.fill({ color: 0x94a3b8 });
 				g.stroke({ color: 0x334155, width: 1 });
-				// Verdigris teal conical cap
 				g.circle(cp.x + 6, cp.y + 6, 4);
 				g.fill({ color: 0x0f766e });
 			}
@@ -137,7 +132,6 @@ export class EntityRenderer {
 					g.fill({ color: 0x78350f, alpha: 0.65 });
 					g.stroke({ color: 0xd97706, width: 2 });
 
-					// Scaffolding diagonal cross-beams
 					for (let sx = 0; sx < 2; sx++) {
 						for (let sy = 0; sy < 2; sy++) {
 							const qx = px + sx * half;
@@ -152,7 +146,6 @@ export class EntityRenderer {
 					}
 				}
 
-				// Construction progress bar
 				const bProg = b.buildProgress || 0;
 				const bMax = b.maxBuildProgress || 3.5;
 				const progPct = Math.max(0, Math.min(1, bProg / bMax));
@@ -187,7 +180,7 @@ export class EntityRenderer {
 	}
 
 	// =========================================================================
-	// 2. 2.5D SPYRO-STYLED FAIRYTALE CASTLES
+	// 2. 2.5D GRAND ALLIANCE / FANTASY CASTLE (Matching reference art)
 	// =========================================================================
 	public drawCastles(g: Graphics, selectedEntity?: SelectedEntity): void {
 		const westSelected = selectedEntity?.type === 'castle' && selectedEntity.team === 'west';
@@ -210,13 +203,12 @@ export class EntityRenderer {
 		g.roundRect(cx - 95, cy - 118, 206, 266, 20);
 		g.fill({ color: 0x000000, alpha: 0.4 });
 
-		// Selection halo
 		if (isSelected) {
 			g.roundRect(cx - 108, cy - 138, 216, 276, 22);
 			g.stroke({ color: 0xfbbf24, width: 3.5, alpha: 0.9 });
 		}
 
-		// 2. Stone Foundation Courtyard (Warm Sandstone)
+		// 2. Stone Foundation Courtyard
 		g.roundRect(cx - 100, cy - 130, 200, 260, 18);
 		g.fill({ color: 0x57534e });
 		g.stroke({ color: isSelected ? 0xf59e0b : 0x292524, width: 3 });
@@ -230,7 +222,7 @@ export class EntityRenderer {
 		g.fill({ color: 0x78716c });
 		g.stroke({ color: 0x292524, width: 3 });
 
-		// 4. Four Round Watchtowers with Verdigris/Teal Conical Roofs & Gold Spires
+		// 4. Four Round Watchtowers with Conical Roofs & Golden Lion Spires
 		const towerOffsets = [
 			{ x: cx - keepW / 2 - 8, y: cy - keepH / 2 - 8 },
 			{ x: cx + keepW / 2 - 24, y: cy - keepH / 2 - 8 },
@@ -239,20 +231,18 @@ export class EntityRenderer {
 		];
 
 		for (const t of towerOffsets) {
-			// Tower drop shadow
 			g.circle(t.x + 18, t.y + 22, 18);
 			g.fill({ color: 0x000000, alpha: 0.35 });
 
-			// Tower stone cylinder
 			g.circle(t.x + 16, t.y + 16, 18);
 			g.fill({ color: 0xa8a29e });
 			g.stroke({ color: 0x292524, width: 2 });
 
-			// Conical Verdigris Teal Roof (Spyro signature style!)
+			// Conical Roof in Royal Blue / Verdigris
 			g.circle(t.x + 16, t.y + 14, 15);
-			g.fill({ color: 0x0d9488 });
+			g.fill({ color: isWest ? 0x1e3a8a : 0x991b1b });
 			g.circle(t.x + 16, t.y + 12, 10);
-			g.fill({ color: 0x14b8a6 });
+			g.fill({ color: isWest ? 0x2563eb : 0xdc2626 });
 
 			// Golden spire finial
 			g.circle(t.x + 16, t.y + 8, 4);
@@ -263,12 +253,11 @@ export class EntityRenderer {
 
 		// 5. Central Grand Spire / Domed Turret
 		g.circle(cx, cy - 10, 26);
-		g.fill({ color: 0x0f766e });
-		g.stroke({ color: 0x115e59, width: 2.5 });
+		g.fill({ color: isWest ? 0x1d4ed8 : 0xb91c1c });
+		g.stroke({ color: 0x1e293b, width: 2.5 });
 		g.circle(cx, cy - 14, 16);
-		g.fill({ color: 0x2dd4bf });
+		g.fill({ color: isWest ? 0x3b82f6 : 0xef4444 });
 
-		// Golden finial on central dome
 		g.circle(cx, cy - 20, 6);
 		g.fill({ color: 0xfbbf24 });
 
@@ -278,21 +267,19 @@ export class EntityRenderer {
 		g.roundRect(gateX - 12, cy - 24, 24, 48, 8);
 		g.fill({ color: 0x1c1917 });
 
-		// Iron portcullis grilles
 		for (let gy = cy - 18; gy <= cy + 18; gy += 8) {
 			g.moveTo(gateX - 10, gy);
 			g.lineTo(gateX + 10, gy);
 			g.stroke({ color: 0x94a3b8, width: 2.5 });
 		}
 
-		// 7. Grand Heraldic Banner Flapping Above
+		// 7. Grand Heraldic Lion Banner Hanging Down
 		const flagPoleX = cx;
 		const flagPoleY = cy - keepH / 2 - 36;
 		g.moveTo(flagPoleX, cy - keepH / 2 + 10);
 		g.lineTo(flagPoleX, flagPoleY);
 		g.stroke({ color: 0xd97706, width: 3 });
 
-		// Pennant in player team color
 		g.poly([flagPoleX, flagPoleY, flagPoleX + 36, flagPoleY + 12, flagPoleX, flagPoleY + 24]);
 		g.fill({ color: teamColor });
 		g.stroke({ color: 0xfef08a, width: 1.5 });
@@ -309,7 +296,6 @@ export class EntityRenderer {
 		g.roundRect(barX, barY, barWidth * hpPct, barHeight, 2);
 		g.fill({ color: hpPct > 0.5 ? 0x22c55e : hpPct > 0.25 ? 0xeab308 : 0xef4444 });
 
-		// Damaged Castle: Smoke & Fire particles
 		if (hpPct < 0.6) {
 			const time = this.sim.gameTime;
 			for (let i = 0; i < 4; i++) {
@@ -328,7 +314,6 @@ export class EntityRenderer {
 			}
 		}
 
-		// Azure Dome Invulnerability Shield
 		if (this.sim.castleInvulnerableTimer[castle.team] > 0) {
 			g.circle(cx, cy, 145);
 			g.fill({ color: 0x06b6d4, alpha: 0.25 });
@@ -337,7 +322,7 @@ export class EntityRenderer {
 	}
 
 	// =========================================================================
-	// 3. 2.5D SPYRO-STYLED WORKERS LAYER
+	// 3. 2.5D WORKERS LAYER
 	// =========================================================================
 	public drawWorkersLayer(g: Graphics, isWorkerSelected: boolean): void {
 		g.clear();
@@ -358,24 +343,23 @@ export class EntityRenderer {
 			const bob = Math.sin(this.sim.gameTime * 7 + slot) * 2;
 			const playerColor = player.color?.num ?? (isWest ? 0x0042ff : 0xff0303);
 
-			// Glowing Magical Ground Rune Ring (Spyro style)
+			// Radiant Cyan / Golden Glow Ring at Feet
 			const ringPulse = 0.85 + Math.sin(this.sim.gameTime * 6) * 0.15;
 			g.ellipse(wx, wy + 16, 22, 11);
 			g.stroke({
-				color: 0x38bdf8,
-				width: isHumanWorker && isWorkerSelected ? 3 : 1.5,
+				color: isHumanWorker && isWorkerSelected ? 0xfbbf24 : 0x00f5ff,
+				width: isHumanWorker && isWorkerSelected ? 3.5 : 2,
 				alpha: ringPulse
 			});
 
-			// 2.5D Contact Drop Shadow
+			// 2.5D Drop Shadow
 			g.ellipse(wx + 3, wy + 16, 18, 8);
 			g.fill({ color: 0x000000, alpha: 0.4 });
 
-			// Worker Body / Tunic (Volume Lighting)
+			// Worker Body & Tunic
 			g.roundRect(wx - 9, wy - 5 + bob, 18, 18, 5);
 			g.fill({ color: playerColor });
 			g.stroke({ color: 0x1e293b, width: 1.5 });
-			// Chest highlight
 			g.roundRect(wx - 7, wy - 4 + bob, 14, 7, 3);
 			g.fill({ color: 0xffffff, alpha: 0.25 });
 
@@ -396,7 +380,6 @@ export class EntityRenderer {
 			g.fill({ color: skinColor });
 			g.stroke({ color: 0x78350f, width: 1.2 });
 
-			// Expressive eyes facing forward
 			let facing = isWest ? 1 : -1;
 			if (w.isBuilding && w.targetBuildingId) {
 				const bld = this.sim.buildings.find((b) => b.instanceId === w.targetBuildingId);
@@ -410,12 +393,13 @@ export class EntityRenderer {
 				facing = w.targetX < w.x ? -1 : 1;
 			}
 
+			// Eyes
 			g.circle(wx + facing * 3, wy - 12 + bob, 2.5);
 			g.fill({ color: 0x0f172a });
 			g.circle(wx + facing * 3.5, wy - 13 + bob, 1);
 			g.fill({ color: 0xffffff });
 
-			// Swinging Construction Hammer with Sparks
+			// Hammer
 			const isSwinging = w.isBuilding || w.isRepairing;
 			const hammerSwing = isSwinging ? Math.sin(this.sim.gameTime * 20 + slot) * 14 : 0;
 			const hx = wx + facing * 12;
@@ -438,7 +422,7 @@ export class EntityRenderer {
 	}
 
 	// =========================================================================
-	// 4. 2.5D SPYRO-STYLED MOBS & UNITS LAYER
+	// 4. 2.5D RICH MOBS LAYER (Styling directly from C:\...\раси)
 	// =========================================================================
 	public drawUnitsLayer(g: Graphics, selectedEntity: SelectedEntity, enableFog: boolean): void {
 		g.clear();
@@ -458,7 +442,7 @@ export class EntityRenderer {
 				continue;
 			}
 
-			// Fog of War check: hide unrevealed enemy units
+			// Fog of War check
 			if (enableFog && u.team === 'east') {
 				const isRevealed =
 					u.x <= 1500 ||
@@ -488,172 +472,93 @@ export class EntityRenderer {
 				: (playerSlotColor ?? (isWest ? westPlayerColor : eastPlayerColor));
 			const dir = isNeutral ? 1 : isWest ? 1 : -1;
 
-			// Selection indicator ring (Green for friendly, Red for enemy, Purple for neutral)
 			const isSelected =
 				(selectedEntity?.type === 'unit' && selectedEntity.instanceId === u.instanceId) ||
 				(selectedEntity?.type === 'group' && selectedEntity.unitIds.includes(u.instanceId));
 
-			// Dynamic walking bobbing
+			// Bobbing & Elevation
 			const walkBob =
 				u.state === 'WALKING' ? Math.sin(this.sim.gameTime * 10 + u.x * 0.08) * 2.5 : 0;
-			const flyAltitude = u.flying ? 20 + Math.sin(this.sim.gameTime * 4) * 5 : 0;
+			const flyAltitude = u.flying ? 22 + Math.sin(this.sim.gameTime * 4) * 6 : 0;
 			const renderY = u.y - flyAltitude + walkBob;
 
-			// 1. GLOWING MAGICAL RUNE RING AT FEET (From Spyro Concept Reference!)
-			const runeRingColor = isNeutral ? 0xa855f7 : isWest ? 0x06b6d4 : 0xf97316;
-			const runeRingR = radius * 1.35;
-			g.ellipse(u.x, u.y + radius * 0.7, runeRingR, runeRingR * 0.5);
-			g.stroke({
-				color: isSelected ? 0x22c55e : runeRingColor,
-				width: isSelected ? 3 : 2,
-				alpha: 0.85
-			});
+			// =====================================================================
+			// A. LUMINOUS GLOW RING AT FEET (Matching Reference Concept Art!)
+			// =====================================================================
+			const ringR = radius * 1.35;
+			const ringY = u.y + radius * 0.65;
 
-			// Ancient magical rune tick marks along the ring
-			for (let a = 0; a < Math.PI * 2; a += Math.PI / 2) {
-				const tx = u.x + Math.cos(a) * runeRingR;
-				const ty = u.y + radius * 0.7 + Math.sin(a) * (runeRingR * 0.5);
-				g.circle(tx, ty, 1.8);
-				g.fill({ color: 0xe0f2fe });
+			if (isSelected) {
+				// MAGNIFICENT DOUBLE GOLDEN RUNE RING WITH GLOWING RUNES
+				g.ellipse(u.x, ringY, ringR * 1.25, ringR * 0.6);
+				g.stroke({ color: 0xfbbf24, width: 3.5, alpha: 0.95 });
+				g.ellipse(u.x, ringY, ringR * 0.9, ringR * 0.45);
+				g.stroke({ color: 0xfef08a, width: 2, alpha: 0.85 });
+
+				// Ancient glowing magical runes around perimeter
+				for (let a = 0; a < Math.PI * 2; a += Math.PI / 4) {
+					const rx = u.x + Math.cos(a) * (ringR * 1.05);
+					const ry = ringY + Math.sin(a) * (ringR * 0.52);
+					g.circle(rx, ry, 2.2);
+					g.fill({ color: 0xfef08a });
+				}
+			} else {
+				// Radiant neon ground glow (Cyan for West, Fiery Orange for East, Violet for Neutral)
+				const baseRingColor = isNeutral ? 0xa855f7 : isWest ? 0x00f5ff : 0xff4500;
+				// Soft outer aura
+				g.ellipse(u.x, ringY, ringR * 1.2, ringR * 0.55);
+				g.stroke({ color: baseRingColor, width: 3.5, alpha: 0.35 });
+				// Sharp inner core ring
+				g.ellipse(u.x, ringY, ringR, ringR * 0.5);
+				g.stroke({ color: baseRingColor, width: 2, alpha: 0.9 });
 			}
 
-			// 2. 2.5D CONTACT DROP SHADOW
-			const shadowY = u.y + radius * 0.7;
-			const shadowAlpha = u.flying ? 0.25 : 0.45;
-			g.ellipse(u.x + 3, shadowY, radius * (u.flying ? 0.75 : 1.05), radius * 0.45);
+			// =====================================================================
+			// B. 2.5D CONTACT DROP SHADOW
+			// =====================================================================
+			const shadowY = u.y + radius * 0.65;
+			const shadowAlpha = u.flying ? 0.22 : 0.45;
+			g.ellipse(u.x + 3, shadowY, radius * (u.flying ? 0.75 : 1.1), radius * 0.45);
 			g.fill({ color: 0x000000, alpha: shadowAlpha });
 
-			// 3. VOLUMETRIC 2.5D BODY TOKEN (Volume Shaded Sphere)
-			// Lower shadow hemisphere
-			g.circle(u.x, renderY + 2, radius);
-			g.fill({ color: 0x000000, alpha: 0.35 });
+			// =====================================================================
+			// C. VOLUMETRIC 2.5D CHARACTER TOKEN (Specific Archetype from \раси)
+			// =====================================================================
+			this.renderUnitArchetype(g, u, isWest, unitColor, isSelected, renderY, dir);
 
-			// Base volumetric body
-			g.circle(u.x, renderY, radius);
-			g.fill({ color: unitColor });
-			g.stroke({ color: isSelected ? 0x4ade80 : 0x0f172a, width: isSelected ? 3 : 1.8 });
-
-			// Top crescent volume highlight
-			g.ellipse(u.x - 2, renderY - radius * 0.35, radius * 0.65, radius * 0.35);
-			g.fill({ color: 0xffffff, alpha: 0.35 });
-
-			// 4. DISTINCT 2.5D ARCHETYPE VISUAL INDICATORS
-			if (u.flying) {
-				// 2.5D Flapping Dragon / Glider Wings
-				const flap = Math.sin(this.sim.gameTime * 14) * 8;
-				// Left wing
-				g.poly([
-					u.x - 3,
-					renderY - 2,
-					u.x - radius - 12,
-					renderY - 14 + flap,
-					u.x - radius - 6,
-					renderY + 2,
-					u.x - 2,
-					renderY + 4
-				]);
-				g.fill({ color: 0x06b6d4, alpha: 0.9 });
-				g.stroke({ color: 0x0891b2, width: 1.5 });
-
-				// Right wing
-				g.poly([
-					u.x + 3,
-					renderY - 2,
-					u.x + radius + 12,
-					renderY - 14 + flap,
-					u.x + radius + 6,
-					renderY + 2,
-					u.x + 2,
-					renderY + 4
-				]);
-				g.fill({ color: 0x06b6d4, alpha: 0.9 });
-				g.stroke({ color: 0x0891b2, width: 1.5 });
-			} else if (u.attackType === 'siege') {
-				// Steampunk Machine / Artillery: Gears and Cannon barrel
-				g.circle(u.x, renderY, radius * 0.5);
-				g.fill({ color: 0x78716c });
-				g.stroke({ color: 0xd97706, width: 2 });
-				// Cannon / Mortar muzzle facing direction
-				g.rect(u.x + dir * (radius * 0.3), renderY - 4, dir * 12, 8);
-				g.fill({ color: 0x1e293b });
-			} else if (u.attackType === 'magic') {
-				// Arcane Mage: Floating Magic Crystal Orb
-				const crystalOrbAngle = this.sim.gameTime * 4;
-				const ox = u.x + Math.cos(crystalOrbAngle) * (radius + 4);
-				const oy = renderY + Math.sin(crystalOrbAngle) * (radius + 4);
-				g.circle(ox, oy, 4.5);
-				g.fill({ color: 0x38bdf8 });
-				g.circle(ox, oy, 2.5);
-				g.fill({ color: 0xffffff });
-			} else if (u.attackType === 'pierce') {
-				// Ranged Archer: Feathered Quiver & Bow crest
-				g.moveTo(u.x - dir * (radius * 0.6), renderY - radius * 0.8);
-				g.lineTo(u.x - dir * (radius * 0.9), renderY - radius * 1.2);
-				g.stroke({ color: 0xfef08a, width: 2.5 });
-			} else {
-				// Melee Warrior / Tank: Horned Helmet Visor or Shield
-				g.poly([
-					u.x - radius * 0.6,
-					renderY - radius * 0.4,
-					u.x,
-					renderY - radius * 1.1,
-					u.x + radius * 0.6,
-					renderY - radius * 0.4
-				]);
-				g.fill({ color: 0x94a3b8 });
-				g.stroke({ color: 0x334155, width: 1.5 });
-			}
-
-			// 5. GLOWING SPYRO EYES (Facing Travel Direction)
-			const eyeX = u.x + dir * (radius * 0.4);
-			const eyeY = renderY - radius * 0.2;
-			g.ellipse(eyeX, eyeY, 3.5, 2.5);
-			g.fill({ color: isNeutral ? 0xf87171 : 0x38bdf8 });
-			g.circle(eyeX + dir * 1, eyeY - 0.5, 1);
-			g.fill({ color: 0xffffff });
-
-			// Attack animation swing
-			if (u.attackAnimTimer && u.attackAnimTimer > 0) {
-				const flashAlpha = u.attackAnimTimer / 0.25;
-				g.circle(u.x + dir * (radius + 8), renderY, 7);
-				g.fill({ color: 0xfef08a, alpha: flashAlpha * 0.75 });
-			}
-
-			// 6. Active Buff Auras & Spell Effects
+			// =====================================================================
+			// D. ACTIVE SPELL BUFF AURAS
+			// =====================================================================
 			if (u.buffs && u.buffs.length > 0) {
 				for (const buff of u.buffs) {
 					if (buff.type === 'dmg') {
 						g.circle(u.x, renderY, radius + 4);
-						g.stroke({ color: 0xf87171, width: 1.5, alpha: 0.65 });
+						g.stroke({ color: 0xf87171, width: 2, alpha: 0.7 });
 					} else if (buff.type === 'shield') {
 						g.circle(u.x, renderY, radius + 5);
-						g.stroke({ color: 0x60a5fa, width: 1.5, alpha: 0.65 });
+						g.stroke({ color: 0x60a5fa, width: 2, alpha: 0.75 });
 					} else if (buff.type === 'as') {
 						g.circle(u.x, renderY, radius + 6);
-						g.stroke({ color: 0x4ade80, width: 1.5, alpha: 0.65 });
+						g.stroke({ color: 0x4ade80, width: 2, alpha: 0.75 });
 					} else if (buff.type === 'bloodlust') {
-						g.circle(u.x, renderY, radius + 5);
-						g.stroke({ color: 0xef4444, width: 2.5, alpha: 0.85 });
-					} else if (buff.type === 'inner_fire') {
 						g.circle(u.x, renderY, radius + 6);
-						g.stroke({ color: 0xfbbf24, width: 2, alpha: 0.75 });
-					} else if (buff.type === 'armor_buff') {
-						g.circle(u.x, renderY, radius + 4);
-						g.stroke({ color: 0xa3e635, width: 1.5, alpha: 0.7 });
+						g.stroke({ color: 0xef4444, width: 3, alpha: 0.9 });
 					} else if (buff.type === 'frost' || buff.type === 'slow') {
 						for (let i = 0; i < 3; i++) {
 							const iceAngle = (i * 2 * Math.PI) / 3 + this.sim.gameTime * 3.5;
-							const ix = u.x + Math.cos(iceAngle) * (radius + 5);
-							const iy = renderY + Math.sin(iceAngle) * (radius + 5);
+							const ix = u.x + Math.cos(iceAngle) * (radius + 6);
+							const iy = renderY + Math.sin(iceAngle) * (radius + 6);
 							g.rect(ix - 2, iy - 2, 4, 4);
-							g.fill({ color: 0x67e8f9, alpha: 0.9 });
+							g.fill({ color: 0x67e8f9, alpha: 0.95 });
 							g.stroke({ color: 0xe0f2fe, width: 1 });
 						}
 					}
 				}
 			}
 
-			// 7. SLEEK BEVELED HEALTH BAR
+			// =====================================================================
+			// E. SLEEK DARK BEVELED HEALTH BAR
+			// =====================================================================
 			const hpPct = Math.max(0, u.hp / u.maxHp);
 			if (hpPct < 1 || isSelected) {
 				const barW = Math.max(26, radius * 2 + 6);
@@ -666,6 +571,193 @@ export class EntityRenderer {
 				g.roundRect(barX, barY, barW * hpPct, barH, 1.5);
 				g.fill({ color: hpPct > 0.5 ? 0x22c55e : hpPct > 0.25 ? 0xeab308 : 0xef4444 });
 			}
+		}
+	}
+
+	/**
+	 * Renders one of the 8 iconic unit archetypes from the C:\...\раси concept art:
+	 * 1. Dragon / Aerial Flyer
+	 * 2. Colossus / Tank (with heavy war hammer)
+	 * 3. Ranger / Archer (with drawn bow)
+	 * 4. Archmage / Wizard (with staff & swirling runes)
+	 * 5. Warrior / Champion (with battle axes & horn helm)
+	 * 6. Beast / War Hound (crouching beast)
+	 * 7. Scout / Fairy (dual daggers & wings)
+	 * 8. Siege Engine (brass cannon)
+	 */
+	private renderUnitArchetype(
+		g: Graphics,
+		u: Unit,
+		isWest: boolean,
+		unitColor: number,
+		isSelected: boolean,
+		renderY: number,
+		dir: number
+	): void {
+		const radius = u.size;
+
+		// 1. Base 3D Shaded Body Token
+		g.circle(u.x, renderY + 2, radius);
+		g.fill({ color: 0x000000, alpha: 0.35 });
+		g.circle(u.x, renderY, radius);
+		g.fill({ color: unitColor });
+		g.stroke({ color: isSelected ? 0xfbbf24 : 0x0f172a, width: isSelected ? 3 : 1.8 });
+		// Crescent light highlight
+		g.ellipse(u.x - 2, renderY - radius * 0.35, radius * 0.65, radius * 0.35);
+		g.fill({ color: 0xffffff, alpha: 0.35 });
+
+		// 2. Archetype Detailing
+		if (u.flying) {
+			// AERIAL FLYER / DRAGON (Spread wings & flame snout)
+			const flap = Math.sin(this.sim.gameTime * 14) * 8;
+			// Left wing
+			g.poly([
+				u.x - 4,
+				renderY - 2,
+				u.x - radius - 14,
+				renderY - 14 + flap,
+				u.x - radius - 6,
+				renderY + 2,
+				u.x - 2,
+				renderY + 4
+			]);
+			g.fill({ color: 0x06b6d4, alpha: 0.9 });
+			g.stroke({ color: 0x0891b2, width: 1.5 });
+			// Right wing
+			g.poly([
+				u.x + 4,
+				renderY - 2,
+				u.x + radius + 14,
+				renderY - 14 + flap,
+				u.x + radius + 6,
+				renderY + 2,
+				u.x + 2,
+				renderY + 4
+			]);
+			g.fill({ color: 0x06b6d4, alpha: 0.9 });
+			g.stroke({ color: 0x0891b2, width: 1.5 });
+
+			// Dragon snout fire flare
+			g.circle(u.x + dir * (radius + 6), renderY - 2, 4);
+			g.fill({ color: 0xf97316 });
+			g.circle(u.x + dir * (radius + 8), renderY - 2, 2.5);
+			g.fill({ color: 0xfef08a });
+		} else if (u.attackType === 'siege') {
+			// SIEGE / MACHINE (Brass gears & cannon barrel)
+			g.circle(u.x, renderY, radius * 0.55);
+			g.fill({ color: 0x78716c });
+			g.stroke({ color: 0xd97706, width: 2 });
+			g.rect(u.x + dir * (radius * 0.2), renderY - 4, dir * 13, 8);
+			g.fill({ color: 0x1e293b });
+		} else if (
+			u.attackType === 'magic' ||
+			u.abilityType?.includes('heal') ||
+			u.abilityType?.includes('slow')
+		) {
+			// ARCHMAGE / WIZARD (Carved Staff with glowing crystal orb & swirling halo)
+			const staffX = u.x + dir * (radius * 0.8);
+			const staffY = renderY - radius * 0.9;
+			g.moveTo(staffX, renderY + radius * 0.8);
+			g.lineTo(staffX, staffY);
+			g.stroke({ color: 0xd97706, width: 2.5 });
+
+			// Crystal orb at top of staff
+			g.circle(staffX, staffY - 4, 5.5);
+			g.fill({ color: 0x38bdf8 });
+			g.circle(staffX, staffY - 4, 3);
+			g.fill({ color: 0xffffff });
+
+			// Swirling magical halo
+			const orbAngle = this.sim.gameTime * 4;
+			g.circle(staffX + Math.cos(orbAngle) * 7, staffY - 4 + Math.sin(orbAngle) * 7, 2.5);
+			g.fill({ color: 0xfbbf24 });
+		} else if (u.attackType === 'pierce' || u.range > 200) {
+			// RANGER / ARCHER (Hooded archer with drawn recurve bow & feathered quiver)
+			g.poly([
+				u.x - radius * 0.5,
+				renderY - radius * 0.2,
+				u.x,
+				renderY - radius * 1.1,
+				u.x + radius * 0.5,
+				renderY - radius * 0.2
+			]);
+			g.fill({ color: 0x065f46 }); // Deep forest green hood
+
+			// Drawn bow facing movement
+			const bowX = u.x + dir * (radius * 0.6);
+			g.arc(bowX, renderY, radius * 0.8, -Math.PI / 2.5, Math.PI / 2.5, false);
+			g.stroke({ color: 0xb45309, width: 2.2 });
+			// Arrow shaft
+			g.moveTo(u.x - dir * 2, renderY);
+			g.lineTo(u.x + dir * (radius + 6), renderY);
+			g.stroke({ color: 0xfef08a, width: 1.8 });
+		} else if (u.armorType === 'fort' || u.armorType === 'large' || u.hp >= 800) {
+			// COLOSSUS / TANK (Heavy horned battle helm & colossal war hammer)
+			g.poly([
+				u.x - radius * 0.7,
+				renderY - radius * 0.3,
+				u.x,
+				renderY - radius * 1.2,
+				u.x + radius * 0.7,
+				renderY - radius * 0.3
+			]);
+			g.fill({ color: 0x64748b });
+			g.stroke({ color: 0x334155, width: 2 });
+
+			// Colossal war hammer
+			const hx = u.x + dir * (radius * 0.7);
+			const hy = renderY - radius * 0.7;
+			g.moveTo(u.x + dir * 2, renderY);
+			g.lineTo(hx + dir * 6, hy - 4);
+			g.stroke({ color: 0x78350f, width: 3 });
+			g.roundRect(hx + (dir > 0 ? 2 : -12), hy - 10, 10, 8, 2);
+			g.fill({ color: 0x94a3b8 });
+			g.stroke({ color: 0xfbbf24, width: 1.5 });
+		} else if (
+			u.name.toLowerCase().includes('вовк') ||
+			u.name.toLowerCase().includes('лев') ||
+			u.name.toLowerCase().includes('гонча')
+		) {
+			// BEAST / WAR HOUND (Mane, fangs, armored collar)
+			g.ellipse(u.x + dir * (radius * 0.3), renderY, radius * 0.8, radius * 0.5);
+			g.fill({ color: 0x92400e });
+			// Armored collar
+			g.rect(u.x - 2, renderY - radius * 0.5, 4, radius);
+			g.fill({ color: 0xfbbf24 });
+		} else {
+			// WARRIOR / CHAMPION (Battle axes & shield)
+			g.poly([
+				u.x - radius * 0.6,
+				renderY - radius * 0.3,
+				u.x,
+				renderY - radius * 1.05,
+				u.x + radius * 0.6,
+				renderY - radius * 0.3
+			]);
+			g.fill({ color: 0x94a3b8 });
+			g.stroke({ color: 0x334155, width: 1.8 });
+
+			// Gleaming axe blade facing forward
+			const ax = u.x + dir * (radius * 0.7);
+			const ay = renderY - 4;
+			g.poly([ax, ay - 6, ax + dir * 7, ay, ax, ay + 6]);
+			g.fill({ color: 0xe2e8f0 });
+			g.stroke({ color: 0x475569, width: 1.5 });
+		}
+
+		// 3. GLOWING SPYRO EYES
+		const eyeX = u.x + dir * (radius * 0.4);
+		const eyeY = renderY - radius * 0.2;
+		g.ellipse(eyeX, eyeY, 3.5, 2.5);
+		g.fill({ color: u.team === 'neutral' ? 0xf87171 : 0x00f5ff });
+		g.circle(eyeX + dir * 1, eyeY - 0.5, 1);
+		g.fill({ color: 0xffffff });
+
+		// Attack flash swing
+		if (u.attackAnimTimer && u.attackAnimTimer > 0) {
+			const flashAlpha = u.attackAnimTimer / 0.25;
+			g.circle(u.x + dir * (radius + 8), renderY, 7);
+			g.fill({ color: 0xfef08a, alpha: flashAlpha * 0.75 });
 		}
 	}
 
@@ -704,11 +796,9 @@ export class EntityRenderer {
 				z = 4 * p.arcHeight * norm * (1 - norm);
 			}
 
-			// 1. Ground Shadow underneath
 			g.ellipse(p.x, p.y + 4, 4 + z * 0.05, 2);
 			g.fill({ color: 0x000000, alpha: 0.35 });
 
-			// 2. Projectile elevated in the air
 			const projY = p.y - z;
 
 			if (p.attackType === 'magic') {
