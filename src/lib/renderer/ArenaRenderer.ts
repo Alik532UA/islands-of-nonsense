@@ -81,6 +81,7 @@ export class ArenaRenderer {
 	private hoveredTile: { x: number; y: number } | null = null;
 	private isDestroyed = false;
 	private canvasEl: HTMLCanvasElement | null = null;
+	private lastDrawnBrokenBridge: 'top' | 'mid' | 'bottom' | null = undefined as unknown as null;
 
 	// Subsystems
 	private terrainRenderer: TerrainRenderer;
@@ -573,10 +574,15 @@ export class ArenaRenderer {
 	}
 
 	public drawStaticTerrain(): void {
-		this.terrainRenderer.drawStaticTerrain(this.terrainLayer);
+		this.terrainRenderer.drawStaticTerrain(this.terrainLayer, this.sim.brokenBridge);
+		this.lastDrawnBrokenBridge = this.sim.brokenBridge;
 	}
 
 	public render(): void {
+		if (this.lastDrawnBrokenBridge !== this.sim.brokenBridge) {
+			this.drawStaticTerrain();
+		}
+
 		const selectedDefId = this.getSelectedBuildingDefId?.() || null;
 		const selectedPlacedId = this.getSelectedPlacedBuildingId?.() || null;
 		const selectedEntity = this.getSelectedEntity?.() || null;

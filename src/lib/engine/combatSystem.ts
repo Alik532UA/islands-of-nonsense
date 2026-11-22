@@ -1,5 +1,5 @@
 import type { Simulation } from './simulation';
-import { ARENA_WIDTH, TOP_LANE_Y, BOTTOM_LANE_Y, CELL_SIZE } from './constants';
+import { ARENA_WIDTH, TOP_LANE_Y, MID_LANE_Y, BOTTOM_LANE_Y, CELL_SIZE } from './constants';
 import type { Unit, Building, Castle, MatchTeam, Team, Lane, AttackType } from './types';
 import { calculateDamage, getDamageMultiplier } from './damageMatrix';
 import { DefenseSystem } from './defenseSystem';
@@ -467,7 +467,8 @@ export class CombatSystem {
 				currentSpeed *= 0.75;
 			}
 
-			const targetLaneY = u.lane === 'top' ? TOP_LANE_Y : BOTTOM_LANE_Y;
+			const targetLaneY =
+				u.lane === 'top' ? TOP_LANE_Y : u.lane === 'mid' ? MID_LANE_Y : BOTTOM_LANE_Y;
 
 			// Target Acquisition (WC3 Threat & Aggro System)
 			let enemyTarget = this.findBestTarget(u);
@@ -622,9 +623,27 @@ export class CombatSystem {
 						if (u.team === 'west' && u.x < eastGateX) {
 							navTargetX = eastGateX;
 							navTargetY = targetLaneY;
+
+							// Ground units detour around broken bridge across central ocean channel
+							if (!u.flying && this.sim.brokenBridge && u.lane === this.sim.brokenBridge) {
+								const crossingMid = this.sim.brokenBridge !== 'mid';
+								const detourY = crossingMid ? MID_LANE_Y : TOP_LANE_Y;
+								if (u.x < 3960) {
+									navTargetY = detourY;
+								}
+							}
 						} else if (u.team === 'east' && u.x > westGateX) {
 							navTargetX = westGateX;
 							navTargetY = targetLaneY;
+
+							// Ground units detour around broken bridge across central ocean channel
+							if (!u.flying && this.sim.brokenBridge && u.lane === this.sim.brokenBridge) {
+								const crossingMid = this.sim.brokenBridge !== 'mid';
+								const detourY = crossingMid ? MID_LANE_Y : TOP_LANE_Y;
+								if (u.x > 3240) {
+									navTargetY = detourY;
+								}
+							}
 						}
 						const dNav = Math.hypot(navTargetX - u.x, navTargetY - u.y);
 						if (dNav > 5) {

@@ -4,7 +4,7 @@ export type AttackType = 'normal' | 'pierce' | 'siege' | 'magic' | 'chaos' | 'he
 
 export type MatchTeam = 'west' | 'east';
 export type Team = MatchTeam | 'neutral';
-export type Lane = 'top' | 'bottom';
+export type Lane = 'top' | 'mid' | 'bottom';
 export type UnitState = 'WALKING' | 'ATTACKING' | 'DYING' | 'DEAD';
 
 export interface PlayerColorDef {
@@ -434,7 +434,7 @@ export interface PlayerState {
 	maxFood: number;
 	commander: number; // 1..6
 	forge: ForgeLevels;
-	preferredLane: 'auto' | 'top' | 'bottom';
+	preferredLane: 'auto' | 'top' | 'mid' | 'bottom';
 	worker?: WorkerState;
 	stats: {
 		unitsSpawned: number;

@@ -3,6 +3,7 @@ import {
 	ARENA_WIDTH,
 	ARENA_HEIGHT,
 	TOP_LANE_Y,
+	MID_LANE_Y,
 	BOTTOM_LANE_Y,
 	WEST_GRID_START_X,
 	WEST_GRID_START_Y,
@@ -561,7 +562,7 @@ export class BuildingSystem {
 			lane = building.y < ARENA_HEIGHT / 2 ? 'top' : 'bottom';
 		}
 
-		const laneY = lane === 'top' ? TOP_LANE_Y : BOTTOM_LANE_Y;
+		const laneY = lane === 'top' ? TOP_LANE_Y : lane === 'mid' ? MID_LANE_Y : BOTTOM_LANE_Y;
 		const isWest = building.team === 'west';
 		// Find unblocked doorway perimeter spot outside solid core
 		const frontX = isWest ? building.x + CELL_SIZE + 16 : building.x - 16;

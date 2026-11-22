@@ -1,7 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { Simulation } from '../engine/simulation';
-	import { ARENA_WIDTH, ARENA_HEIGHT, TOP_LANE_Y, BOTTOM_LANE_Y } from '../engine/constants';
+	import {
+		ARENA_WIDTH,
+		ARENA_HEIGHT,
+		TOP_LANE_Y,
+		MID_LANE_Y,
+		BOTTOM_LANE_Y,
+		BRIDGE_SPAN_MIN_X,
+		BRIDGE_SPAN_MAX_X
+	} from '../engine/constants';
 	import { Crosshair, Map as MapIcon, Users, Castle } from 'lucide-svelte';
 	import { sound } from '../services/audio';
 
@@ -79,93 +87,150 @@
 			ctx.fillStyle = '#1e293b';
 			ctx.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
 		} else {
-			// Vibrant green battlefield
-			ctx.fillStyle = '#22551e';
+			// 1. Surrounding Ocean (Deep azure water all around)
+			ctx.fillStyle = '#0284c7';
 			ctx.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
 
-			// Cobblestone continuous roads: West Castle -> Top & Bottom Lanes -> East Castle
-			ctx.fillStyle = '#6b573e';
+			// 2. Twin Islands (West and East)
+			ctx.fillStyle = '#16a34a';
 
-			// Straight highways (between ramparts)
+			// West Island (surrounded by water)
+			const wIslandX = 60 * scaleX;
+			const wIslandY = 60 * scaleY;
+			const wIslandW = (BRIDGE_SPAN_MIN_X - 60) * scaleX;
+			const wIslandH = (ARENA_HEIGHT - 120) * scaleY;
+			ctx.beginPath();
+			ctx.roundRect(wIslandX, wIslandY, wIslandW, wIslandH, 4);
+			ctx.fill();
+
+			// East Island (surrounded by water)
+			const eIslandX = BRIDGE_SPAN_MAX_X * scaleX;
+			const eIslandY = 60 * scaleY;
+			const eIslandW = (ARENA_WIDTH - BRIDGE_SPAN_MAX_X - 60) * scaleX;
+			const eIslandH = (ARENA_HEIGHT - 120) * scaleY;
+			ctx.beginPath();
+			ctx.roundRect(eIslandX, eIslandY, eIslandW, eIslandH, 4);
+			ctx.fill();
+
+			// 3. Cobblestone Highways across the Islands
+			ctx.fillStyle = '#78716c';
+
+			// West Island Highways
+			const westHwLen = (BRIDGE_SPAN_MIN_X - 1500) * scaleX;
+			ctx.fillRect(1500 * scaleX, (TOP_LANE_Y - 50) * scaleY, westHwLen, 100 * scaleY);
+			ctx.fillRect(1500 * scaleX, (MID_LANE_Y - 50) * scaleY, westHwLen, 100 * scaleY);
+			ctx.fillRect(1500 * scaleX, (BOTTOM_LANE_Y - 50) * scaleY, westHwLen, 100 * scaleY);
+
+			// East Island Highways
+			const eastHwLen = (ARENA_WIDTH - 1500 - BRIDGE_SPAN_MAX_X) * scaleX;
+			ctx.fillRect(BRIDGE_SPAN_MAX_X * scaleX, (TOP_LANE_Y - 50) * scaleY, eastHwLen, 100 * scaleY);
+			ctx.fillRect(BRIDGE_SPAN_MAX_X * scaleX, (MID_LANE_Y - 50) * scaleY, eastHwLen, 100 * scaleY);
 			ctx.fillRect(
-				1440 * scaleX,
-				(TOP_LANE_Y - 80) * scaleY,
-				(ARENA_WIDTH - 2880) * scaleX,
-				160 * scaleY
-			);
-			ctx.fillRect(
-				1440 * scaleX,
-				(BOTTOM_LANE_Y - 80) * scaleY,
-				(ARENA_WIDTH - 2880) * scaleX,
-				160 * scaleY
+				BRIDGE_SPAN_MAX_X * scaleX,
+				(BOTTOM_LANE_Y - 50) * scaleY,
+				eastHwLen,
+				100 * scaleY
 			);
 
-			// Road curves from Castle Plazas to Lane Gates
+			// Courtyard Fan-outs from Castle Plazas to Gates
 			// West fan-out
 			ctx.beginPath();
 			ctx.moveTo(200 * scaleX, 1200 * scaleY);
-			ctx.lineTo(1440 * scaleX, (TOP_LANE_Y - 80) * scaleY);
-			ctx.lineTo(1440 * scaleX, (TOP_LANE_Y + 80) * scaleY);
+			ctx.lineTo(1500 * scaleX, (TOP_LANE_Y - 50) * scaleY);
+			ctx.lineTo(1500 * scaleX, (TOP_LANE_Y + 50) * scaleY);
 			ctx.closePath();
 			ctx.fill();
 
 			ctx.beginPath();
 			ctx.moveTo(200 * scaleX, 1200 * scaleY);
-			ctx.lineTo(1440 * scaleX, (BOTTOM_LANE_Y - 80) * scaleY);
-			ctx.lineTo(1440 * scaleX, (BOTTOM_LANE_Y + 80) * scaleY);
+			ctx.lineTo(1500 * scaleX, (BOTTOM_LANE_Y - 50) * scaleY);
+			ctx.lineTo(1500 * scaleX, (BOTTOM_LANE_Y + 50) * scaleY);
 			ctx.closePath();
 			ctx.fill();
+
+			ctx.fillRect(200 * scaleX, (MID_LANE_Y - 50) * scaleY, 1300 * scaleX, 100 * scaleY);
 
 			// East fan-out
 			ctx.beginPath();
 			ctx.moveTo((ARENA_WIDTH - 200) * scaleX, 1200 * scaleY);
-			ctx.lineTo((ARENA_WIDTH - 1440) * scaleX, (TOP_LANE_Y - 80) * scaleY);
-			ctx.lineTo((ARENA_WIDTH - 1440) * scaleX, (TOP_LANE_Y + 80) * scaleY);
+			ctx.lineTo((ARENA_WIDTH - 1500) * scaleX, (TOP_LANE_Y - 50) * scaleY);
+			ctx.lineTo((ARENA_WIDTH - 1500) * scaleX, (TOP_LANE_Y + 50) * scaleY);
 			ctx.closePath();
 			ctx.fill();
 
 			ctx.beginPath();
 			ctx.moveTo((ARENA_WIDTH - 200) * scaleX, 1200 * scaleY);
-			ctx.lineTo((ARENA_WIDTH - 1440) * scaleX, (BOTTOM_LANE_Y - 80) * scaleY);
-			ctx.lineTo((ARENA_WIDTH - 1440) * scaleX, (BOTTOM_LANE_Y + 80) * scaleY);
+			ctx.lineTo((ARENA_WIDTH - 1500) * scaleX, (BOTTOM_LANE_Y - 50) * scaleY);
+			ctx.lineTo((ARENA_WIDTH - 1500) * scaleX, (BOTTOM_LANE_Y + 50) * scaleY);
 			ctx.closePath();
 			ctx.fill();
 
-			// Central River
-			ctx.fillStyle = '#0284c7';
-			ctx.fillRect((ARENA_WIDTH / 2 - 140) * scaleX, 0, 280 * scaleX, MAP_HEIGHT);
-
-			// Bridges
-			ctx.fillStyle = '#78716c';
 			ctx.fillRect(
-				(ARENA_WIDTH / 2 - 140) * scaleX,
-				(TOP_LANE_Y - 90) * scaleY,
-				280 * scaleX,
-				180 * scaleY
-			);
-			ctx.fillRect(
-				(ARENA_WIDTH / 2 - 140) * scaleX,
-				(BOTTOM_LANE_Y - 90) * scaleY,
-				280 * scaleX,
-				180 * scaleY
+				(ARENA_WIDTH - 1500) * scaleX,
+				(MID_LANE_Y - 50) * scaleY,
+				1300 * scaleX,
+				100 * scaleY
 			);
 
-			// Central dividing mountain ridge
-			ctx.fillStyle = '#334155';
-			ctx.fillRect(1460 * scaleX, 1040 * scaleY, (ARENA_WIDTH - 2920) * scaleX, 320 * scaleY);
+			// 4. Three Bridges spanning the Central Strait
+			const bridgeX = (BRIDGE_SPAN_MIN_X - 40) * scaleX;
+			const bridgeW = (BRIDGE_SPAN_MAX_X - BRIDGE_SPAN_MIN_X + 80) * scaleX;
+			const bridgeH = 110 * scaleY;
+
+			const lanes: { id: 'top' | 'mid' | 'bottom'; y: number }[] = [
+				{ id: 'top', y: TOP_LANE_Y },
+				{ id: 'mid', y: MID_LANE_Y },
+				{ id: 'bottom', y: BOTTOM_LANE_Y }
+			];
+
+			for (const lane of lanes) {
+				const isBroken = sim.brokenBridge === lane.id;
+				const by = (lane.y - 55) * scaleY;
+
+				if (!isBroken) {
+					// Intact bridge
+					ctx.fillStyle = '#94a3b8';
+					ctx.fillRect(bridgeX, by, bridgeW, bridgeH);
+					ctx.fillStyle = '#64748b';
+					ctx.fillRect(bridgeX + 2, by + 1, bridgeW - 4, bridgeH - 2);
+				} else {
+					// Broken bridge: Stubs on each side with chasm in center
+					const stubW = bridgeW * 0.32;
+					ctx.fillStyle = '#78350f';
+					ctx.fillRect(bridgeX, by, stubW, bridgeH);
+					ctx.fillRect(bridgeX + bridgeW - stubW, by, stubW, bridgeH);
+
+					// Danger hazard marker in center
+					ctx.strokeStyle = '#ef4444';
+					ctx.lineWidth = 2;
+					const midX = bridgeX + bridgeW / 2;
+					const midY = lane.y * scaleY;
+					ctx.beginPath();
+					ctx.moveTo(midX - 3, midY - 3);
+					ctx.lineTo(midX + 3, midY + 3);
+					ctx.moveTo(midX + 3, midY - 3);
+					ctx.lineTo(midX - 3, midY + 3);
+					ctx.stroke();
+				}
+			}
 
 			// Ramparts with open road gates
 			ctx.fillStyle = '#475569';
 			// West ramparts
 			ctx.fillRect(1440 * scaleX, 60 * scaleY, 40 * scaleX, 500 * scaleY);
-			ctx.fillRect(1440 * scaleX, 760 * scaleY, 40 * scaleX, 280 * scaleY);
-			ctx.fillRect(1440 * scaleX, 1360 * scaleY, 40 * scaleX, 280 * scaleY);
-			ctx.fillRect(1440 * scaleX, 1840 * scaleY, 40 * scaleX, 500 * scaleY);
+			ctx.fillRect(1440 * scaleX, 760 * scaleY, 40 * scaleX, 340 * scaleY);
+			ctx.fillRect(1440 * scaleX, 1300 * scaleY, 40 * scaleX, 340 * scaleY);
+			ctx.fillRect(1440 * scaleX, 1840 * scaleY, 40 * scaleX, (ARENA_HEIGHT - 1900) * scaleY);
 			// East ramparts
 			ctx.fillRect((ARENA_WIDTH - 1480) * scaleX, 60 * scaleY, 40 * scaleX, 500 * scaleY);
-			ctx.fillRect((ARENA_WIDTH - 1480) * scaleX, 760 * scaleY, 40 * scaleX, 280 * scaleY);
-			ctx.fillRect((ARENA_WIDTH - 1480) * scaleX, 1360 * scaleY, 40 * scaleX, 280 * scaleY);
-			ctx.fillRect((ARENA_WIDTH - 1480) * scaleX, 1840 * scaleY, 40 * scaleX, 500 * scaleY);
+			ctx.fillRect((ARENA_WIDTH - 1480) * scaleX, 760 * scaleY, 40 * scaleX, 340 * scaleY);
+			ctx.fillRect((ARENA_WIDTH - 1480) * scaleX, 1300 * scaleY, 40 * scaleX, 340 * scaleY);
+			ctx.fillRect(
+				(ARENA_WIDTH - 1480) * scaleX,
+				1840 * scaleY,
+				40 * scaleX,
+				(ARENA_HEIGHT - 1900) * scaleY
+			);
 		}
 
 		// 2. Castles

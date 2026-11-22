@@ -2,7 +2,13 @@ export const ARENA_WIDTH = 7200;
 export const ARENA_HEIGHT = 2400;
 
 export const TOP_LANE_Y = 660;
+export const MID_LANE_Y = 1200;
 export const BOTTOM_LANE_Y = 1740;
+
+export const RIVER_CENTER_X = ARENA_WIDTH / 2; // 3600
+export const BRIDGE_SPAN_MIN_X = 3240;
+export const BRIDGE_SPAN_MAX_X = 3960;
+export const BRIDGE_WIDTH = BRIDGE_SPAN_MAX_X - BRIDGE_SPAN_MIN_X; // 720
 
 export const WEST_GRID_START_X = 64;
 export const WEST_GRID_START_Y = 64;
@@ -27,11 +33,13 @@ export const SOLID_MAP_OBSTACLES: MapObstacle[] = [
 	{ minX: 80, maxX: 320, minY: 1060, maxY: 1340 },
 	// East Castle (solid stone fortress)
 	{ minX: ARENA_WIDTH - 320, maxX: ARENA_WIDTH - 80, minY: 1060, maxY: 1340 },
-	// Central Mountain Ridge (dividing Top and Bottom lanes)
-	{ minX: 1460, maxX: ARENA_WIDTH - 1460, minY: 1040, maxY: 1360 },
-	// Arena Upper Perimeter Wall
+	// Top Cliffs between Top and Mid lanes
+	{ minX: 2000, maxX: ARENA_WIDTH - 2000, minY: 800, maxY: 1060 },
+	// Bottom Cliffs between Mid and Bottom lanes
+	{ minX: 2000, maxX: ARENA_WIDTH - 2000, minY: 1340, maxY: 1600 },
+	// Arena Upper Perimeter Sea boundary
 	{ minX: 0, maxX: ARENA_WIDTH, minY: 0, maxY: 60 },
-	// Arena Lower Perimeter Wall
+	// Arena Lower Perimeter Sea boundary
 	{ minX: 0, maxX: ARENA_WIDTH, minY: ARENA_HEIGHT - 60, maxY: ARENA_HEIGHT },
 	// West Base Ramparts with open Road Gates (Top gate at 560..760, Bot gate at 1640..1840)
 	{ minX: 1440, maxX: 1500, minY: 60, maxY: 560 },

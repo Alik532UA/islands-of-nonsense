@@ -25,7 +25,14 @@ import { EconomySystem } from './economySystem';
 import { BotAI } from './botAI';
 import { getGameMode, type GameModeConfig } from './gameModes';
 
-import { ARENA_WIDTH, ARENA_HEIGHT, TOP_LANE_Y, BOTTOM_LANE_Y, type CoinMode } from './constants';
+import {
+	ARENA_WIDTH,
+	ARENA_HEIGHT,
+	TOP_LANE_Y,
+	MID_LANE_Y,
+	BOTTOM_LANE_Y,
+	type CoinMode
+} from './constants';
 export * from './constants';
 
 export interface SimulationConfig {
@@ -59,6 +66,7 @@ export class Simulation {
 	public readonly arenaWidth = ARENA_WIDTH;
 	public readonly arenaHeight = ARENA_HEIGHT;
 	public readonly topLaneY = TOP_LANE_Y;
+	public readonly midLaneY = MID_LANE_Y;
 	public readonly bottomLaneY = BOTTOM_LANE_Y;
 
 	public units: Unit[] = [];
@@ -151,14 +159,25 @@ export class Simulation {
 	public onBuildingComplete?: (building: Building) => void;
 	public onBossSpawn?: (unit: Unit) => void;
 
-	public setPlayerPreferredLane(team: MatchTeam, lane: 'auto' | 'top' | 'bottom'): void {
+	// Three Bridges state: 'top' | 'mid' | 'bottom'. One randomly chosen as broken.
+	public brokenBridge: 'top' | 'mid' | 'bottom' | null = 'mid';
+
+	public repairBridge(bridge?: 'top' | 'mid' | 'bottom'): void {
+		if (!bridge || this.brokenBridge === bridge) {
+			this.brokenBridge = null;
+			this.addFloatingText('Міст відремонтовано!', ARENA_WIDTH / 2, MID_LANE_Y, '#22c55e');
+			this.notifyStateChanged();
+		}
+	}
+
+	public setPlayerPreferredLane(team: MatchTeam, lane: 'auto' | 'top' | 'mid' | 'bottom'): void {
 		if (this.players[team]) {
 			this.players[team].preferredLane = lane;
 			this.notifyStateChanged();
 		}
 	}
 
-	public getPlayerPreferredLane(team: MatchTeam): 'auto' | 'top' | 'bottom' {
+	public getPlayerPreferredLane(team: MatchTeam): 'auto' | 'top' | 'mid' | 'bottom' {
 		return this.players[team]?.preferredLane ?? 'auto';
 	}
 
@@ -188,6 +207,8 @@ export class Simulation {
 			this.coinSpawnInterval = 20.0;
 		}
 		this.targetWins = config.targetWins ?? 2;
+		const bridges: ('top' | 'mid' | 'bottom')[] = ['top', 'mid', 'bottom'];
+		this.brokenBridge = bridges[Math.floor(Math.random() * 3)];
 		const castleHp = Math.round(14000 * (this.gameModeConfig.castleHpMultiplier || 1.0));
 		this.castles = {
 			west: { team: 'west', x: 200, y: 1200, hp: castleHp, maxHp: castleHp },
@@ -676,6 +697,8 @@ export class Simulation {
 		this.activeBossInstanceId = null;
 		this.goldCoins = [];
 		this.coinSpawnTimer = this.coinSpawnInterval;
+		const bridges: ('top' | 'mid' | 'bottom')[] = ['top', 'mid', 'bottom'];
+		this.brokenBridge = bridges[Math.floor(Math.random() * 3)];
 		this.winner = null;
 		this.roundWinner = null;
 		this.buildingStats = {};
