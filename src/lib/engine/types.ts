@@ -168,7 +168,7 @@ export interface BuildingDefinition {
 	upgrade_from: string | null;
 	upgrade_extra_cost: number;
 	race?: string | null;
-	specialType?: 'treasure' | 'repair' | 'recycler' | 'tower';
+	specialType?: 'treasure' | 'repair' | 'recycler' | 'tower' | 'special';
 	cooldown?: number | null;
 	range?: number | null;
 	damage_base?: number | null;
@@ -333,7 +333,7 @@ export interface Building {
 	isUnderConstruction?: boolean;
 	buildProgress?: number;
 	maxBuildProgress?: number;
-	specialType?: 'treasure' | 'repair' | 'recycler' | 'tower';
+	specialType?: 'treasure' | 'repair' | 'recycler' | 'tower' | 'special';
 	attackCooldown?: number;
 	attackTimer?: number;
 	attackRange?: number;

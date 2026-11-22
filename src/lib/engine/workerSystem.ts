@@ -421,8 +421,22 @@ export class WorkerSystem {
 		targetY: number,
 		playerInput?: PlayerState
 	): void {
-		const w = (playerInput || this.sim.players[team])?.worker;
+		const player = playerInput || this.sim.players[team];
+		const w = player?.worker;
 		if (w) {
+			// If worker was en route to an unstarted building, cancel the ghost foundation (100% refund)
+			if (w.targetBuildingId) {
+				const unstarted = this.sim.buildings.find(
+					(b) =>
+						b.instanceId === w.targetBuildingId &&
+						b.team === team &&
+						b.isUnderConstruction &&
+						(b.buildProgress || 0) === 0
+				);
+				if (unstarted) {
+					this.sim.buildingSystem.sellBuilding(team, unstarted.instanceId, player);
+				}
+			}
 			let tx = targetX;
 			let ty = targetY;
 			if (this.isPointBlockedForWorker(team, tx, ty)) {

@@ -108,21 +108,29 @@ export class EntityRenderer {
 
 			// Under construction visual overlay & scaffolding
 			if (b.isUnderConstruction) {
-				g.roundRect(px + 3, py + 3, CELL_SIZE - 6, CELL_SIZE - 6, 4);
-				g.fill({ color: 0x78350f, alpha: 0.65 });
-				g.stroke({ color: 0xd97706, width: 2 });
+				const isGhost = (b.buildProgress || 0) === 0;
+				if (isGhost) {
+					// Ghost blueprint foundation before worker starts construction
+					g.roundRect(px + 3, py + 3, CELL_SIZE - 6, CELL_SIZE - 6, 4);
+					g.fill({ color: 0x1e3a8a, alpha: 0.4 });
+					g.stroke({ color: 0x60a5fa, width: 2, alpha: 0.85 });
+				} else {
+					g.roundRect(px + 3, py + 3, CELL_SIZE - 6, CELL_SIZE - 6, 4);
+					g.fill({ color: 0x78350f, alpha: 0.65 });
+					g.stroke({ color: 0xd97706, width: 2 });
 
-				// 2x2 scaffolding diagonal cross-beams over each quadrant
-				for (let sx = 0; sx < 2; sx++) {
-					for (let sy = 0; sy < 2; sy++) {
-						const qx = px + sx * half;
-						const qy = py + sy * half;
-						g.moveTo(qx + 3, qy + 3);
-						g.lineTo(qx + half - 3, qy + half - 3);
-						g.stroke({ color: 0xfbbf24, width: 1.5, alpha: 0.8 });
-						g.moveTo(qx + half - 3, qy + 3);
-						g.lineTo(qx + 3, qy + half - 3);
-						g.stroke({ color: 0xfbbf24, width: 1.5, alpha: 0.8 });
+					// 2x2 scaffolding diagonal cross-beams over each quadrant
+					for (let sx = 0; sx < 2; sx++) {
+						for (let sy = 0; sy < 2; sy++) {
+							const qx = px + sx * half;
+							const qy = py + sy * half;
+							g.moveTo(qx + 3, qy + 3);
+							g.lineTo(qx + half - 3, qy + half - 3);
+							g.stroke({ color: 0xfbbf24, width: 1.5, alpha: 0.8 });
+							g.moveTo(qx + half - 3, qy + 3);
+							g.lineTo(qx + 3, qy + half - 3);
+							g.stroke({ color: 0xfbbf24, width: 1.5, alpha: 0.8 });
+						}
 					}
 				}
 

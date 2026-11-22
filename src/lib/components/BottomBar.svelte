@@ -118,10 +118,14 @@
 		label: string;
 	} | null>(null);
 
-	const HOTKEYS = ['Q', 'W', 'E', 'R', 'A', 'S', 'D', 'F', 'Z', 'X', 'C', 'V'];
+	const HOTKEYS = ['Q', 'W', 'E', 'R', 'A', 'S', 'D', 'F', 'Z', 'X', 'V'];
 
 	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape') {
+		if (e.key === 'Escape' || (e.key.toUpperCase() === 'B' && activeEntityType !== 'castle')) {
+			if (selectedBuildingId) {
+				onSelectBuilding(null);
+				return;
+			}
 			onClearSelection?.();
 			return;
 		}
@@ -138,7 +142,19 @@
 			}
 		}
 
-		// Hotkeys Q..V for command card in worker or unselected mode
+		// Hotkey 'V' or 'C' for slot 10 (Скриня зі Скарбами h008)
+		if (
+			(key === 'V' || key === 'C') &&
+			(activeEntityType === 'worker' || activeEntityType === 'none')
+		) {
+			if (availableBuildings.length >= 11) {
+				const bld = availableBuildings[10];
+				onSelectBuilding(selectedBuildingId === bld.id ? null : bld.id);
+				return;
+			}
+		}
+
+		// Hotkeys Q..X for command card in worker or unselected mode
 		const idx = HOTKEYS.indexOf(key);
 		if (
 			idx !== -1 &&
@@ -684,23 +700,29 @@
 	<!-- 4. CENTER-RIGHT: Authentic Warcraft III 6-Slot Inventory ("Предмети") -->
 	<div
 		class="flex flex-col items-center justify-between px-2 py-1.5 bg-[#131722] rounded-lg border-2 border-[#544738] shadow-inner shrink-0 w-28 h-[142px]"
-		style="box-shadow: inset 0 0 10px rgba(0,0,0,0.8);"
+		style="box-shadow: inset 0 0 10px rgba(0,0,0,0.85);"
 	>
-		<span class="text-[10px] font-bold uppercase tracking-wider text-[#9ca3af]">Предмети</span>
+		<span class="text-[10px] font-bold uppercase tracking-wider text-[#b89758]">Предмети</span>
 
-		<!-- 2 columns x 3 rows grid of worn leather inventory pouches -->
+		<!-- 2 columns x 3 rows grid of authentic Warcraft III leather inventory pouches -->
 		<div class="grid grid-cols-2 gap-1.5">
 			{#each [0, 1, 2, 3, 4, 5] as slotIdx}
 				<div
-					class="w-9 h-9 rounded bg-[#0c1017] border border-[#544738] flex items-center justify-center text-xs shadow-inner cursor-pointer"
+					class="relative w-9 h-9 rounded bg-gradient-to-b from-[#18130d] to-[#0d0a07] border border-[#5c4934] flex items-center justify-center text-xs shadow-inner cursor-pointer hover:border-[#8c7456] transition"
 					title={slotIdx === 0 && player.maxFood > 0
 						? 'Золотий Сир (+1 Ліміт їжі)'
-						: 'Порожній слот'}
+						: 'Порожній слот торби'}
 				>
 					{#if slotIdx === 0 && player.maxFood > 0}
-						<span class="text-base">🧀</span>
+						<span class="text-base drop-shadow">🧀</span>
 					{:else}
-						<div class="w-3 h-3 rounded-full bg-[#1e2433] opacity-40"></div>
+						<!-- Authentic leather satchel / pouch silhouette -->
+						<svg class="w-5 h-5 text-[#4a3a28] opacity-70" viewBox="0 0 24 24" fill="currentColor">
+							<path
+								d="M19 8h-1V5c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v3H5c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM8 5h8v3H8V5zm11 15H5V10h14v10z"
+							/>
+							<rect x="10" y="12" width="4" height="4" rx="1" fill="#2d2116" />
+						</svg>
 					{/if}
 				</div>
 			{/each}

@@ -390,9 +390,11 @@ export class BotAI {
 		const baseBuildings = getBaseBuildingsForRace(player.race);
 		let candidateList: BuildingDefinition[] = [...baseBuildings];
 
-		// Filter out legendary buildings if food cap is full
+		// Filter out legendary buildings if food cap is full, and structures lacking lumber
 		candidateList = candidateList.filter(
-			(b) => !isLegendaryBuilding(b) || player.food < player.maxFood
+			(b) =>
+				(!isLegendaryBuilding(b) || player.food < player.maxFood) &&
+				(b.lumber_cost || 0) <= (player.lumber ?? 0)
 		);
 
 		// Check special buildings

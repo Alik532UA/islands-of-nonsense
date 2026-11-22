@@ -8,7 +8,22 @@
 		PlayerState
 	} from '../engine/types';
 	import { getUnit, isLegendaryBuilding } from '../engine/gameData';
-	import { Coins, Trash2, X, Crown, Hammer, Castle, Swords, Users, Wrench } from 'lucide-svelte';
+	import {
+		Trash2,
+		X,
+		Crown,
+		Hammer,
+		Castle,
+		Swords,
+		Users,
+		Wrench,
+		ShieldAlert,
+		Sparkles,
+		Crosshair,
+		Feather,
+		Zap,
+		Package
+	} from 'lucide-svelte';
 	import { CASTLE_ITEMS } from '../engine/items';
 
 	let {
@@ -56,12 +71,52 @@
 	let hoveredBuilding = $state<BuildingDefinition | null>(null);
 	let hoveredUnit = $derived(hoveredBuilding ? getUnit(hoveredBuilding.unit) : null);
 
-	const HOTKEYS = ['Q', 'W', 'E', 'R', 'A', 'S', 'D', 'F', 'Z', 'X', 'C', 'V'];
+	const HOTKEYS = ['Q', 'W', 'E', 'R', 'A', 'S', 'D', 'F', 'Z', 'X', 'V', 'Esc'];
+
+	function shortenName(name: string): string {
+		if (name.includes('Скриня')) return 'Скриня';
+		if (name.includes('Снігове')) return 'Снігове';
+		if (name.includes('Іглу')) return 'Іглу';
+		if (name.includes('Хатинка') || name.includes('Хатина')) return 'Хатинка';
+		if (name.includes('Шипи')) return 'Шипи';
+		if (name.includes('гніздо') || name.includes('Гніздо')) return 'Гніздо';
+		if (name.includes('замок') || name.includes('Замок')) return 'Замок';
+		if (name.includes('вежа') || name.includes('Вежа')) return 'Вежа';
+		if (name.includes('гриб') || name.includes('Гриб')) return 'Гриб';
+		if (name.includes('обеліск') || name.includes('Обеліск')) return 'Обеліск';
+		if (name.includes('Заморожувач')) return 'Заморож.';
+		if (name.includes('Барак')) return 'Барак';
+		if (name.includes('Снайпер') || name.includes('Стрільц')) return 'Снайпери';
+		if (name.includes('Майстерня') || name.includes('майстерня')) return 'Майстерня';
+		if (name.includes('Грифон')) return 'Грифони';
+		if (name.includes('Церква')) return 'Церква';
+		if (name.includes('бібліотека')) return 'Бібліотека';
+		if (name.includes('Артилерія')) return 'Артилерія';
+		if (name.includes('Ріг')) return 'Ріг';
+		if (name.includes('Храм')) return 'Храм';
+		if (name.includes('Тотем')) return 'Тотем';
+		if (name.includes('Колодязь')) return 'Колодязь';
+		if (name.includes('Вівтар')) return 'Вівтар';
+		if (name.includes('Брама')) return 'Брама';
+		if (name.includes('Кузня')) return 'Кузня';
+		if (name.includes('Фабрика')) return 'Фабрика';
+		if (name.includes('Звалище')) return 'Звалище';
+		if (name.includes('Клепальня')) return 'Клепальня';
+		if (name.includes('Дробильня')) return 'Дробильня';
+		if (name.includes('Ангар')) return 'Ангар';
+		const words = name.split(' ');
+		return words[0].length <= 8 ? words[0] : words[0].slice(0, 7) + '.';
+	}
+
+	function getHotkeyForBuilding(bld: BuildingDefinition, index: number): string {
+		if (bld.id === 'h008') return 'V';
+		return HOTKEYS[index] || '';
+	}
 </script>
 
 <div
-	class="relative flex items-center justify-center p-1.5 bg-[#131722] rounded-lg border-2 border-[#544738] shadow-inner shrink-0 h-[142px]"
-	style="box-shadow: inset 0 0 10px rgba(0,0,0,0.8);"
+	class="relative flex items-center justify-center p-1.5 bg-[#11151e] rounded-lg border-2 border-[#544738] shadow-inner shrink-0 h-[142px]"
+	style="box-shadow: inset 0 0 10px rgba(0,0,0,0.85);"
 >
 	{#if placedBuilding}
 		{#if placedBuilding.team === 'west'}
@@ -79,10 +134,10 @@
 					<button
 						onclick={() => onSellBuilding?.(placedBuilding.instanceId)}
 						class="h-10 rounded border border-rose-600/70 bg-rose-950/60 hover:bg-rose-900/80 text-rose-200 flex items-center justify-center gap-1 px-1 transition cursor-pointer"
-						title="Скасувати будівництво (+75% повернення)"
+						title="Скасувати будівництво"
 					>
 						<Trash2 class="w-3.5 h-3.5 text-rose-400" />
-						<span class="text-[9px] font-bold">Скасувати (+75%)</span>
+						<span class="text-[9px] font-bold">Скасувати</span>
 					</button>
 					<button
 						onclick={() => onCloseBuilding?.()}
@@ -271,7 +326,7 @@
 			{/if}
 		</div>
 	{:else if activeEntityType === 'unit' && selectedUnit}
-		<!-- Unit Profile Card (No worker buttons!) -->
+		<!-- Unit Profile Card -->
 		<div class="flex flex-col justify-between w-[280px] h-full py-1">
 			<div class="flex items-center justify-between border-b border-[#3b3226] pb-1">
 				<span
@@ -330,61 +385,76 @@
 			</div>
 		</div>
 	{:else}
-		<!-- 4x3 Grid of 12 Command Buttons for Worker -->
-		<div class="grid grid-cols-4 gap-1.5">
-			{#each availableBuildings as bld, idx}
+		<!-- Authentic Warcraft III 4x3 Command Card Grid (12 slots) -->
+		<div class="grid grid-cols-4 gap-1.5 w-[280px]">
+			{#each availableBuildings.slice(0, 11) as bld, idx}
 				{@const isSelected = selectedBuildingId === bld.id}
 				{@const bldLumber = bld.lumber_cost || 0}
 				{@const isAffordable =
 					playerGold >= (bld.gold_cost || 200) && (player.lumber ?? 0) >= bldLumber}
 				{@const isLeg = isLegendaryBuilding(bld)}
 				{@const lacksFood = isLeg && player.food >= player.maxFood}
-				{@const hotkey = HOTKEYS[idx] || ''}
+				{@const hotkey = getHotkeyForBuilding(bld, idx)}
+				{@const bUnit = getUnit(bld.unit)}
 
 				<button
 					onclick={() => onSelectBuilding(isSelected ? null : bld.id)}
 					onmouseenter={() => (hoveredBuilding = bld)}
 					onmouseleave={() => (hoveredBuilding = null)}
-					class="relative w-16 h-10 rounded border text-left p-1 transition-all flex flex-col justify-between cursor-pointer {isSelected
-						? 'bg-blue-600 border-amber-300 shadow-lg ring-2 ring-amber-400 shadow-blue-500/50'
+					class="relative w-16 h-10 rounded border p-0.5 transition-all flex flex-col justify-between items-center cursor-pointer {isSelected
+						? 'bg-blue-600/90 border-amber-300 shadow-lg ring-2 ring-amber-400 shadow-blue-500/50'
 						: lacksFood
 							? 'bg-red-950/40 border-red-800/80 hover:border-red-600'
 							: isAffordable
 								? 'bg-[#1b2230] hover:bg-[#28354d] border-[#544738] hover:border-[#8c7456]'
-								: 'bg-[#12161f] border-[#2d3748] opacity-60 cursor-not-allowed'}"
-					title="{bld.name} ({bld.gold_cost}g{bldLumber > 0
-						? `, ${bldLumber}w`
-						: ''}) [Гаряча клавіша: {hotkey}]"
+								: 'bg-[#12161f] border-[#2d3748] opacity-50 grayscale cursor-not-allowed'}"
+					title="{bld.name} ({bld.gold_cost}g{bldLumber > 0 ? `, ${bldLumber}w` : ''}) [{hotkey}]"
 				>
 					<!-- Hotkey in top-right corner -->
 					<span
 						class="absolute top-0.5 right-1 text-[8px] font-mono font-bold {isSelected
 							? 'text-white'
 							: isAffordable
-								? 'text-amber-300'
+								? 'text-[#fef08a]'
 								: 'text-slate-500'}"
 					>
 						[{hotkey}]
 					</span>
 
-					<!-- Building name -->
-					<div class="flex items-center gap-1">
-						{#if isLeg}
-							<Crown class="w-2.5 h-2.5 text-amber-400 shrink-0" />
+					<!-- Visual archetype icon / glyph -->
+					<div class="mt-0.5 flex items-center justify-center">
+						{#if bld.id === 'h008'}
+							<Package class="w-3.5 h-3.5 text-amber-400 drop-shadow" />
+						{:else if isLeg}
+							<Crown class="w-3.5 h-3.5 text-amber-300 drop-shadow animate-pulse" />
+						{:else if bld.specialType === 'tower'}
+							<ShieldAlert class="w-3.5 h-3.5 text-cyan-400 drop-shadow" />
+						{:else if bld.specialType === 'special' || bld.specialType === 'repair' || bld.specialType === 'recycler'}
+							<Zap class="w-3.5 h-3.5 text-purple-400 drop-shadow" />
+						{:else if bUnit?.flying}
+							<Feather class="w-3.5 h-3.5 text-sky-300 drop-shadow" />
+						{:else if bUnit?.attack_type === 'pierce'}
+							<Crosshair class="w-3.5 h-3.5 text-emerald-400 drop-shadow" />
+						{:else if bUnit?.attack_type === 'magic'}
+							<Sparkles class="w-3.5 h-3.5 text-indigo-300 drop-shadow" />
+						{:else}
+							<Swords class="w-3.5 h-3.5 text-amber-200 drop-shadow" />
 						{/if}
-						<span
-							class="text-[9px] font-bold truncate max-w-[45px] {isSelected
-								? 'text-white'
-								: isAffordable
-									? 'text-[#fef08a]'
-									: 'text-slate-400'}"
-						>
-							{bld.name}
-						</span>
 					</div>
 
-					<!-- Cost in bottom-right -->
-					<div class="flex items-center gap-0.5 self-end text-[8px] font-mono font-bold">
+					<!-- Short building name label -->
+					<span
+						class="text-[8px] font-bold truncate max-w-[50px] leading-tight {isSelected
+							? 'text-white'
+							: isAffordable
+								? 'text-slate-200'
+								: 'text-slate-500'}"
+					>
+						{shortenName(bld.name)}
+					</span>
+
+					<!-- Cost badges at bottom -->
+					<div class="flex items-center gap-1 text-[7.5px] font-mono font-bold leading-none mb-0.5">
 						<span class={playerGold >= (bld.gold_cost || 200) ? 'text-amber-300' : 'text-red-400'}>
 							🪙{bld.gold_cost}
 						</span>
@@ -396,60 +466,124 @@
 					</div>
 				</button>
 			{/each}
+
+			<!-- Slot 12: Authentic Warcraft III Cancel Button (🚫 Red crossed circle, [Esc]) -->
+			<button
+				onclick={() => {
+					onSelectBuilding(null);
+					onClearSelection?.();
+				}}
+				class="relative w-16 h-10 rounded border border-rose-800/80 bg-gradient-to-b from-rose-950/80 to-[#180a0a] hover:from-rose-900 hover:to-rose-950 text-rose-300 flex flex-col items-center justify-center p-1 transition cursor-pointer shadow group"
+				title="Скасувати / Очистити вибір (Esc / B)"
+			>
+				<div class="relative w-5 h-5 flex items-center justify-center">
+					<svg
+						class="w-5 h-5 text-rose-500 drop-shadow-[0_0_4px_rgba(244,63,94,0.6)] group-hover:scale-110 transition-transform"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.5"
+					>
+						<circle cx="12" cy="12" r="9" />
+						<line x1="5.7" y1="5.7" x2="18.3" y2="18.3" />
+					</svg>
+				</div>
+				<span class="text-[8px] font-mono font-bold text-rose-400 group-hover:text-rose-200">
+					Esc
+				</span>
+			</button>
 		</div>
 	{/if}
 
-	<!-- Floating Authentic Warcraft III Tooltip on Hover -->
+	<!-- Floating Authentic Warcraft III Tooltip on Hover (Matches Reference Image 2) -->
 	{#if hoveredBuilding}
 		<div
-			class="absolute bottom-full right-0 mb-3 w-72 bg-[#131722]/95 border-2 border-[#8c7456] rounded-lg p-2.5 text-xs shadow-2xl backdrop-blur pointer-events-none z-50"
-			style="box-shadow: 0 10px 25px rgba(0,0,0,0.9);"
+			class="absolute bottom-full right-0 mb-3 w-80 bg-[#0e121a]/95 border-2 border-[#b89758] rounded-md p-3 text-xs shadow-2xl backdrop-blur-md pointer-events-none z-50 text-slate-200"
+			style="box-shadow: 0 10px 30px rgba(0,0,0,0.95);"
 		>
-			<div class="flex items-center justify-between border-b border-[#3b3226] pb-1.5 mb-1.5">
-				<span class="font-bold text-[#fef08a] text-sm">{hoveredBuilding.name}</span>
-				<div class="flex items-center gap-2 font-mono font-bold">
-					<span class="text-amber-300 flex items-center gap-1">
-						<Coins class="w-3.5 h-3.5" />
-						{hoveredBuilding.gold_cost}g
-					</span>
-					{#if hoveredBuilding.lumber_cost}
-						<span class="text-emerald-400 flex items-center gap-1">
-							🪵 {hoveredBuilding.lumber_cost}
-						</span>
-					{/if}
-				</div>
+			<!-- Gold Title + Hotkey -->
+			<div class="text-[#fef08a] font-bold text-sm leading-tight">
+				Збудувати {hoveredBuilding.name} [{getHotkeyForBuilding(
+					hoveredBuilding,
+					availableBuildings.indexOf(hoveredBuilding)
+				)}]
 			</div>
 
-			{#if hoveredUnit}
+			<!-- Resource Cost Line -->
+			<div class="flex items-center gap-3 font-mono font-bold text-xs mt-1">
+				<span class="text-amber-300 flex items-center gap-1">
+					🪙 {hoveredBuilding.gold_cost}
+				</span>
+				{#if hoveredBuilding.lumber_cost}
+					<span class="text-emerald-400 flex items-center gap-1">
+						🪵 {hoveredBuilding.lumber_cost}
+					</span>
+				{/if}
+			</div>
+
+			<!-- Separator line -->
+			<div class="border-b border-[#4d3d29] my-2"></div>
+
+			<!-- Content: Treasure Chest Canon Text OR Spawner Stats OR Special / Lore description -->
+			{#if hoveredBuilding.id === 'h008'}
+				<p class="text-[11px] leading-relaxed text-slate-200">
+					Перша збудована вами Скриня збільшує ваш Дохід на 25%. Інші збудовані Скрині дають на 15%
+					менше золота, ніж попередні (наприклад, друга дає 21.25%, третя 18.06% і т.д.).
+				</p>
+				<p class="text-[11px] leading-relaxed text-amber-300 font-medium mt-1">
+					Обережно, вона дуже крихка!
+				</p>
+			{:else if hoveredUnit}
 				<div class="space-y-1 text-[11px] text-slate-300">
 					<div class="flex justify-between">
-						<span class="text-slate-400">Боєць:</span>
-						<strong class="text-white">{hoveredUnit.name}</strong>
+						<span class="text-slate-400">Тренує:</span>
+						<strong class="text-amber-300 font-bold">{hoveredUnit.name}</strong>
 					</div>
 					<div class="flex justify-between">
 						<span class="text-slate-400">Атака:</span>
-						<span class="text-amber-200">
+						<span class="text-amber-200 font-mono">
 							{hoveredUnit.damage_base ?? 15} ({hoveredUnit.attack_type})
 						</span>
 					</div>
 					<div class="flex justify-between">
 						<span class="text-slate-400">Броня:</span>
-						<span class="text-emerald-300">
+						<span class="text-emerald-300 font-mono">
 							{hoveredUnit.armor} ({hoveredUnit.armor_type})
 						</span>
 					</div>
 					<div class="flex justify-between">
-						<span class="text-slate-400">HP:</span>
-						<span class="text-green-400 font-mono">{hoveredUnit.hp}</span>
+						<span class="text-slate-400">Здоров'я:</span>
+						<span class="text-green-400 font-mono font-bold">{hoveredUnit.hp} HP</span>
 					</div>
 				</div>
+			{:else if hoveredBuilding.specialType === 'tower'}
+				<div class="space-y-1 text-[11px] text-slate-300">
+					<div class="text-cyan-300 font-bold">Оборонна сторожова вежа</div>
+					<div class="flex justify-between">
+						<span class="text-slate-400">Атака:</span>
+						<span class="text-amber-200 font-mono">
+							{hoveredBuilding.damage_base ?? 50} (Колюча)
+						</span>
+					</div>
+					<div class="flex justify-between">
+						<span class="text-slate-400">Дистанція / КД:</span>
+						<span class="text-slate-200 font-mono">
+							{hoveredBuilding.range ?? 500} px / {hoveredBuilding.cooldown ?? 1.0} с
+						</span>
+					</div>
+				</div>
+			{:else if hoveredBuilding.raw_fields?.utub}
+				<p class="text-[11px] leading-relaxed text-slate-300 whitespace-pre-line">
+					{hoveredBuilding.raw_fields.utub}
+				</p>
 			{/if}
 
 			{#if isLegendaryBuilding(hoveredBuilding)}
 				<div
-					class="mt-2 text-[10px] text-amber-300 bg-amber-950/40 p-1 rounded border border-amber-500/30"
+					class="mt-2 text-[10px] text-amber-300 bg-amber-950/50 p-1.5 rounded border border-amber-500/40 flex items-center gap-1"
 				>
-					👑 Легендарна споруда. Потребує їжу ({player.food}/{player.maxFood}).
+					<Crown class="w-3.5 h-3.5 text-amber-400 shrink-0" />
+					<span>Легендарна споруда. Потребує їжу ({player.food}/{player.maxFood}).</span>
 				</div>
 			{/if}
 		</div>

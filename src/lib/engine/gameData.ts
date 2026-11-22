@@ -17,12 +17,13 @@ export const RACES_LIST: RaceDefinition[] = rawRaces as RaceDefinition[];
 export const SPECIAL_BUILDINGS: BuildingDefinition[] = [
 	{
 		id: 'h008',
-		name: 'Скриня скарбів',
-		hp: 800,
+		name: 'Скриня зі Скарбами',
+		hp: 650,
 		armor: 5,
 		armor_type: 'fort',
 		attack_type: 'normal',
 		gold_cost: 160,
+		lumber_cost: 0,
 		unit: '',
 		upgrade_from: null,
 		upgrade_extra_cost: 0,
@@ -292,18 +293,26 @@ export function getBuildingsForRace(raceName: string): BuildingDefinition[] {
 }
 
 export function getBaseBuildingsForRace(raceName: string): BuildingDefinition[] {
-	// 1. First 6 buildings for training the army of mobs, ordered by gold cost ascending
+	// 1. Army spawners for this race (base non-upgrades, up to 6), sorted by gold cost ascending
 	const armySpawners = getBuildingsForRace(raceName).filter(
 		(b) => !b.upgrade_from && !b.specialType
 	);
 	armySpawners.sort((a, b) => (a.gold_cost || 0) - (b.gold_cost || 0));
 	const top6Army = armySpawners.slice(0, 6);
 
-	// 2. Special buildings (defensive guard tower, treasure chest, repair center, recycler) ordered by gold cost ascending
+	// 2. Special buildings (defensive guard tower, treasure chest, repair center, recycler, and race specials) sorted by price ascending
 	const raceTower = GUARD_TOWERS.find((t) => t.race === raceName);
 	const specials: BuildingDefinition[] = [];
 	if (raceTower) {
 		specials.push(raceTower);
+	}
+	const raceSpecials = getBuildingsForRace(raceName).filter(
+		(b) => !b.upgrade_from && b.specialType && b.specialType !== 'tower'
+	);
+	for (const rs of raceSpecials) {
+		if (!specials.some((s) => s.id === rs.id)) {
+			specials.push(rs);
+		}
 	}
 	for (const sb of SPECIAL_BUILDINGS) {
 		if (!specials.some((s) => s.id === sb.id)) {
