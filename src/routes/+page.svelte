@@ -223,9 +223,7 @@
 						uiTick = sim.stateVersion;
 					}
 				} else {
-					const existing = sim.buildings.find(
-						(b) => b.tileX === tileX && b.tileY === tileY
-					);
+					const existing = sim.buildings.find((b) => b.tileX === tileX && b.tileY === tileY);
 					selectedPlacedBuildingId = existing ? existing.instanceId : null;
 					selectedEntity = existing
 						? { type: 'building', instanceId: existing.instanceId }

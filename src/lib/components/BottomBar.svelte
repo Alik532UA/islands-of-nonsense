@@ -1,27 +1,14 @@
 <script lang="ts">
 	import type { Simulation } from '../engine/simulation';
-	import type { BuildingDefinition } from '../engine/types';
 	import {
 		getBaseBuildingsForRace,
 		getUpgradesForBuilding,
 		getUnit,
-		isLegendaryBuilding,
 		formatRaceName
 	} from '../engine/gameData';
-	import {
-		Coins,
-		Trash2,
-		X,
-		Crown,
-		Shield,
-		Swords,
-		Footprints,
-		Hammer,
-		Layers,
-		Users,
-		Castle
-	} from 'lucide-svelte';
+	import { Shield, Swords, Footprints, Hammer, Layers, Users, Castle } from 'lucide-svelte';
 	import Minimap from './Minimap.svelte';
+	import CommandCard from './CommandCard.svelte';
 	import CombatMatrixTooltip, {
 		ATTACK_NAMES_UK,
 		ARMOR_NAMES_UK,
@@ -29,7 +16,6 @@
 		normalizeAttackKey
 	} from './CombatMatrixTooltip.svelte';
 	import type { SelectedEntity } from '../renderer/entityRenderer';
-	import { CASTLE_ITEMS } from '../engine/items';
 
 	let {
 		sim,
@@ -125,9 +111,6 @@
 							: 'none'
 	);
 
-	let hoveredBuilding = $state<BuildingDefinition | null>(null);
-	let hoveredUnit = $derived(hoveredBuilding ? getUnit(hoveredBuilding.unit) : null);
-
 	// Combat Damage Matrix Tooltip State
 	let hoveredMatrix = $state<{
 		kind: 'attack' | 'armor';
@@ -210,8 +193,13 @@
 				</div>
 			{:else if activeEntityType === 'building' && placedBuilding}
 				<!-- Building Icon Portrait -->
-				<div class="flex flex-col items-center justify-center text-amber-300">
-					<Hammer class="w-9 h-9 text-amber-400" />
+				{@const isEnemyBld = placedBuilding.team === 'east'}
+				<div
+					class="flex flex-col items-center justify-center {isEnemyBld
+						? 'text-rose-400'
+						: 'text-amber-300'}"
+				>
+					<Hammer class="w-9 h-9 {isEnemyBld ? 'text-rose-400' : 'text-amber-400'}" />
 					<span class="text-[9px] font-bold uppercase truncate max-w-[70px]">
 						{placedBuilding.race}
 					</span>
@@ -306,8 +294,11 @@
 					{@const bHp = placedBuilding.hp ?? placedBuilding.goldCost * 4}
 					{@const bMaxHp = placedBuilding.maxHp ?? placedBuilding.goldCost * 4}
 					{@const bPct = Math.max(0, Math.min(100, (bHp / bMaxHp) * 100))}
+					{@const isEnemyBld = placedBuilding.team === 'east'}
 					<div
-						class="absolute left-0 top-0 bottom-0 bg-[#22c55e] transition-all"
+						class="absolute left-0 top-0 bottom-0 {isEnemyBld
+							? 'bg-[#ef4444]'
+							: 'bg-[#22c55e]'} transition-all"
 						style="width: {bPct}%"
 					></div>
 					<span class="relative z-10 text-[9px] font-mono font-bold text-white drop-shadow">
@@ -377,9 +368,11 @@
 						? selectedCastle?.team === 'west'
 							? 'bg-amber-400'
 							: 'bg-rose-500'
-						: activeEntityType === 'unit' && selectedUnit?.team === 'east'
+						: activeEntityType === 'building' && placedBuilding?.team === 'east'
 							? 'bg-rose-500'
-							: 'bg-emerald-400'} animate-pulse"
+							: activeEntityType === 'unit' && selectedUnit?.team === 'east'
+								? 'bg-rose-500'
+								: 'bg-emerald-400'} animate-pulse"
 				></span>
 				<span class="text-sm font-bold text-[#fef08a] truncate max-w-[220px]">
 					{#if activeEntityType === 'none'}
@@ -406,6 +399,17 @@
 				>
 					<span class="text-[11px] text-[#9ca3af]">Раса:</span>
 					<span class="text-xs font-bold text-amber-300">{formatRaceName(player.race)}</span>
+				</div>
+			{:else if activeEntityType === 'building' && placedBuilding}
+				<div
+					class="flex items-center gap-1.5 bg-[#0c1017] px-2.5 py-0.5 rounded border {placedBuilding.team ===
+					'west'
+						? 'border-blue-500/60 text-blue-300'
+						: 'border-rose-500/60 text-rose-300'}"
+				>
+					<span class="text-xs font-bold">
+						{placedBuilding.team === 'west' ? 'Союзна споруда' : 'Ворожа споруда'}
+					</span>
 				</div>
 			{:else if activeEntityType === 'castle' && selectedCastle}
 				<div
@@ -579,8 +583,31 @@
 
 		<!-- Footer Info: Lane Preference for Worker OR Progress bar for Building -->
 		<div class="border-t border-[#3b3226] pt-1 flex items-center justify-between text-[11px]">
-			{#if activeEntityType === 'none'}
-				<span class="text-[#9ca3af] text-[10px]">Клікніть об'єкт на карті для вибору</span>
+			{#if activeEntityType === 'worker' || activeEntityType === 'none'}
+				<div class="flex items-center justify-between w-full">
+					<div class="flex items-center gap-1.5">
+						<span class="text-[10px] text-amber-300 font-bold">Лінія:</span>
+						{#each ['auto', 'top', 'bottom'] as const as lane}
+							{@const isActive = sim.getPlayerPreferredLane('west') === lane}
+							<button
+								onclick={() => sim.setPlayerPreferredLane('west', lane)}
+								class="px-2 py-0.5 rounded text-[9px] font-bold transition cursor-pointer {isActive
+									? 'bg-blue-600 text-white border border-blue-400'
+									: 'bg-[#181d28] text-slate-400 hover:text-slate-200 border border-slate-700'}"
+								title={lane === 'auto'
+									? 'Автоматичний вибір лінії'
+									: lane === 'top'
+										? 'Направляти бійців на верхню лінію'
+										: 'Направляти бійців на нижню лінію'}
+							>
+								{lane === 'auto' ? 'Авто' : lane === 'top' ? 'Верх' : 'Низ'}
+							</button>
+						{/each}
+					</div>
+					<span class="text-[10px] text-slate-400 font-mono">
+						{activeEntityType === 'worker' ? 'Робітник' : 'Очікування'}
+					</span>
+				</div>
 			{:else if activeEntityType === 'castle' && selectedCastle}
 				<span class="text-[#9ca3af] text-[10px]">
 					{selectedCastle.team === 'west' ? 'Головна Цитадель (Союзник)' : 'Ворожа Цитадель (Ціль)'}
@@ -599,47 +626,33 @@
 				>
 					Зняти вибір (Esc)
 				</button>
-			{:else if activeEntityType === 'worker'}
-				<span class="text-[10px] text-[#86efac] font-mono">Виділено: Робітник</span>
 			{:else if activeEntityType === 'building' && placedBuilding}
 				<div class="flex items-center gap-2 w-full justify-between">
 					{#if placedBuilding.isUnderConstruction}
-						<span class="text-amber-300 text-[10px] font-bold">
-							Триває будівництво ({Math.round(
-								((placedBuilding.buildProgress || 0) / (placedBuilding.maxBuildProgress || 3.5)) *
-									100
-							)}%)
-						</span>
+						{@const pct = Math.round(
+							((placedBuilding.buildProgress || 0) / (placedBuilding.maxBuildProgress || 3.5)) * 100
+						)}
+						<span class="text-amber-300 text-[10px] font-bold">Триває будівництво ({pct}%)</span>
 						<div class="w-32 h-2 bg-[#0c1017] rounded-full overflow-hidden border border-[#3b3226]">
 							<div
 								class="h-full bg-amber-400 transition-all"
-								style="width: {Math.max(
-									0,
-									Math.min(
-										100,
-										((placedBuilding.buildProgress || 0) /
-											(placedBuilding.maxBuildProgress || 3.5)) *
-											100
-									)
-								)}%"
+								style="width: {Math.max(0, Math.min(100, pct))}%"
 							></div>
 						</div>
 					{:else}
+						{@const remPct = Math.max(
+							0,
+							Math.min(100, (1 - placedBuilding.spawnTimer / placedBuilding.spawnCooldown) * 100)
+						)}
 						<span class="text-[#9ca3af] text-[10px]">
-							КД: {placedBuilding.spawnCooldown}с (залишилось {placedBuilding.spawnTimer.toFixed(
-								1
-							)}с)
+							КД: {placedBuilding.spawnCooldown}с ({placedBuilding.spawnTimer.toFixed(1)}с)
 						</span>
 						<div class="w-32 h-2 bg-[#0c1017] rounded-full overflow-hidden border border-[#3b3226]">
 							<div
-								class="h-full bg-cyan-400 transition-all"
-								style="width: {Math.max(
-									0,
-									Math.min(
-										100,
-										(1 - placedBuilding.spawnTimer / placedBuilding.spawnCooldown) * 100
-									)
-								)}%"
+								class="h-full {placedBuilding.team === 'west'
+									? 'bg-cyan-400'
+									: 'bg-rose-400'} transition-all"
+								style="width: {remPct}%"
 							></div>
 						</div>
 					{/if}
@@ -695,292 +708,25 @@
 	</div>
 
 	<!-- 5. RIGHT: Command Card 4x3 Grid (Меню моба / робітника) -->
-	<div
-		class="relative flex items-center justify-center p-1.5 bg-[#131722] rounded-lg border-2 border-[#544738] shadow-inner shrink-0 h-[142px]"
-		style="box-shadow: inset 0 0 10px rgba(0,0,0,0.8);"
-	>
-		{#if placedBuilding}
-			<!-- Placed Building Commands: Upgrades, Continue Construction, Sell -->
-			<div class="grid grid-cols-4 gap-1.5 w-[280px]">
-				{#if placedBuilding.isUnderConstruction}
-					<!-- Under construction: Show "Continue Construction" button -->
-					<button
-						onclick={() => onContinueConstruction?.(placedBuilding.instanceId)}
-						class="col-span-2 h-10 rounded border border-amber-500 bg-amber-950/70 hover:bg-amber-900/90 text-amber-200 flex items-center justify-center gap-1.5 px-2 transition cursor-pointer shadow"
-						title="Відправити робітника добудувати споруду"
-					>
-						<Hammer class="w-4 h-4 text-amber-400" />
-						<span class="text-[10px] font-bold">Добудувати</span>
-					</button>
-				{:else}
-					{#each availableUpgrades as up, uIdx}
-						{@const upCost =
-							up.upgrade_extra_cost > 0
-								? up.upgrade_extra_cost
-								: Math.max(50, (up.gold_cost || 200) - placedBuilding.goldCost)}
-						{@const canAfford = playerGold >= upCost}
-						<button
-							onclick={() => onUpgradeBuilding?.(placedBuilding.instanceId, up.id)}
-							disabled={!canAfford}
-							class="relative w-16 h-10 rounded border flex flex-col items-center justify-center p-1 transition cursor-pointer {canAfford
-								? 'bg-[#1e3a5f] hover:bg-[#2563eb] border-blue-400 text-white shadow'
-								: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
-							title="{up.name} ({upCost}g)"
-						>
-							<span
-								class="absolute top-0.5 right-1 text-[8px] font-mono font-bold text-amber-300 drop-shadow"
-							>
-								[{uIdx + 1}]
-							</span>
-							<span class="text-[10px] font-bold truncate max-w-[50px]">{up.name}</span>
-							<span class="text-[9px] text-amber-300 font-mono font-bold">🪙 {upCost}</span>
-						</button>
-					{/each}
-				{/if}
-
-				<!-- Sell button in slot 11 -->
-				<button
-					onclick={() => onSellBuilding?.(placedBuilding.instanceId)}
-					class="relative col-start-3 w-16 h-10 rounded border border-rose-600/70 bg-rose-950/60 hover:bg-rose-900/80 text-rose-200 flex flex-col items-center justify-center p-1 transition cursor-pointer"
-					title="Знести споруду (+50% повернення золота)"
-				>
-					<span class="text-[10px] font-bold flex items-center gap-0.5">
-						<Trash2 class="w-3 h-3 text-rose-400" />
-						Знести
-					</span>
-					<span class="text-[9px] text-emerald-300 font-mono font-bold">
-						+{Math.floor(placedBuilding.goldCost * 0.5)}g
-					</span>
-				</button>
-
-				<!-- Deselect button in slot 12 -->
-				<button
-					onclick={() => (selectedPlacedBuildingId = null)}
-					class="relative col-start-4 w-16 h-10 rounded border border-slate-600 bg-slate-800 hover:bg-slate-700 text-slate-200 flex flex-col items-center justify-center p-1 transition cursor-pointer"
-					title="Закрити вибір (Esc)"
-				>
-					<X class="w-4 h-4 text-slate-300" />
-					<span class="text-[8px] font-mono">Esc</span>
-				</button>
-			</div>
-		{:else if activeEntityType === 'castle' && selectedCastle}
-			<!-- Castle Command Card: Shop & Defense Items -->
-			<div class="flex flex-col justify-between w-[280px] h-full py-1">
-				<div class="flex items-center justify-between border-b border-[#3b3226] pb-1">
-					<span class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
-						<Castle class="w-3.5 h-3.5 text-amber-400" />
-						{selectedCastle.team === 'west' ? 'Магазин Замку' : 'Ворожа База'}
-					</span>
-					<button
-						onclick={() => onClearSelection?.()}
-						class="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 bg-[#1e2433] rounded border border-slate-700 cursor-pointer"
-					>
-						Закрити (Esc)
-					</button>
-				</div>
-				{#if selectedCastle.team === 'west'}
-					<div class="grid grid-cols-4 gap-1.5">
-						{#each Object.values(CASTLE_ITEMS).slice(0, 4) as item}
-							{@const canAfford = playerGold >= item.cost}
-							<button
-								onclick={() => {
-									if (sim.canBuyCastleItem('west', item.id)) {
-										sim.buyCastleItem('west', item.id);
-									}
-								}}
-								disabled={!canAfford}
-								class="w-16 h-11 rounded border flex flex-col items-center justify-center p-0.5 transition cursor-pointer {canAfford
-									? 'bg-[#1b263b] hover:bg-[#253959] border-amber-500/60 text-white shadow'
-									: 'bg-[#12161f] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
-								title="{item.nameUk} ({item.cost}g) - {item.descriptionUk}"
-							>
-								<span class="text-xs font-bold text-slate-200 truncate max-w-[55px]">
-									{item.nameUk}
-								</span>
-								<span class="text-[8px] text-amber-300 font-mono font-bold">🪙{item.cost}</span>
-							</button>
-						{/each}
-					</div>
-				{:else}
-					<div
-						class="flex flex-col items-center justify-center text-center p-2 text-rose-300 text-xs"
-					>
-						<span class="font-bold">Ціль: Знищити ворожу цитадель!</span>
-						<span class="text-[10px] text-slate-400 mt-1">
-							Знищення замку приносить перемогу у раунді
-						</span>
-					</div>
-				{/if}
-			</div>
-		{:else if activeEntityType === 'unit' && selectedUnit}
-			<!-- Unit Profile Card (No worker buttons!) -->
-			<div class="flex flex-col justify-between w-[280px] h-full py-1">
-				<div class="flex items-center justify-between border-b border-[#3b3226] pb-1">
-					<span
-						class="text-[11px] font-bold {selectedUnit.team === 'west'
-							? 'text-blue-300'
-							: selectedUnit.team === 'neutral'
-								? 'text-purple-300'
-								: 'text-rose-400'} flex items-center gap-1"
-					>
-						<Swords class="w-3.5 h-3.5" />
-						{selectedUnit.name}
-					</span>
-					<button
-						onclick={() => (selectedUnitId = null)}
-						class="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 bg-[#1e2433] rounded border border-slate-700 cursor-pointer"
-					>
-						Закрити (Esc)
-					</button>
-				</div>
-				<div
-					class="flex flex-col gap-1 text-[10px] text-slate-300 bg-[#0d1017] p-2 rounded border border-[#2d3748]"
-				>
-					<div class="flex justify-between">
-						<span class="text-slate-400">Дистанція атаки:</span>
-						<span class="font-mono text-amber-300 font-bold">{selectedUnit.range} px</span>
-					</div>
-					<div class="flex justify-between">
-						<span class="text-slate-400">Швидкість атаки:</span>
-						<span class="font-mono text-slate-200">{selectedUnit.attackCooldown.toFixed(1)} с</span>
-					</div>
-					<div class="flex justify-between">
-						<span class="text-slate-400">Тип пересування:</span>
-						<span class="font-bold {selectedUnit.flying ? 'text-cyan-300' : 'text-emerald-300'}">
-							{selectedUnit.flying ? 'Повітряний юніт' : 'Наземний юніт'}
-						</span>
-					</div>
-				</div>
-			</div>
-		{:else if activeEntityType === 'group'}
-			<!-- Group Profile Card -->
-			<div class="flex flex-col justify-between w-[280px] h-full py-1">
-				<div class="flex items-center justify-between border-b border-[#3b3226] pb-1">
-					<span class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
-						<Users class="w-3.5 h-3.5" />
-						Загін бійців ({groupUnits.length})
-					</span>
-					<button
-						onclick={() => onClearSelection?.()}
-						class="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 bg-[#1e2433] rounded border border-slate-700 cursor-pointer"
-					>
-						Закрити (Esc)
-					</button>
-				</div>
-				<div class="text-[10px] text-slate-400 text-center p-2">
-					Виділено загін бійців на полі бою. Відображаються сумарні показники здоров'я.
-				</div>
-			</div>
-		{:else}
-			<!-- 4x3 Grid of 12 Command Buttons for Worker -->
-			<div class="grid grid-cols-4 gap-1.5">
-				{#each availableBuildings as bld, idx}
-					{@const isSelected = selectedBuildingId === bld.id}
-					{@const isAffordable = playerGold >= (bld.gold_cost || 200)}
-					{@const isLeg = isLegendaryBuilding(bld)}
-					{@const lacksFood = isLeg && player.food >= player.maxFood}
-					{@const hotkey = HOTKEYS[idx] || ''}
-
-					<button
-						onclick={() => onSelectBuilding(isSelected ? null : bld.id)}
-						onmouseenter={() => (hoveredBuilding = bld)}
-						onmouseleave={() => (hoveredBuilding = null)}
-						class="relative w-16 h-10 rounded border text-left p-1 transition-all flex flex-col justify-between cursor-pointer {isSelected
-							? 'bg-blue-600 border-amber-300 shadow-lg ring-2 ring-amber-400 shadow-blue-500/50'
-							: lacksFood
-								? 'bg-red-950/40 border-red-800/80 hover:border-red-600'
-								: isAffordable
-									? 'bg-[#1b2230] hover:bg-[#28354d] border-[#544738] hover:border-[#8c7456]'
-									: 'bg-[#12161f] border-[#2d3748] opacity-60 cursor-not-allowed'}"
-						title="{bld.name} ({bld.gold_cost}g) [Гаряча клавіша: {hotkey}]"
-					>
-						<!-- Hotkey in top-right corner -->
-						<span
-							class="absolute top-0.5 right-1 text-[8px] font-mono font-bold {isSelected
-								? 'text-white'
-								: isAffordable
-									? 'text-amber-300'
-									: 'text-slate-500'}"
-						>
-							[{hotkey}]
-						</span>
-
-						<!-- Building name -->
-						<div class="flex items-center gap-1">
-							{#if isLeg}
-								<Crown class="w-2.5 h-2.5 text-amber-400 shrink-0" />
-							{/if}
-							<span
-								class="text-[9px] font-bold truncate max-w-[45px] {isSelected
-									? 'text-white'
-									: isAffordable
-										? 'text-[#fef08a]'
-										: 'text-slate-400'}"
-							>
-								{bld.name}
-							</span>
-						</div>
-
-						<!-- Gold Cost in bottom-right -->
-						<span
-							class="text-[8px] font-mono font-bold self-end flex items-center gap-0.5 {isAffordable
-								? 'text-amber-300'
-								: 'text-red-400'}"
-						>
-							🪙 {bld.gold_cost}
-						</span>
-					</button>
-				{/each}
-			</div>
-		{/if}
-
-		<!-- Floating Authentic Warcraft III Tooltip on Hover -->
-		{#if hoveredBuilding}
-			<div
-				class="absolute bottom-full right-0 mb-3 w-72 bg-[#131722]/95 border-2 border-[#8c7456] rounded-lg p-2.5 text-xs shadow-2xl backdrop-blur pointer-events-none z-50"
-				style="box-shadow: 0 10px 25px rgba(0,0,0,0.9);"
-			>
-				<div class="flex items-center justify-between border-b border-[#3b3226] pb-1.5 mb-1.5">
-					<span class="font-bold text-[#fef08a] text-sm">{hoveredBuilding.name}</span>
-					<span class="font-mono font-bold text-amber-300 flex items-center gap-1">
-						<Coins class="w-3.5 h-3.5" />
-						{hoveredBuilding.gold_cost}g
-					</span>
-				</div>
-
-				{#if hoveredUnit}
-					<div class="space-y-1 text-[11px] text-slate-300">
-						<div class="flex justify-between">
-							<span class="text-slate-400">Боєць:</span>
-							<strong class="text-white">{hoveredUnit.name}</strong>
-						</div>
-						<div class="flex justify-between">
-							<span class="text-slate-400">Атака:</span>
-							<span class="text-amber-200">
-								{hoveredUnit.damage_base ?? 15} ({hoveredUnit.attack_type})
-							</span>
-						</div>
-						<div class="flex justify-between">
-							<span class="text-slate-400">Броня:</span>
-							<span class="text-emerald-300">
-								{hoveredUnit.armor} ({hoveredUnit.armor_type})
-							</span>
-						</div>
-						<div class="flex justify-between">
-							<span class="text-slate-400">HP:</span>
-							<span class="text-green-400 font-mono">{hoveredUnit.hp}</span>
-						</div>
-					</div>
-				{/if}
-
-				{#if isLegendaryBuilding(hoveredBuilding)}
-					<div
-						class="mt-2 text-[10px] text-amber-300 bg-amber-950/40 p-1 rounded border border-amber-500/30"
-					>
-						👑 Легендарна споруда. Потребує їжу ({player.food}/{player.maxFood}).
-					</div>
-				{/if}
-			</div>
-		{/if}
-	</div>
+	<CommandCard
+		{sim}
+		{placedBuilding}
+		{placedUnit}
+		{availableUpgrades}
+		{selectedCastle}
+		{selectedUnit}
+		{groupUnits}
+		{availableBuildings}
+		{selectedBuildingId}
+		{activeEntityType}
+		{player}
+		{playerGold}
+		{onSelectBuilding}
+		{onUpgradeBuilding}
+		{onSellBuilding}
+		{onContinueConstruction}
+		{onClearSelection}
+		onCloseBuilding={() => (selectedPlacedBuildingId = null)}
+		onCloseUnit={() => (selectedUnitId = null)}
+	/>
 </div>
