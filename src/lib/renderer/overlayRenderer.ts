@@ -1,5 +1,7 @@
-import type { Graphics } from 'pixi.js';
+import type { Container, Graphics } from 'pixi.js';
+import { Text } from 'pixi.js';
 import type { Simulation } from '../engine/simulation';
+import type { FloatingText } from '../engine/types';
 import {
 	ARENA_WIDTH,
 	ARENA_HEIGHT,
@@ -7,10 +9,11 @@ import {
 	WEST_GRID_START_Y,
 	CELL_SIZE,
 	GRID_STEP
-} from '../engine/simulation';
+} from '../engine/constants';
 
 export class OverlayRenderer {
 	private sim: Simulation;
+	private textPool: Text[] = [];
 
 	constructor(sim: Simulation) {
 		this.sim = sim;
@@ -141,6 +144,56 @@ export class OverlayRenderer {
 			g.rect(x, y, w, h);
 			g.fill({ color: 0x22c55e, alpha: 0.15 });
 			g.stroke({ color: 0x4ade80, width: 1.5 });
+		}
+	}
+
+	public drawFloatingTexts(container: Container, texts: FloatingText[]): void {
+		let i = 0;
+		for (; i < texts.length; i++) {
+			const ft = texts[i];
+			let pixiText = this.textPool[i];
+			if (!pixiText) {
+				pixiText = new Text({
+					text: ft.text,
+					style: {
+						fontFamily: 'system-ui, -apple-system, sans-serif',
+						fontSize: 13,
+						fontWeight: 'bold',
+						fill: ft.color,
+						stroke: { color: 0x000000, width: 3 }
+					}
+				});
+				pixiText.anchor.set(0.5, 0.5);
+				this.textPool.push(pixiText);
+				container.addChild(pixiText);
+			}
+
+			pixiText.text = ft.text;
+			pixiText.style.fill = ft.color;
+			pixiText.x = ft.x;
+			pixiText.y = ft.y;
+			pixiText.alpha = Math.max(0, Math.min(1, ft.life / ft.maxLife));
+			pixiText.visible = true;
+		}
+
+		for (; i < this.textPool.length; i++) {
+			this.textPool[i].visible = false;
+		}
+	}
+
+	public drawDayNight(g: Graphics, cycle: 'day' | 'night'): void {
+		g.clear();
+		if (cycle === 'night') {
+			// Midnight blue atmospheric ambient tint
+			g.rect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
+			g.fill({ color: 0x0f172a, alpha: 0.22 });
+
+			// Warm castle lantern glows
+			g.circle(this.sim.castles.west.x, this.sim.castles.west.y, 350);
+			g.fill({ color: 0xfbbf24, alpha: 0.08 });
+
+			g.circle(this.sim.castles.east.x, this.sim.castles.east.y, 350);
+			g.fill({ color: 0xfbbf24, alpha: 0.08 });
 		}
 	}
 }

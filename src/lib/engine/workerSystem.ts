@@ -632,17 +632,25 @@ export class WorkerSystem {
 						const bh = isCastle ? 280 : CELL_SIZE;
 						const distToRep = this.getDistanceToBox(w.x, w.y, bx, by, bw, bh);
 						if (distToRep <= 48) {
+							// If out of gold, worker cannot continue repairing
+							if (this.sim.players[team].gold < 1) {
+								w.isRepairing = false;
+								w.isBuilding = false;
+								w.targetRepairBuildingId = null;
+								this.sim.addFloatingText('Немає золота!', w.x, w.y - 20, '#ef4444');
+								this.sim.notifyStateChanged();
+								continue;
+							}
+
 							w.isBuilding = true;
 							w.isRepairing = true;
 							w.path = [];
 							const healAmount = Math.min(repTarget.maxHp - repTarget.hp, 50 * dt);
 							repTarget.hp += healAmount;
-							if (this.sim.players[team].gold >= 1) {
-								this.sim.players[team].gold = Math.max(
-									0,
-									this.sim.players[team].gold - Math.round(2 * dt)
-								);
-							}
+							this.sim.players[team].gold = Math.max(
+								0,
+								this.sim.players[team].gold - Math.max(1, Math.round(2 * dt))
+							);
 							if (repTarget.hp >= repTarget.maxHp) {
 								w.isRepairing = false;
 								w.isBuilding = false;

@@ -130,8 +130,12 @@ export class Simulation {
 	public onFloatingText?: (text: FloatingText) => void;
 	public onRoundEnd?: (winner: MatchTeam) => void;
 	public onSoundEffect?: (
-		sound: 'hit' | 'sword' | 'bow' | 'magic' | 'death' | 'buildingDestroyed'
+		sound: 'hit' | 'sword' | 'bow' | 'magic' | 'death' | 'buildingDestroyed' | 'upgrade'
 	) => void;
+
+	public get dayNightCycle(): 'day' | 'night' {
+		return Math.floor(this.gameTime / 60) % 2 === 0 ? 'day' : 'night';
+	}
 
 	public nextUnitId = 1;
 	public nextBuildingId = 1;

@@ -112,7 +112,7 @@
 	});
 
 	// Determine active entity: Castle > Group > Building > Unit > Worker (default)
-	let activeEntityType = $derived<'castle' | 'group' | 'building' | 'unit' | 'worker'>(
+	let activeEntityType = $derived<'castle' | 'group' | 'building' | 'unit' | 'worker' | 'none'>(
 		selectedCastle
 			? 'castle'
 			: groupUnits.length > 1
@@ -121,7 +121,9 @@
 					? 'building'
 					: selectedUnit
 						? 'unit'
-						: 'worker'
+						: selectedEntity?.type === 'worker'
+							? 'worker'
+							: 'none'
 	);
 
 	let hoveredBuilding = $state<BuildingDefinition | null>(null);
@@ -154,9 +156,13 @@
 			}
 		}
 
-		// Hotkeys Q..V for command card ONLY in worker mode
+		// Hotkeys Q..V for command card in worker or unselected mode
 		const idx = HOTKEYS.indexOf(key);
-		if (idx !== -1 && idx < availableBuildings.length && activeEntityType === 'worker') {
+		if (
+			idx !== -1 &&
+			idx < availableBuildings.length &&
+			(activeEntityType === 'worker' || activeEntityType === 'none')
+		) {
 			const bld = availableBuildings[idx];
 			onSelectBuilding(selectedBuildingId === bld.id ? null : bld.id);
 		}
@@ -231,6 +237,12 @@
 					<span class="text-[9px] font-bold uppercase truncate max-w-[70px]">
 						{isEnemy ? 'Ворог' : selectedUnit.attackType}
 					</span>
+				</div>
+			{:else if activeEntityType === 'none'}
+				<!-- Neutral Unselected Portrait -->
+				<div class="flex flex-col items-center justify-center text-slate-500 py-1">
+					<Shield class="w-8 h-8 opacity-40 text-amber-500" />
+					<span class="text-[9px] uppercase tracking-wide opacity-60">Вибір</span>
 				</div>
 			{:else}
 				<!-- Worker ("Північний будівельник") Portrait -->
@@ -316,6 +328,8 @@
 					<span class="relative z-10 text-[9px] font-mono font-bold text-white drop-shadow">
 						{Math.ceil(selectedUnit.hp)} / {selectedUnit.maxHp}
 					</span>
+				{:else if activeEntityType === 'none'}
+					<span class="relative z-10 text-[9px] font-mono text-slate-500">—</span>
 				{:else}
 					{@const wHp = worker?.hp ?? 220}
 					{@const wMaxHp = worker?.maxHp ?? 220}
@@ -369,7 +383,9 @@
 							: 'bg-emerald-400'} animate-pulse"
 				></span>
 				<span class="text-sm font-bold text-[#fef08a] truncate max-w-[220px]">
-					{#if activeEntityType === 'castle' && selectedCastle}
+					{#if activeEntityType === 'none'}
+						Виділення відсутнє
+					{:else if activeEntityType === 'castle' && selectedCastle}
 						{selectedCastle.team === 'west'
 							? 'Західна Цитадель (Ваш замок)'
 							: 'Східна Фортеця (Замок ворога)'}
@@ -385,7 +401,7 @@
 				</span>
 			</div>
 
-			{#if activeEntityType === 'worker'}
+			{#if activeEntityType === 'none' || activeEntityType === 'worker'}
 				<div
 					class="flex items-center gap-1.5 bg-[#0c1017] px-2.5 py-0.5 rounded border border-[#78654c]/60"
 				>
@@ -423,7 +439,12 @@
 			{/if}
 		</div>
 
-		{#if activeEntityType === 'group'}
+		{#if activeEntityType === 'none'}
+			<div class="flex items-center justify-center text-xs text-slate-400 py-4 gap-2">
+				<Shield class="w-4 h-4 text-amber-500/60" />
+				<span>Клікніть на воїна, будівлю або свого робітника для огляду</span>
+			</div>
+		{:else if activeEntityType === 'group'}
 			<!-- Group composition chips -->
 			<div class="flex flex-wrap gap-1.5 py-1 text-xs max-h-[75px] overflow-y-auto">
 				{#each groupBreakdown as item}
@@ -445,17 +466,11 @@
 					class="flex items-center gap-1.5 text-slate-300 cursor-help"
 					onmouseenter={() => {
 						const rawArmor =
-							activeEntityType === 'castle'
+							activeEntityType === 'castle' || activeEntityType === 'building'
 								? 'fort'
-								: activeEntityType === 'building'
-									? 'fort'
-									: selectedUnit?.armorType || 'none';
+								: selectedUnit?.armorType || 'none';
 						const norm = normalizeArmorKey(rawArmor);
-						hoveredMatrix = {
-							kind: 'armor',
-							key: norm,
-							label: ARMOR_NAMES_UK[norm] || rawArmor
-						};
+						hoveredMatrix = { kind: 'armor', key: norm, label: ARMOR_NAMES_UK[norm] || rawArmor };
 					}}
 					onmouseleave={() => (hoveredMatrix = null)}
 				>
@@ -565,7 +580,9 @@
 
 		<!-- Footer Info: Lane Preference for Worker OR Progress bar for Building -->
 		<div class="border-t border-[#3b3226] pt-1 flex items-center justify-between text-[11px]">
-			{#if activeEntityType === 'castle' && selectedCastle}
+			{#if activeEntityType === 'none'}
+				<span class="text-[#9ca3af] text-[10px]">Клікніть об'єкт на карті для вибору</span>
+			{:else if activeEntityType === 'castle' && selectedCastle}
 				<span class="text-[#9ca3af] text-[10px]">
 					{selectedCastle.team === 'west' ? 'Головна Цитадель (Союзник)' : 'Ворожа Цитадель (Ціль)'}
 				</span>

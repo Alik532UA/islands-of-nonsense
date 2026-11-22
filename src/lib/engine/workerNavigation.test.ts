@@ -132,5 +132,49 @@ describe('Worker Navigation and Building Order (v10 Canon)', () => {
 			expect(building?.isUnderConstruction).toBe(false);
 			expect(building?.hp).toBe(building?.maxHp);
 		});
+
+		it('ceases repair and warns when gold drops below 1', () => {
+			const sim = new Simulation();
+			sim.isRunning = true;
+			const worker = sim.players.west.worker;
+			expect(worker).toBeDefined();
+			if (!worker) return;
+
+			// Damage castle
+			sim.castles.west.hp = 10000;
+			worker.x = 350;
+			worker.y = 1200;
+
+			// Set gold to 0
+			sim.players.west.gold = 0;
+			const ordered = sim.repairBuilding('west', 'castle_west');
+			expect(ordered).toBe(true);
+
+			sim.step(0.05);
+
+			// Worker must immediately halt repair because gold is 0
+			expect(worker.isRepairing).toBe(false);
+			expect(sim.floatingTexts.some((ft) => ft.text === 'Немає золота!')).toBe(true);
+		});
+
+		it('castle cannon targets enemies within 800px range covering siege engines', () => {
+			const sim = new Simulation();
+			sim.isRunning = true;
+
+			// Enemy at x=750 (distance 550 from west castle at x=200)
+			sim.spawnUnitDirectly({
+				team: 'east',
+				lane: 'top',
+				x: 750,
+				y: 1200,
+				hp: 1000
+			});
+
+			sim.step(0.1);
+
+			// Castle shot projectile must be fired towards the enemy
+			const castleProjectile = sim.projectiles.find((p) => p.sourceUnitId === 'castle_west');
+			expect(castleProjectile).toBeDefined();
+		});
 	});
 });

@@ -73,7 +73,9 @@ export class ArenaRenderer {
 	private workersLayer: Graphics;
 	private unitsLayer: Graphics;
 	private projectilesLayer: Graphics;
+	private dayNightLayer: Graphics;
 	private fogLayer: Graphics;
+	private floatingTextsLayer: Container;
 	private uiLayer: Graphics;
 
 	private hoveredTile: { x: number; y: number } | null = null;
@@ -103,7 +105,9 @@ export class ArenaRenderer {
 		this.workersLayer = new Graphics();
 		this.unitsLayer = new Graphics();
 		this.projectilesLayer = new Graphics();
+		this.dayNightLayer = new Graphics();
 		this.fogLayer = new Graphics();
+		this.floatingTextsLayer = new Container();
 		this.uiLayer = new Graphics();
 
 		this.terrainRenderer = new TerrainRenderer();
@@ -142,7 +146,9 @@ export class ArenaRenderer {
 		this.rootContainer.addChild(this.workersLayer);
 		this.rootContainer.addChild(this.unitsLayer);
 		this.rootContainer.addChild(this.projectilesLayer);
+		this.rootContainer.addChild(this.dayNightLayer);
 		this.rootContainer.addChild(this.fogLayer);
+		this.rootContainer.addChild(this.floatingTextsLayer);
 		this.rootContainer.addChild(this.uiLayer);
 
 		this.setupInteraction(canvas);
@@ -561,8 +567,8 @@ export class ArenaRenderer {
 				return;
 			}
 
-			// Default fallback: select worker
-			this.onSelectEntity?.({ type: 'worker' });
+			// Default fallback: deselect when clicking on empty ground
+			this.onSelectEntity?.(null);
 		});
 	}
 
@@ -584,8 +590,10 @@ export class ArenaRenderer {
 		this.entityRenderer.drawCastles(this.buildingsLayer, selectedEntity);
 		this.entityRenderer.drawProjectilesLayer(this.projectilesLayer);
 		this.entityRenderer.drawRescueStrikeEffects(this.projectilesLayer);
+		this.overlayRenderer.drawDayNight(this.dayNightLayer, this.sim.dayNightCycle);
 		this.overlayRenderer.drawOrderMarkers(this.uiLayer, this.moveMarkers);
 		this.overlayRenderer.drawFogOfWar(this.fogLayer, this.enableFog);
+		this.overlayRenderer.drawFloatingTexts(this.floatingTextsLayer, this.sim.floatingTexts);
 		this.overlayRenderer.drawSelectionUI(
 			this.uiLayer,
 			this.isBoxSelecting,

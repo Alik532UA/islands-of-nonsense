@@ -192,6 +192,9 @@
 				case 'building_repair':
 					sound.playRepair();
 					break;
+				case 'upgrade':
+					sound.playUpgrade();
+					break;
 			}
 		};
 	}

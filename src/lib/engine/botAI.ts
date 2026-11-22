@@ -174,10 +174,46 @@ export class BotAI {
 		const myCastle = this.sim.castles[this.team];
 		const castleHpRatio = myCastle.hp / myCastle.maxHp;
 
-		// 0. Idle worker coin pickup on East base
+		// 00. Adapt Commander to Race Strategy
+		if (player.commander === 3 && player.race) {
+			if (player.race === 'Люди') {
+				player.commander = 1; // Саша: +12% доходу
+			} else if (player.race === 'Ельфи') {
+				player.commander = 5; // Юра: 25% крит дальнього бою
+			} else if (player.race === 'Північ') {
+				player.commander = 4; // Дэн: +24% швидкості атаки
+			} else if (player.race === 'Хаос') {
+				player.commander = 3; // Дима: +24% шкоди
+			}
+		}
+
+		// 0. Base Breach Defense & Evacuation: if enemies breached courtyard
+		const enemyTeam = this.team === 'west' ? 'east' : 'west';
 		const botWorker = player.worker;
+		const enemiesInCourtyard = this.sim.units.filter(
+			(u) => u.team === enemyTeam && u.state !== 'DEAD' && u.x >= ARENA_WIDTH - 1500
+		);
+
+		if (botWorker && enemiesInCourtyard.length > 0) {
+			// If castle is wounded and bot has gold, dispatch worker to repair from rear safety
+			if (myCastle.hp < myCastle.maxHp && player.gold >= 15 && !botWorker.isBuilding) {
+				if (!botWorker.isRepairing) {
+					this.sim.repairBuilding(this.team, 'castle_' + this.team);
+				}
+			} else if (!botWorker.isBuilding && !botWorker.isRepairing) {
+				// Evacuate worker behind castle safe rampart
+				const safeX = ARENA_WIDTH - 120;
+				const safeY = 1200;
+				if (Math.hypot(botWorker.x - safeX, botWorker.y - safeY) > 40) {
+					this.sim.orderWorkerMove(this.team, safeX, safeY);
+				}
+			}
+		}
+
+		// 0a. Idle worker coin pickup on East base
 		if (
 			botWorker &&
+			enemiesInCourtyard.length === 0 &&
 			!botWorker.isBuilding &&
 			!botWorker.isRepairing &&
 			!botWorker.targetBuildingId

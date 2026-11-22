@@ -379,6 +379,7 @@ export class EconomySystem {
 				break;
 		}
 
+		this.sim.onSoundEffect?.('upgrade');
 		this.sim.notifyStateChanged();
 		return true;
 	}
@@ -581,6 +582,7 @@ export class EconomySystem {
 			}
 		}
 
+		this.sim.onSoundEffect?.('upgrade');
 		this.sim.notifyStateChanged();
 		return true;
 	}

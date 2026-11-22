@@ -313,9 +313,28 @@ export class CombatSystem {
 					const onHighway = isWest ? u.x < eastGateX : u.x > westGateX;
 
 					if (inOwnCourtyard) {
-						// Step 1: In base courtyard -> march towards road gate
-						const gdx = ownGateX - u.x;
-						const gdy = targetLaneY - u.y;
+						// Detour around solid castle if marching from opposite courtyard corner
+						let wpX = ownGateX;
+						let wpY = targetLaneY;
+						if (isWest && u.x < 360) {
+							if (u.y < 1060 && targetLaneY > 1200) {
+								wpX = 380;
+								wpY = 950;
+							} else if (u.y > 1340 && targetLaneY < 1200) {
+								wpX = 380;
+								wpY = 1450;
+							}
+						} else if (!isWest && u.x > ARENA_WIDTH - 360) {
+							if (u.y < 1060 && targetLaneY > 1200) {
+								wpX = ARENA_WIDTH - 380;
+								wpY = 950;
+							} else if (u.y > 1340 && targetLaneY < 1200) {
+								wpX = ARENA_WIDTH - 380;
+								wpY = 1450;
+							}
+						}
+						const gdx = wpX - u.x;
+						const gdy = wpY - u.y;
 						const gdist = Math.hypot(gdx, gdy);
 						if (gdist > 5) {
 							u.x += (gdx / gdist) * currentSpeed * dt;
@@ -812,7 +831,7 @@ export class CombatSystem {
 				const enemy = this.sim.spatialGrid.findClosestEnemy(
 					castle.x,
 					castle.y,
-					450,
+					800,
 					team,
 					undefined,
 					true

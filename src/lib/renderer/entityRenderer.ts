@@ -313,21 +313,35 @@ export class EntityRenderer {
 			g.fill({ color: 0xfcd34d });
 			g.stroke({ color: 0xd97706, width: 1 });
 
+			// Calculate facing direction for West worker (-1 for left, 1 for right)
+			let westFacing = 1;
+			if (westWorker.isBuilding && westWorker.targetBuildingId) {
+				const bld = this.sim.buildings.find((b) => b.instanceId === westWorker.targetBuildingId);
+				if (bld) westFacing = bld.x + CELL_SIZE / 2 < westWorker.x ? -1 : 1;
+			} else if (westWorker.isRepairing && westWorker.targetRepairBuildingId) {
+				const bld =
+					this.sim.buildings.find((b) => b.instanceId === westWorker.targetRepairBuildingId) ||
+					(westWorker.targetRepairBuildingId.startsWith('castle') ? this.sim.castles.west : null);
+				if (bld) westFacing = bld.x < westWorker.x ? -1 : 1;
+			} else if (Math.abs(westWorker.targetX - westWorker.x) > 2) {
+				westFacing = westWorker.targetX < westWorker.x ? -1 : 1;
+			}
+
 			// Construction Hammer / Mallet
 			const isSwinging = westWorker.isBuilding || westWorker.isRepairing;
 			const hammerSwing = isSwinging ? Math.sin(this.sim.gameTime * 18) * 12 : 0;
-			const hx = wx + 10;
+			const hx = wx + westFacing * 10;
 			const hy = wy + bob - 2 + hammerSwing;
 
-			g.moveTo(hx - 2, hy + 8);
-			g.lineTo(hx + 4, hy - 4);
+			g.moveTo(hx - westFacing * 2, hy + 8);
+			g.lineTo(hx + westFacing * 4, hy - 4);
 			g.stroke({ color: 0x92400e, width: 2.5 });
-			g.rect(hx + 1, hy - 7, 7, 5);
+			g.rect(westFacing === 1 ? hx + 1 : hx - 8, hy - 7, 7, 5);
 			g.fill({ color: 0x94a3b8 });
 
 			// Sparks if building or repairing
 			if (isSwinging) {
-				const spX = hx + 5 + Math.sin(this.sim.gameTime * 30) * 6;
+				const spX = hx + westFacing * 5 + Math.sin(this.sim.gameTime * 30) * 6;
 				const spY = hy + Math.cos(this.sim.gameTime * 30) * 6;
 				g.circle(spX, spY, 2.5);
 				g.fill({ color: 0xfef08a });
@@ -351,6 +365,37 @@ export class EntityRenderer {
 
 			g.circle(ex, ey - 10 + bob, 7);
 			g.fill({ color: 0x15803d }); // Orc skin
+
+			let eastFacing = -1; // Default facing west towards enemy
+			if (eastWorker.isBuilding && eastWorker.targetBuildingId) {
+				const bld = this.sim.buildings.find((b) => b.instanceId === eastWorker.targetBuildingId);
+				if (bld) eastFacing = bld.x + CELL_SIZE / 2 < eastWorker.x ? -1 : 1;
+			} else if (eastWorker.isRepairing && eastWorker.targetRepairBuildingId) {
+				const bld =
+					this.sim.buildings.find((b) => b.instanceId === eastWorker.targetRepairBuildingId) ||
+					(eastWorker.targetRepairBuildingId.startsWith('castle') ? this.sim.castles.east : null);
+				if (bld) eastFacing = bld.x < eastWorker.x ? -1 : 1;
+			} else if (Math.abs(eastWorker.targetX - eastWorker.x) > 2) {
+				eastFacing = eastWorker.targetX < eastWorker.x ? -1 : 1;
+			}
+
+			const isEastSwinging = eastWorker.isBuilding || eastWorker.isRepairing;
+			const eastHammerSwing = isEastSwinging ? Math.sin(this.sim.gameTime * 18) * 12 : 0;
+			const ehx = ex + eastFacing * 10;
+			const ehy = ey + bob - 2 + eastHammerSwing;
+
+			g.moveTo(ehx - eastFacing * 2, ehy + 8);
+			g.lineTo(ehx + eastFacing * 4, ehy - 4);
+			g.stroke({ color: 0x92400e, width: 2.5 });
+			g.rect(eastFacing === 1 ? ehx + 1 : ehx - 8, ehy - 7, 7, 5);
+			g.fill({ color: 0x94a3b8 });
+
+			if (isEastSwinging) {
+				const spX = ehx + eastFacing * 5 + Math.sin(this.sim.gameTime * 30) * 6;
+				const spY = ehy + Math.cos(this.sim.gameTime * 30) * 6;
+				g.circle(spX, spY, 2.5);
+				g.fill({ color: 0xfef08a });
+			}
 		}
 	}
 

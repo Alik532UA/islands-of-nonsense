@@ -183,4 +183,39 @@ describe('Point 8: Tactical Counter-Pick Bot AI', () => {
 		const afterBuildingCount = sim.buildings.filter((b) => b.team === 'east').length;
 		expect(afterBuildingCount).toBeGreaterThan(initBuildingCount);
 	});
+
+	it('should adapt commander based on chosen race and strategy', () => {
+		sim.players.east.race = 'Люди';
+		botAI.update(2.0);
+		expect(sim.players.east.commander).toBe(1); // Sasha for economy
+
+		sim.players.east.race = 'Ельфи';
+		sim.players.east.commander = 3;
+		botAI.update(2.0);
+		expect(sim.players.east.commander).toBe(5); // Yura for ranged crit
+	});
+
+	it('should evacuate worker and order repair when enemies breach the base', () => {
+		sim.players.east.gold = 100;
+		sim.castles.east.hp = 10000; // Damaged castle
+		const worker = sim.players.east.worker;
+		expect(worker).toBeDefined();
+		if (!worker) return;
+
+		// West unit breaches into East courtyard (x >= 5700)
+		sim.spawnUnitDirectly({
+			team: 'west',
+			lane: 'top',
+			x: 6000,
+			y: 660,
+			hp: 1000
+		});
+
+		botAI.update(2.0);
+
+		// Worker must be tasked with repairing or retreating
+		expect(
+			worker.isRepairing || worker.targetRepairBuildingId || worker.targetX > 6800
+		).toBeTruthy();
+	});
 });
