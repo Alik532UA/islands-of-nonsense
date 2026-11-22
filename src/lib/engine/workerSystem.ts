@@ -1,6 +1,6 @@
 import type { Simulation } from './simulation';
 import { ARENA_WIDTH, ARENA_HEIGHT, CELL_SIZE, SOLID_MAP_OBSTACLES } from './constants';
-import type { MatchTeam, WorkerState } from './types';
+import type { MatchTeam, WorkerState, PlayerState } from './types';
 
 export { SOLID_MAP_OBSTACLES } from './constants';
 
@@ -415,8 +415,13 @@ export class WorkerSystem {
 		}
 	}
 
-	public moveWorker(team: MatchTeam, targetX: number, targetY: number): void {
-		const w = this.sim.players[team]?.worker;
+	public moveWorker(
+		team: MatchTeam,
+		targetX: number,
+		targetY: number,
+		playerInput?: PlayerState
+	): void {
+		const w = (playerInput || this.sim.players[team])?.worker;
 		if (w) {
 			let tx = targetX;
 			let ty = targetY;
@@ -504,13 +509,17 @@ export class WorkerSystem {
 		return this.resolveGroundObstacles(fallbackX, fallbackY, 14);
 	}
 
-	public continueConstruction(team: MatchTeam, buildingInstanceId: string): boolean {
+	public continueConstruction(
+		team: MatchTeam,
+		buildingInstanceId: string,
+		playerInput?: PlayerState
+	): boolean {
 		const targetBld = this.sim.buildings.find(
 			(b) => b.instanceId === buildingInstanceId && b.team === team
 		);
 		if (!targetBld || !targetBld.isUnderConstruction) return false;
 
-		const w = this.sim.players[team]?.worker;
+		const w = (playerInput || this.sim.players[team])?.worker;
 		if (w) {
 			const spot = this.getBestConstructionSpot(team, w.x, w.y, targetBld.x, targetBld.y);
 			w.targetX = spot.x;
@@ -526,7 +535,11 @@ export class WorkerSystem {
 		return false;
 	}
 
-	public repairBuilding(team: MatchTeam, buildingInstanceId: string): boolean {
+	public repairBuilding(
+		team: MatchTeam,
+		buildingInstanceId: string,
+		playerInput?: PlayerState
+	): boolean {
 		const isCastle =
 			buildingInstanceId === `castle_${team}` ||
 			buildingInstanceId === 'castle' ||
@@ -538,10 +551,10 @@ export class WorkerSystem {
 
 		// If building is still under construction, redirect worker to continue construction!
 		if ('isUnderConstruction' in targetBld && targetBld.isUnderConstruction) {
-			return this.continueConstruction(team, buildingInstanceId);
+			return this.continueConstruction(team, buildingInstanceId, playerInput);
 		}
 
-		const w = this.sim.players[team]?.worker;
+		const w = (playerInput || this.sim.players[team])?.worker;
 		if (w) {
 			const bx = isCastle ? (team === 'west' ? 80 : ARENA_WIDTH - 320) : targetBld.x;
 			const by = isCastle ? 1060 : targetBld.y;
@@ -565,9 +578,10 @@ export class WorkerSystem {
 	 * Updates workers position, obstacle navigation, construction progress, and repairs.
 	 */
 	public updateWorkers(dt: number): void {
-		for (const team of ['west', 'east'] as MatchTeam[]) {
-			const w = this.sim.players[team]?.worker;
+		for (const p of this.sim.allPlayers) {
+			const w = p.worker;
 			if (!w) continue;
+			const team = p.team;
 
 			const targetBld = w.targetBuildingId
 				? this.sim.buildings.find((b) => b.instanceId === w.targetBuildingId)
@@ -600,7 +614,7 @@ export class WorkerSystem {
 						targetBld.spawnTimer = targetBld.specialType === 'repair' ? 0 : targetBld.spawnCooldown;
 						w.isBuilding = false;
 						w.targetBuildingId = null;
-						this.sim.players[team].lumber += 25;
+						p.lumber += 25;
 						this.sim.addFloatingText(
 							'+Готово! (+25🪵)',
 							targetBld.x + CELL_SIZE / 2,
@@ -635,7 +649,7 @@ export class WorkerSystem {
 						const distToRep = this.getDistanceToBox(w.x, w.y, bx, by, bw, bh);
 						if (distToRep <= 48) {
 							// If out of gold, worker cannot continue repairing
-							if (this.sim.players[team].gold < 1) {
+							if (p.gold < 1) {
 								w.isRepairing = false;
 								w.isBuilding = false;
 								w.targetRepairBuildingId = null;
@@ -649,10 +663,7 @@ export class WorkerSystem {
 							w.path = [];
 							const healAmount = Math.min(repTarget.maxHp - repTarget.hp, 50 * dt);
 							repTarget.hp += healAmount;
-							this.sim.players[team].gold = Math.max(
-								0,
-								this.sim.players[team].gold - Math.max(1, Math.round(2 * dt))
-							);
+							p.gold = Math.max(0, p.gold - Math.max(1, Math.round(2 * dt)));
 							if (repTarget.hp >= repTarget.maxHp) {
 								w.isRepairing = false;
 								w.isBuilding = false;

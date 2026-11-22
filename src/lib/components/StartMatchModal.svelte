@@ -2,7 +2,7 @@
 	import type { SimulationConfig } from '../engine/simulation';
 	import { GAME_MODES } from '../engine/gameModes';
 	import { storage } from '../services/storage';
-	import { Swords, Bot, Coins, Trophy, Dices, X, Play, Sliders, Eye } from 'lucide-svelte';
+	import { Swords, Bot, Coins, Trophy, Dices, X, Play, Sliders, Eye, Users } from 'lucide-svelte';
 
 	let {
 		isOpen = false,
@@ -20,6 +20,7 @@
 	let botDifficulty = $state(currentConfig.botDifficulty ?? 15);
 	let startGold = $state(currentConfig.startGold ?? 500);
 	let selectedMode = $state(currentConfig.modeId ?? 'standard');
+	let teamSize = $state<1 | 2 | 3>(currentConfig.teamSize ?? 1);
 	let targetWins = $state(currentConfig.targetWins ?? 2);
 	let raceChoiceMode = $state<'pick' | 'random'>(
 		currentConfig.allRandom || currentConfig.westRace === 'random' ? 'random' : 'pick'
@@ -34,6 +35,7 @@
 			botDifficulty = saved.botDifficulty ?? currentConfig.botDifficulty ?? 15;
 			startGold = saved.startGold ?? currentConfig.startGold ?? 500;
 			selectedMode = saved.modeId ?? currentConfig.modeId ?? 'standard';
+			teamSize = (saved.teamSize as 1 | 2 | 3) ?? currentConfig.teamSize ?? 1;
 			targetWins = saved.targetWins ?? currentConfig.targetWins ?? 2;
 			raceChoiceMode =
 				saved.allRandom || saved.westRace === 'random'
@@ -57,6 +59,7 @@
 			botDifficulty,
 			startGold,
 			modeId: selectedMode,
+			teamSize,
 			allRandom: isAr,
 			uniqueRaces: isUr,
 			targetWins,
@@ -146,6 +149,29 @@
 								<div class="text-[10px] text-slate-400 line-clamp-2 mt-0.5">
 									{mode.descriptionUk}
 								</div>
+							</button>
+						{/each}
+					</div>
+				</div>
+
+				<!-- Team Battle Format (1v1, 2v2, 3v3) -->
+				<div>
+					<label class="font-bold text-slate-300 flex items-center gap-1.5 mb-2">
+						<Users class="w-4 h-4 text-cyan-400" />
+						Формат битви (Команди):
+					</label>
+					<div class="grid grid-cols-3 gap-2">
+						{#each [{ size: 1 as const, title: '1 на 1 (Дуель)', desc: 'Гравець проти Бота' }, { size: 2 as const, title: '2 на 2 (Командна)', desc: 'Союзник-бот проти 2 ботів' }, { size: 3 as const, title: '3 на 3 (Масова)', desc: 'Епічна битва (6 гравців)' }] as fmt}
+							<button
+								type="button"
+								onclick={() => (teamSize = fmt.size)}
+								class="p-2.5 rounded-xl border text-center transition cursor-pointer {teamSize ===
+								fmt.size
+									? 'bg-cyan-600/30 border-cyan-500 text-cyan-200 shadow-lg shadow-cyan-500/10 font-bold'
+									: 'bg-slate-950/60 border-slate-800 hover:border-slate-700 text-slate-400'}"
+							>
+								<div class="text-xs font-bold">{fmt.title}</div>
+								<div class="text-[10px] text-slate-500 mt-0.5">{fmt.desc}</div>
 							</button>
 						{/each}
 					</div>

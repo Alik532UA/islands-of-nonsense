@@ -21,6 +21,7 @@ import { WorkerSystem } from './workerSystem';
 import { BuildingSystem } from './buildingSystem';
 import { CombatSystem } from './combatSystem';
 import { EconomySystem } from './economySystem';
+import { BotAI } from './botAI';
 import { getGameMode, type GameModeConfig } from './gameModes';
 
 import { ARENA_WIDTH, ARENA_HEIGHT, TOP_LANE_Y, BOTTOM_LANE_Y, type CoinMode } from './constants';
@@ -37,6 +38,7 @@ export interface SimulationConfig {
 	targetWins?: number;
 	fogOfWar?: boolean;
 	coinMode?: CoinMode;
+	teamSize?: 1 | 2 | 3;
 }
 
 /**
@@ -65,6 +67,10 @@ export class Simulation {
 
 	public castles: Record<MatchTeam, Castle>;
 	public players: Record<MatchTeam, PlayerState>;
+	public teamSize: 1 | 2 | 3 = 1;
+	public allPlayers: PlayerState[] = [];
+	public teamMembers: Record<MatchTeam, PlayerState[]> = { west: [], east: [] };
+	public bots: BotAI[] = [];
 
 	public spatialGrid = new SpatialHashGrid(160);
 
@@ -162,6 +168,7 @@ export class Simulation {
 
 	constructor(config: SimulationConfig = { botDifficulty: 0, startGold: 500 }) {
 		this.config = config;
+		this.teamSize = config.teamSize ?? 1;
 		this.gameModeConfig = getGameMode(config.modeId || 'standard');
 		if (config.allRandom !== undefined) {
 			this.gameModeConfig.allRandom = config.allRandom;
@@ -185,124 +192,349 @@ export class Simulation {
 		const isAllRandom = !!config.allRandom;
 		const isUniqueRaces = !!config.uniqueRaces;
 
-		let westRace = config.westRace || 'Люди';
-		const westIsRandom = isAllRandom || config.westRace === 'random';
-
-		let eastRace = config.eastRace || 'Орки';
-		const eastIsRandom = isAllRandom || config.eastRace === 'random' || config.botDifficulty > 0;
-
-		if (isAllRandom) {
-			westRace = availableRaces[Math.floor(Math.random() * availableRaces.length)];
-			let eastPool = isUniqueRaces ? availableRaces.filter((r) => r !== westRace) : availableRaces;
-			if (eastPool.length === 0) eastPool = availableRaces;
-			eastRace = eastPool[Math.floor(Math.random() * eastPool.length)];
-		} else {
-			if (westIsRandom) {
-				westRace = availableRaces[Math.floor(Math.random() * availableRaces.length)];
+		const remainingRaces = [...availableRaces];
+		const takeRace = (requested?: string, isRand = false): { race: string; isRandom: boolean } => {
+			if (isAllRandom || requested === 'random' || isRand) {
+				const idx = Math.floor(Math.random() * remainingRaces.length);
+				const picked = remainingRaces[idx] || availableRaces[0];
+				if (isUniqueRaces && remainingRaces.length > 1) {
+					remainingRaces.splice(idx, 1);
+				}
+				return { race: picked, isRandom: true };
 			}
-			if (eastIsRandom && !config.eastRace) {
-				let eastPool = isUniqueRaces
-					? availableRaces.filter((r) => r !== westRace)
-					: availableRaces;
-				if (eastPool.length === 0) eastPool = availableRaces;
-				eastRace = eastPool[Math.floor(Math.random() * eastPool.length)];
+			if (requested && remainingRaces.includes(requested)) {
+				if (isUniqueRaces) {
+					remainingRaces.splice(remainingRaces.indexOf(requested), 1);
+				}
+				return { race: requested, isRandom: false };
 			}
-		}
+			if (requested) {
+				return { race: requested, isRandom: false };
+			}
+			const idx = Math.floor(Math.random() * remainingRaces.length);
+			const picked = remainingRaces[idx] || availableRaces[0];
+			if (isUniqueRaces && remainingRaces.length > 1) {
+				remainingRaces.splice(idx, 1);
+			}
+			return { race: picked, isRandom: false };
+		};
+
+		const westChoice = takeRace(
+			config.westRace || 'Люди',
+			isAllRandom || config.westRace === 'random'
+		);
+		const eastIsRandomReq =
+			isAllRandom || config.eastRace === 'random' || (!config.eastRace && config.botDifficulty > 0);
+		const eastChoice = takeRace(
+			config.eastRace || (!config.eastRace && config.botDifficulty > 0 ? undefined : 'Орки'),
+			eastIsRandomReq
+		);
+
+		const westRace = westChoice.race;
+		const westIsRandom = westChoice.isRandom;
+		const eastRace = eastChoice.race;
+		const eastIsRandom = eastChoice.isRandom;
 
 		const westGold = westIsRandom ? Math.round(config.startGold * 1.3) : config.startGold;
 		const eastGold = eastIsRandom ? Math.round(config.startGold * 1.3) : config.startGold;
 
-		const cWestIdx = Math.floor(Math.random() * WC3_PLAYER_COLORS.length);
-		const cEastIdx =
-			(cWestIdx + 1 + Math.floor(Math.random() * (WC3_PLAYER_COLORS.length - 1))) %
-			WC3_PLAYER_COLORS.length;
-		const westColor = WC3_PLAYER_COLORS[cWestIdx];
-		const eastColor = WC3_PLAYER_COLORS[cEastIdx];
-
-		this.players = {
-			west: {
-				team: 'west',
-				isBot: false,
-				name: 'Гравець',
-				color: westColor,
-				race: westRace,
-				isRandomRace: westIsRandom,
-				randomGoldGranted: westIsRandom,
-				gold: westGold,
-				lumber: 125,
-				food: 0,
-				maxFood: 0,
-				commander: 2, // Alik
-				forge: { attack: 0, armor: 0, econ: 0 },
-				preferredLane: 'auto',
-				worker: {
-					name: getBuilderNameForRace(westRace),
-					x: 450,
-					y: 1200,
-					targetX: 450,
-					targetY: 1200,
-					hp: 220,
-					maxHp: 220,
-					armor: 'Неуразливий',
-					speed: 360,
-					isBuilding: false,
-					buildTimer: 0
-				},
-				stats: {
-					unitsSpawned: 0,
-					unitsKilled: 0,
-					goldSpent: 0,
-					totalDamageDealt: 0,
-					damageToCastle: 0,
-					coinsCollected: 0,
-					itemsPurchased: 0
-				}
+		const p1: PlayerState = {
+			id: 'p1',
+			slot: 1,
+			team: 'west',
+			isBot: false,
+			name: 'Гравець',
+			color: WC3_PLAYER_COLORS[0],
+			race: westRace,
+			isRandomRace: westIsRandom,
+			randomGoldGranted: westIsRandom,
+			gold: westGold,
+			lumber: 125,
+			food: 0,
+			maxFood: 0,
+			commander: 2, // Alik
+			forge: { attack: 0, armor: 0, econ: 0 },
+			preferredLane: 'auto',
+			worker: {
+				name: getBuilderNameForRace(westRace),
+				x: 450,
+				y: 1200,
+				targetX: 450,
+				targetY: 1200,
+				hp: 220,
+				maxHp: 220,
+				armor: 'Неуразливий',
+				speed: 360,
+				isBuilding: false,
+				buildTimer: 0
 			},
-			east: {
-				team: 'east',
-				isBot: true,
-				name: 'Бот v37',
-				color: eastColor,
-				race: eastRace,
-				isRandomRace: eastIsRandom,
-				randomGoldGranted: eastIsRandom,
-				gold: eastGold,
-				lumber: 125,
-				food: 0,
-				maxFood: 0,
-				commander: 3, // Dima
-				forge: { attack: 0, armor: 0, econ: 0 },
-				preferredLane: 'auto',
-				worker: {
-					name: getBuilderNameForRace(eastRace),
-					x: ARENA_WIDTH - 450,
-					y: 1200,
-					targetX: ARENA_WIDTH - 450,
-					targetY: 1200,
-					hp: 220,
-					maxHp: 220,
-					armor: 'Неуразливий',
-					speed: 360,
-					isBuilding: false,
-					buildTimer: 0
-				},
-				stats: {
-					unitsSpawned: 0,
-					unitsKilled: 0,
-					goldSpent: 0,
-					totalDamageDealt: 0,
-					damageToCastle: 0,
-					coinsCollected: 0,
-					itemsPurchased: 0
-				}
+			stats: {
+				unitsSpawned: 0,
+				unitsKilled: 0,
+				goldSpent: 0,
+				totalDamageDealt: 0,
+				damageToCastle: 0,
+				coinsCollected: 0,
+				itemsPurchased: 0
 			}
 		};
+
+		const p2: PlayerState = {
+			id: 'p2',
+			slot: 2,
+			team: 'east',
+			isBot: true,
+			name: 'Бот v37',
+			color: WC3_PLAYER_COLORS[1],
+			race: eastRace,
+			isRandomRace: eastIsRandom,
+			randomGoldGranted: eastIsRandom,
+			gold: eastGold,
+			lumber: 125,
+			food: 0,
+			maxFood: 0,
+			commander: 3, // Dima
+			forge: { attack: 0, armor: 0, econ: 0 },
+			preferredLane: 'auto',
+			worker: {
+				name: getBuilderNameForRace(eastRace),
+				x: ARENA_WIDTH - 450,
+				y: 1200,
+				targetX: ARENA_WIDTH - 450,
+				targetY: 1200,
+				hp: 220,
+				maxHp: 220,
+				armor: 'Неуразливий',
+				speed: 360,
+				isBuilding: false,
+				buildTimer: 0
+			},
+			stats: {
+				unitsSpawned: 0,
+				unitsKilled: 0,
+				goldSpent: 0,
+				totalDamageDealt: 0,
+				damageToCastle: 0,
+				coinsCollected: 0,
+				itemsPurchased: 0
+			}
+		};
+
+		this.players = {
+			west: p1,
+			east: p2
+		};
+
+		this.teamMembers = {
+			west: [p1],
+			east: [p2]
+		};
+
+		if (this.teamSize >= 2) {
+			const p3Choice = takeRace(undefined, true);
+			const p4Choice = takeRace(undefined, true);
+
+			const p3Gold = p3Choice.isRandom ? Math.round(config.startGold * 1.3) : config.startGold;
+			const p4Gold = p4Choice.isRandom ? Math.round(config.startGold * 1.3) : config.startGold;
+
+			const p3: PlayerState = {
+				id: 'p3',
+				slot: 3,
+				team: 'west',
+				isBot: true,
+				name: 'Бот-союзник v37',
+				color: WC3_PLAYER_COLORS[2],
+				race: p3Choice.race,
+				isRandomRace: p3Choice.isRandom,
+				randomGoldGranted: p3Choice.isRandom,
+				gold: p3Gold,
+				lumber: 125,
+				food: 0,
+				maxFood: 0,
+				commander: 1, // Sasha
+				forge: { attack: 0, armor: 0, econ: 0 },
+				preferredLane: 'auto',
+				worker: {
+					name: getBuilderNameForRace(p3Choice.race),
+					x: 450,
+					y: 700,
+					targetX: 450,
+					targetY: 700,
+					hp: 220,
+					maxHp: 220,
+					armor: 'Неуразливий',
+					speed: 360,
+					isBuilding: false,
+					buildTimer: 0
+				},
+				stats: {
+					unitsSpawned: 0,
+					unitsKilled: 0,
+					goldSpent: 0,
+					totalDamageDealt: 0,
+					damageToCastle: 0,
+					coinsCollected: 0,
+					itemsPurchased: 0
+				}
+			};
+
+			const p4: PlayerState = {
+				id: 'p4',
+				slot: 4,
+				team: 'east',
+				isBot: true,
+				name: 'Бот v38',
+				color: WC3_PLAYER_COLORS[3],
+				race: p4Choice.race,
+				isRandomRace: p4Choice.isRandom,
+				randomGoldGranted: p4Choice.isRandom,
+				gold: p4Gold,
+				lumber: 125,
+				food: 0,
+				maxFood: 0,
+				commander: 4, // Dan
+				forge: { attack: 0, armor: 0, econ: 0 },
+				preferredLane: 'auto',
+				worker: {
+					name: getBuilderNameForRace(p4Choice.race),
+					x: ARENA_WIDTH - 450,
+					y: 700,
+					targetX: ARENA_WIDTH - 450,
+					targetY: 700,
+					hp: 220,
+					maxHp: 220,
+					armor: 'Неуразливий',
+					speed: 360,
+					isBuilding: false,
+					buildTimer: 0
+				},
+				stats: {
+					unitsSpawned: 0,
+					unitsKilled: 0,
+					goldSpent: 0,
+					totalDamageDealt: 0,
+					damageToCastle: 0,
+					coinsCollected: 0,
+					itemsPurchased: 0
+				}
+			};
+
+			this.teamMembers.west.push(p3);
+			this.teamMembers.east.push(p4);
+		}
+
+		if (this.teamSize === 3) {
+			const p5Choice = takeRace(undefined, true);
+			const p6Choice = takeRace(undefined, true);
+
+			const p5Gold = p5Choice.isRandom ? Math.round(config.startGold * 1.3) : config.startGold;
+			const p6Gold = p6Choice.isRandom ? Math.round(config.startGold * 1.3) : config.startGold;
+
+			const p5: PlayerState = {
+				id: 'p5',
+				slot: 5,
+				team: 'west',
+				isBot: true,
+				name: 'Бот-союзник v38',
+				color: WC3_PLAYER_COLORS[4],
+				race: p5Choice.race,
+				isRandomRace: p5Choice.isRandom,
+				randomGoldGranted: p5Choice.isRandom,
+				gold: p5Gold,
+				lumber: 125,
+				food: 0,
+				maxFood: 0,
+				commander: 5, // Yura
+				forge: { attack: 0, armor: 0, econ: 0 },
+				preferredLane: 'auto',
+				worker: {
+					name: getBuilderNameForRace(p5Choice.race),
+					x: 450,
+					y: 1700,
+					targetX: 450,
+					targetY: 1700,
+					hp: 220,
+					maxHp: 220,
+					armor: 'Неуразливий',
+					speed: 360,
+					isBuilding: false,
+					buildTimer: 0
+				},
+				stats: {
+					unitsSpawned: 0,
+					unitsKilled: 0,
+					goldSpent: 0,
+					totalDamageDealt: 0,
+					damageToCastle: 0,
+					coinsCollected: 0,
+					itemsPurchased: 0
+				}
+			};
+
+			const p6: PlayerState = {
+				id: 'p6',
+				slot: 6,
+				team: 'east',
+				isBot: true,
+				name: 'Бот v39',
+				color: WC3_PLAYER_COLORS[5],
+				race: p6Choice.race,
+				isRandomRace: p6Choice.isRandom,
+				randomGoldGranted: p6Choice.isRandom,
+				gold: p6Gold,
+				lumber: 125,
+				food: 0,
+				maxFood: 0,
+				commander: 6, // Valera
+				forge: { attack: 0, armor: 0, econ: 0 },
+				preferredLane: 'auto',
+				worker: {
+					name: getBuilderNameForRace(p6Choice.race),
+					x: ARENA_WIDTH - 450,
+					y: 1700,
+					targetX: ARENA_WIDTH - 450,
+					targetY: 1700,
+					hp: 220,
+					maxHp: 220,
+					armor: 'Неуразливий',
+					speed: 360,
+					isBuilding: false,
+					buildTimer: 0
+				},
+				stats: {
+					unitsSpawned: 0,
+					unitsKilled: 0,
+					goldSpent: 0,
+					totalDamageDealt: 0,
+					damageToCastle: 0,
+					coinsCollected: 0,
+					itemsPurchased: 0
+				}
+			};
+
+			this.teamMembers.west.push(p5);
+			this.teamMembers.east.push(p6);
+		}
+
+		this.allPlayers = [...this.teamMembers.west, ...this.teamMembers.east];
+		this.bots = [];
+		for (const p of this.allPlayers) {
+			if (p.isBot) {
+				this.bots.push(new BotAI(this, p.team, p));
+			}
+		}
 
 		// Instantiate domain subsystems
 		this.workerSystem = new WorkerSystem(this);
 		this.buildingSystem = new BuildingSystem(this);
 		this.combatSystem = new CombatSystem(this);
 		this.economySystem = new EconomySystem(this);
+	}
+
+	public updateBots(dt: number): void {
+		for (const bot of this.bots) {
+			bot.update(dt);
+		}
 	}
 
 	/**
@@ -442,8 +674,7 @@ export class Simulation {
 		this.roundWinner = null;
 		this.buildingStats = {};
 
-		for (const team of ['west', 'east'] as MatchTeam[]) {
-			const p = this.players[team];
+		for (const p of this.allPlayers) {
 			p.forge = { attack: 0, armor: 0, econ: 0 };
 			p.gold = 500;
 			p.lumber = 125;
@@ -458,34 +689,26 @@ export class Simulation {
 				coinsCollected: 0,
 				itemsPurchased: 0
 			};
-			if (newRaces?.[team]) {
-				p.race = newRaces[team]!;
+			if (newRaces?.[p.team] && p === this.players[p.team]) {
+				p.race = newRaces[p.team]!;
 			}
-		}
-
-		const castleHp = Math.round(14000 * (this.gameModeConfig?.castleHpMultiplier || 1.0));
-		this.castles = {
-			west: { team: 'west', x: 200, y: 1200, hp: castleHp, maxHp: castleHp },
-			east: { team: 'east', x: ARENA_WIDTH - 200, y: 1200, hp: castleHp, maxHp: castleHp }
-		};
-
-		if (this.players.west.worker) {
-			this.players.west.worker.name = getBuilderNameForRace(this.players.west.race);
-			this.players.west.worker.x = 450;
-			this.players.west.worker.y = 1200;
-			this.players.west.worker.targetX = 450;
-			this.players.west.worker.targetY = 1200;
-			this.players.west.worker.isBuilding = false;
-			this.players.west.worker.targetBuildingId = null;
-		}
-		if (this.players.east.worker) {
-			this.players.east.worker.name = getBuilderNameForRace(this.players.east.race);
-			this.players.east.worker.x = ARENA_WIDTH - 450;
-			this.players.east.worker.y = 1200;
-			this.players.east.worker.targetX = ARENA_WIDTH - 450;
-			this.players.east.worker.targetY = 1200;
-			this.players.east.worker.isBuilding = false;
-			this.players.east.worker.targetBuildingId = null;
+			if (p.worker) {
+				p.worker.name = getBuilderNameForRace(p.race);
+				const isWest = p.team === 'west';
+				let defaultY = 1200;
+				if (p.slot === 3 || p.slot === 4) defaultY = 700;
+				else if (p.slot === 5 || p.slot === 6) defaultY = 1700;
+				const defaultX = isWest ? 450 : ARENA_WIDTH - 450;
+				p.worker.x = defaultX;
+				p.worker.y = defaultY;
+				p.worker.targetX = defaultX;
+				p.worker.targetY = defaultY;
+				p.worker.isBuilding = false;
+				p.worker.targetBuildingId = null;
+				p.worker.isRepairing = false;
+				p.worker.targetRepairBuildingId = null;
+				p.worker.path = [];
+			}
 		}
 
 		this.notifyStateChanged();
@@ -802,20 +1025,33 @@ export class Simulation {
 		return this.workerSystem.findWorkerPath(team, startX, startY, targetX, targetY);
 	}
 
-	public moveWorker(team: MatchTeam, targetX: number, targetY: number): void {
-		this.workerSystem.moveWorker(team, targetX, targetY);
+	public moveWorker(team: MatchTeam, targetX: number, targetY: number, player?: PlayerState): void {
+		this.workerSystem.moveWorker(team, targetX, targetY, player);
 	}
 
-	public orderWorkerMove(team: MatchTeam, targetX: number, targetY: number): void {
-		this.workerSystem.moveWorker(team, targetX, targetY);
+	public orderWorkerMove(
+		team: MatchTeam,
+		targetX: number,
+		targetY: number,
+		player?: PlayerState
+	): void {
+		this.workerSystem.moveWorker(team, targetX, targetY, player);
 	}
 
-	public repairBuilding(team: MatchTeam, buildingInstanceId: string): boolean {
-		return this.workerSystem.repairBuilding(team, buildingInstanceId);
+	public repairBuilding(
+		team: MatchTeam,
+		buildingInstanceId: string,
+		player?: PlayerState
+	): boolean {
+		return this.workerSystem.repairBuilding(team, buildingInstanceId, player);
 	}
 
-	public continueConstruction(team: MatchTeam, buildingInstanceId: string): boolean {
-		return this.workerSystem.continueConstruction(team, buildingInstanceId);
+	public continueConstruction(
+		team: MatchTeam,
+		buildingInstanceId: string,
+		player?: PlayerState
+	): boolean {
+		return this.workerSystem.continueConstruction(team, buildingInstanceId, player);
 	}
 
 	// Building System
@@ -832,21 +1068,23 @@ export class Simulation {
 		defId: string,
 		tileX: number,
 		tileY: number,
-		lane: Lane = 'top'
+		lane: Lane = 'top',
+		player?: PlayerState
 	): boolean {
-		return this.buildingSystem.build(team, defId, tileX, tileY, lane);
+		return this.buildingSystem.build(team, defId, tileX, tileY, lane, player);
 	}
 
 	public upgradeBuilding(
 		team: MatchTeam,
 		buildingInstanceId: string,
-		targetDefId: string
+		targetDefId: string,
+		player?: PlayerState
 	): boolean {
-		return this.buildingSystem.upgradeBuilding(team, buildingInstanceId, targetDefId);
+		return this.buildingSystem.upgradeBuilding(team, buildingInstanceId, targetDefId, player);
 	}
 
-	public sellBuilding(team: MatchTeam, buildingInstanceId: string): boolean {
-		return this.buildingSystem.sellBuilding(team, buildingInstanceId);
+	public sellBuilding(team: MatchTeam, buildingInstanceId: string, player?: PlayerState): boolean {
+		return this.buildingSystem.sellBuilding(team, buildingInstanceId, player);
 	}
 
 	public spawnUnitFromBuilding(building: Building): Unit | null {
@@ -864,28 +1102,40 @@ export class Simulation {
 	}
 
 	// Economy System
-	public calculateIncome(team: MatchTeam): number {
-		return this.economySystem.calculateIncome(team);
+	public calculateIncome(team: MatchTeam, player?: PlayerState): number {
+		return this.economySystem.calculateIncome(team, player);
 	}
 
-	public collectCoin(coinId: string, team: MatchTeam): boolean {
-		return this.economySystem.collectCoin(coinId, team);
+	public collectCoin(coinId: string, team: MatchTeam, player?: PlayerState): boolean {
+		return this.economySystem.collectCoin(coinId, team, player);
 	}
 
 	public spawnCoinDirectly(lane: Lane, x: number, y: number, value = 50): GoldCoin {
 		return this.economySystem.spawnCoinDirectly(lane, x, y, value);
 	}
 
-	public upgradeForge(team: MatchTeam, type: 'attack' | 'armor' | 'econ'): boolean {
-		return this.economySystem.upgradeForge(team, type);
+	public upgradeForge(
+		team: MatchTeam,
+		type: 'attack' | 'armor' | 'econ',
+		player?: PlayerState
+	): boolean {
+		return this.economySystem.upgradeForge(team, type, player);
 	}
 
-	public getForgePrice(team: MatchTeam, type: 'attack' | 'armor' | 'econ'): number {
-		return this.economySystem.getForgePrice(team, type);
+	public getForgePrice(
+		team: MatchTeam,
+		type: 'attack' | 'armor' | 'econ',
+		player?: PlayerState
+	): number {
+		return this.economySystem.getForgePrice(team, type, player);
 	}
 
-	public getForgeLumberPrice(team: MatchTeam, type: 'attack' | 'armor' | 'econ'): number {
-		return this.economySystem.getForgeLumberPrice(team, type);
+	public getForgeLumberPrice(
+		team: MatchTeam,
+		type: 'attack' | 'armor' | 'econ',
+		player?: PlayerState
+	): number {
+		return this.economySystem.getForgeLumberPrice(team, type, player);
 	}
 
 	public canUseRaceSkill(team: MatchTeam): boolean {

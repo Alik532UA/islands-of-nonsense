@@ -288,7 +288,11 @@
 				accumulator += rawDelta * sim.speed;
 				while (accumulator >= FIXED_STEP) {
 					sim.step(FIXED_STEP);
-					botAI.update(FIXED_STEP);
+					if (sim.bots && sim.bots.length > 0) {
+						sim.updateBots(FIXED_STEP);
+					} else {
+						botAI.update(FIXED_STEP);
+					}
 					accumulator -= FIXED_STEP;
 				}
 				uiTick = sim.stateVersion;

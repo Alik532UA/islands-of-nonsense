@@ -192,8 +192,10 @@
 		function isRevealedToWest(x: number, y: number): boolean {
 			if (!fogOfWar) return true;
 			if (x <= 1500) return true;
-			const w = sim.players.west?.worker;
-			if (w && Math.hypot(w.x - x, w.y - y) <= 480) return true;
+			for (const p of sim.teamMembers?.west || [sim.players.west]) {
+				const w = p.worker;
+				if (w && Math.hypot(w.x - x, w.y - y) <= 480) return true;
+			}
 			for (const b of sim.buildings) {
 				if (b.team === 'west' && Math.hypot(b.x + 32 - x, b.y + 32 - y) <= 450) return true;
 			}
@@ -242,12 +244,14 @@
 			}
 		}
 
-		// 5. Worker blip (Cyan / Yellow indicator)
-		const worker = sim.players.west?.worker;
-		if (worker) {
+		// 5. Worker blips
+		for (const p of sim.allPlayers || [sim.players.west]) {
+			const worker = p.worker;
+			if (!worker) continue;
+			if (p.team === 'east' && !isRevealedToWest(worker.x, worker.y)) continue;
 			const wx = worker.x * scaleX;
 			const wy = worker.y * scaleY;
-			ctx.fillStyle = '#06b6d4';
+			ctx.fillStyle = p.color?.hex || (p.team === 'west' ? '#06b6d4' : '#ef4444');
 			ctx.beginPath();
 			ctx.arc(wx, wy, 3, 0, Math.PI * 2);
 			ctx.fill();

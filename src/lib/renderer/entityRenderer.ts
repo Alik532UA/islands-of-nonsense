@@ -1,6 +1,6 @@
 import type { Graphics } from 'pixi.js';
 import type { Simulation } from '../engine/simulation';
-import type { Castle, MatchTeam } from '../engine/types';
+import { WC3_PLAYER_COLORS, type Castle, type MatchTeam } from '../engine/types';
 import { CELL_SIZE } from '../engine/constants';
 
 export type SelectedEntity =
@@ -303,16 +303,24 @@ export class EntityRenderer {
 	public drawWorkersLayer(g: Graphics, isWorkerSelected: boolean): void {
 		g.clear();
 
-		// Render Player's Worker
-		const westWorker = this.sim.players.west?.worker;
-		if (westWorker) {
-			const wx = westWorker.x;
-			const wy = westWorker.y;
-			const bob = Math.sin(this.sim.gameTime * 6) * 1.5;
-			const playerColor = this.sim.players.west.color?.num || 0x0042ff;
+		const playersToRender = this.sim.allPlayers?.length
+			? this.sim.allPlayers
+			: [this.sim.players.west, this.sim.players.east];
+
+		for (const player of playersToRender) {
+			const w = player?.worker;
+			if (!w) continue;
+
+			const isWest = player.team === 'west';
+			const isHumanWorker = player === this.sim.players.west;
+			const wx = w.x;
+			const wy = w.y;
+			const slot = player.slot ?? (isWest ? 1 : 2);
+			const bob = Math.sin(this.sim.gameTime * 6 + slot) * 1.5;
+			const playerColor = player.color?.num ?? (isWest ? 0x0042ff : 0xff0303);
 
 			// Selection Ring at Worker's feet
-			if (isWorkerSelected) {
+			if (isHumanWorker && isWorkerSelected) {
 				const pulse = 0.8 + Math.sin(this.sim.gameTime * 7) * 0.2;
 				g.ellipse(wx, wy + 14, 20, 10);
 				g.stroke({ color: 0x22c55e, width: 2.5, alpha: pulse });
@@ -327,91 +335,49 @@ export class EntityRenderer {
 			g.fill({ color: playerColor });
 			g.stroke({ color: 0xe2e8f0, width: 1.5 });
 
-			// Head & Skin
+			// Head & Skin Color based on Race
+			const race = player.race?.toLowerCase() || '';
+			const skinColor = race.includes('орк')
+				? 0x15803d
+				: race.includes('нежить')
+					? 0x94a3b8
+					: race.includes('ельф')
+						? 0xfef08a
+						: 0xfcd34d;
 			g.circle(wx, wy - 10 + bob, 7);
-			g.fill({ color: 0xfcd34d });
+			g.fill({ color: skinColor });
 			g.stroke({ color: 0xd97706, width: 1 });
 
-			// Calculate facing direction for West worker (-1 for left, 1 for right)
-			let westFacing = 1;
-			if (westWorker.isBuilding && westWorker.targetBuildingId) {
-				const bld = this.sim.buildings.find((b) => b.instanceId === westWorker.targetBuildingId);
-				if (bld) westFacing = bld.x + CELL_SIZE / 2 < westWorker.x ? -1 : 1;
-			} else if (westWorker.isRepairing && westWorker.targetRepairBuildingId) {
+			// Calculate facing direction
+			let facing = isWest ? 1 : -1;
+			if (w.isBuilding && w.targetBuildingId) {
+				const bld = this.sim.buildings.find((b) => b.instanceId === w.targetBuildingId);
+				if (bld) facing = bld.x + CELL_SIZE / 2 < w.x ? -1 : 1;
+			} else if (w.isRepairing && w.targetRepairBuildingId) {
 				const bld =
-					this.sim.buildings.find((b) => b.instanceId === westWorker.targetRepairBuildingId) ||
-					(westWorker.targetRepairBuildingId.startsWith('castle') ? this.sim.castles.west : null);
-				if (bld) westFacing = bld.x < westWorker.x ? -1 : 1;
-			} else if (Math.abs(westWorker.targetX - westWorker.x) > 2) {
-				westFacing = westWorker.targetX < westWorker.x ? -1 : 1;
+					this.sim.buildings.find((b) => b.instanceId === w.targetRepairBuildingId) ||
+					(w.targetRepairBuildingId.startsWith('castle') ? this.sim.castles[player.team] : null);
+				if (bld) facing = bld.x < w.x ? -1 : 1;
+			} else if (Math.abs(w.targetX - w.x) > 2) {
+				facing = w.targetX < w.x ? -1 : 1;
 			}
 
 			// Construction Hammer / Mallet
-			const isSwinging = westWorker.isBuilding || westWorker.isRepairing;
-			const hammerSwing = isSwinging ? Math.sin(this.sim.gameTime * 18) * 12 : 0;
-			const hx = wx + westFacing * 10;
+			const isSwinging = w.isBuilding || w.isRepairing;
+			const hammerSwing = isSwinging ? Math.sin(this.sim.gameTime * 18 + slot) * 12 : 0;
+			const hx = wx + facing * 10;
 			const hy = wy + bob - 2 + hammerSwing;
 
-			g.moveTo(hx - westFacing * 2, hy + 8);
-			g.lineTo(hx + westFacing * 4, hy - 4);
+			g.moveTo(hx - facing * 2, hy + 8);
+			g.lineTo(hx + facing * 4, hy - 4);
 			g.stroke({ color: 0x92400e, width: 2.5 });
-			g.rect(westFacing === 1 ? hx + 1 : hx - 8, hy - 7, 7, 5);
+			g.rect(facing === 1 ? hx + 1 : hx - 8, hy - 7, 7, 5);
 			g.fill({ color: 0x94a3b8 });
 
 			// Sparks if building or repairing
 			if (isSwinging) {
-				const spX = hx + westFacing * 5 + Math.sin(this.sim.gameTime * 30) * 6;
-				const spY = hy + Math.cos(this.sim.gameTime * 30) * 6;
-				g.circle(spX, spY, 2.5);
-				g.fill({ color: 0xfef08a });
-			}
-		}
-
-		// Render Bot's Worker
-		const eastWorker = this.sim.players.east?.worker;
-		if (eastWorker) {
-			const ex = eastWorker.x;
-			const ey = eastWorker.y;
-			const bob = Math.sin(this.sim.gameTime * 5) * 1.5;
-			const botColor = this.sim.players.east.color?.num || 0xff0303;
-
-			g.ellipse(ex, ey + 14, 16, 7);
-			g.fill({ color: 0x000000, alpha: 0.35 });
-
-			g.roundRect(ex - 8, ey - 4 + bob, 16, 16, 4);
-			g.fill({ color: botColor });
-			g.stroke({ color: 0xe2e8f0, width: 1.5 });
-
-			g.circle(ex, ey - 10 + bob, 7);
-			g.fill({ color: 0x15803d }); // Orc skin
-
-			let eastFacing = -1; // Default facing west towards enemy
-			if (eastWorker.isBuilding && eastWorker.targetBuildingId) {
-				const bld = this.sim.buildings.find((b) => b.instanceId === eastWorker.targetBuildingId);
-				if (bld) eastFacing = bld.x + CELL_SIZE / 2 < eastWorker.x ? -1 : 1;
-			} else if (eastWorker.isRepairing && eastWorker.targetRepairBuildingId) {
-				const bld =
-					this.sim.buildings.find((b) => b.instanceId === eastWorker.targetRepairBuildingId) ||
-					(eastWorker.targetRepairBuildingId.startsWith('castle') ? this.sim.castles.east : null);
-				if (bld) eastFacing = bld.x < eastWorker.x ? -1 : 1;
-			} else if (Math.abs(eastWorker.targetX - eastWorker.x) > 2) {
-				eastFacing = eastWorker.targetX < eastWorker.x ? -1 : 1;
-			}
-
-			const isEastSwinging = eastWorker.isBuilding || eastWorker.isRepairing;
-			const eastHammerSwing = isEastSwinging ? Math.sin(this.sim.gameTime * 18) * 12 : 0;
-			const ehx = ex + eastFacing * 10;
-			const ehy = ey + bob - 2 + eastHammerSwing;
-
-			g.moveTo(ehx - eastFacing * 2, ehy + 8);
-			g.lineTo(ehx + eastFacing * 4, ehy - 4);
-			g.stroke({ color: 0x92400e, width: 2.5 });
-			g.rect(eastFacing === 1 ? ehx + 1 : ehx - 8, ehy - 7, 7, 5);
-			g.fill({ color: 0x94a3b8 });
-
-			if (isEastSwinging) {
-				const spX = ehx + eastFacing * 5 + Math.sin(this.sim.gameTime * 30) * 6;
-				const spY = ehy + Math.cos(this.sim.gameTime * 30) * 6;
+				const spX = hx + facing * 5 + Math.sin(this.sim.gameTime * 30 + slot) * 6;
+				const spY = hy + Math.cos(this.sim.gameTime * 30 + slot) * 6;
 				g.circle(spX, spY, 2.5);
 				g.fill({ color: 0xfef08a });
 			}
@@ -446,11 +412,10 @@ export class EntityRenderer {
 							ally.state !== 'DEAD' &&
 							Math.hypot(ally.x - u.x, ally.y - u.y) <= 450
 					) ||
-					(this.sim.players.west.worker &&
-						Math.hypot(
-							this.sim.players.west.worker.x - u.x,
-							this.sim.players.west.worker.y - u.y
-						) <= 480) ||
+					(this.sim.allPlayers || [this.sim.players.west]).some(
+						(p) =>
+							p.team === 'west' && p.worker && Math.hypot(p.worker.x - u.x, p.worker.y - u.y) <= 480
+					) ||
 					this.sim.buildings.some(
 						(b) =>
 							b.team === 'west' &&
@@ -461,7 +426,10 @@ export class EntityRenderer {
 
 			const isWest = u.team === 'west';
 			const isNeutral = u.team === 'neutral';
-			const unitColor = isNeutral ? 0x7e22ce : isWest ? westPlayerColor : eastPlayerColor;
+			const playerSlotColor = u.playerSlot ? WC3_PLAYER_COLORS[u.playerSlot - 1]?.num : null;
+			const unitColor = isNeutral
+				? 0x7e22ce
+				: (playerSlotColor ?? (isWest ? westPlayerColor : eastPlayerColor));
 			const dir = isNeutral ? 1 : isWest ? 1 : -1;
 
 			// Selection indicator ring (Green for friendly, Red for enemy, Purple for neutral)

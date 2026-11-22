@@ -297,6 +297,8 @@ export interface Unit {
 	maxMana?: number;
 	lastAttackerId?: string | null;
 	lastAttackedTime?: number;
+	playerId?: string;
+	playerSlot?: number;
 }
 
 export interface BuildingPerformance {
@@ -340,6 +342,8 @@ export interface Building {
 	attackType?: AttackType;
 	width?: number;
 	height?: number;
+	playerId?: string;
+	playerSlot?: number;
 }
 
 export interface Projectile {
@@ -415,6 +419,8 @@ export interface WorkerState {
 }
 
 export interface PlayerState {
+	id?: string;
+	slot?: number;
 	team: MatchTeam;
 	isBot: boolean;
 	name: string;

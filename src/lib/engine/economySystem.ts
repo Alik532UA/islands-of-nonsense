@@ -1,6 +1,6 @@
 import type { Simulation } from './simulation';
 import { ARENA_WIDTH, TOP_LANE_Y, BOTTOM_LANE_Y } from './constants';
-import type { MatchTeam, Lane, GoldCoin } from './types';
+import type { MatchTeam, Lane, GoldCoin, PlayerState } from './types';
 import { getRaceAbility } from './raceAbilities';
 import { CASTLE_ITEMS } from './items';
 
@@ -11,7 +11,7 @@ import { CASTLE_ITEMS } from './items';
 export class EconomySystem {
 	constructor(private sim: Simulation) {}
 
-	public calculateIncome(team: MatchTeam): number {
+	public calculateIncome(team: MatchTeam, playerInput?: PlayerState): number {
 		let cfM = 0.65;
 		if (this.sim.gameTime >= 1500) {
 			cfM = 1.0;
@@ -20,11 +20,11 @@ export class EconomySystem {
 		} else if (this.sim.gameTime >= 480) {
 			cfM = 0.75;
 		}
-		const player = this.sim.players[team];
+		const player = playerInput || this.sim.players[team];
 		if (!player) return 15;
 
 		const bldValue = this.sim.buildings
-			.filter((b) => b.team === team)
+			.filter((b) => b.team === team && (!b.playerId || b.playerId === player.id))
 			.reduce((sum, b) => sum + b.goldCost, 0);
 
 		const baseIncome = 10 * (0.5 + 0.002 * bldValue);
@@ -40,7 +40,11 @@ export class EconomySystem {
 		}
 
 		const treasureBoxes = this.sim.buildings.filter(
-			(b) => b.team === team && b.specialType === 'treasure' && !b.isUnderConstruction
+			(b) =>
+				b.team === team &&
+				(!b.playerId || b.playerId === player.id) &&
+				b.specialType === 'treasure' &&
+				!b.isUnderConstruction
 		).length;
 		if (treasureBoxes > 0) {
 			multiplier *= 1 + 0.2 * treasureBoxes;
@@ -64,24 +68,34 @@ export class EconomySystem {
 		if (this.sim.incomeTimer <= 0) {
 			this.sim.incomeTimer = interval;
 
-			for (const team of ['west', 'east'] as MatchTeam[]) {
-				const player = this.sim.players[team];
+			for (const player of this.sim.allPlayers) {
+				const team = player.team;
 				const myCastle = this.sim.castles[team];
-				const payout = this.calculateIncome(team);
+				const payout = this.calculateIncome(team, player);
 				player.gold += payout;
 				const activeBlds = this.sim.buildings.filter(
-					(b) => b.team === team && !b.isUnderConstruction
+					(b) =>
+						b.team === team && (!b.playerId || b.playerId === player.id) && !b.isUnderConstruction
 				).length;
 				const lumberPayout = 5 + Math.min(20, activeBlds * 2);
 				player.lumber += lumberPayout;
 
-				// Spawn income text above castle
-				this.sim.addFloatingText(
-					`+${payout}g +${lumberPayout}🪵`,
-					myCastle.x,
-					myCastle.y - 50,
-					'#fbbf24'
-				);
+				// Spawn income text above worker or castle
+				if (player === this.sim.players[team]) {
+					this.sim.addFloatingText(
+						`+${payout}g +${lumberPayout}🪵`,
+						myCastle.x,
+						myCastle.y - 50,
+						'#fbbf24'
+					);
+				} else if (player.worker) {
+					this.sim.addFloatingText(
+						`+${payout}g +${lumberPayout}🪵`,
+						player.worker.x,
+						player.worker.y - 30,
+						'#fbbf24'
+					);
+				}
 			}
 
 			// Domination Mode (-dm / -dom): bonus +15g per controlled lane center
@@ -98,7 +112,9 @@ export class EconomySystem {
 					}
 					const laneY = lane === 'top' ? TOP_LANE_Y : BOTTOM_LANE_Y;
 					if (westCount > eastCount && westCount >= 2) {
-						this.sim.players.west.gold += 15;
+						for (const p of this.sim.teamMembers.west) {
+							p.gold += 15;
+						}
 						this.sim.addFloatingText(
 							'+15g Домінування',
 							ARENA_WIDTH / 2 - 120,
@@ -106,7 +122,9 @@ export class EconomySystem {
 							'#38bdf8'
 						);
 					} else if (eastCount > westCount && eastCount >= 2) {
-						this.sim.players.east.gold += 15;
+						for (const p of this.sim.teamMembers.east) {
+							p.gold += 15;
+						}
 						this.sim.addFloatingText(
 							'+15g Домінування',
 							ARENA_WIDTH / 2 + 120,
@@ -161,12 +179,12 @@ export class EconomySystem {
 
 			// 1. Worker physical pickup (WC3: worker runs to coin and collects it)
 			let collected = false;
-			for (const team of ['west', 'east'] as MatchTeam[]) {
-				const worker = this.sim.players[team]?.worker;
+			for (const player of this.sim.allPlayers) {
+				const worker = player.worker;
 				if (!worker) continue;
 				const dist = Math.hypot(worker.x - coin.x, worker.y - coin.y);
 				if (dist <= 55) {
-					this.collectCoin(coin.id, team);
+					this.collectCoin(coin.id, player.team, player);
 					collected = true;
 					break;
 				}
@@ -180,7 +198,10 @@ export class EconomySystem {
 				const dy = u.y - coin.y;
 				if (dx * dx + dy * dy <= 45 * 45) {
 					if (u.team === 'west' || u.team === 'east') {
-						this.collectCoin(coin.id, u.team);
+						const owner =
+							(u.playerId ? this.sim.allPlayers.find((p) => p.id === u.playerId) : null) ||
+							this.sim.players[u.team];
+						this.collectCoin(coin.id, u.team, owner);
 						break;
 					}
 				}
@@ -188,13 +209,14 @@ export class EconomySystem {
 		}
 	}
 
-	public collectCoin(coinId: string, team: MatchTeam): boolean {
+	public collectCoin(coinId: string, team: MatchTeam, playerInput?: PlayerState): boolean {
 		const idx = this.sim.goldCoins.findIndex((c) => c.id === coinId);
 		if (idx === -1) return false;
 		const coin = this.sim.goldCoins[idx];
 		this.sim.goldCoins.splice(idx, 1);
-		this.sim.players[team].gold += coin.value;
-		this.sim.players[team].stats.coinsCollected++;
+		const player = playerInput || this.sim.players[team];
+		player.gold += coin.value;
+		player.stats.coinsCollected++;
 		this.sim.addFloatingText(`+${coin.value}g Монета!`, coin.x, coin.y - 20, '#fbbf24');
 		this.sim.onSoundEffect?.('coin');
 		this.sim.notifyStateChanged();
@@ -216,8 +238,12 @@ export class EconomySystem {
 		return coin;
 	}
 
-	public upgradeForge(team: MatchTeam, type: 'attack' | 'armor' | 'econ'): boolean {
-		const player = this.sim.players[team];
+	public upgradeForge(
+		team: MatchTeam,
+		type: 'attack' | 'armor' | 'econ',
+		playerInput?: PlayerState
+	): boolean {
+		const player = playerInput || this.sim.players[team];
 		const currentLevel = player.forge[type];
 		const isAlik = player.commander === 2;
 
@@ -272,8 +298,12 @@ export class EconomySystem {
 		return true;
 	}
 
-	public getForgePrice(team: MatchTeam, type: 'attack' | 'armor' | 'econ'): number {
-		const player = this.sim.players[team];
+	public getForgePrice(
+		team: MatchTeam,
+		type: 'attack' | 'armor' | 'econ',
+		playerInput?: PlayerState
+	): number {
+		const player = playerInput || this.sim.players[team];
 		const currentLevel = player.forge[type];
 		const isAlik = player.commander === 2;
 
@@ -293,8 +323,12 @@ export class EconomySystem {
 		return price;
 	}
 
-	public getForgeLumberPrice(team: MatchTeam, type: 'attack' | 'armor' | 'econ'): number {
-		const player = this.sim.players[team];
+	public getForgeLumberPrice(
+		team: MatchTeam,
+		type: 'attack' | 'armor' | 'econ',
+		playerInput?: PlayerState
+	): number {
+		const player = playerInput || this.sim.players[team];
 		const currentLevel = player.forge[type];
 		if (currentLevel >= 2) {
 			return (currentLevel - 1) * 35;

@@ -205,9 +205,17 @@
 
 		<!-- Match Banner & Timer -->
 		<div class="text-center">
-			<div class="text-[10px] uppercase tracking-wider text-[#d4af37] font-bold">
-				Раунд {sim.round} • {sim.score.west} : {sim.score.east}
+			<div
+				class="text-[10px] uppercase tracking-wider text-[#d4af37] font-bold flex items-center justify-center gap-1.5"
+			>
+				<span>Раунд {sim.round} • {sim.score.west} : {sim.score.east}</span>
 				<span class="text-[9px] text-[#9ca3af] font-mono">(до {sim.targetWins})</span>
+				<span
+					class="px-1 py-0.2 rounded text-[9px] font-mono font-bold bg-cyan-950/80 text-cyan-300 border border-cyan-700/50"
+					title="Формат: {sim.teamSize} на {sim.teamSize} ({sim.teamSize * 2} гравців)"
+				>
+					{sim.teamSize}v{sim.teamSize}
+				</span>
 			</div>
 			<div class="text-xs font-mono font-bold text-slate-200">
 				{formatTime(sim.gameTime)}

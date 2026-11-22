@@ -1,6 +1,6 @@
 import type { Simulation } from './simulation';
 import { ARENA_WIDTH } from './constants';
-import type { MatchTeam, Building, BuildingDefinition, Lane } from './types';
+import type { MatchTeam, Building, BuildingDefinition, Lane, PlayerState } from './types';
 import {
 	getBaseBuildingsForRace,
 	getUpgradesForBuilding,
@@ -31,15 +31,21 @@ export const BOT_TIER_LIMITS: Record<number, { minPrice: number; maxPrice: numbe
 export class BotAI {
 	private sim: Simulation;
 	private team: MatchTeam = 'east';
+	private player?: PlayerState;
 	private decisionTimer = 1.5;
 
-	constructor(sim: Simulation, team: MatchTeam = 'east') {
+	constructor(sim: Simulation, team: MatchTeam = 'east', player?: PlayerState) {
 		this.sim = sim;
 		this.team = team;
+		this.player = player;
 	}
 
 	public getTeam(): MatchTeam {
 		return this.team;
+	}
+
+	public getPlayer(): PlayerState {
+		return this.player || this.sim.players[this.team];
 	}
 
 	public update(dt: number): void {
@@ -168,7 +174,7 @@ export class BotAI {
 	}
 
 	private makeDecision(): void {
-		const player = this.sim.players[this.team];
+		const player = this.getPlayer();
 		if (!player || !player.isBot) return;
 
 		const myCastle = this.sim.castles[this.team];
@@ -191,26 +197,29 @@ export class BotAI {
 		const enemyTeam = this.team === 'west' ? 'east' : 'west';
 		const botWorker = player.worker;
 		const enemiesInCourtyard = this.sim.units.filter(
-			(u) => u.team === enemyTeam && u.state !== 'DEAD' && u.x >= ARENA_WIDTH - 1500
+			(u) =>
+				u.team === enemyTeam &&
+				u.state !== 'DEAD' &&
+				(this.team === 'west' ? u.x <= 1500 : u.x >= ARENA_WIDTH - 1500)
 		);
 
 		if (botWorker && enemiesInCourtyard.length > 0) {
 			// If castle is wounded and bot has gold, dispatch worker to repair from rear safety
 			if (myCastle.hp < myCastle.maxHp && player.gold >= 15 && !botWorker.isBuilding) {
 				if (!botWorker.isRepairing) {
-					this.sim.repairBuilding(this.team, 'castle_' + this.team);
+					this.sim.repairBuilding(this.team, 'castle_' + this.team, player);
 				}
 			} else if (!botWorker.isBuilding && !botWorker.isRepairing) {
 				// Evacuate worker behind castle safe rampart
-				const safeX = ARENA_WIDTH - 120;
+				const safeX = this.team === 'west' ? 120 : ARENA_WIDTH - 120;
 				const safeY = 1200;
 				if (Math.hypot(botWorker.x - safeX, botWorker.y - safeY) > 40) {
-					this.sim.orderWorkerMove(this.team, safeX, safeY);
+					this.sim.orderWorkerMove(this.team, safeX, safeY, player);
 				}
 			}
 		}
 
-		// 0a. Idle worker coin pickup on East base
+		// 0a. Idle worker coin pickup on team base
 		if (
 			botWorker &&
 			enemiesInCourtyard.length === 0 &&
@@ -219,10 +228,12 @@ export class BotAI {
 			!botWorker.targetBuildingId
 		) {
 			const nearbyCoin = this.sim.goldCoins.find(
-				(c) => c.x >= ARENA_WIDTH - 1500 && Math.hypot(c.x - botWorker.x, c.y - botWorker.y) <= 800
+				(c) =>
+					(this.team === 'west' ? c.x <= 1500 : c.x >= ARENA_WIDTH - 1500) &&
+					Math.hypot(c.x - botWorker.x, c.y - botWorker.y) <= 800
 			);
 			if (nearbyCoin) {
-				this.sim.orderWorkerMove(this.team, nearbyCoin.x, nearbyCoin.y);
+				this.sim.orderWorkerMove(this.team, nearbyCoin.x, nearbyCoin.y, player);
 			}
 		}
 
@@ -239,7 +250,7 @@ export class BotAI {
 				(b) => b.team === this.team && !b.isUnderConstruction && b.hp < b.maxHp * 0.85
 			);
 			if (damagedBld) {
-				this.sim.repairBuilding(this.team, damagedBld.instanceId);
+				this.sim.repairBuilding(this.team, damagedBld.instanceId, player);
 				return;
 			}
 		}
@@ -299,32 +310,34 @@ export class BotAI {
 		// 3. Forge decision: buy forge upgrades if surplus gold
 		if (player.gold > 350) {
 			if (this.sim.gameTime < 300 && player.forge.econ < 2) {
-				const cost = this.sim.getForgePrice(this.team, 'econ');
+				const cost = this.sim.getForgePrice(this.team, 'econ', player);
 				if (player.gold >= cost + 150) {
-					this.sim.upgradeForge(this.team, 'econ');
+					this.sim.upgradeForge(this.team, 'econ', player);
 					return;
 				}
 			}
 
 			if (player.forge.attack < 5) {
-				const cost = this.sim.getForgePrice(this.team, 'attack');
+				const cost = this.sim.getForgePrice(this.team, 'attack', player);
 				if (player.gold >= cost + 150) {
-					this.sim.upgradeForge(this.team, 'attack');
+					this.sim.upgradeForge(this.team, 'attack', player);
 					return;
 				}
 			}
 
 			if (player.forge.armor < 4) {
-				const cost = this.sim.getForgePrice(this.team, 'armor');
+				const cost = this.sim.getForgePrice(this.team, 'armor', player);
 				if (player.gold >= cost + 150) {
-					this.sim.upgradeForge(this.team, 'armor');
+					this.sim.upgradeForge(this.team, 'armor', player);
 					return;
 				}
 			}
 		}
 
 		// 4. Calculate Current Price Tier based on building investment and gold
-		const myBuildings = this.sim.buildings.filter((b) => b.team === this.team);
+		const myBuildings = this.sim.buildings.filter(
+			(b) => b.team === this.team && (!b.playerId || b.playerId === player.id)
+		);
 		const bldValue = myBuildings.reduce((sum, b) => sum + b.goldCost, 0);
 		const estimatedIncome = 10 * (0.5 + 0.002 * bldValue) * (1 + 0.1 * player.forge.econ);
 		const tier = this.calculateTier(estimatedIncome, player.gold);
@@ -352,7 +365,12 @@ export class BotAI {
 		// When tier >= 3, upgrade probability is 100% (WC3 reference: "при поднятом ярусе 3+ шанс заменён на 100%")
 		if (upgradeCandidates.length > 0 && (tier >= 3 || Math.random() < 0.45)) {
 			const candidate = upgradeCandidates[Math.floor(Math.random() * upgradeCandidates.length)];
-			this.sim.upgradeBuilding(this.team, candidate.building.instanceId, candidate.upgrade.id);
+			this.sim.upgradeBuilding(
+				this.team,
+				candidate.building.instanceId,
+				candidate.upgrade.id,
+				player
+			);
 			return;
 		}
 
@@ -445,6 +463,6 @@ export class BotAI {
 		if (!chosenSlot) return;
 
 		const lane: Lane = chosenSlot.y < 4 ? 'top' : 'bottom';
-		this.sim.build(this.team, chosenBuilding.id, chosenSlot.x, chosenSlot.y, lane);
+		this.sim.build(this.team, chosenBuilding.id, chosenSlot.x, chosenSlot.y, lane, player);
 	}
 }

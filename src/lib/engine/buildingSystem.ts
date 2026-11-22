@@ -11,7 +11,7 @@ import {
 	GRID_STEP,
 	CELL_SIZE
 } from './constants';
-import type { MatchTeam, Lane, Building, Unit, ArmorType, AttackType } from './types';
+import type { MatchTeam, Lane, Building, Unit, ArmorType, AttackType, PlayerState } from './types';
 import {
 	getBuilding,
 	getUnit,
@@ -148,12 +148,13 @@ export class BuildingSystem {
 		defId: string,
 		tileX: number,
 		tileY: number,
-		_lane: Lane = 'top'
+		_lane: Lane = 'top',
+		playerInput?: PlayerState
 	): boolean {
 		const bDef = getBuilding(defId);
 		if (!bDef) return false;
 
-		const player = this.sim.players[team];
+		const player = playerInput || this.sim.players[team];
 		const cost = bDef.gold_cost || 200;
 
 		if (player.gold < cost) return false;
@@ -256,6 +257,8 @@ export class BuildingSystem {
 			defId: bDef.id,
 			name: bDef.name,
 			team,
+			playerId: player.id,
+			playerSlot: player.slot,
 			tileX,
 			tileY,
 			x: worldX,
@@ -331,7 +334,8 @@ export class BuildingSystem {
 	public upgradeBuilding(
 		team: MatchTeam,
 		buildingInstanceId: string,
-		targetDefId: string
+		targetDefId: string,
+		playerInput?: PlayerState
 	): boolean {
 		const building = this.sim.buildings.find(
 			(b) => b.instanceId === buildingInstanceId && b.team === team
@@ -347,7 +351,7 @@ export class BuildingSystem {
 		const currentDef = getBuilding(building.defId);
 		const currentIsLeg = isLegendaryBuilding(currentDef);
 		const targetIsLeg = isLegendaryBuilding(targetDef);
-		const player = this.sim.players[team];
+		const player = playerInput || this.sim.players[team];
 
 		if (targetIsLeg && !currentIsLeg) {
 			if (player.food >= player.maxFood) {
@@ -435,6 +439,8 @@ export class BuildingSystem {
 		building.defId = targetDef.id;
 		building.name = targetDef.name;
 		building.goldCost += upgradeCost;
+		building.playerId = player.id;
+		building.playerSlot = player.slot;
 		building.spawnUnitId = targetDef.unit;
 		const newSpawnCd = getSpawnCooldown(targetDef, getUnit(targetDef.unit));
 		building.spawnCooldown = newSpawnCd;
@@ -449,14 +455,21 @@ export class BuildingSystem {
 		return true;
 	}
 
-	public sellBuilding(team: MatchTeam, buildingInstanceId: string): boolean {
+	public sellBuilding(
+		team: MatchTeam,
+		buildingInstanceId: string,
+		playerInput?: PlayerState
+	): boolean {
 		const idx = this.sim.buildings.findIndex(
 			(b) => b.instanceId === buildingInstanceId && b.team === team
 		);
 		if (idx === -1) return false;
 
 		const building = this.sim.buildings[idx];
-		const player = this.sim.players[team];
+		const player =
+			playerInput ||
+			(building.playerId ? this.sim.allPlayers.find((p) => p.id === building.playerId) : null) ||
+			this.sim.players[team];
 		const currentDef = getBuilding(building.defId);
 		if (isLegendaryBuilding(currentDef)) {
 			player.food = Math.max(0, player.food - 1);
@@ -535,7 +548,9 @@ export class BuildingSystem {
 		const unitDef = getUnit(building.spawnUnitId);
 		if (!unitDef) return null;
 
-		const player = this.sim.players[building.team];
+		const player =
+			(building.playerId ? this.sim.allPlayers.find((p) => p.id === building.playerId) : null) ||
+			this.sim.players[building.team];
 		player.stats.unitsSpawned++;
 
 		// Determine lane
@@ -638,7 +653,9 @@ export class BuildingSystem {
 			pulverizeChance: hasPulverize ? 0.2 : 0,
 			immolationDps: hasImmolation ? 18 : 0,
 			buildingDefId: building.defId,
-			buildingName: building.name
+			buildingName: building.name,
+			playerId: player.id,
+			playerSlot: player.slot
 		};
 
 		this.sim.units.push(unit);
