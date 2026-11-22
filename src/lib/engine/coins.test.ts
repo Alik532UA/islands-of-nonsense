@@ -82,4 +82,32 @@ describe('Point 2: Battlefield Gold Coins (I000)', () => {
 		expect(sim.goldCoins.length).toBe(0);
 		expect(sim.coinSpawnTimer).toBe(40.0);
 	});
+
+	it('allows worker to physically pick up coins when walking over them', () => {
+		const worker = sim.players.west.worker;
+		expect(worker).toBeDefined();
+		if (!worker) return;
+		const _coin = sim.spawnCoinDirectly('top', worker.x + 30, worker.y, 50);
+		const initialGold = sim.players.west.gold;
+
+		sim.step(0.05);
+
+		expect(sim.goldCoins.length).toBe(0);
+		expect(sim.players.west.gold).toBe(initialGold + 50);
+	});
+
+	it('respects coinMode: none does not spawn coins, crazy spawns burst of coins', () => {
+		const simNone = new Simulation({ botDifficulty: 0, startGold: 500, coinMode: 'none' });
+		for (let i = 0; i < 801; i++) {
+			simNone.step(0.05);
+		}
+		expect(simNone.goldCoins.length).toBe(0);
+
+		const simCrazy = new Simulation({ botDifficulty: 0, startGold: 500, coinMode: 'crazy' });
+		// Crazy spawns after 20s
+		for (let i = 0; i < 401; i++) {
+			simCrazy.step(0.05);
+		}
+		expect(simCrazy.goldCoins.length).toBe(5);
+	});
 });

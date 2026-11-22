@@ -1,4 +1,5 @@
 import type { Simulation } from './simulation';
+import { ARENA_WIDTH } from './constants';
 import type { MatchTeam, Building, BuildingDefinition, Lane } from './types';
 import {
 	getBaseBuildingsForRace,
@@ -173,7 +174,23 @@ export class BotAI {
 		const myCastle = this.sim.castles[this.team];
 		const castleHpRatio = myCastle.hp / myCastle.maxHp;
 
-		// 0. Emergency Rescue Strike
+		// 0. Idle worker coin pickup on East base
+		const botWorker = player.worker;
+		if (
+			botWorker &&
+			!botWorker.isBuilding &&
+			!botWorker.isRepairing &&
+			!botWorker.targetBuildingId
+		) {
+			const nearbyCoin = this.sim.goldCoins.find(
+				(c) => c.x >= ARENA_WIDTH - 1500 && Math.hypot(c.x - botWorker.x, c.y - botWorker.y) <= 800
+			);
+			if (nearbyCoin) {
+				this.sim.orderWorkerMove(this.team, nearbyCoin.x, nearbyCoin.y);
+			}
+		}
+
+		// 0b. Emergency Rescue Strike
 		if (this.sim.canUseRescueStrike(this.team)) {
 			const enemyTeam = this.team === 'west' ? 'east' : 'west';
 			const enemyNearCastle = this.sim.units.filter(
@@ -287,8 +304,8 @@ export class BotAI {
 
 		// 6. Building placement decision across base platform:
 		const freeSlots: { x: number; y: number }[] = [];
-		for (let x = 0; x <= 32; x += 2) {
-			for (let y = 0; y <= 58; y += 2) {
+		for (let x = 0; x <= 42; x += 2) {
+			for (let y = 0; y <= 70; y += 2) {
 				if (this.sim.canBuild(this.team, x, y)) {
 					freeSlots.push({ x, y });
 				}

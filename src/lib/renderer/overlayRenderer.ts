@@ -27,43 +27,34 @@ export class OverlayRenderer {
 	): void {
 		g.clear();
 
-		// Normally the grid is completely hidden!
 		// Only during building placement planning does a subtle guide grid appear.
+		// Renders authentic 1x1 cells across the courtyard
 		if (selectedDefId) {
-			for (let x = -2; x <= 34; x += 2) {
-				for (let y = -4; y <= 62; y += 2) {
+			for (let x = 0; x <= 42; x++) {
+				for (let y = 0; y <= 70; y++) {
 					const px = WEST_GRID_START_X + x * GRID_STEP;
 					const py = WEST_GRID_START_Y + y * GRID_STEP;
 					const canBuild = this.sim.canBuild('west', x, y);
 					if (canBuild) {
-						g.rect(px + 1, py + 1, CELL_SIZE - 2, CELL_SIZE - 2);
+						g.rect(px + 1, py + 1, GRID_STEP - 2, GRID_STEP - 2);
 						g.fill({ color: 0x1e293b, alpha: 0.08 });
-						g.stroke({ color: 0x64748b, width: 0.5, alpha: 0.15 });
+						g.stroke({ color: 0x64748b, width: 0.5, alpha: 0.18 });
 					}
 				}
 			}
 		}
 
-		// Hover Highlight: Authentic Warcraft III 2x2 green grid preview (each sub-cell is GRID_STEP = 32px)
+		// Hover Highlight: Authentic 1x1 placement bounding box
 		if (selectedDefId && hoveredTile) {
 			const px = WEST_GRID_START_X + hoveredTile.x * GRID_STEP;
 			const py = WEST_GRID_START_Y + hoveredTile.y * GRID_STEP;
 			const canBuild = this.sim.canBuild('west', hoveredTile.x, hoveredTile.y);
 			const color = canBuild ? 0x22c55e : 0xef4444;
 
-			// 4 distinct quadrants (2x2 grid with GRID_STEP = 32px)
-			for (let sx = 0; sx < 2; sx++) {
-				for (let sy = 0; sy < 2; sy++) {
-					const cx = px + sx * GRID_STEP;
-					const cy = py + sy * GRID_STEP;
-					g.rect(cx + 1, cy + 1, GRID_STEP - 2, GRID_STEP - 2);
-					g.fill({ color, alpha: 0.35 });
-					g.stroke({ color, width: 1.5, alpha: 0.85 });
-				}
-			}
-			// Outer bounding box 64x64
-			g.rect(px, py, CELL_SIZE, CELL_SIZE);
-			g.stroke({ color, width: 2.5, alpha: 1.0 });
+			// Clean 1x1 building placement indicator (not 2x2 split quadrants)
+			g.rect(px + 1, py + 1, CELL_SIZE - 2, CELL_SIZE - 2);
+			g.fill({ color, alpha: 0.32 });
+			g.stroke({ color, width: 2.0, alpha: 0.95 });
 
 			// Ghost building preview if buildable
 			if (canBuild) {

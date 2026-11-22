@@ -21,7 +21,7 @@ import { BuildingSystem } from './buildingSystem';
 import { CombatSystem } from './combatSystem';
 import { EconomySystem } from './economySystem';
 
-import { ARENA_WIDTH, ARENA_HEIGHT, TOP_LANE_Y, BOTTOM_LANE_Y } from './constants';
+import { ARENA_WIDTH, ARENA_HEIGHT, TOP_LANE_Y, BOTTOM_LANE_Y, type CoinMode } from './constants';
 export * from './constants';
 
 export interface SimulationConfig {
@@ -34,6 +34,7 @@ export interface SimulationConfig {
 	eastRace?: string;
 	targetWins?: number;
 	fogOfWar?: boolean;
+	coinMode?: CoinMode;
 }
 
 /**
@@ -114,6 +115,7 @@ export class Simulation {
 	public goldCoins: GoldCoin[] = [];
 	public coinSpawnTimer = 40.0;
 	public coinSpawnInterval = 40.0;
+	public coinMode: CoinMode = 'normal';
 
 	// MVP & Building Performance Breakdown
 	public buildingStats: Record<string, BuildingPerformance> = {};
@@ -139,6 +141,11 @@ export class Simulation {
 
 	constructor(config: SimulationConfig = { botDifficulty: 0, startGold: 500 }) {
 		this.config = config;
+		this.coinMode = config.coinMode ?? 'normal';
+		if (this.coinMode === 'crazy') {
+			this.coinSpawnTimer = 20.0;
+			this.coinSpawnInterval = 20.0;
+		}
 		this.targetWins = config.targetWins ?? 2;
 		this.castles = {
 			west: { team: 'west', x: 200, y: 1200, hp: 14000, maxHp: 14000 },
@@ -725,6 +732,10 @@ export class Simulation {
 	}
 
 	public moveWorker(team: MatchTeam, targetX: number, targetY: number): void {
+		this.workerSystem.moveWorker(team, targetX, targetY);
+	}
+
+	public orderWorkerMove(team: MatchTeam, targetX: number, targetY: number): void {
 		this.workerSystem.moveWorker(team, targetX, targetY);
 	}
 

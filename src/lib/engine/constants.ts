@@ -4,11 +4,13 @@ export const ARENA_HEIGHT = 2400;
 export const TOP_LANE_Y = 660;
 export const BOTTOM_LANE_Y = 1740;
 
-export const WEST_GRID_START_X = 360;
-export const WEST_GRID_START_Y = 240;
+export const WEST_GRID_START_X = 64;
+export const WEST_GRID_START_Y = 64;
 
-export const EAST_GRID_START_X = 6240;
-export const EAST_GRID_START_Y = 240;
+export const EAST_GRID_START_X = ARENA_WIDTH - 1440;
+export const EAST_GRID_START_Y = 64;
+
+export type CoinMode = 'none' | 'normal' | 'crazy';
 
 export const GRID_STEP = 32;
 export const CELL_SIZE = 64; // Building footprint: 2x2 grid steps (64x64 px)

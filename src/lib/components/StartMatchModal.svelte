@@ -25,6 +25,7 @@
 		currentConfig.allRandom || currentConfig.westRace === 'random' ? 'random' : 'pick'
 	);
 	let fogOfWar = $state(currentConfig.fogOfWar ?? true);
+	let coinMode = $state<'none' | 'normal' | 'crazy'>(currentConfig.coinMode ?? 'normal');
 
 	// Synchronize when opened with currentConfig
 	$effect(() => {
@@ -41,6 +42,8 @@
 						? 'random'
 						: 'pick';
 			fogOfWar = saved.fogOfWar ?? currentConfig.fogOfWar ?? true;
+			coinMode =
+				(saved.coinMode as 'none' | 'normal' | 'crazy') ?? currentConfig.coinMode ?? 'normal';
 		}
 	});
 
@@ -57,6 +60,7 @@
 			allRandom: isAr,
 			uniqueRaces: isUr,
 			targetWins,
+			coinMode,
 			westRace: isAr ? 'random' : 'Люди',
 			fogOfWar
 		};
@@ -222,6 +226,57 @@
 							>
 								<div class="text-[11px] font-bold">Випадкова раса</div>
 								<div class="text-[9px] text-slate-500">+30% золота</div>
+							</button>
+						</div>
+					</div>
+				</div>
+
+				<!-- Coins Spawn Mode Setting -->
+				<div class="bg-slate-950/40 p-3 rounded-2xl border border-slate-800">
+					<div class="flex items-center justify-between">
+						<div>
+							<div class="font-bold text-slate-200 flex items-center gap-1.5">
+								<Coins class="w-4 h-4 text-amber-400" />
+								<span>Монетки на арені:</span>
+							</div>
+							<div class="text-[10px] text-slate-400 mt-0.5">
+								{coinMode === 'none'
+									? 'Вимкнено: монетки не з’являються'
+									: coinMode === 'crazy'
+										? 'Шалені монетки: по 5 монет кожні 20с'
+										: 'Звичайний: 1 монетка кожні 40с на базі'}
+							</div>
+						</div>
+						<div class="flex items-center gap-1.5">
+							<button
+								type="button"
+								onclick={() => (coinMode = 'none')}
+								class="py-1.5 px-2.5 rounded-xl border text-xs font-bold transition cursor-pointer {coinMode ===
+								'none'
+									? 'bg-red-600/30 border-red-500 text-red-200 shadow'
+									: 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'}"
+							>
+								Без монет
+							</button>
+							<button
+								type="button"
+								onclick={() => (coinMode = 'normal')}
+								class="py-1.5 px-2.5 rounded-xl border text-xs font-bold transition cursor-pointer {coinMode ===
+								'normal'
+									? 'bg-amber-600/30 border-amber-500 text-amber-200 shadow'
+									: 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'}"
+							>
+								40 сек
+							</button>
+							<button
+								type="button"
+								onclick={() => (coinMode = 'crazy')}
+								class="py-1.5 px-2.5 rounded-xl border text-xs font-bold transition cursor-pointer {coinMode ===
+								'crazy'
+									? 'bg-purple-600/30 border-purple-500 text-purple-200 shadow'
+									: 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'}"
+							>
+								Шалені (5)
 							</button>
 						</div>
 					</div>

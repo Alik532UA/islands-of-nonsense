@@ -39,20 +39,29 @@ export class BuildingSystem {
 		const bWidth = CELL_SIZE;
 		const bHeight = CELL_SIZE;
 
-		// 1. Boundary & Base territory checks
+		// 1. Boundary & Base territory checks (Full Warcraft III Courtyard coverage)
 		if (team === 'west') {
-			if (worldX < 260 || worldX + bWidth > 1440) return false;
-			if (worldY < 100 || worldY + bHeight > ARENA_HEIGHT - 100) return false;
-			// Clear of West Castle footprint
-			if (worldX < 340 && worldY >= 1050 && worldY <= 1350) return false;
+			if (worldX < 64 || worldX + bWidth > 1440) return false;
+			if (worldY < 64 || worldY + bHeight > ARENA_HEIGHT - 64) return false;
+			// Clear of West Castle footprint [80..320, 1060..1340]
+			if (worldX + bWidth > 70 && worldX < 330 && worldY + bHeight > 1050 && worldY < 1350) {
+				return false;
+			}
 		} else {
-			if (worldX < ARENA_WIDTH - 1440 || worldX + bWidth > ARENA_WIDTH - 260) return false;
-			if (worldY < 100 || worldY + bHeight > ARENA_HEIGHT - 100) return false;
+			if (worldX < ARENA_WIDTH - 1440 || worldX + bWidth > ARENA_WIDTH - 64) return false;
+			if (worldY < 64 || worldY + bHeight > ARENA_HEIGHT - 64) return false;
 			// Clear of East Castle footprint
-			if (worldX + bWidth > ARENA_WIDTH - 340 && worldY >= 1050 && worldY <= 1350) return false;
+			if (
+				worldX + bWidth > ARENA_WIDTH - 330 &&
+				worldX < ARENA_WIDTH - 70 &&
+				worldY + bHeight > 1050 &&
+				worldY < 1350
+			) {
+				return false;
+			}
 		}
 
-		// 2. Overlap with Existing Buildings (2x2 grid footprint, allowing 0 gap, 1 gap, 2 gap...)
+		// 2. Overlap with Existing Buildings (allowing 0 gap, 1 gap, 2 gap...)
 		for (const b of this.sim.buildings) {
 			if (b.team !== team) continue;
 			const overlapX = Math.max(0, Math.min(worldX + bWidth, b.x + bWidth) - Math.max(worldX, b.x));
@@ -67,13 +76,13 @@ export class BuildingSystem {
 
 		// 3. Overlap with Base Ramparts with open Road Gates
 		if (team === 'west') {
-			if (worldX + bWidth > 1440 && worldX < 1520) {
+			if (worldX + bWidth > 1440 && worldX < 1500) {
 				const isTopGate = worldY >= 560 && worldY + bHeight <= 760;
 				const isBotGate = worldY >= 1640 && worldY + bHeight <= 1840;
 				if (!isTopGate && !isBotGate) return false;
 			}
 		} else {
-			if (worldX + bWidth > ARENA_WIDTH - 1520 && worldX < ARENA_WIDTH - 1440) {
+			if (worldX + bWidth > ARENA_WIDTH - 1500 && worldX < ARENA_WIDTH - 1440) {
 				const isTopGate = worldY >= 560 && worldY + bHeight <= 760;
 				const isBotGate = worldY >= 1640 && worldY + bHeight <= 1840;
 				if (!isTopGate && !isBotGate) return false;
@@ -92,41 +101,42 @@ export class BuildingSystem {
 		const roadHeight = 160;
 		const rMaxX = rx + rw;
 		const rMaxY = ry + rh;
+		const rMidY = ry + rh / 2;
 
 		// Top highway (between base courtyards)
 		const topMinY = TOP_LANE_Y - roadHeight / 2;
 		const topMaxY = TOP_LANE_Y + roadHeight / 2;
-		if (rMaxX > 1420 && rx < ARENA_WIDTH - 1420 && rMaxY > topMinY && ry < topMaxY) {
+		if (rMaxX > 1440 && rx < ARENA_WIDTH - 1440 && rMaxY > topMinY && ry < topMaxY) {
 			return true;
 		}
 
 		// Bottom highway (between base courtyards)
 		const botMinY = BOTTOM_LANE_Y - roadHeight / 2;
 		const botMaxY = BOTTOM_LANE_Y + roadHeight / 2;
-		if (rMaxX > 1420 && rx < ARENA_WIDTH - 1420 && rMaxY > botMinY && ry < botMaxY) {
+		if (rMaxX > 1440 && rx < ARENA_WIDTH - 1440 && rMaxY > botMinY && ry < botMaxY) {
 			return true;
 		}
 
-		// West road fan-out to castle (200, 1200)
-		if (rx < 1460) {
-			const topSlope = (660 - 1200) / (1460 - 200);
-			const expectedTopY = 1200 + (rx - 200) * topSlope;
-			if (Math.abs(ry - expectedTopY) < roadHeight / 2 + 10) return true;
+		// West road fan-out to castle from x = 200 to x = 1440
+		if (rx >= 180 && rx < 1440) {
+			const progress = (rx - 180) / (1440 - 180);
+			const expectedTopY = 1140 + progress * (TOP_LANE_Y - 1140);
+			if (Math.abs(rMidY - expectedTopY) < roadHeight / 2 + 10) return true;
 
-			const botSlope = (1740 - 1200) / (1460 - 200);
-			const expectedBotY = 1200 + (rx - 200) * botSlope;
-			if (Math.abs(ry - expectedBotY) < roadHeight / 2 + 10) return true;
+			const expectedBotY = 1260 + progress * (BOTTOM_LANE_Y - 1260);
+			if (Math.abs(rMidY - expectedBotY) < roadHeight / 2 + 10) return true;
 		}
 
-		// East road fan-out to castle (ARENA_WIDTH - 200, 1200)
-		if (rMaxX > ARENA_WIDTH - 1460) {
-			const topSlope = (660 - 1200) / (ARENA_WIDTH - 1460 - (ARENA_WIDTH - 200));
-			const expectedTopY = 1200 + (rx - (ARENA_WIDTH - 200)) * topSlope;
-			if (Math.abs(ry - expectedTopY) < roadHeight / 2 + 10) return true;
+		// East road fan-out to castle
+		const eastStart = ARENA_WIDTH - 1440;
+		const eastEnd = ARENA_WIDTH - 180;
+		if (rMaxX > eastStart && rx <= eastEnd) {
+			const progress = (rx - eastStart) / (eastEnd - eastStart);
+			const expectedTopY = TOP_LANE_Y + progress * (1140 - TOP_LANE_Y);
+			if (Math.abs(rMidY - expectedTopY) < roadHeight / 2 + 10) return true;
 
-			const botSlope = (1740 - 1200) / (ARENA_WIDTH - 1460 - (ARENA_WIDTH - 200));
-			const expectedBotY = 1200 + (rx - (ARENA_WIDTH - 200)) * botSlope;
-			if (Math.abs(ry - expectedBotY) < roadHeight / 2 + 10) return true;
+			const expectedBotY = BOTTOM_LANE_Y + progress * (1260 - BOTTOM_LANE_Y);
+			if (Math.abs(rMidY - expectedBotY) < roadHeight / 2 + 10) return true;
 		}
 
 		return false;

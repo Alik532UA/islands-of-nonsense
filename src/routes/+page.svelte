@@ -131,7 +131,7 @@
 			} else if (e.key === 'ArrowUp') {
 				renderer?.setCamera(cameraX, cameraY - 240);
 			} else if (e.key === 'ArrowDown') {
-				renderer?.setCamera(cameraY + 240, cameraY);
+				renderer?.setCamera(cameraX, cameraY + 240);
 			}
 		}
 	}

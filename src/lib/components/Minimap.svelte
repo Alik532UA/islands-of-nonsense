@@ -187,8 +187,31 @@
 		ctx.lineWidth = 1;
 		ctx.strokeRect(eCastX - 4, eCastY - 8, 8, 16);
 
+		const fogOfWar = sim.config.fogOfWar ?? true;
+
+		function isRevealedToWest(x: number, y: number): boolean {
+			if (!fogOfWar) return true;
+			if (x <= 1500) return true;
+			const w = sim.players.west?.worker;
+			if (w && Math.hypot(w.x - x, w.y - y) <= 480) return true;
+			for (const b of sim.buildings) {
+				if (b.team === 'west' && Math.hypot(b.x + 32 - x, b.y + 32 - y) <= 450) return true;
+			}
+			for (const ally of sim.units) {
+				if (
+					ally.team === 'west' &&
+					ally.state !== 'DEAD' &&
+					Math.hypot(ally.x - x, ally.y - y) <= 450
+				) {
+					return true;
+				}
+			}
+			return false;
+		}
+
 		// 3. Placed Buildings (2x2 footprint)
 		for (const b of sim.buildings) {
+			if (b.team === 'east' && !isRevealedToWest(b.x, b.y)) continue;
 			const bx = b.x * scaleX;
 			const by = b.y * scaleY;
 			ctx.fillStyle = b.team === 'west' ? westColor : eastColor;
@@ -198,6 +221,9 @@
 		// 4. Units
 		for (const u of sim.units) {
 			if (u.state === 'DEAD') continue;
+			if (u.team === 'east' && !isRevealedToWest(u.x, u.y)) continue;
+			if (u.team === 'neutral' && !isRevealedToWest(u.x, u.y)) continue;
+
 			const ux = u.x * scaleX;
 			const uy = u.y * scaleY;
 
@@ -230,9 +256,10 @@
 			ctx.stroke();
 		}
 
-		// 6. Gold coins
+		// 6. Gold coins (Filtered by visibility)
 		ctx.fillStyle = '#fde047';
 		for (const coin of sim.goldCoins) {
+			if (coin.x > 1500 && !isRevealedToWest(coin.x, coin.y)) continue;
 			ctx.fillRect(coin.x * scaleX - 1, coin.y * scaleY - 1, 2, 2);
 		}
 

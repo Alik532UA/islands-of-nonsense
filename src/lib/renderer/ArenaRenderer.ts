@@ -313,6 +313,15 @@ export class ArenaRenderer {
 				});
 				sound.playWorkerAck();
 
+				// Check if RMB clicked a gold coin (command worker to run and collect it)
+				const clickedCoin = this.sim.goldCoins.find(
+					(c) => Math.hypot(world.x - c.x, world.y - c.y) <= 32
+				);
+				if (clickedCoin) {
+					this.sim.orderWorkerMove('west', clickedCoin.x, clickedCoin.y);
+					return;
+				}
+
 				// Check if RMB clicked an injured friendly building or castle to repair / continue construction
 				const clickedBuilding = this.sim.buildings.find(
 					(b) =>
@@ -388,7 +397,7 @@ export class ArenaRenderer {
 			if (this.getSelectedBuildingDefId()) {
 				const tileX = Math.round((world.x - WEST_GRID_START_X) / GRID_STEP);
 				const tileY = Math.round((world.y - WEST_GRID_START_Y) / GRID_STEP);
-				if (tileX >= -4 && tileX <= 36 && tileY >= -5 && tileY <= 65) {
+				if (tileX >= 0 && tileX <= 42 && tileY >= 0 && tileY <= 70) {
 					this.hoveredTile = { x: tileX, y: tileY };
 				} else {
 					this.hoveredTile = null;
@@ -458,12 +467,19 @@ export class ArenaRenderer {
 			const mouseScreenY = e.clientY - rect.top;
 			const world = this.screenToWorld(mouseScreenX, mouseScreenY);
 
-			// A. Collect Gold Coins
+			// A. Command worker to run to Gold Coin (Warcraft 3: worker runs to coin)
 			for (const coin of this.sim.goldCoins) {
 				const dx = world.x - coin.x;
 				const dy = world.y - coin.y;
-				if (dx * dx + dy * dy <= 28 * 28) {
-					this.sim.collectCoin(coin.id, 'west');
+				if (dx * dx + dy * dy <= 32 * 32) {
+					this.sim.orderWorkerMove('west', coin.x, coin.y);
+					this.moveMarkers.push({
+						x: coin.x,
+						y: coin.y,
+						timer: 0.55,
+						maxTimer: 0.55
+					});
+					sound.playWorkerAck();
 					return;
 				}
 			}

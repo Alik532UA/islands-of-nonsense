@@ -79,21 +79,31 @@ export class EconomySystem {
 	}
 
 	public updateGoldCoins(dt: number): void {
+		if (this.sim.coinMode === 'none') return;
+
 		this.sim.coinSpawnTimer -= dt;
 		if (this.sim.coinSpawnTimer <= 0.001) {
-			this.sim.coinSpawnTimer = this.sim.coinSpawnInterval;
-			const lane: Lane = Math.random() < 0.5 ? 'top' : 'bottom';
-			const laneY = lane === 'top' ? TOP_LANE_Y : BOTTOM_LANE_Y;
-			const coin: GoldCoin = {
-				id: `coin_${this.sim.nextCoinId++}`,
-				lane,
-				x: 850 + Math.random() * 700,
-				y: laneY + (Math.random() * 30 - 15),
-				value: 50,
-				lifeTime: 35.0,
-				maxLifeTime: 35.0
-			};
-			this.sim.goldCoins.push(coin);
+			const isCrazy = this.sim.coinMode === 'crazy';
+			this.sim.coinSpawnTimer = isCrazy ? 20.0 : this.sim.coinSpawnInterval;
+
+			const coinsToSpawn = isCrazy ? 5 : 1;
+			for (let c = 0; c < coinsToSpawn; c++) {
+				const lane: Lane = Math.random() < 0.5 ? 'top' : 'bottom';
+				const laneY = lane === 'top' ? TOP_LANE_Y : BOTTOM_LANE_Y;
+				const spawnX = isCrazy
+					? 300 + Math.random() * (ARENA_WIDTH - 600)
+					: 850 + Math.random() * 700;
+				const coin: GoldCoin = {
+					id: `coin_${this.sim.nextCoinId++}`,
+					lane,
+					x: spawnX,
+					y: laneY + (Math.random() * 60 - 30),
+					value: 50,
+					lifeTime: 35.0,
+					maxLifeTime: 35.0
+				};
+				this.sim.goldCoins.push(coin);
+			}
 			this.sim.notifyStateChanged();
 		}
 
@@ -106,7 +116,21 @@ export class EconomySystem {
 				continue;
 			}
 
-			// Check pickup by living units on the same lane
+			// 1. Worker physical pickup (WC3: worker runs to coin and collects it)
+			let collected = false;
+			for (const team of ['west', 'east'] as MatchTeam[]) {
+				const worker = this.sim.players[team]?.worker;
+				if (!worker) continue;
+				const dist = Math.hypot(worker.x - coin.x, worker.y - coin.y);
+				if (dist <= 55) {
+					this.collectCoin(coin.id, team);
+					collected = true;
+					break;
+				}
+			}
+			if (collected) continue;
+
+			// 2. Unit pickup on same lane
 			for (const u of this.sim.units) {
 				if (u.state === 'DEAD' || u.lane !== coin.lane) continue;
 				const dx = u.x - coin.x;
