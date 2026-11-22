@@ -8,7 +8,7 @@
 		PlayerState
 	} from '../engine/types';
 	import { getUnit, isLegendaryBuilding } from '../engine/gameData';
-	import { Coins, Trash2, X, Crown, Hammer, Castle, Swords, Users } from 'lucide-svelte';
+	import { Coins, Trash2, X, Crown, Hammer, Castle, Swords, Users, Wrench } from 'lucide-svelte';
 	import { CASTLE_ITEMS } from '../engine/items';
 
 	let {
@@ -122,6 +122,19 @@
 							</div>
 						</button>
 					{/each}
+					{#if placedBuilding.hp < placedBuilding.maxHp}
+						<button
+							onclick={() => sim.repairBuilding('west', placedBuilding.instanceId)}
+							class="w-16 h-10 rounded border border-emerald-500/70 bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-200 flex flex-col items-center justify-center p-0.5 transition cursor-pointer shadow"
+							title="Наказати робітникові відремонтувати споруду (R)"
+						>
+							<span class="text-[10px] font-bold flex items-center gap-0.5">
+								<Wrench class="w-3 h-3 text-emerald-400" />
+								Ремонт
+							</span>
+							<span class="text-[8px] font-mono text-emerald-300 font-bold">[R]</span>
+						</button>
+					{/if}
 					<!-- Sell button in slot 11 -->
 					<button
 						onclick={() => onSellBuilding?.(placedBuilding.instanceId)}
@@ -204,7 +217,20 @@
 			</div>
 			{#if selectedCastle.team === 'west'}
 				<div class="grid grid-cols-4 gap-1.5">
-					{#each Object.values(CASTLE_ITEMS).slice(0, 4) as item}
+					{#if selectedCastle.hp < selectedCastle.maxHp}
+						<button
+							onclick={() => sim.repairBuilding('west', 'castle_west')}
+							class="w-16 h-11 rounded border border-emerald-500/70 bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-200 flex flex-col items-center justify-center p-0.5 transition cursor-pointer shadow"
+							title="Наказати робітникові ремонтувати цитадель (R)"
+						>
+							<span class="text-[10px] font-bold flex items-center gap-0.5">
+								<Wrench class="w-3 h-3 text-emerald-400" />
+								Ремонт
+							</span>
+							<span class="text-[8px] font-mono text-emerald-300 font-bold">[R]</span>
+						</button>
+					{/if}
+					{#each Object.values(CASTLE_ITEMS).slice(0, selectedCastle.hp < selectedCastle.maxHp ? 3 : 4) as item}
 						{@const canAfford = playerGold >= item.cost}
 						<button
 							onclick={() => {

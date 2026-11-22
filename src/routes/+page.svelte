@@ -99,14 +99,36 @@
 				!e.repeat &&
 				!isForgeOpen &&
 				!isCommanderOpen &&
-				!isShopOpen &&
-				(!isWorkerGridActive || e.altKey)
+				!isShopOpen
 			) {
-				if (sim.canUseRaceSkill('west')) {
-					const success = sim.useRaceSkill('west');
-					if (success) {
-						sound.playUpgrade();
-						uiTick = sim.stateVersion;
+				if (selectedPlacedBuildingId) {
+					const bld = sim.buildings.find((b) => b.instanceId === selectedPlacedBuildingId);
+					if (bld && bld.team === 'west' && bld.hp < bld.maxHp) {
+						const success = sim.repairBuilding('west', selectedPlacedBuildingId);
+						if (success) {
+							sound.playRepair();
+							uiTick = sim.stateVersion;
+						}
+						return;
+					}
+				}
+				if (selectedEntity?.type === 'castle' && selectedEntity.team === 'west') {
+					if (sim.castles.west.hp < sim.castles.west.maxHp) {
+						const success = sim.repairBuilding('west', 'castle_west');
+						if (success) {
+							sound.playRepair();
+							uiTick = sim.stateVersion;
+						}
+						return;
+					}
+				}
+				if (!isWorkerGridActive || e.altKey) {
+					if (sim.canUseRaceSkill('west')) {
+						const success = sim.useRaceSkill('west');
+						if (success) {
+							sound.playUpgrade();
+							uiTick = sim.stateVersion;
+						}
 					}
 				}
 			} else if (

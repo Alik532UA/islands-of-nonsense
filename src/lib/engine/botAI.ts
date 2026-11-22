@@ -226,6 +226,24 @@ export class BotAI {
 			}
 		}
 
+		// 0c. Idle worker repairing damaged friendly buildings and towers
+		if (
+			botWorker &&
+			enemiesInCourtyard.length === 0 &&
+			!botWorker.isBuilding &&
+			!botWorker.isRepairing &&
+			!botWorker.targetBuildingId &&
+			player.gold >= 30
+		) {
+			const damagedBld = this.sim.buildings.find(
+				(b) => b.team === this.team && !b.isUnderConstruction && b.hp < b.maxHp * 0.85
+			);
+			if (damagedBld) {
+				this.sim.repairBuilding(this.team, damagedBld.instanceId);
+				return;
+			}
+		}
+
 		// 0b. Emergency Rescue Strike
 		if (this.sim.canUseRescueStrike(this.team)) {
 			const enemyTeam = this.team === 'west' ? 'east' : 'west';
