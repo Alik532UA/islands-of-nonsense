@@ -131,6 +131,11 @@ describe('Worker Navigation and Building Order (v10 Canon)', () => {
 			// Building must have successfully finished construction
 			expect(building?.isUnderConstruction).toBe(false);
 			expect(building?.hp).toBe(building?.maxHp);
+
+			// Unit creation must start strictly at 0% (spawnTimer is within 1 tick of full cooldown)
+			expect(building!.spawnCooldown - building!.spawnTimer).toBeLessThanOrEqual(0.1);
+			const progressPct = (1 - (building?.spawnTimer || 0) / (building?.spawnCooldown || 1)) * 100;
+			expect(progressPct).toBeLessThan(1);
 		});
 
 		it('ceases repair and warns when gold drops below 1', () => {

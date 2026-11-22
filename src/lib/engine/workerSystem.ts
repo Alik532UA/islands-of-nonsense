@@ -597,6 +597,9 @@ export class WorkerSystem {
 					if (targetBld.buildProgress >= maxProg) {
 						targetBld.isUnderConstruction = false;
 						targetBld.hp = targetBld.maxHp;
+						targetBld.spawnTimer = targetBld.specialType === 'repair' ? 0 : targetBld.spawnCooldown;
+						targetBld.spawnTimer =
+							targetBld.specialType === 'repair' ? 0 : targetBld.spawnCooldown;
 						w.isBuilding = false;
 						w.targetBuildingId = null;
 						this.sim.addFloatingText(

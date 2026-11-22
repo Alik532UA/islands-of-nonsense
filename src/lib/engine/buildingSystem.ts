@@ -211,7 +211,7 @@ export class BuildingSystem {
 			goldCost: cost,
 			spawnUnitId: bDef.unit,
 			spawnCooldown: spawnCd,
-			spawnTimer: bDef.specialType === 'repair' ? 0 : 4.0,
+			spawnTimer: bDef.specialType === 'repair' ? 0 : spawnCd,
 			lane: resolvedLane,
 			upgradeFrom: bDef.upgrade_from,
 			race: bDef.race || player.race,
