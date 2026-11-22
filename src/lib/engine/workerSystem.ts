@@ -436,6 +436,74 @@ export class WorkerSystem {
 		}
 	}
 
+	/**
+	 * Computes Euclidean distance from worker point (wx, wy) to an axis-aligned bounding box.
+	 * Returns 0 if worker is inside or touching the box edge.
+	 */
+	public getDistanceToBox(
+		wx: number,
+		wy: number,
+		bx: number,
+		by: number,
+		bw: number = CELL_SIZE,
+		bh: number = CELL_SIZE
+	): number {
+		const dx = Math.max(bx - wx, 0, wx - (bx + bw));
+		const dy = Math.max(by - wy, 0, wy - (by + bh));
+		return Math.hypot(dx, dy);
+	}
+
+	/**
+	 * Finds the closest unblocked spot around a building perimeter so worker can build/repair
+	 * from ANY reachable side (Warcraft III style), even when building is in a tight corner.
+	 */
+	public getBestConstructionSpot(
+		team: MatchTeam,
+		workerX: number,
+		workerY: number,
+		bldX: number,
+		bldY: number,
+		bldWidth: number = CELL_SIZE,
+		bldHeight: number = CELL_SIZE
+	): { x: number; y: number } {
+		const pad = 16;
+		const candidates = [
+			// 4 cardinal perimeter sides
+			{ x: bldX + bldWidth + pad, y: bldY + bldHeight / 2 },
+			{ x: bldX - pad, y: bldY + bldHeight / 2 },
+			{ x: bldX + bldWidth / 2, y: bldY - pad },
+			{ x: bldX + bldWidth / 2, y: bldY + bldHeight + pad },
+			// 4 diagonal corners
+			{ x: bldX + bldWidth + pad, y: bldY - pad },
+			{ x: bldX + bldWidth + pad, y: bldY + bldHeight + pad },
+			{ x: bldX - pad, y: bldY - pad },
+			{ x: bldX - pad, y: bldY + bldHeight + pad }
+		];
+
+		let bestSpot: { x: number; y: number } | null = null;
+		let minDistance = Infinity;
+
+		for (const cand of candidates) {
+			if (!this.isPointBlockedForWorker(team, cand.x, cand.y)) {
+				const d = Math.hypot(workerX - cand.x, workerY - cand.y);
+				if (d < minDistance) {
+					minDistance = d;
+					bestSpot = cand;
+				}
+			}
+		}
+
+		if (bestSpot) return bestSpot;
+
+		// Fallback: resolve ground obstacles from current worker position towards building
+		const cx = bldX + bldWidth / 2;
+		const cy = bldY + bldHeight / 2;
+		const angle = Math.atan2(workerY - cy, workerX - cx);
+		const fallbackX = cx + Math.cos(angle) * (bldWidth / 2 + pad);
+		const fallbackY = cy + Math.sin(angle) * (bldHeight / 2 + pad);
+		return this.resolveGroundObstacles(fallbackX, fallbackY, 14);
+	}
+
 	public continueConstruction(team: MatchTeam, buildingInstanceId: string): boolean {
 		const targetBld = this.sim.buildings.find(
 			(b) => b.instanceId === buildingInstanceId && b.team === team
@@ -444,16 +512,14 @@ export class WorkerSystem {
 
 		const w = this.sim.players[team]?.worker;
 		if (w) {
-			const isWest = targetBld.team === 'west';
-			const exteriorTargetX = isWest ? targetBld.x - 16 : targetBld.x + CELL_SIZE + 16;
-			const exteriorTargetY = targetBld.y + CELL_SIZE / 2;
-			w.targetX = exteriorTargetX;
-			w.targetY = exteriorTargetY;
+			const spot = this.getBestConstructionSpot(team, w.x, w.y, targetBld.x, targetBld.y);
+			w.targetX = spot.x;
+			w.targetY = spot.y;
 			w.isBuilding = false;
 			w.targetBuildingId = buildingInstanceId;
 			w.isRepairing = false;
 			w.targetRepairBuildingId = null;
-			w.path = this.findWorkerPath(team, w.x, w.y, exteriorTargetX, exteriorTargetY);
+			w.path = this.findWorkerPath(team, w.x, w.y, spot.x, spot.y);
 			this.sim.notifyStateChanged();
 			return true;
 		}
@@ -461,11 +527,13 @@ export class WorkerSystem {
 	}
 
 	public repairBuilding(team: MatchTeam, buildingInstanceId: string): boolean {
-		const targetBld =
-			this.sim.buildings.find((b) => b.instanceId === buildingInstanceId && b.team === team) ||
-			(buildingInstanceId === `castle_${team}` || buildingInstanceId === 'castle'
-				? this.sim.castles[team]
-				: null);
+		const isCastle =
+			buildingInstanceId === `castle_${team}` ||
+			buildingInstanceId === 'castle' ||
+			buildingInstanceId.startsWith('castle');
+		const targetBld = isCastle
+			? this.sim.castles[team]
+			: this.sim.buildings.find((b) => b.instanceId === buildingInstanceId && b.team === team);
 		if (!targetBld) return false;
 
 		// If building is still under construction, redirect worker to continue construction!
@@ -475,15 +543,18 @@ export class WorkerSystem {
 
 		const w = this.sim.players[team]?.worker;
 		if (w) {
-			const tx = targetBld.x + CELL_SIZE / 2;
-			const ty = targetBld.y + CELL_SIZE / 2;
-			w.targetX = tx;
-			w.targetY = ty;
+			const bx = isCastle ? (team === 'west' ? 80 : ARENA_WIDTH - 320) : targetBld.x;
+			const by = isCastle ? 1060 : targetBld.y;
+			const bw = isCastle ? 240 : CELL_SIZE;
+			const bh = isCastle ? 280 : CELL_SIZE;
+			const spot = this.getBestConstructionSpot(team, w.x, w.y, bx, by, bw, bh);
+			w.targetX = spot.x;
+			w.targetY = spot.y;
 			w.isBuilding = false;
 			w.targetBuildingId = null;
 			w.isRepairing = true;
 			w.targetRepairBuildingId = buildingInstanceId;
-			w.path = this.findWorkerPath(team, w.x, w.y, tx, ty);
+			w.path = this.findWorkerPath(team, w.x, w.y, spot.x, spot.y);
 			this.sim.notifyStateChanged();
 			return true;
 		}
@@ -503,16 +574,17 @@ export class WorkerSystem {
 				: null;
 
 			if (targetBld && targetBld.isUnderConstruction) {
-				const isWest = targetBld.team === 'west';
-				// Stand at exterior scaffolding (outside solid building core)
-				const exteriorTargetX = isWest ? targetBld.x - 16 : targetBld.x + CELL_SIZE + 16;
-				const exteriorTargetY = targetBld.y + CELL_SIZE / 2;
-				w.targetX = exteriorTargetX;
-				w.targetY = exteriorTargetY;
+				const distToBld = this.getDistanceToBox(
+					w.x,
+					w.y,
+					targetBld.x,
+					targetBld.y,
+					CELL_SIZE,
+					CELL_SIZE
+				);
 
-				const dist = Math.hypot(exteriorTargetX - w.x, exteriorTargetY - w.y);
-				if (dist <= 24) {
-					// In building construction range!
+				if (distToBld <= 42) {
+					// In building construction range from ANY reachable side (Warcraft III style)!
 					w.isBuilding = true;
 					w.path = [];
 					targetBld.buildProgress = (targetBld.buildProgress || 0) + dt;
@@ -537,7 +609,10 @@ export class WorkerSystem {
 					}
 				} else {
 					w.isBuilding = false;
-					this.advanceWorkerAlongPath(w, team, exteriorTargetX, exteriorTargetY, dt, 20);
+					const spot = this.getBestConstructionSpot(team, w.x, w.y, targetBld.x, targetBld.y);
+					w.targetX = spot.x;
+					w.targetY = spot.y;
+					this.advanceWorkerAlongPath(w, team, spot.x, spot.y, dt, 20);
 				}
 			} else {
 				if (w.targetBuildingId) {
@@ -550,14 +625,13 @@ export class WorkerSystem {
 						this.sim.buildings.find((b) => b.instanceId === w.targetRepairBuildingId) ||
 						(w.targetRepairBuildingId.startsWith('castle') ? this.sim.castles[team] : null);
 					if (repTarget && repTarget.hp < repTarget.maxHp) {
-						const tx =
-							repTarget === this.sim.castles[team] ? repTarget.x : repTarget.x + CELL_SIZE / 2;
-						const ty =
-							repTarget === this.sim.castles[team] ? repTarget.y : repTarget.y + CELL_SIZE / 2;
-						w.targetX = tx;
-						w.targetY = ty;
-						const dist = Math.hypot(tx - w.x, ty - w.y);
-						if (dist <= 85) {
+						const isCastle = repTarget === this.sim.castles[team];
+						const bx = isCastle ? (team === 'west' ? 80 : ARENA_WIDTH - 320) : repTarget.x;
+						const by = isCastle ? 1060 : repTarget.y;
+						const bw = isCastle ? 240 : CELL_SIZE;
+						const bh = isCastle ? 280 : CELL_SIZE;
+						const distToRep = this.getDistanceToBox(w.x, w.y, bx, by, bw, bh);
+						if (distToRep <= 48) {
 							w.isBuilding = true;
 							w.isRepairing = true;
 							w.path = [];
@@ -577,7 +651,10 @@ export class WorkerSystem {
 							}
 						} else {
 							w.isBuilding = false;
-							this.advanceWorkerAlongPath(w, team, tx, ty, dt, 75);
+							const spot = this.getBestConstructionSpot(team, w.x, w.y, bx, by, bw, bh);
+							w.targetX = spot.x;
+							w.targetY = spot.y;
+							this.advanceWorkerAlongPath(w, team, spot.x, spot.y, dt, 20);
 						}
 					} else {
 						w.isRepairing = false;

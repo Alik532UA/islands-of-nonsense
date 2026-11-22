@@ -99,5 +99,38 @@ describe('Worker Navigation and Building Order (v10 Canon)', () => {
 			// Worker must have made progress towards the lower courtyard (y > 950)
 			expect(worker.y).toBeGreaterThan(950);
 		});
+
+		it('allows worker to construct building placed in corner from open perimeter side', () => {
+			const sim = new Simulation();
+			sim.isRunning = true;
+			const worker = sim.players.west.worker;
+			expect(worker).toBeDefined();
+			if (!worker) return;
+
+			// Corner placement: tile (0, 69) -> world (64, 2272) is bottom-left corner of courtyard
+			// Left side (x < 60) and bottom side (y > 2340) are blocked by walls
+			sim.players.west.gold = 500;
+			const bDef = getBaseBuildingsForRace('Люди')[0];
+			const success = sim.build('west', bDef.id, 0, 69);
+			expect(success).toBe(true);
+
+			const building = sim.buildings.find((b) => b.x === 64 && b.y === 2272);
+			expect(building).toBeDefined();
+			expect(building?.isUnderConstruction).toBe(true);
+
+			// Worker target must NOT be in the wall (x >= 60, y <= 2340)
+			expect(worker.targetX).toBeGreaterThanOrEqual(60);
+			expect(worker.targetY).toBeLessThanOrEqual(2340);
+
+			// Step simulation until construction completes (3.5s + movement time)
+			for (let i = 0; i < 150; i++) {
+				sim.step(0.05);
+				if (!building?.isUnderConstruction) break;
+			}
+
+			// Building must have successfully finished construction
+			expect(building?.isUnderConstruction).toBe(false);
+			expect(building?.hp).toBe(building?.maxHp);
+		});
 	});
 });

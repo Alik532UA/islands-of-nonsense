@@ -237,12 +237,6 @@ export class BuildingSystem {
 			player.food++;
 		}
 		if (player.worker) {
-			const exteriorX = team === 'west' ? worldX - 16 : worldX + CELL_SIZE + 16;
-			const exteriorY = worldY + CELL_SIZE / 2;
-			player.worker.targetX = exteriorX;
-			player.worker.targetY = exteriorY;
-			player.worker.targetBuildingId = building.instanceId;
-			player.worker.isBuilding = false;
 			// Push worker out if caught inside footprint
 			const resolved = this.sim.workerSystem.resolveGroundObstacles(
 				player.worker.x,
@@ -251,12 +245,24 @@ export class BuildingSystem {
 			);
 			player.worker.x = resolved.x;
 			player.worker.y = resolved.y;
+
+			const spot = this.sim.workerSystem.getBestConstructionSpot(
+				team,
+				player.worker.x,
+				player.worker.y,
+				worldX,
+				worldY
+			);
+			player.worker.targetX = spot.x;
+			player.worker.targetY = spot.y;
+			player.worker.targetBuildingId = building.instanceId;
+			player.worker.isBuilding = false;
 			player.worker.path = this.sim.workerSystem.findWorkerPath(
 				team,
 				player.worker.x,
 				player.worker.y,
-				exteriorX,
-				exteriorY
+				spot.x,
+				spot.y
 			);
 		}
 		this.sim.addFloatingText(`-${cost}g`, worldX, worldY - 20, '#fbbf24');
