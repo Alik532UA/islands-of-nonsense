@@ -1,9 +1,11 @@
+import { WC3_PLAYER_COLORS } from './types';
 import type {
 	Unit,
 	Building,
 	Projectile,
 	Castle,
 	PlayerState,
+	WorkerState,
 	Team,
 	MatchTeam,
 	Lane,
@@ -51,6 +53,7 @@ export interface SimulationConfig {
 	westRace?: string;
 	eastRace?: string;
 	targetWins?: number;
+	fogOfWar?: boolean;
 }
 
 export class Simulation {
@@ -180,11 +183,19 @@ export class Simulation {
 		const westGold = westIsRandom ? Math.round(config.startGold * 1.3) : config.startGold;
 		const eastGold = eastIsRandom ? Math.round(config.startGold * 1.3) : config.startGold;
 
+		const cWestIdx = Math.floor(Math.random() * WC3_PLAYER_COLORS.length);
+		const cEastIdx =
+			(cWestIdx + 1 + Math.floor(Math.random() * (WC3_PLAYER_COLORS.length - 1))) %
+			WC3_PLAYER_COLORS.length;
+		const westColor = WC3_PLAYER_COLORS[cWestIdx];
+		const eastColor = WC3_PLAYER_COLORS[cEastIdx];
+
 		this.players = {
 			west: {
 				team: 'west',
 				isBot: false,
 				name: 'Гравець',
+				color: westColor,
 				race: westRace,
 				isRandomRace: westIsRandom,
 				randomGoldGranted: westIsRandom,
@@ -222,6 +233,7 @@ export class Simulation {
 				team: 'east',
 				isBot: true,
 				name: 'Бот v37',
+				color: eastColor,
 				race: eastRace,
 				isRandomRace: eastIsRandom,
 				randomGoldGranted: eastIsRandom,
@@ -469,68 +481,96 @@ export class Simulation {
 		}
 		this.splashEffects = this.splashEffects.filter((eff) => eff.timer > 0);
 
-		// Update Workers position and construction
+		// Update Workers position, obstacle navigation, and construction
 		for (const team of ['west', 'east'] as MatchTeam[]) {
 			const w = this.players[team]?.worker;
-			if (w) {
-				const targetBld = w.targetBuildingId
-					? this.buildings.find((b) => b.instanceId === w.targetBuildingId)
-					: null;
+			if (!w) continue;
 
-				if (targetBld && targetBld.isUnderConstruction) {
-					w.targetX = targetBld.x + CELL_SIZE / 2;
-					w.targetY = targetBld.y + CELL_SIZE / 2;
-					const dx = w.targetX - w.x;
-					const dy = w.targetY - w.y;
-					const dist = Math.hypot(dx, dy);
+			const targetBld = w.targetBuildingId
+				? this.buildings.find((b) => b.instanceId === w.targetBuildingId)
+				: null;
 
-					if (dist > 45) {
-						const moveDist = Math.min(dist, w.speed * dt);
-						w.x += (dx / dist) * moveDist;
-						w.y += (dy / dist) * moveDist;
+			if (targetBld && targetBld.isUnderConstruction) {
+				const isWest = targetBld.team === 'west';
+				// Stand at exterior scaffolding (outside solid building core)
+				const exteriorTargetX = isWest ? targetBld.x - 16 : targetBld.x + CELL_SIZE + 16;
+				const exteriorTargetY = targetBld.y + CELL_SIZE / 2;
+				w.targetX = exteriorTargetX;
+				w.targetY = exteriorTargetY;
+
+				const dist = Math.hypot(exteriorTargetX - w.x, exteriorTargetY - w.y);
+				if (dist <= 24) {
+					// In building construction range!
+					w.isBuilding = true;
+					w.path = [];
+					targetBld.buildProgress = (targetBld.buildProgress || 0) + dt;
+					const maxProg = targetBld.maxBuildProgress || 3.5;
+					targetBld.hp = Math.min(
+						targetBld.maxHp,
+						Math.round(targetBld.maxHp * (0.15 + 0.85 * (targetBld.buildProgress / maxProg)))
+					);
+
+					if (targetBld.buildProgress >= maxProg) {
+						targetBld.isUnderConstruction = false;
+						targetBld.hp = targetBld.maxHp;
 						w.isBuilding = false;
-					} else {
-						// In building construction range!
-						w.isBuilding = true;
-						targetBld.buildProgress = (targetBld.buildProgress || 0) + dt;
-						const maxProg = targetBld.maxBuildProgress || 3.5;
-						targetBld.hp = Math.min(
-							targetBld.maxHp,
-							Math.round(targetBld.maxHp * (0.15 + 0.85 * (targetBld.buildProgress / maxProg)))
+						w.targetBuildingId = null;
+						this.addFloatingText(
+							'+Готово!',
+							targetBld.x + CELL_SIZE / 2,
+							targetBld.y - 15,
+							'#22c55e'
 						);
-
-						if (targetBld.buildProgress >= maxProg) {
-							targetBld.isUnderConstruction = false;
-							targetBld.hp = targetBld.maxHp;
-							w.isBuilding = false;
-							w.targetBuildingId = null;
-							this.addFloatingText(
-								'+Готово!',
-								targetBld.x + CELL_SIZE / 2,
-								targetBld.y - 15,
-								'#22c55e'
-							);
-							this.onSoundEffect?.('sword');
-						}
+						this.onSoundEffect?.('sword');
 					}
 				} else {
-					if (w.targetBuildingId) {
-						w.targetBuildingId = null;
-						w.isBuilding = false;
-					}
-					const dx = w.targetX - w.x;
-					const dy = w.targetY - w.y;
-					const dist = Math.hypot(dx, dy);
-					if (dist > 3) {
-						const moveDist = Math.min(dist, w.speed * dt);
-						w.x += (dx / dist) * moveDist;
-						w.y += (dy / dist) * moveDist;
-					}
-					if (w.buildTimer && w.buildTimer > 0) {
-						w.buildTimer -= dt;
-						if (w.buildTimer <= 0) {
+					w.isBuilding = false;
+					this.advanceWorkerAlongPath(w, team, exteriorTargetX, exteriorTargetY, dt, 20);
+				}
+			} else {
+				if (w.targetBuildingId) {
+					w.targetBuildingId = null;
+					w.isBuilding = false;
+				}
+
+				if (w.targetRepairBuildingId) {
+					const repTarget =
+						this.buildings.find((b) => b.instanceId === w.targetRepairBuildingId) ||
+						(w.targetRepairBuildingId.startsWith('castle') ? this.castles[team] : null);
+					if (repTarget && repTarget.hp < repTarget.maxHp) {
+						const tx = repTarget === this.castles[team] ? repTarget.x : repTarget.x + CELL_SIZE / 2;
+						const ty = repTarget === this.castles[team] ? repTarget.y : repTarget.y + CELL_SIZE / 2;
+						w.targetX = tx;
+						w.targetY = ty;
+						const dist = Math.hypot(tx - w.x, ty - w.y);
+						if (dist <= 85) {
+							w.isBuilding = true;
+							w.isRepairing = true;
+							w.path = [];
+							const healAmount = Math.min(repTarget.maxHp - repTarget.hp, 50 * dt);
+							repTarget.hp += healAmount;
+							if (this.players[team].gold >= 1) {
+								this.players[team].gold = Math.max(0, this.players[team].gold - Math.round(2 * dt));
+							}
+							if (repTarget.hp >= repTarget.maxHp) {
+								w.isRepairing = false;
+								w.isBuilding = false;
+								w.targetRepairBuildingId = null;
+								this.addFloatingText('Відремонтовано!', w.x, w.y - 20, '#10b981');
+							}
+						} else {
 							w.isBuilding = false;
+							this.advanceWorkerAlongPath(w, team, tx, ty, dt, 75);
 						}
+					} else {
+						w.isRepairing = false;
+						w.isBuilding = false;
+						w.targetRepairBuildingId = null;
+					}
+				} else {
+					const dist = Math.hypot(w.targetX - w.x, w.targetY - w.y);
+					if (dist > 3) {
+						this.advanceWorkerAlongPath(w, team, w.targetX, w.targetY, dt, 3);
 					}
 				}
 			}
@@ -793,8 +833,15 @@ export class Simulation {
 		}
 
 		const laneY = lane === 'top' ? TOP_LANE_Y : BOTTOM_LANE_Y;
-		const spawnX = building.x + CELL_SIZE / 2;
-		const spawnY = building.y + CELL_SIZE / 2;
+		const isWest = building.team === 'west';
+		// Spawn at the front doorway facing the road (outside solid building core)
+		const rawSpawnX = isWest ? building.x + CELL_SIZE + 16 : building.x - 16;
+		const rawSpawnY = building.y + CELL_SIZE / 2;
+		const spawnPos = unitDef.flying
+			? { x: rawSpawnX, y: rawSpawnY }
+			: this.resolveGroundObstacles(rawSpawnX, rawSpawnY, 12);
+		const spawnX = spawnPos.x;
+		const spawnY = spawnPos.y;
 
 		// Calculate commander & forge bonuses
 		let damageBonusPct = player.forge.attack * 0.08;
@@ -1210,11 +1257,16 @@ export class Simulation {
 						u.y += dirY * currentSpeed * dt;
 					} else {
 						u.state = 'WALKING';
-						// Lane corridor guidance: steer smoothly back to lane center Y
-						const dyToLane = targetLaneY - u.y;
+						// Natural march toward enemy base!
+						// On home base: march straight ahead; natural walls and buildings channel units to the courtyard exit.
+						// On the highway corridor: smooth centering along the lane road.
+						const isHomeBase = u.team === 'west' ? u.x < 450 : u.x > 1950;
 						let stepY = 0;
-						if (Math.abs(dyToLane) > 4) {
-							stepY = Math.sign(dyToLane) * Math.min(Math.abs(dyToLane), currentSpeed * dt * 0.8);
+						if (!isHomeBase) {
+							const dyToLane = targetLaneY - u.y;
+							if (Math.abs(dyToLane) > 4) {
+								stepY = Math.sign(dyToLane) * Math.min(Math.abs(dyToLane), currentSpeed * dt * 0.5);
+							}
 						}
 						const stepX = (u.team === 'west' ? 1 : -1) * currentSpeed * dt;
 						u.x += stepX;
@@ -1222,10 +1274,421 @@ export class Simulation {
 					}
 				}
 			}
+
+			// Enforce solid obstacle collision for ground units (flying units glide freely over buildings)
+			if (!u.flying) {
+				const resolved = this.resolveGroundObstacles(u.x, u.y, u.size);
+				u.x = resolved.x;
+				u.y = resolved.y;
+			}
 		}
 
 		// Apply Crowd Physics & Boids Separation
 		this.applyCrowdSeparation(dt);
+	}
+
+	/**
+	 * Resolves solid obstacles (2x2 buildings and dividing stone walls) for ground entities.
+	 * Pushes the entity out of the solid box along the shortest normal to allow smooth sliding around corners.
+	 */
+	public resolveGroundObstacles(x: number, y: number, radius: number): { x: number; y: number } {
+		let currX = x;
+		let currY = y;
+
+		// 1. Solid Buildings (2x2 footprint)
+		for (const b of this.buildings) {
+			const minX = b.x;
+			const maxX = b.x + CELL_SIZE;
+			const minY = b.y;
+			const maxY = b.y + CELL_SIZE;
+
+			const closestX = Math.max(minX, Math.min(maxX, currX));
+			const closestY = Math.max(minY, Math.min(maxY, currY));
+			const diffX = currX - closestX;
+			const diffY = currY - closestY;
+			const dist = Math.hypot(diffX, diffY);
+
+			if (dist < radius) {
+				if (dist > 0.001) {
+					// Outside or touching: push out along normal
+					currX = closestX + (diffX / dist) * radius;
+					currY = closestY + (diffY / dist) * radius;
+				} else {
+					// Inside the building box: find closest face to push out
+					const dLeft = currX - minX;
+					const dRight = maxX - currX;
+					const dTop = currY - minY;
+					const dBottom = maxY - currY;
+					const minD = Math.min(dLeft, dRight, dTop, dBottom);
+					if (minD === dLeft) currX = minX - radius;
+					else if (minD === dRight) currX = maxX + radius;
+					else if (minD === dTop) currY = minY - radius;
+					else currY = maxY + radius;
+				}
+			}
+		}
+
+		// 2. Solid Map Walls & Terrain Obstacles
+		const solidWalls = [
+			// West dividing stone wall (between top and bottom base courtyard)
+			{ minX: 70, maxX: 460, minY: 370, maxY: 430 },
+			// East dividing stone wall (between top and bottom base courtyard)
+			{ minX: 1940, maxX: 2330, minY: 370, maxY: 430 },
+			// Central Mountain Ridge (dividing Top and Bottom lanes)
+			{ minX: 450, maxX: 1950, minY: 340, maxY: 460 },
+			// Arena Upper Perimeter Wall
+			{ minX: 0, maxX: ARENA_WIDTH, minY: 0, maxY: 50 },
+			// Arena Lower Perimeter Wall
+			{ minX: 0, maxX: ARENA_WIDTH, minY: 750, maxY: ARENA_HEIGHT }
+		];
+
+		for (const wall of solidWalls) {
+			if (
+				currX >= wall.minX - radius &&
+				currX <= wall.maxX + radius &&
+				currY >= wall.minY - radius &&
+				currY <= wall.maxY + radius
+			) {
+				const cX = Math.max(wall.minX, Math.min(wall.maxX, currX));
+				const cY = Math.max(wall.minY, Math.min(wall.maxY, currY));
+				const dX = currX - cX;
+				const dY = currY - cY;
+				const d = Math.hypot(dX, dY);
+				if (d < radius) {
+					if (d > 0.001) {
+						currX = cX + (dX / d) * radius;
+						currY = cY + (dY / d) * radius;
+					} else {
+						const dLeft = currX - wall.minX;
+						const dRight = wall.maxX - currX;
+						const dTop = currY - wall.minY;
+						const dBottom = wall.maxY - currY;
+						const minD = Math.min(dLeft, dRight, dTop, dBottom);
+						if (minD === dLeft) currX = wall.minX - radius;
+						else if (minD === dRight) currX = wall.maxX + radius;
+						else if (minD === dTop) currY = wall.minY - radius;
+						else currY = wall.maxY + radius;
+					}
+				}
+			}
+		}
+
+		return { x: currX, y: currY };
+	}
+
+	/**
+	 * Checks if a point is impassable for a worker (colliding with buildings or terrain obstacles).
+	 */
+	public isPointBlockedForWorker(team: MatchTeam, x: number, y: number, radius = 14): boolean {
+		// Base territory boundaries
+		if (team === 'west') {
+			if (x < 60 || x > 660 || y < 55 || y > ARENA_HEIGHT - 55) return true;
+			// West Castle
+			if (x >= 20 - radius && x <= 130 + radius && y >= 320 - radius && y <= 480 + radius)
+				return true;
+			// West dividing stone wall
+			if (x >= 70 - radius && x <= 460 + radius && y >= 370 - radius && y <= 430 + radius)
+				return true;
+		} else {
+			if (x < ARENA_WIDTH - 660 || x > ARENA_WIDTH - 60 || y < 55 || y > ARENA_HEIGHT - 55)
+				return true;
+			// East Castle
+			if (x >= 2270 - radius && x <= 2380 + radius && y >= 320 - radius && y <= 480 + radius)
+				return true;
+			// East dividing stone wall
+			if (x >= 1940 - radius && x <= 2330 + radius && y >= 370 - radius && y <= 430 + radius)
+				return true;
+		}
+
+		// Perimeter walls
+		if (y < 50 + radius || y > ARENA_HEIGHT - 50 - radius) return true;
+
+		// Solid buildings (2x2 footprint)
+		for (const b of this.buildings) {
+			if (
+				x >= b.x - radius &&
+				x <= b.x + CELL_SIZE + radius &&
+				y >= b.y - radius &&
+				y <= b.y + CELL_SIZE + radius
+			) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Checks if direct straight line between (x1, y1) and (x2, y2) is free of obstacles for worker.
+	 */
+	public isWorkerLineClear(
+		team: MatchTeam,
+		x1: number,
+		y1: number,
+		x2: number,
+		y2: number,
+		radius = 14
+	): boolean {
+		const dist = Math.hypot(x2 - x1, y2 - y1);
+		if (dist < 2) return true;
+		const steps = Math.ceil(dist / 14);
+		for (let s = 1; s <= steps; s++) {
+			const t = s / steps;
+			const px = x1 + (x2 - x1) * t;
+			const py = y1 + (y2 - y1) * t;
+			if (this.isPointBlockedForWorker(team, px, py, radius)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Computes an obstacle-avoiding waypoint path for the worker using A* on the base grid.
+	 */
+	public findWorkerPath(
+		team: MatchTeam,
+		startX: number,
+		startY: number,
+		targetX: number,
+		targetY: number
+	): { x: number; y: number }[] {
+		// 1. Direct line check: if straight path is unobstructed, no waypoints needed!
+		if (this.isWorkerLineClear(team, startX, startY, targetX, targetY)) {
+			return [{ x: targetX, y: targetY }];
+		}
+
+		// 2. Setup A* navigation grid across the base courtyard
+		const minX = team === 'west' ? 80 : 1760;
+		const maxX = team === 'west' ? 620 : 2300;
+		const minY = 65;
+		const maxY = ARENA_HEIGHT - 65;
+		const step = 25;
+
+		const cols = Math.floor((maxX - minX) / step) + 1;
+		const rows = Math.floor((maxY - minY) / step) + 1;
+
+		const getNodeX = (c: number) => minX + c * step;
+		const getNodeY = (r: number) => minY + r * step;
+
+		const clampCol = (c: number) => Math.max(0, Math.min(cols - 1, c));
+		const clampRow = (r: number) => Math.max(0, Math.min(rows - 1, r));
+
+		const startCol = clampCol(Math.round((startX - minX) / step));
+		const startRow = clampRow(Math.round((startY - minY) / step));
+		let endCol = clampCol(Math.round((targetX - minX) / step));
+		let endRow = clampRow(Math.round((targetY - minY) / step));
+
+		// If end node itself is blocked, find closest walkable node to end
+		if (this.isPointBlockedForWorker(team, getNodeX(endCol), getNodeY(endRow))) {
+			let bestDist = Infinity;
+			let bestC = endCol;
+			let bestR = endRow;
+			for (let dc = -2; dc <= 2; dc++) {
+				for (let dr = -2; dr <= 2; dr++) {
+					const nc = clampCol(endCol + dc);
+					const nr = clampRow(endRow + dr);
+					const nx = getNodeX(nc);
+					const ny = getNodeY(nr);
+					if (!this.isPointBlockedForWorker(team, nx, ny)) {
+						const d = Math.hypot(targetX - nx, targetY - ny);
+						if (d < bestDist) {
+							bestDist = d;
+							bestC = nc;
+							bestR = nr;
+						}
+					}
+				}
+			}
+			endCol = bestC;
+			endRow = bestR;
+		}
+
+		const startIndex = startRow * cols + startCol;
+		const endIndex = endRow * cols + endCol;
+
+		if (startIndex === endIndex) {
+			return [{ x: targetX, y: targetY }];
+		}
+
+		const openSet: number[] = [startIndex];
+		const cameFrom = new Map<number, number>();
+		const gScore = new Map<number, number>();
+		const fScore = new Map<number, number>();
+
+		gScore.set(startIndex, 0);
+		fScore.set(
+			startIndex,
+			Math.hypot(getNodeX(endCol) - getNodeX(startCol), getNodeY(endRow) - getNodeY(startRow))
+		);
+
+		const DIRS = [
+			{ dc: 1, dr: 0, cost: 1.0 },
+			{ dc: -1, dr: 0, cost: 1.0 },
+			{ dc: 0, dr: 1, cost: 1.0 },
+			{ dc: 0, dr: -1, cost: 1.0 },
+			{ dc: 1, dr: 1, cost: 1.414 },
+			{ dc: -1, dr: 1, cost: 1.414 },
+			{ dc: 1, dr: -1, cost: 1.414 },
+			{ dc: -1, dr: -1, cost: 1.414 }
+		];
+
+		let iterations = 0;
+		let foundEnd = false;
+
+		while (openSet.length > 0 && iterations < 700) {
+			iterations++;
+			let bestIdx = 0;
+			let lowestF = fScore.get(openSet[0]) ?? Infinity;
+			for (let i = 1; i < openSet.length; i++) {
+				const f = fScore.get(openSet[i]) ?? Infinity;
+				if (f < lowestF) {
+					lowestF = f;
+					bestIdx = i;
+				}
+			}
+
+			const current = openSet.splice(bestIdx, 1)[0];
+			if (current === endIndex) {
+				foundEnd = true;
+				break;
+			}
+
+			const currC = current % cols;
+			const currR = Math.floor(current / cols);
+			const currG = gScore.get(current) ?? Infinity;
+
+			for (const dir of DIRS) {
+				const nc = currC + dir.dc;
+				const nr = currR + dir.dr;
+				if (nc < 0 || nc >= cols || nr < 0 || nr >= rows) continue;
+
+				const nx = getNodeX(nc);
+				const ny = getNodeY(nr);
+				if (this.isPointBlockedForWorker(team, nx, ny)) continue;
+
+				const neighborIdx = nr * cols + nc;
+				const tentG = currG + dir.cost * step;
+
+				if (tentG < (gScore.get(neighborIdx) ?? Infinity)) {
+					cameFrom.set(neighborIdx, current);
+					gScore.set(neighborIdx, tentG);
+					const h = Math.hypot(getNodeX(endCol) - nx, getNodeY(endRow) - ny);
+					fScore.set(neighborIdx, tentG + h);
+					if (!openSet.includes(neighborIdx)) {
+						openSet.push(neighborIdx);
+					}
+				}
+			}
+		}
+
+		if (!foundEnd) {
+			return [{ x: targetX, y: targetY }];
+		}
+
+		// Reconstruct raw waypoints
+		const rawPath: { x: number; y: number }[] = [];
+		let currNode = endIndex;
+		while (currNode !== startIndex) {
+			const c = currNode % cols;
+			const r = Math.floor(currNode / cols);
+			rawPath.push({ x: getNodeX(c), y: getNodeY(r) });
+			const prev = cameFrom.get(currNode);
+			if (prev === undefined) break;
+			currNode = prev;
+		}
+		rawPath.reverse();
+
+		// Smooth path via raycasting string-pulling
+		const smoothed: { x: number; y: number }[] = [];
+		let fromX = startX;
+		let fromY = startY;
+		let i = 0;
+		while (i < rawPath.length) {
+			let furthest = i;
+			for (let j = rawPath.length - 1; j > i; j--) {
+				if (this.isWorkerLineClear(team, fromX, fromY, rawPath[j].x, rawPath[j].y)) {
+					furthest = j;
+					break;
+				}
+			}
+			smoothed.push(rawPath[furthest]);
+			fromX = rawPath[furthest].x;
+			fromY = rawPath[furthest].y;
+			i = furthest + 1;
+		}
+
+		// Append final destination
+		smoothed.push({ x: targetX, y: targetY });
+		return smoothed;
+	}
+
+	/**
+	 * Advances worker position along its waypoint path with dynamic obstacle sliding.
+	 */
+	private advanceWorkerAlongPath(
+		w: WorkerState,
+		team: MatchTeam,
+		destX: number,
+		destY: number,
+		dt: number,
+		stopDist: number
+	): void {
+		const totalDist = Math.hypot(destX - w.x, destY - w.y);
+		if (totalDist <= stopDist) {
+			w.path = [];
+			return;
+		}
+
+		if (!w.path || w.path.length === 0) {
+			w.path = this.findWorkerPath(team, w.x, w.y, destX, destY);
+		}
+
+		let curTarget = w.path.length > 0 ? w.path[0] : { x: destX, y: destY };
+		let dx = curTarget.x - w.x;
+		let dy = curTarget.y - w.y;
+		let dist = Math.hypot(dx, dy);
+
+		if (dist < 14 && w.path.length > 1) {
+			w.path.shift();
+			curTarget = w.path[0];
+			dx = curTarget.x - w.x;
+			dy = curTarget.y - w.y;
+			dist = Math.hypot(dx, dy);
+		}
+
+		if (dist > 0.5) {
+			const moveDist = Math.min(dist, w.speed * dt);
+			const nx = w.x + (dx / dist) * moveDist;
+			const ny = w.y + (dy / dist) * moveDist;
+			const res = this.resolveGroundObstacles(nx, ny, 14);
+
+			// Obstacle avoidance: check if forward progress was blocked by obstacle
+			const movedDist = Math.hypot(res.x - w.x, res.y - w.y);
+			if (movedDist < moveDist * 0.25) {
+				// Sliding along tangent
+				const perpX = -dy / dist;
+				const perpY = dx / dist;
+				const s1 = this.resolveGroundObstacles(w.x + perpX * moveDist, w.y + perpY * moveDist, 14);
+				const s2 = this.resolveGroundObstacles(w.x - perpX * moveDist, w.y - perpY * moveDist, 14);
+				const d1 = Math.hypot(destX - s1.x, destY - s1.y);
+				const d2 = Math.hypot(destX - s2.x, destY - s2.y);
+
+				if (d1 < totalDist && Math.hypot(s1.x - w.x, s1.y - w.y) > moveDist * 0.3) {
+					w.x = s1.x;
+					w.y = s1.y;
+				} else if (d2 < totalDist && Math.hypot(s2.x - w.x, s2.y - w.y) > moveDist * 0.3) {
+					w.x = s2.x;
+					w.y = s2.y;
+				} else {
+					// Path is obstructed by newly placed building or terrain, recompute A*
+					w.path = this.findWorkerPath(team, w.x, w.y, destX, destY);
+				}
+			} else {
+				w.x = res.x;
+				w.y = res.y;
+			}
+		}
 	}
 
 	/**
@@ -1274,6 +1737,13 @@ export class Simulation {
 				const clampedMag = Math.min(pushMag, 1.5) * maxPushPerSec * dt;
 				u.x += (pushX / pushMag) * clampedMag;
 				u.y += (pushY / pushMag) * clampedMag;
+			}
+
+			// Enforce solid obstacle collision for ground units AFTER all movement and crowd pushes!
+			if (!u.flying) {
+				const resolved = this.resolveGroundObstacles(u.x, u.y, u.size);
+				u.x = resolved.x;
+				u.y = resolved.y;
 			}
 
 			// Keep unit bounded within its lane corridor when between castles
@@ -1332,6 +1802,7 @@ export class Simulation {
 		}
 
 		if (attacker.range > 150) {
+			const dist = Math.hypot(target.x - attacker.x, target.y - attacker.y);
 			this.projectiles.push({
 				id: `proj_${this.nextProjectileId++}`,
 				sourceUnitId: attacker.instanceId,
@@ -1340,6 +1811,10 @@ export class Simulation {
 				y: attacker.y,
 				targetX: target.x,
 				targetY: target.y,
+				originX: attacker.x,
+				originY: attacker.y,
+				totalDist: dist,
+				arcHeight: attacker.attackType === 'pierce' ? 35 : attacker.attackType === 'siege' ? 65 : 0,
 				speed: 650,
 				damage: rawDmg,
 				attackType: attacker.attackType,
@@ -1543,6 +2018,10 @@ export class Simulation {
 		}
 
 		if (attacker.range > 150) {
+			const dist = Math.hypot(
+				target.x + CELL_SIZE / 2 - attacker.x,
+				target.y + CELL_SIZE / 2 - attacker.y
+			);
 			this.projectiles.push({
 				id: `proj_${this.nextProjectileId++}`,
 				sourceUnitId: attacker.instanceId,
@@ -1551,6 +2030,10 @@ export class Simulation {
 				y: attacker.y,
 				targetX: target.x + CELL_SIZE / 2,
 				targetY: target.y + CELL_SIZE / 2,
+				originX: attacker.x,
+				originY: attacker.y,
+				totalDist: dist,
+				arcHeight: attacker.attackType === 'pierce' ? 35 : attacker.attackType === 'siege' ? 65 : 0,
 				speed: 650,
 				damage: rawDmg,
 				attackType: attacker.attackType,
@@ -1624,6 +2107,7 @@ export class Simulation {
 				if (enemy) {
 					const isOvercharged = this.castleOverchargeTimer[team] > 0;
 					this.castleCooldowns[team] = isOvercharged ? 0.5 : 1.0;
+					const dist = Math.hypot(enemy.x - castle.x, enemy.y - castle.y);
 					this.projectiles.push({
 						id: `castle_shot_${this.nextProjectileId++}`,
 						sourceUnitId: 'castle_' + team,
@@ -1632,6 +2116,10 @@ export class Simulation {
 						y: castle.y,
 						targetX: enemy.x,
 						targetY: enemy.y,
+						originX: castle.x,
+						originY: castle.y,
+						totalDist: dist,
+						arcHeight: 50,
 						speed: 700,
 						damage: isOvercharged ? 170 : 85,
 						attackType: 'siege',
@@ -1659,6 +2147,7 @@ export class Simulation {
 					b.attackTimer = b.attackCooldown || 1.0;
 					const dmg = b.damageMin || 50;
 					const isSplash = b.defId === 'h073' || b.defId === 'cg0a';
+					const tDist = Math.hypot(enemy.x - b.x, enemy.y - b.y);
 					this.projectiles.push({
 						id: `tower_shot_${this.nextProjectileId++}`,
 						sourceUnitId: b.instanceId,
@@ -1667,6 +2156,10 @@ export class Simulation {
 						y: b.y,
 						targetX: enemy.x,
 						targetY: enemy.y,
+						originX: b.x,
+						originY: b.y,
+						totalDist: tDist,
+						arcHeight: 30,
 						speed: 650,
 						damage: dmg,
 						attackType: b.attackType || 'pierce',
@@ -1779,12 +2272,82 @@ export class Simulation {
 	}
 
 	// --- PLAYER ACTIONS ---
+	/**
+	 * Checks whether a given plot is valid for building.
+	 * Disallows road surfaces, dividing walls, existing buildings, and castle footprints.
+	 */
+	public canBuild(team: MatchTeam, tileX: number, tileY: number): boolean {
+		const startX = team === 'west' ? WEST_GRID_START_X : EAST_GRID_START_X;
+		const startY = team === 'west' ? WEST_GRID_START_Y : EAST_GRID_START_Y;
+		const worldX = startX + tileX * CELL_SIZE;
+		const worldY = startY + tileY * CELL_SIZE;
+
+		// 1. Boundary & Castle checks
+		if (team === 'west') {
+			if (worldX < 110 || worldX + CELL_SIZE > 650) return false;
+			if (worldY < 55 || worldY + CELL_SIZE > ARENA_HEIGHT - 55) return false;
+			if (worldX < 140 && worldY >= 310 && worldY <= 490) return false;
+		} else {
+			if (worldX < ARENA_WIDTH - 650 || worldX + CELL_SIZE > ARENA_WIDTH - 110) return false;
+			if (worldY < 55 || worldY + CELL_SIZE > ARENA_HEIGHT - 55) return false;
+			if (worldX + CELL_SIZE > ARENA_WIDTH - 140 && worldY >= 310 && worldY <= 490) return false;
+		}
+
+		// 2. Overlap with Existing Buildings
+		for (const b of this.buildings) {
+			if (b.team === team && b.tileX === tileX && b.tileY === tileY) return false;
+			if (Math.abs(b.x - worldX) < CELL_SIZE - 2 && Math.abs(b.y - worldY) < CELL_SIZE - 2) {
+				return false;
+			}
+		}
+
+		// 3. Overlap with Dividing Stone Walls
+		if (team === 'west') {
+			if (worldX < 460 && worldX + CELL_SIZE > 70 && worldY < 420 && worldY + CELL_SIZE > 380) {
+				return false;
+			}
+		} else {
+			if (worldX < 2330 && worldX + CELL_SIZE > 1940 && worldY < 420 && worldY + CELL_SIZE > 380) {
+				return false;
+			}
+		}
+
+		// 4. Overlap with Cobblestone Road Network
+		if (this.isBoxOnRoad(worldX, worldY, CELL_SIZE, CELL_SIZE)) {
+			return false;
+		}
+
+		return true;
+	}
+
+	public isBoxOnRoad(rx: number, ry: number, rw: number, rh: number): boolean {
+		const roadHeight = 72;
+		const rMaxX = rx + rw;
+		const rMaxY = ry + rh;
+
+		// Top highway (between base courtyards)
+		const topMinY = TOP_LANE_Y - roadHeight / 2;
+		const topMaxY = TOP_LANE_Y + roadHeight / 2;
+		if (rMaxX > 340 && rx < ARENA_WIDTH - 340 && rMaxY > topMinY && ry < topMaxY) {
+			return true;
+		}
+
+		// Bottom highway (between base courtyards)
+		const botMinY = BOTTOM_LANE_Y - roadHeight / 2;
+		const botMaxY = BOTTOM_LANE_Y + roadHeight / 2;
+		if (rMaxX > 340 && rx < ARENA_WIDTH - 340 && rMaxY > botMinY && ry < botMaxY) {
+			return true;
+		}
+
+		return false;
+	}
+
 	public build(
 		team: MatchTeam,
 		defId: string,
 		tileX: number,
 		tileY: number,
-		lane: Lane = 'top'
+		_lane: Lane = 'top'
 	): boolean {
 		const bDef = getBuilding(defId);
 		if (!bDef) return false;
@@ -1806,11 +2369,8 @@ export class Simulation {
 			}
 		}
 
-		// Check overlap
-		const occupied = this.buildings.some(
-			(b) => b.team === team && b.tileX === tileX && b.tileY === tileY
-		);
-		if (occupied) return false;
+		// Validate build plot
+		if (!this.canBuild(team, tileX, tileY)) return false;
 
 		// Deduct gold
 		player.gold -= cost;
@@ -1826,6 +2386,9 @@ export class Simulation {
 
 		const isBot = player.isBot;
 		const buildTime = isBot ? 2.5 : 3.5;
+
+		// Natural automated lane determination based on physical courtyard placement
+		const resolvedLane: Lane = worldY < 400 ? 'top' : 'bottom';
 
 		const building: Building = {
 			instanceId: `bld_${this.nextBuildingId++}`,
@@ -1844,9 +2407,11 @@ export class Simulation {
 			spawnUnitId: bDef.unit,
 			spawnCooldown: spawnCd,
 			spawnTimer: bDef.specialType === 'repair' ? 0 : 4.0,
-			lane,
+			lane: resolvedLane,
 			upgradeFrom: bDef.upgrade_from,
 			race: bDef.race || player.race,
+			width: 2,
+			height: 2,
 			specialType: bDef.specialType,
 			isUnderConstruction: true,
 			buildProgress: 0,
@@ -1867,10 +2432,23 @@ export class Simulation {
 			player.food++;
 		}
 		if (player.worker) {
-			player.worker.targetX = worldX + CELL_SIZE / 2;
-			player.worker.targetY = worldY + CELL_SIZE / 2;
+			const exteriorX = team === 'west' ? worldX - 16 : worldX + CELL_SIZE + 16;
+			const exteriorY = worldY + CELL_SIZE / 2;
+			player.worker.targetX = exteriorX;
+			player.worker.targetY = exteriorY;
 			player.worker.targetBuildingId = building.instanceId;
 			player.worker.isBuilding = false;
+			// Push worker out if caught inside footprint
+			const resolved = this.resolveGroundObstacles(player.worker.x, player.worker.y, 14);
+			player.worker.x = resolved.x;
+			player.worker.y = resolved.y;
+			player.worker.path = this.findWorkerPath(
+				team,
+				player.worker.x,
+				player.worker.y,
+				exteriorX,
+				exteriorY
+			);
 		}
 		this.addFloatingText(`-${cost}g`, worldX, worldY - 20, '#fbbf24');
 
@@ -1885,8 +2463,36 @@ export class Simulation {
 			w.targetY = targetY;
 			w.isBuilding = false;
 			w.targetBuildingId = null;
+			w.isRepairing = false;
+			w.targetRepairBuildingId = null;
+			w.path = this.findWorkerPath(team, w.x, w.y, targetX, targetY);
 			this.notifyStateChanged();
 		}
+	}
+
+	public repairBuilding(team: MatchTeam, buildingInstanceId: string): boolean {
+		const targetBld =
+			this.buildings.find((b) => b.instanceId === buildingInstanceId && b.team === team) ||
+			(buildingInstanceId === `castle_${team}` || buildingInstanceId === 'castle'
+				? this.castles[team]
+				: null);
+		if (!targetBld) return false;
+
+		const w = this.players[team]?.worker;
+		if (w) {
+			const tx = targetBld.x + CELL_SIZE / 2;
+			const ty = targetBld.y + CELL_SIZE / 2;
+			w.targetX = tx;
+			w.targetY = ty;
+			w.isBuilding = false;
+			w.targetBuildingId = null;
+			w.isRepairing = true;
+			w.targetRepairBuildingId = buildingInstanceId;
+			w.path = this.findWorkerPath(team, w.x, w.y, tx, ty);
+			this.notifyStateChanged();
+			return true;
+		}
+		return false;
 	}
 
 	public upgradeBuilding(

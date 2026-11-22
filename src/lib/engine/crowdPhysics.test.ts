@@ -96,4 +96,66 @@ describe('Point 10: Crowd Physics & Unit Separation (Boids Collision Repulsion)'
 		expect(groundUnit.x).toBe(300);
 		expect(groundUnit.y).toBe(TOP_LANE_Y);
 	});
+
+	it('should prevent ground units and workers from walking through solid 2x2 buildings', () => {
+		// Build building at (0, 0)
+		sim.build('west', 'h003', 0, 0);
+		const b = sim.buildings[0];
+		expect(b).toBeDefined();
+		expect(b.width).toBe(2);
+		expect(b.height).toBe(2);
+
+		// Place a ground unit directly in the center of the building
+		const centerX = b.x + 27.5;
+		const centerY = b.y + 27.5;
+		const res = sim.resolveGroundObstacles(centerX, centerY, 14);
+
+		// Position must be pushed outside the solid footprint!
+		const insideX = res.x >= b.x && res.x <= b.x + 55;
+		const insideY = res.y >= b.y && res.y <= b.y + 55;
+		expect(insideX && insideY).toBe(false);
+
+		// Worker must also be resolved outside the building footprint
+		const workerRes = sim.resolveGroundObstacles(centerX, centerY, 14);
+		const workerInside =
+			workerRes.x > b.x && workerRes.x < b.x + 55 && workerRes.y > b.y && workerRes.y < b.y + 55;
+		expect(workerInside).toBe(false);
+	});
+
+	it('should allow flying units to glide over buildings without obstacle collision', () => {
+		sim.build('west', 'h003', 0, 0);
+		const b = sim.buildings[0];
+
+		// Spawn flying unit right on the building
+		const flyer = sim.spawnUnitDirectly({
+			team: 'west',
+			lane: 'top',
+			x: b.x + 20,
+			y: b.y + 20,
+			hp: 400,
+			speed: 100
+		});
+		flyer.flying = true;
+
+		// Step simulation: flying unit should fly smoothly without being blocked
+		sim.step(0.05);
+		expect(flyer.flying).toBe(true);
+		// Flyer moves forward in +X direction without obstacle deflection
+		expect(flyer.x).toBeGreaterThan(b.x + 20);
+	});
+
+	it('should reject building on the road or dividing walls via canBuild', () => {
+		// Attempting to build on the dividing stone wall
+		// Dividing wall is at y = 400 (tileY = 4)
+		const canBuildOnWall = sim.canBuild('west', 0, 4);
+		expect(canBuildOnWall).toBe(false);
+
+		// Attempting to build outside base bounds
+		const canBuildOutside = sim.canBuild('west', 15, 0);
+		expect(canBuildOutside).toBe(false);
+
+		// Valid slot (0, 0) in courtyard must be buildable
+		const canBuildValid = sim.canBuild('west', 0, 0);
+		expect(canBuildValid).toBe(true);
+	});
 });

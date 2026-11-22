@@ -2,7 +2,6 @@ import 'pixi.js/unsafe-eval';
 import { Application, Container, Graphics } from 'pixi.js';
 import type { Simulation } from '../engine/simulation';
 import type { Castle } from '../engine/types';
-import { getBuilding, isLegendaryBuilding } from '../engine/gameData';
 import {
 	ARENA_WIDTH,
 	ARENA_HEIGHT,
@@ -10,15 +9,15 @@ import {
 	BOTTOM_LANE_Y,
 	WEST_GRID_START_X,
 	WEST_GRID_START_Y,
-	EAST_GRID_START_X,
-	EAST_GRID_START_Y,
 	CELL_SIZE
 } from '../engine/simulation';
+import { sound } from '../services/audio';
 
 export type SelectedEntity =
 	| { type: 'worker' }
 	| { type: 'building'; instanceId: string }
 	| { type: 'unit'; instanceId: string }
+	| { type: 'group'; unitIds: string[] }
 	| null;
 
 export interface RendererOptions {
@@ -29,17 +28,43 @@ export interface RendererOptions {
 	getSelectedEntity?: () => SelectedEntity;
 	getSelectedBuildingDefId: () => string | null;
 	getSelectedPlacedBuildingId?: () => string | null;
+	onCameraChange?: (camX: number, camY: number, zoom: number) => void;
 }
 
 export class ArenaRenderer {
 	private app: Application;
-	private sim: Simulation;
+	public sim: Simulation;
 	private onTileClick: (tileX: number, tileY: number) => void;
 	private onSelectEntity?: (entity: SelectedEntity) => void;
 	private getSelectedEntity?: () => SelectedEntity;
 	private getSelectedBuildingDefId: () => string | null;
 	private getSelectedPlacedBuildingId?: () => string | null;
+	public onCameraChange?: (camX: number, camY: number, zoom: number) => void;
 
+	// Viewport & RTS Camera Navigation
+	public cameraX = 450;
+	public cameraY = 400;
+	public zoom = 1.05;
+	public minZoom = 0.5;
+	public maxZoom = 2.4;
+	private isPanning = false;
+	private panStartX = 0;
+	private panStartY = 0;
+	private panStartCamX = 0;
+	private panStartCamY = 0;
+
+	// Drag Box Multi-Selection
+	private isBoxSelecting = false;
+	private boxStartWorld: { x: number; y: number } | null = null;
+	private boxCurrentWorld: { x: number; y: number } | null = null;
+
+	// RTS Order Chevrons (RMB click marker)
+	private moveMarkers: { x: number; y: number; timer: number; maxTimer: number }[] = [];
+
+	// Fog of War
+	public enableFog = true;
+
+	// Layers
 	private rootContainer: Container;
 	private terrainLayer: Graphics;
 	private gridLayer: Graphics;
@@ -48,10 +73,12 @@ export class ArenaRenderer {
 	private workersLayer: Graphics;
 	private unitsLayer: Graphics;
 	private projectilesLayer: Graphics;
-	private uiLayer: Container;
+	private fogLayer: Graphics;
+	private uiLayer: Graphics;
 
 	private hoveredTile: { x: number; y: number } | null = null;
 	private isDestroyed = false;
+	private canvasEl: HTMLCanvasElement | null = null;
 
 	constructor(options: RendererOptions) {
 		this.sim = options.sim;
@@ -60,6 +87,7 @@ export class ArenaRenderer {
 		this.getSelectedEntity = options.getSelectedEntity;
 		this.getSelectedBuildingDefId = options.getSelectedBuildingDefId;
 		this.getSelectedPlacedBuildingId = options.getSelectedPlacedBuildingId;
+		this.onCameraChange = options.onCameraChange;
 
 		this.app = new Application();
 		this.rootContainer = new Container();
@@ -70,19 +98,27 @@ export class ArenaRenderer {
 		this.workersLayer = new Graphics();
 		this.unitsLayer = new Graphics();
 		this.projectilesLayer = new Graphics();
-		this.uiLayer = new Container();
+		this.fogLayer = new Graphics();
+		this.uiLayer = new Graphics();
 	}
 
 	public setSimulation(newSim: Simulation): void {
 		this.sim = newSim;
+		this.enableFog = newSim.config.fogOfWar ?? true;
 	}
 
 	public async init(canvas: HTMLCanvasElement): Promise<void> {
+		this.canvasEl = canvas;
+		this.enableFog = this.sim.config.fogOfWar ?? true;
+		const rect = canvas.getBoundingClientRect();
+		const initWidth = Math.max(800, rect.width || window.innerWidth || 1200);
+		const initHeight = Math.max(400, rect.height || window.innerHeight || 600);
+
 		await this.app.init({
 			canvas,
-			width: ARENA_WIDTH,
-			height: ARENA_HEIGHT,
-			backgroundColor: 0x11161f,
+			width: initWidth,
+			height: initHeight,
+			backgroundColor: 0x090d16,
 			resolution: window.devicePixelRatio || 1,
 			autoDensity: true
 		});
@@ -95,6 +131,7 @@ export class ArenaRenderer {
 		this.rootContainer.addChild(this.workersLayer);
 		this.rootContainer.addChild(this.unitsLayer);
 		this.rootContainer.addChild(this.projectilesLayer);
+		this.rootContainer.addChild(this.fogLayer);
 		this.rootContainer.addChild(this.uiLayer);
 
 		this.setupInteraction(canvas);
@@ -102,9 +139,84 @@ export class ArenaRenderer {
 
 		this.app.ticker.add(() => {
 			if (!this.isDestroyed) {
+				this.updateCamera();
 				this.render();
 			}
 		});
+	}
+
+	public screenToWorld(screenX: number, screenY: number): { x: number; y: number } {
+		const screenW = this.app.screen.width;
+		const screenH = this.app.screen.height;
+		const worldX = (screenX - screenW / 2) / this.zoom + this.cameraX;
+		const worldY = (screenY - screenH / 2) / this.zoom + this.cameraY;
+		return { x: worldX, y: worldY };
+	}
+
+	public worldToScreen(worldX: number, worldY: number): { x: number; y: number } {
+		const screenW = this.app.screen.width;
+		const screenH = this.app.screen.height;
+		const screenX = (worldX - this.cameraX) * this.zoom + screenW / 2;
+		const screenY = (worldY - this.cameraY) * this.zoom + screenH / 2;
+		return { x: screenX, y: screenY };
+	}
+
+	public setCamera(x: number, y: number, zoom?: number): void {
+		if (zoom !== undefined) {
+			this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, zoom));
+		}
+		const screenW = this.app?.screen?.width || 1200;
+		const screenH = this.app?.screen?.height || 800;
+		const halfW = screenW / (2 * this.zoom);
+		const halfH = screenH / (2 * this.zoom);
+
+		if (2 * halfW >= ARENA_WIDTH) {
+			this.cameraX = ARENA_WIDTH / 2;
+		} else {
+			this.cameraX = Math.max(halfW, Math.min(ARENA_WIDTH - halfW, x));
+		}
+
+		if (2 * halfH >= ARENA_HEIGHT) {
+			this.cameraY = ARENA_HEIGHT / 2;
+		} else {
+			this.cameraY = Math.max(halfH, Math.min(ARENA_HEIGHT - halfH, y));
+		}
+
+		this.onCameraChange?.(this.cameraX, this.cameraY, this.zoom);
+	}
+
+	private updateCamera(): void {
+		if (this.canvasEl) {
+			const rect = this.canvasEl.getBoundingClientRect();
+			if (rect.width > 0 && rect.height > 0) {
+				if (this.app.screen.width !== rect.width || this.app.screen.height !== rect.height) {
+					this.app.renderer.resize(rect.width, rect.height);
+				}
+			}
+		}
+
+		const screenW = this.app.screen.width;
+		const screenH = this.app.screen.height;
+		const halfW = screenW / (2 * this.zoom);
+		const halfH = screenH / (2 * this.zoom);
+
+		if (2 * halfW >= ARENA_WIDTH) {
+			this.cameraX = ARENA_WIDTH / 2;
+		} else {
+			this.cameraX = Math.max(halfW, Math.min(ARENA_WIDTH - halfW, this.cameraX));
+		}
+
+		if (2 * halfH >= ARENA_HEIGHT) {
+			this.cameraY = ARENA_HEIGHT / 2;
+		} else {
+			this.cameraY = Math.max(halfH, Math.min(ARENA_HEIGHT - halfH, this.cameraY));
+		}
+
+		this.rootContainer.scale.set(this.zoom);
+		this.rootContainer.position.set(
+			-this.cameraX * this.zoom + screenW / 2,
+			-this.cameraY * this.zoom + screenH / 2
+		);
 	}
 
 	private setupInteraction(canvas: HTMLCanvasElement): void {
@@ -112,219 +224,478 @@ export class ArenaRenderer {
 			e.preventDefault();
 		});
 
-		canvas.addEventListener('mousedown', (e: MouseEvent) => {
-			if (e.button === 2) {
-				// Right-click order to move worker
+		// 1. Zoom with mouse wheel
+		canvas.addEventListener(
+			'wheel',
+			(e: WheelEvent) => {
+				e.preventDefault();
 				const rect = canvas.getBoundingClientRect();
-				const scaleX = ARENA_WIDTH / rect.width;
-				const scaleY = ARENA_HEIGHT / rect.height;
-				const mouseX = (e.clientX - rect.left) * scaleX;
-				const mouseY = (e.clientY - rect.top) * scaleY;
-				this.sim.moveWorker('west', mouseX, mouseY);
+				const mouseScreenX = e.clientX - rect.left;
+				const mouseScreenY = e.clientY - rect.top;
+
+				// World pos before zoom
+				const before = this.screenToWorld(mouseScreenX, mouseScreenY);
+
+				const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
+				const newZoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoom * zoomFactor));
+
+				this.zoom = newZoom;
+
+				// Adjust camera so mouse point stays fixed
+				const screenW = this.app.screen.width;
+				const screenH = this.app.screen.height;
+				this.cameraX = before.x - (mouseScreenX - screenW / 2) / this.zoom;
+				this.cameraY = before.y - (mouseScreenY - screenH / 2) / this.zoom;
+
+				this.cameraX = Math.max(100, Math.min(ARENA_WIDTH - 100, this.cameraX));
+				this.cameraY = Math.max(100, Math.min(ARENA_HEIGHT - 100, this.cameraY));
+				this.onCameraChange?.(this.cameraX, this.cameraY, this.zoom);
+			},
+			{ passive: false }
+		);
+
+		// 2. Mouse Down
+		canvas.addEventListener('mousedown', (e: MouseEvent) => {
+			const rect = canvas.getBoundingClientRect();
+			const mouseScreenX = e.clientX - rect.left;
+			const mouseScreenY = e.clientY - rect.top;
+			const world = this.screenToWorld(mouseScreenX, mouseScreenY);
+
+			// Middle-click Pan or Space+Drag
+			if (e.button === 1 || (e.button === 0 && e.altKey)) {
+				e.preventDefault();
+				this.isPanning = true;
+				this.panStartX = e.clientX;
+				this.panStartY = e.clientY;
+				this.panStartCamX = this.cameraX;
+				this.panStartCamY = this.cameraY;
+				return;
+			}
+
+			// RIGHT CLICK: Move Worker / Order Action / Repair
+			if (e.button === 2) {
+				e.preventDefault();
+
+				// Spawn animated RTS order chevron
+				this.moveMarkers.push({
+					x: world.x,
+					y: world.y,
+					timer: 0.55,
+					maxTimer: 0.55
+				});
+				sound.playWorkerAck();
+
+				// Check if RMB clicked an injured friendly building or castle to repair
+				const clickedBuilding = this.sim.buildings.find(
+					(b) =>
+						b.team === 'west' &&
+						Math.abs(world.x - (b.x + CELL_SIZE / 2)) <= CELL_SIZE &&
+						Math.abs(world.y - (b.y + CELL_SIZE / 2)) <= CELL_SIZE
+				);
+				const westCastle = this.sim.castles.west;
+				const clickedCastle = Math.hypot(world.x - westCastle.x, world.y - westCastle.y) <= 80;
+
+				if (clickedBuilding && clickedBuilding.hp < clickedBuilding.maxHp) {
+					this.sim.repairBuilding('west', clickedBuilding.instanceId);
+					return;
+				} else if (clickedCastle && westCastle.hp < westCastle.maxHp) {
+					this.sim.repairBuilding('west', 'castle_west');
+					return;
+				}
+
+				// Otherwise regular move worker order
+				this.sim.moveWorker('west', world.x, world.y);
+				return;
+			}
+
+			// LEFT CLICK: Start box selection or click
+			if (e.button === 0) {
+				if (!this.getSelectedBuildingDefId()) {
+					this.boxStartWorld = { x: world.x, y: world.y };
+					this.boxCurrentWorld = { x: world.x, y: world.y };
+				}
 			}
 		});
 
-		canvas.addEventListener('mousemove', (e) => {
+		// 3. Mouse Move
+		canvas.addEventListener('mousemove', (e: MouseEvent) => {
 			const rect = canvas.getBoundingClientRect();
-			const scaleX = ARENA_WIDTH / rect.width;
-			const scaleY = ARENA_HEIGHT / rect.height;
-			const mouseX = (e.clientX - rect.left) * scaleX;
-			const mouseY = (e.clientY - rect.top) * scaleY;
+			const mouseScreenX = e.clientX - rect.left;
+			const mouseScreenY = e.clientY - rect.top;
+			const world = this.screenToWorld(mouseScreenX, mouseScreenY);
 
-			if (
-				mouseX >= WEST_GRID_START_X &&
-				mouseX <= WEST_GRID_START_X + 3 * CELL_SIZE &&
-				mouseY >= WEST_GRID_START_Y &&
-				mouseY <= WEST_GRID_START_Y + 8 * CELL_SIZE
-			) {
-				const tileX = Math.floor((mouseX - WEST_GRID_START_X) / CELL_SIZE);
-				const tileY = Math.floor((mouseY - WEST_GRID_START_Y) / CELL_SIZE);
-				this.hoveredTile = { x: tileX, y: tileY };
+			// Panning
+			if (this.isPanning) {
+				const dx = (e.clientX - this.panStartX) / this.zoom;
+				const dy = (e.clientY - this.panStartY) / this.zoom;
+				this.cameraX = Math.max(100, Math.min(ARENA_WIDTH - 100, this.panStartCamX - dx));
+				this.cameraY = Math.max(100, Math.min(ARENA_HEIGHT - 100, this.panStartCamY - dy));
+				this.onCameraChange?.(this.cameraX, this.cameraY, this.zoom);
+				return;
+			}
+
+			// Box selection drag
+			if (this.boxStartWorld) {
+				const dist = Math.hypot(world.x - this.boxStartWorld.x, world.y - this.boxStartWorld.y);
+				if (dist > 8) {
+					this.isBoxSelecting = true;
+					this.boxCurrentWorld = { x: world.x, y: world.y };
+				}
+			}
+
+			// Hovered Tile calculation on West Building Platform (Warcraft III Grid Planning)
+			if (this.getSelectedBuildingDefId()) {
+				const tileX = Math.round((world.x - WEST_GRID_START_X) / CELL_SIZE);
+				const tileY = Math.round((world.y - WEST_GRID_START_Y) / CELL_SIZE);
+				if (tileX >= -2 && tileX <= 6 && tileY >= -2 && tileY <= 10) {
+					this.hoveredTile = { x: tileX, y: tileY };
+				} else {
+					this.hoveredTile = null;
+				}
 			} else {
 				this.hoveredTile = null;
 			}
 		});
 
-		canvas.addEventListener('mouseleave', () => {
-			this.hoveredTile = null;
+		// 4. Mouse Up / Click
+		window.addEventListener('mouseup', (e: MouseEvent) => {
+			if (this.isPanning) {
+				this.isPanning = false;
+				return;
+			}
+
+			if (e.button === 0 && this.isBoxSelecting && this.boxStartWorld && this.boxCurrentWorld) {
+				// Finish Box Selection
+				const minX = Math.min(this.boxStartWorld.x, this.boxCurrentWorld.x);
+				const maxX = Math.max(this.boxStartWorld.x, this.boxCurrentWorld.x);
+				const minY = Math.min(this.boxStartWorld.y, this.boxCurrentWorld.y);
+				const maxY = Math.max(this.boxStartWorld.y, this.boxCurrentWorld.y);
+
+				const selectedUnits = this.sim.units.filter(
+					(u) =>
+						u.state !== 'DEAD' &&
+						u.team === 'west' &&
+						u.x >= minX &&
+						u.x <= maxX &&
+						u.y >= minY &&
+						u.y <= maxY
+				);
+
+				if (selectedUnits.length > 1) {
+					this.onSelectEntity?.({
+						type: 'group',
+						unitIds: selectedUnits.map((u) => u.instanceId)
+					});
+				} else if (selectedUnits.length === 1) {
+					this.onSelectEntity?.({
+						type: 'unit',
+						instanceId: selectedUnits[0].instanceId
+					});
+				}
+
+				this.isBoxSelecting = false;
+				this.boxStartWorld = null;
+				this.boxCurrentWorld = null;
+				return;
+			}
+
+			this.isBoxSelecting = false;
+			this.boxStartWorld = null;
+			this.boxCurrentWorld = null;
 		});
 
-		canvas.addEventListener('click', (e: MouseEvent) => {
-			const rect = canvas.getBoundingClientRect();
-			const scaleX = ARENA_WIDTH / rect.width;
-			const scaleY = ARENA_HEIGHT / rect.height;
-			const mouseX = (e.clientX - rect.left) * scaleX;
-			const mouseY = (e.clientY - rect.top) * scaleY;
+		canvas.addEventListener('mouseleave', () => {
+			this.hoveredTile = null;
+			this.isPanning = false;
+			this.isBoxSelecting = false;
+			this.boxStartWorld = null;
+		});
 
-			// 1. Check gold coins
+		// 5. Left Click: Select Entity OR Place Building
+		canvas.addEventListener('click', (e: MouseEvent) => {
+			if (e.button !== 0) return;
+			const rect = canvas.getBoundingClientRect();
+			const mouseScreenX = e.clientX - rect.left;
+			const mouseScreenY = e.clientY - rect.top;
+			const world = this.screenToWorld(mouseScreenX, mouseScreenY);
+
+			// A. Collect Gold Coins
 			for (const coin of this.sim.goldCoins) {
-				const dx = mouseX - coin.x;
-				const dy = mouseY - coin.y;
+				const dx = world.x - coin.x;
+				const dy = world.y - coin.y;
 				if (dx * dx + dy * dy <= 28 * 28) {
 					this.sim.collectCoin(coin.id, 'west');
 					return;
 				}
 			}
 
-			// 2. Check Player's Worker click
+			// B. If building placement mode active -> build
+			if (this.getSelectedBuildingDefId()) {
+				if (this.hoveredTile) {
+					if (this.sim.canBuild('west', this.hoveredTile.x, this.hoveredTile.y)) {
+						this.onTileClick(this.hoveredTile.x, this.hoveredTile.y);
+					} else {
+						const px = WEST_GRID_START_X + this.hoveredTile.x * CELL_SIZE;
+						const py = WEST_GRID_START_Y + this.hoveredTile.y * CELL_SIZE;
+						this.sim.addFloatingText(
+							'Не можна будувати тут!',
+							px + CELL_SIZE / 2,
+							py - 10,
+							'#ef4444'
+						);
+					}
+				}
+				return;
+			}
+
+			// C. Check Worker click
 			const worker = this.sim.players.west?.worker;
 			if (worker) {
-				const wDist = Math.hypot(mouseX - worker.x, mouseY - worker.y);
+				const wDist = Math.hypot(world.x - worker.x, world.y - worker.y);
 				if (wDist <= 32) {
 					this.onSelectEntity?.({ type: 'worker' });
 					return;
 				}
 			}
 
-			// 3. Check fighting unit click
+			// D. Check Unit click
 			for (const u of this.sim.units) {
 				if (u.state === 'DEAD') continue;
-				const dist = Math.hypot(mouseX - u.x, mouseY - u.y);
-				if (dist <= u.size + 10) {
+				const dist = Math.hypot(world.x - u.x, world.y - u.y);
+				if (dist <= u.size + 12) {
 					this.onSelectEntity?.({ type: 'unit', instanceId: u.instanceId });
 					return;
 				}
 			}
 
-			// 4. Check placed buildings click
+			// E. Check Placed Building click (2x2 footprint)
 			for (const b of this.sim.buildings) {
 				if (
-					mouseX >= b.x &&
-					mouseX <= b.x + CELL_SIZE &&
-					mouseY >= b.y &&
-					mouseY <= b.y + CELL_SIZE
+					world.x >= b.x &&
+					world.x <= b.x + CELL_SIZE &&
+					world.y >= b.y &&
+					world.y <= b.y + CELL_SIZE
 				) {
 					this.onSelectEntity?.({ type: 'building', instanceId: b.instanceId });
 					return;
 				}
 			}
 
-			// 5. If building placement mode active
-			if (this.getSelectedBuildingDefId()) {
-				if (this.hoveredTile) {
-					this.onTileClick(this.hoveredTile.x, this.hoveredTile.y);
-				}
-				return;
-			}
-
-			// 6. Click on base territory -> move worker and keep worker selected
-			if (mouseX <= 420) {
-				this.sim.moveWorker('west', mouseX, mouseY);
-				this.onSelectEntity?.({ type: 'worker' });
-			}
+			// Default fallback: select worker
+			this.onSelectEntity?.({ type: 'worker' });
 		});
 	}
 
-	private drawStaticTerrain(): void {
+	public drawStaticTerrain(): void {
 		const g = this.terrainLayer;
 		g.clear();
 
-		// 1. Vast Lush Summer Grass Ground (WC3 Lordaeron Summer Palette)
+		// 1. Lush Summer Grass (Authentic Lordaeron Summer Palette)
 		g.rect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
-		g.fill({ color: 0x2d6323 });
+		g.fill({ color: 0x275a1d });
 
 		// Subtle textured grass patches
-		for (let x = 60; x < ARENA_WIDTH; x += 180) {
-			for (let y = 60; y < ARENA_HEIGHT; y += 140) {
-				const isSunny = (x + y) % 360 === 0;
-				g.ellipse(x + 40, y + 20, 60, 35);
-				g.fill({ color: isSunny ? 0x3a7e2b : 0x24551d, alpha: 0.75 });
+		for (let x = 40; x < ARENA_WIDTH; x += 160) {
+			for (let y = 30; y < ARENA_HEIGHT; y += 120) {
+				const isSunny = (x * 3 + y * 7) % 5 === 0;
+				g.ellipse(x + 40, y + 20, 75, 45);
+				g.fill({ color: isSunny ? 0x367627 : 0x1f4c17, alpha: 0.65 });
 			}
 		}
 
-		// Scattered wild grass tufts
-		for (let i = 0; i < 60; i++) {
-			const tx = ((i * 397) % (ARENA_WIDTH - 200)) + 100;
-			const ty = ((i * 263) % (ARENA_HEIGHT - 120)) + 60;
-			g.moveTo(tx - 4, ty + 4);
-			g.lineTo(tx - 2, ty - 6);
-			g.stroke({ color: 0x4ade80, width: 1.5, alpha: 0.6 });
-			g.moveTo(tx, ty + 4);
-			g.lineTo(tx + 3, ty - 5);
-			g.stroke({ color: 0x22c55e, width: 1.5, alpha: 0.6 });
-		}
+		// 2. Continuous Cobblestone Highway from West Castle (60, 400) to East Castle (2340, 400)
+		this.drawContinuousRoadNetwork(g);
 
-		// 2. West Base Territory Paved Court
-		g.rect(0, 0, 350, ARENA_HEIGHT);
-		g.fill({ color: 0x273b52, alpha: 0.45 });
-
-		// 3. East Base Territory Court
-		g.rect(ARENA_WIDTH - 350, 0, 350, ARENA_HEIGHT);
-		g.fill({ color: 0x422121, alpha: 0.45 });
-
-		// 4. Central River (X = 1200)
+		// 3. Central River (X = 1200) with Sandy Banks & Ripples
 		const riverX = ARENA_WIDTH / 2;
-		const riverW = 140;
-		// Outer river bank / sand
-		g.rect(riverX - riverW / 2 - 10, 0, riverW + 20, ARENA_HEIGHT);
-		g.fill({ color: 0x443b2a, alpha: 0.9 });
+		const riverW = 150;
+		// Sandy riverbank
+		g.rect(riverX - riverW / 2 - 12, 0, riverW + 24, ARENA_HEIGHT);
+		g.fill({ color: 0x473c2b });
 
 		// Flowing Water
 		g.rect(riverX - riverW / 2, 0, riverW, ARENA_HEIGHT);
 		g.fill({ color: 0x0284c7 });
 
-		// Deep water center channel
+		// Deep Channel Center
 		g.rect(riverX - 35, 0, 70, ARENA_HEIGHT);
-		g.fill({ color: 0x1d4ed8 });
+		g.fill({ color: 0x0369a1 });
 
-		// Foam ripples at riverbanks
-		for (let y = 15; y < ARENA_HEIGHT; y += 45) {
-			g.moveTo(riverX - riverW / 2 + 3, y);
-			g.lineTo(riverX - riverW / 2 + 12, y + 15);
+		// Riverbank foam ripples
+		for (let y = 15; y < ARENA_HEIGHT; y += 40) {
+			g.moveTo(riverX - riverW / 2 + 4, y);
+			g.lineTo(riverX - riverW / 2 + 14, y + 16);
 			g.stroke({ color: 0x93c5fd, width: 2, alpha: 0.8 });
 
-			g.moveTo(riverX + riverW / 2 - 3, y + 20);
-			g.lineTo(riverX + riverW / 2 - 12, y + 35);
+			g.moveTo(riverX + riverW / 2 - 4, y + 20);
+			g.lineTo(riverX + riverW / 2 - 14, y + 36);
 			g.stroke({ color: 0x93c5fd, width: 2, alpha: 0.8 });
 		}
 
-		// 5. Cobblestone Roads for Top and Bottom Lanes
-		this.drawLaneRoad(g, TOP_LANE_Y);
-		this.drawLaneRoad(g, BOTTOM_LANE_Y);
-
-		// 6. Arched Bridges across the River
+		// 4. Arched Bridges over River
 		this.drawBridge(g, riverX, TOP_LANE_Y);
 		this.drawBridge(g, riverX, BOTTOM_LANE_Y);
 
-		// 7. Authentic Warcraft III Stone Ramparts & Battlements with Crenellations
-		// Center Dividing Mountain Rampart
+		// 5. Authentic Warcraft III Stone Ramparts & Mountain dividing the Lanes
+		// Central Mountain & Pine Forest (Dividing Top & Bottom lines)
 		const ridgeY = (TOP_LANE_Y + BOTTOM_LANE_Y) / 2;
-		this.drawBattlementWall(g, 400, ridgeY - 35, ARENA_WIDTH - 800, 70);
+		this.drawMountainRidge(g, 450, ridgeY - 60, ARENA_WIDTH - 900, 120);
 
-		// Top Arena Perimeter Battlement Wall
-		this.drawBattlementWall(g, 20, 25, ARENA_WIDTH - 40, 36);
+		// Base Courtyards: Upper and Lower platform separation walls
+		this.drawBattlementWall(g, 100, 365, 300, 40); // West division wall
+		this.drawBattlementWall(g, ARENA_WIDTH - 400, 365, 300, 40); // East division wall
 
-		// Bottom Arena Perimeter Battlement Wall (Matches reference screenshot!)
-		this.drawBattlementWall(g, 20, ARENA_HEIGHT - 65, ARENA_WIDTH - 40, 42);
+		// Top & Bottom Arena Perimeter Walls
+		this.drawBattlementWall(g, 20, 20, ARENA_WIDTH - 40, 38);
+		this.drawBattlementWall(g, 20, ARENA_HEIGHT - 60, ARENA_WIDTH - 40, 42);
 
-		// Outer Border
+		// Outer Dark Border
 		g.rect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
-		g.stroke({ color: 0x1e293b, width: 6 });
+		g.stroke({ color: 0x0f172a, width: 8 });
+	}
+
+	private drawContinuousRoadNetwork(g: Graphics): void {
+		const roadHeight = 72;
+		const wCastX = 70;
+		const wCastY = 400;
+		const eCastX = ARENA_WIDTH - 70;
+		const eCastY = 400;
+
+		// A. Top Lane straight highway
+		g.rect(340, TOP_LANE_Y - roadHeight / 2, ARENA_WIDTH - 680, roadHeight);
+		g.fill({ color: 0x67543d });
+		g.stroke({ color: 0x453523, width: 2 });
+
+		// B. Bottom Lane straight highway
+		g.rect(340, BOTTOM_LANE_Y - roadHeight / 2, ARENA_WIDTH - 680, roadHeight);
+		g.fill({ color: 0x67543d });
+		g.stroke({ color: 0x453523, width: 2 });
+
+		// C. West Road Branches: Connecting West Castle (70, 400) smoothly to Top and Bottom lanes
+		// Fan out to Top
+		g.poly([
+			wCastX + 30,
+			wCastY - 40,
+			360,
+			TOP_LANE_Y - roadHeight / 2,
+			360,
+			TOP_LANE_Y + roadHeight / 2,
+			wCastX + 30,
+			wCastY + 40
+		]);
+		g.fill({ color: 0x67543d });
+		g.stroke({ color: 0x453523, width: 1.5 });
+
+		// Fan out to Bottom
+		g.poly([
+			wCastX + 30,
+			wCastY - 40,
+			360,
+			BOTTOM_LANE_Y - roadHeight / 2,
+			360,
+			BOTTOM_LANE_Y + roadHeight / 2,
+			wCastX + 30,
+			wCastY + 40
+		]);
+		g.fill({ color: 0x67543d });
+		g.stroke({ color: 0x453523, width: 1.5 });
+
+		// D. East Road Branches: Connecting East Castle (ARENA_WIDTH - 70, 400)
+		g.poly([
+			eCastX - 30,
+			eCastY - 40,
+			ARENA_WIDTH - 360,
+			TOP_LANE_Y - roadHeight / 2,
+			ARENA_WIDTH - 360,
+			TOP_LANE_Y + roadHeight / 2,
+			eCastX - 30,
+			eCastY + 40
+		]);
+		g.fill({ color: 0x67543d });
+		g.stroke({ color: 0x453523, width: 1.5 });
+
+		g.poly([
+			eCastX - 30,
+			eCastY - 40,
+			ARENA_WIDTH - 360,
+			BOTTOM_LANE_Y - roadHeight / 2,
+			ARENA_WIDTH - 360,
+			BOTTOM_LANE_Y + roadHeight / 2,
+			eCastX - 30,
+			eCastY + 40
+		]);
+		g.fill({ color: 0x67543d });
+		g.stroke({ color: 0x453523, width: 1.5 });
+
+		// Stone curb slabs along the lanes
+		g.rect(340, TOP_LANE_Y - roadHeight / 2 - 3, ARENA_WIDTH - 680, 4);
+		g.fill({ color: 0x94a3b8 });
+		g.rect(340, TOP_LANE_Y + roadHeight / 2 - 1, ARENA_WIDTH - 680, 4);
+		g.fill({ color: 0x94a3b8 });
+
+		g.rect(340, BOTTOM_LANE_Y - roadHeight / 2 - 3, ARENA_WIDTH - 680, 4);
+		g.fill({ color: 0x94a3b8 });
+		g.rect(340, BOTTOM_LANE_Y + roadHeight / 2 - 1, ARENA_WIDTH - 680, 4);
+		g.fill({ color: 0x94a3b8 });
+
+		// Cobblestone paver joints
+		for (let px = 360; px < ARENA_WIDTH - 360; px += 45) {
+			g.moveTo(px, TOP_LANE_Y - roadHeight / 2 + 4);
+			g.lineTo(px, TOP_LANE_Y + roadHeight / 2 - 4);
+			g.stroke({ color: 0x453523, width: 1, alpha: 0.55 });
+
+			g.moveTo(px, BOTTOM_LANE_Y - roadHeight / 2 + 4);
+			g.lineTo(px, BOTTOM_LANE_Y + roadHeight / 2 - 4);
+			g.stroke({ color: 0x453523, width: 1, alpha: 0.55 });
+		}
+	}
+
+	private drawMountainRidge(g: Graphics, x: number, y: number, w: number, h: number): void {
+		// Shadow
+		g.ellipse(x + w / 2, y + h, w / 2, 20);
+		g.fill({ color: 0x000000, alpha: 0.35 });
+
+		// Rocky base
+		g.roundRect(x, y, w, h, 24);
+		g.fill({ color: 0x475569 });
+		g.stroke({ color: 0x1e293b, width: 3 });
+
+		// Inner darker strata
+		g.roundRect(x + 10, y + 10, w - 20, h - 20, 16);
+		g.fill({ color: 0x334155 });
+
+		// Pine Trees along the dividing mountain ridge
+		for (let tx = x + 30; tx < x + w - 20; tx += 65) {
+			const py = y + h / 2 + Math.sin(tx * 0.05) * 15;
+			// Trunk
+			g.rect(tx - 2, py + 8, 4, 10);
+			g.fill({ color: 0x451a03 });
+			// Foliage tiers
+			g.poly([tx, py - 18, tx + 14, py + 8, tx - 14, py + 8]);
+			g.fill({ color: 0x14532d });
+			g.poly([tx, py - 24, tx + 10, py - 2, tx - 10, py - 2]);
+			g.fill({ color: 0x166534 });
+		}
 	}
 
 	private drawBattlementWall(g: Graphics, x: number, y: number, w: number, h: number): void {
-		// Wall base shadow
 		g.rect(x - 2, y + h, w + 4, 6);
 		g.fill({ color: 0x000000, alpha: 0.35 });
 
-		// Wall main stone body
 		g.rect(x, y + 10, w, h - 10);
 		g.fill({ color: 0x64748b });
 		g.stroke({ color: 0x334155, width: 1.5 });
 
-		// Horizontal stone masonry layers
-		for (let rowY = y + 22; rowY < y + h; rowY += 14) {
+		for (let rowY = y + 20; rowY < y + h; rowY += 14) {
 			g.moveTo(x, rowY);
 			g.lineTo(x + w, rowY);
 			g.stroke({ color: 0x475569, width: 1 });
 		}
 
-		// Stone wall parapet ledge / coping
 		g.rect(x - 4, y + 8, w + 8, 5);
 		g.fill({ color: 0x94a3b8 });
 		g.stroke({ color: 0x334155, width: 1 });
 
-		// Battlement Crenellations (Teeth along the wall top)
 		const toothW = 24;
 		const gapW = 16;
 		const step = toothW + gapW;
@@ -335,75 +706,26 @@ export class ArenaRenderer {
 			g.rect(tx, y, toothW, 10);
 			g.fill({ color: 0x94a3b8 });
 			g.stroke({ color: 0x334155, width: 1.5 });
-
-			// Inner tooth face highlight
-			g.rect(tx + 2, y + 2, toothW - 4, 3);
-			g.fill({ color: 0xcfdbe8 });
-
-			// Green moss creeping on random stones
-			if ((i * 7) % 3 === 0) {
-				g.rect(tx + 4, y + 5, 8, 4);
-				g.fill({ color: 0x4d7c0f, alpha: 0.65 });
-			}
-		}
-	}
-
-	private drawLaneRoad(g: Graphics, laneY: number): void {
-		const roadHeight = 70;
-		const roadStartX = 300;
-		const roadEndX = ARENA_WIDTH - 300;
-		const roadWidth = roadEndX - roadStartX;
-
-		// Stone curb shadow
-		g.rect(roadStartX, laneY - roadHeight / 2 - 3, roadWidth, roadHeight + 6);
-		g.fill({ color: 0x1e293b, alpha: 0.3 });
-
-		// Cobblestone pavement ground
-		g.rect(roadStartX, laneY - roadHeight / 2, roadWidth, roadHeight);
-		g.fill({ color: 0x6e5c46 });
-
-		// Light stone curb slabs on both edges
-		g.rect(roadStartX, laneY - roadHeight / 2 - 2, roadWidth, 4);
-		g.fill({ color: 0x94a3b8 });
-		g.rect(roadStartX, laneY + roadHeight / 2 - 2, roadWidth, 4);
-		g.fill({ color: 0x94a3b8 });
-
-		// Subtle cobblestone paver pattern
-		for (let px = roadStartX + 20; px < roadEndX; px += 35) {
-			g.moveTo(px, laneY - roadHeight / 2 + 4);
-			g.lineTo(px, laneY + roadHeight / 2 - 4);
-			g.stroke({ color: 0x554734, width: 1, alpha: 0.6 });
-		}
-
-		// Center road dashed divider
-		for (let px = roadStartX + 10; px < roadEndX; px += 40) {
-			g.moveTo(px, laneY);
-			g.lineTo(px + 18, laneY);
-			g.stroke({ color: 0x8c785b, width: 2, alpha: 0.75 });
 		}
 	}
 
 	private drawBridge(g: Graphics, centerX: number, laneY: number): void {
-		const bridgeW = 150;
-		const bridgeH = 82;
+		const bridgeW = 160;
+		const bridgeH = 86;
 
-		// Bridge shadow
 		g.rect(centerX - bridgeW / 2, laneY - bridgeH / 2 + 4, bridgeW, bridgeH);
 		g.fill({ color: 0x000000, alpha: 0.35 });
 
-		// Wooden floorboards base
 		g.rect(centerX - bridgeW / 2, laneY - bridgeH / 2, bridgeW, bridgeH);
 		g.fill({ color: 0x78350f });
 		g.stroke({ color: 0x451a03, width: 2 });
 
-		// Floorboard planks
-		for (let bx = centerX - bridgeW / 2 + 10; bx < centerX + bridgeW / 2; bx += 12) {
+		for (let bx = centerX - bridgeW / 2 + 10; bx < centerX + bridgeW / 2; bx += 14) {
 			g.moveTo(bx, laneY - bridgeH / 2);
 			g.lineTo(bx, laneY + bridgeH / 2);
-			g.stroke({ color: 0x451a03, width: 1 });
+			g.stroke({ color: 0x451a03, width: 1.5 });
 		}
 
-		// Stone Guard Railings
 		g.rect(centerX - bridgeW / 2, laneY - bridgeH / 2 - 5, bridgeW, 7);
 		g.fill({ color: 0x64748b });
 		g.stroke({ color: 0x94a3b8, width: 1.5 });
@@ -411,19 +733,6 @@ export class ArenaRenderer {
 		g.rect(centerX - bridgeW / 2, laneY + bridgeH / 2 - 2, bridgeW, 7);
 		g.fill({ color: 0x64748b });
 		g.stroke({ color: 0x94a3b8, width: 1.5 });
-
-		// Bridge corner stone pillars
-		const pillars = [
-			{ x: centerX - bridgeW / 2, y: laneY - bridgeH / 2 - 6 },
-			{ x: centerX + bridgeW / 2 - 10, y: laneY - bridgeH / 2 - 6 },
-			{ x: centerX - bridgeW / 2, y: laneY + bridgeH / 2 - 3 },
-			{ x: centerX + bridgeW / 2 - 10, y: laneY + bridgeH / 2 - 3 }
-		];
-		for (const p of pillars) {
-			g.rect(p.x, p.y, 10, 10);
-			g.fill({ color: 0x94a3b8 });
-			g.stroke({ color: 0x334155, width: 1 });
-		}
 	}
 
 	public render(): void {
@@ -435,7 +744,9 @@ export class ArenaRenderer {
 		this.drawCastles();
 		this.drawProjectilesLayer();
 		this.drawRescueStrikeEffects();
-		this.drawSelectionHighlights();
+		this.drawOrderMarkers();
+		this.drawFogOfWar();
+		this.drawSelectionUI();
 	}
 
 	private drawCoinsLayer(): void {
@@ -445,16 +756,13 @@ export class ArenaRenderer {
 			const pulse = 1 + Math.sin(this.sim.gameTime * 7) * 0.15;
 			const radius = 9 * pulse;
 
-			// Ambient Glow
 			g.circle(coin.x, coin.y, radius + 4);
 			g.fill({ color: 0xfbbf24, alpha: 0.25 });
 
-			// Main Coin Body
 			g.circle(coin.x, coin.y, radius);
 			g.fill({ color: 0xf59e0b });
 			g.stroke({ color: 0xfef08a, width: 2 });
 
-			// Inner Coin Center
 			g.circle(coin.x, coin.y, radius * 0.4);
 			g.fill({ color: 0xfef08a });
 		}
@@ -464,42 +772,58 @@ export class ArenaRenderer {
 		const g = this.gridLayer;
 		g.clear();
 
-		// West Grid (Player Base)
-		for (let x = 0; x < 3; x++) {
-			for (let y = 0; y < 8; y++) {
-				const px = WEST_GRID_START_X + x * CELL_SIZE;
-				const py = WEST_GRID_START_Y + y * CELL_SIZE;
+		const selectedDefId = this.getSelectedBuildingDefId?.();
 
-				g.rect(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4);
-				g.fill({ color: 0x1e293b, alpha: 0.5 });
-				g.stroke({ color: 0x3b82f6, width: 1, alpha: 0.35 });
+		// As in Warcraft III: normally the grid is completely hidden!
+		// Only during building placement planning does a subtle guide grid appear.
+		if (selectedDefId) {
+			// Subtle guide grid across buildable base territory (~10% alpha)
+			const half = CELL_SIZE / 2;
+			for (let x = 0; x <= 9; x++) {
+				for (let y = -2; y <= 10; y++) {
+					const px = WEST_GRID_START_X + x * CELL_SIZE;
+					const py = WEST_GRID_START_Y + y * CELL_SIZE;
+					const canBuild = this.sim.canBuild('west', x, y);
+					if (canBuild) {
+						for (let sx = 0; sx < 2; sx++) {
+							for (let sy = 0; sy < 2; sy++) {
+								g.rect(px + sx * half + 1, py + sy * half + 1, half - 2, half - 2);
+								g.fill({ color: 0x1e293b, alpha: 0.1 });
+								g.stroke({ color: 0x64748b, width: 0.5, alpha: 0.2 });
+							}
+						}
+					}
+				}
 			}
 		}
 
-		// East Grid (Enemy / Bot Base)
-		for (let x = 0; x < 3; x++) {
-			for (let y = 0; y < 8; y++) {
-				const px = EAST_GRID_START_X + x * CELL_SIZE;
-				const py = EAST_GRID_START_Y + y * CELL_SIZE;
-
-				g.rect(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4);
-				g.fill({ color: 0x2e1818, alpha: 0.45 });
-				g.stroke({ color: 0xef4444, width: 1, alpha: 0.3 });
-			}
-		}
-
-		// Hover Highlight on West grid
-		if (this.hoveredTile) {
+		// Hover Highlight: Authentic Warcraft III 2x2 green grid preview
+		if (selectedDefId && this.hoveredTile) {
 			const px = WEST_GRID_START_X + this.hoveredTile.x * CELL_SIZE;
 			const py = WEST_GRID_START_Y + this.hoveredTile.y * CELL_SIZE;
-			const isOccupied = this.sim.buildings.some(
-				(b) =>
-					b.team === 'west' && b.tileX === this.hoveredTile!.x && b.tileY === this.hoveredTile!.y
-			);
+			const canBuild = this.sim.canBuild('west', this.hoveredTile.x, this.hoveredTile.y);
+			const color = canBuild ? 0x22c55e : 0xef4444;
+			const half = CELL_SIZE / 2;
 
-			g.rect(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4);
-			g.fill({ color: isOccupied ? 0xef4444 : 0x10b981, alpha: 0.35 });
-			g.stroke({ color: isOccupied ? 0xef4444 : 0x10b981, width: 2 });
+			// 4 distinct quadrants (2x2 grid)
+			for (let sx = 0; sx < 2; sx++) {
+				for (let sy = 0; sy < 2; sy++) {
+					const cx = px + sx * half;
+					const cy = py + sy * half;
+					g.rect(cx + 1.5, cy + 1.5, half - 3, half - 3);
+					g.fill({ color, alpha: 0.4 });
+					g.stroke({ color, width: 2, alpha: 0.95 });
+				}
+			}
+			// Outer bounding box
+			g.rect(px + 1, py + 1, CELL_SIZE - 2, CELL_SIZE - 2);
+			g.stroke({ color, width: 2.5, alpha: 1.0 });
+
+			// Ghost building preview if buildable
+			if (canBuild) {
+				g.roundRect(px + 4, py + 4, CELL_SIZE - 8, CELL_SIZE - 8, 4);
+				g.fill({ color: 0x38bdf8, alpha: 0.25 });
+			}
 		}
 	}
 
@@ -514,86 +838,98 @@ export class ArenaRenderer {
 			const py = b.y;
 			const isWest = b.team === 'west';
 			const isSelected = selectedPlacedId === b.instanceId;
+			const teamColor = this.sim.players[b.team]?.color?.num || (isWest ? 0x0042ff : 0xff0303);
 
-			// Highlight halo for selected building
+			// Selection halo
 			if (isSelected) {
-				g.roundRect(px - 1, py - 1, CELL_SIZE + 2, CELL_SIZE + 2, 8);
+				g.roundRect(px - 2, py - 2, CELL_SIZE + 4, CELL_SIZE + 4, 8);
 				g.stroke({ color: 0xf59e0b, width: 3 });
 			}
 
-			// Building base stone
-			let baseColor = isWest ? 0x1d4ed8 : 0xb91c1c;
-			let strokeColor = isSelected ? 0xfbbf24 : isWest ? 0x93c5fd : 0xfca5a5;
+			// Building base stone slab (2x2 footprint)
+			g.roundRect(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4, 6);
+			g.fill({ color: 0x334155 });
+			g.stroke({ color: isSelected ? 0xfbbf24 : teamColor, width: 2 });
 
-			if (b.specialType === 'treasure') {
-				baseColor = 0xb45309;
-				strokeColor = isSelected ? 0xfef08a : 0xfbbf24;
-			} else if (b.specialType === 'repair') {
-				baseColor = 0x047857;
-				strokeColor = isSelected ? 0xa7f3d0 : 0x34d399;
-			} else if (b.specialType === 'recycler') {
-				baseColor = 0x334155;
-				strokeColor = isSelected ? 0xe2e8f0 : 0x94a3b8;
-			} else if (b.specialType === 'tower') {
-				baseColor = isWest ? 0x4c1d95 : 0x701a75;
-				strokeColor = isSelected ? 0xf5d0fe : 0xd8b4fe;
-			}
+			// 2x2 Quadrant subdivision mortar lines on foundation
+			const half = CELL_SIZE / 2;
+			g.moveTo(px + half, py + 3);
+			g.lineTo(px + half, py + CELL_SIZE - 3);
+			g.stroke({ color: 0x1e293b, width: 1.5, alpha: 0.6 });
+			g.moveTo(px + 3, py + half);
+			g.lineTo(px + CELL_SIZE - 3, py + half);
+			g.stroke({ color: 0x1e293b, width: 1.5, alpha: 0.6 });
 
-			g.roundRect(px + 3, py + 3, CELL_SIZE - 6, CELL_SIZE - 6, 6);
-			g.fill({ color: baseColor });
-			g.stroke({ color: strokeColor, width: 2 });
-
-			// Inner roof icon/block with race color tinting
+			// Inner roof tiles with race color tinting (spanning 2x2 quadrants)
 			const raceColors: Record<string, number> = {
 				Люди: 0x1e3a8a,
 				Орки: 0x831843,
 				Нежить: 0x14532d,
+				Ельфи: 0x065f46,
 				Эльфы: 0x065f46,
 				Хаос: 0x7f1d1d,
 				Наги: 0x0e7490,
+				Північ: 0x0369a1,
 				Север: 0x0369a1,
 				Порча: 0x581c87,
+				'Нічні ельфи': 0x365314,
+				'Ночні ельфи': 0x365314,
 				'Ночные эльфы': 0x365314,
+				Техніки: 0x78350f,
 				Техники: 0x78350f,
+				Збирачі: 0x334155,
 				Сборщики: 0x334155
 			};
-			const roofColor = raceColors[b.race] || 0x0f172a;
-			g.roundRect(px + 9, py + 9, CELL_SIZE - 18, CELL_SIZE - 18, 4);
-			g.fill({ color: roofColor, alpha: 0.9 });
+			const roofColor = raceColors[b.race] || 0x1e293b;
+			g.roundRect(px + 7, py + 7, CELL_SIZE - 14, CELL_SIZE - 14, 4);
+			g.fill({ color: roofColor });
 
-			// Special insignia in center
-			if (b.specialType === 'treasure') {
-				g.rect(px + 18, py + 18, CELL_SIZE - 36, CELL_SIZE - 36);
-				g.fill({ color: 0xfbbf24 });
-			} else if (b.specialType === 'repair') {
-				g.rect(px + 23, py + 17, 9, 21);
-				g.fill({ color: 0x34d399 });
-				g.rect(px + 17, py + 23, 21, 9);
-				g.fill({ color: 0x34d399 });
-			} else if (b.specialType === 'tower') {
-				g.circle(px + CELL_SIZE / 2, py + CELL_SIZE / 2, 8);
-				g.fill({ color: 0xc084fc });
-				g.circle(px + CELL_SIZE / 2, py + CELL_SIZE / 2, 4);
-				g.fill({ color: 0x3b0764 });
+			// 4 Corner stone turrets / bastions (one in each 1x1 sub-quadrant)
+			const cornerPositions = [
+				{ x: px + 3, y: py + 3 },
+				{ x: px + CELL_SIZE - 15, y: py + 3 },
+				{ x: px + 3, y: py + CELL_SIZE - 15 },
+				{ x: px + CELL_SIZE - 15, y: py + CELL_SIZE - 15 }
+			];
+			for (const cp of cornerPositions) {
+				g.roundRect(cp.x, cp.y, 12, 12, 2);
+				g.fill({ color: 0x475569 });
+				g.stroke({ color: 0x1e293b, width: 1 });
 			}
 
-			// Under construction visual overlay & progress bar
+			// Team colored banner/crest strip on roof
+			g.rect(px + CELL_SIZE / 2 - 6, py + 7, 12, CELL_SIZE - 14);
+			g.fill({ color: teamColor, alpha: 0.85 });
+
+			// Front exit doorway facing the lane/road
+			const doorX = isWest ? px + CELL_SIZE - 6 : px + 2;
+			const doorY = py + CELL_SIZE / 2 - 7;
+			g.roundRect(doorX, doorY, 4, 14, 1.5);
+			g.fill({ color: 0x0f172a });
+
+			// Under construction visual overlay & scaffolding
 			if (b.isUnderConstruction) {
-				g.roundRect(px + 4, py + 4, CELL_SIZE - 8, CELL_SIZE - 8, 4);
+				g.roundRect(px + 3, py + 3, CELL_SIZE - 6, CELL_SIZE - 6, 4);
 				g.fill({ color: 0x78350f, alpha: 0.65 });
 				g.stroke({ color: 0xd97706, width: 2 });
 
-				// Scaffolding diagonal cross
-				g.beginPath();
-				g.moveTo(px + 6, py + 6);
-				g.lineTo(px + CELL_SIZE - 6, py + CELL_SIZE - 6);
-				g.moveTo(px + CELL_SIZE - 6, py + 6);
-				g.lineTo(px + 6, py + CELL_SIZE - 6);
-				g.stroke({ color: 0xfbbf24, width: 2, alpha: 0.8 });
+				// 2x2 scaffolding diagonal cross-beams over each quadrant
+				for (let sx = 0; sx < 2; sx++) {
+					for (let sy = 0; sy < 2; sy++) {
+						const qx = px + sx * half;
+						const qy = py + sy * half;
+						g.moveTo(qx + 3, qy + 3);
+						g.lineTo(qx + half - 3, qy + half - 3);
+						g.stroke({ color: 0xfbbf24, width: 1.5, alpha: 0.8 });
+						g.moveTo(qx + half - 3, qy + 3);
+						g.lineTo(qx + 3, qy + half - 3);
+						g.stroke({ color: 0xfbbf24, width: 1.5, alpha: 0.8 });
+					}
+				}
 
-				// Construction progress bar above building
+				// Progress bar
 				const bProg = b.buildProgress || 0;
-				const bMax = b.maxBuildProgress || 6.0;
+				const bMax = b.maxBuildProgress || 3.5;
 				const progPct = Math.max(0, Math.min(1, bProg / bMax));
 
 				const barX = px + 4;
@@ -603,46 +939,26 @@ export class ArenaRenderer {
 
 				g.roundRect(barX - 1, barY - 1, barW + 2, barH + 2, 2);
 				g.fill({ color: 0x090d16 });
-				g.stroke({ color: 0xf59e0b, width: 1 });
-
 				g.roundRect(barX, barY, barW * progPct, barH, 1.5);
 				g.fill({ color: 0xf59e0b });
 				continue;
 			}
 
-			// Damaged building HP bar (underneath building)
+			// Damaged HP Bar
 			if (b.hp !== undefined && b.maxHp !== undefined && b.hp < b.maxHp) {
 				const hpPct = Math.max(0, Math.min(1, b.hp / b.maxHp));
-				const hpBarX = px + 4;
-				const hpBarY = py + CELL_SIZE + 2;
-				const hpBarW = CELL_SIZE - 8;
-				const hpBarH = 4;
+				const barX = px + 4;
+				const barY = py + CELL_SIZE + 2;
+				const barW = CELL_SIZE - 8;
+				const barH = 4;
 
-				g.roundRect(hpBarX - 1, hpBarY - 1, hpBarW + 2, hpBarH + 2, 1);
+				g.roundRect(barX - 1, barY - 1, barW + 2, barH + 2, 1);
 				g.fill({ color: 0x090d16 });
-				g.roundRect(hpBarX, hpBarY, hpBarW * hpPct, hpBarH, 1);
+				g.roundRect(barX, barY, barW * hpPct, barH, 1);
 				g.fill({ color: hpPct > 0.5 ? 0x22c55e : hpPct > 0.25 ? 0xeab308 : 0xef4444 });
 			}
 
-			// Legendary Apex Badge
-			const bDef = getBuilding(b.defId);
-			const isLeg = isLegendaryBuilding(bDef);
-			if (isLeg) {
-				g.poly([
-					px + CELL_SIZE / 2,
-					py + 4,
-					px + CELL_SIZE / 2 + 5,
-					py + 9,
-					px + CELL_SIZE / 2,
-					py + 14,
-					px + CELL_SIZE / 2 - 5,
-					py + 9
-				]);
-				g.fill({ color: 0xfbbf24 });
-				g.stroke({ color: 0xfef08a, width: 1 });
-			}
-
-			// Spawn or attack timer progress bar above building
+			// Spawn / Attack Cooldown timer bar
 			if (!b.specialType || b.specialType === 'repair' || b.specialType === 'tower') {
 				const maxCd =
 					b.specialType === 'repair'
@@ -656,33 +972,13 @@ export class ArenaRenderer {
 				const barX = px + 4;
 				const barY = py - 7;
 				const barW = CELL_SIZE - 8;
-				const barH = 5;
+				const barH = 4;
 
-				// Background container with dark border
-				g.roundRect(barX - 1, barY - 1, barW + 2, barH + 2, 2);
+				g.roundRect(barX - 1, barY - 1, barW + 2, barH + 2, 1);
 				g.fill({ color: 0x090d16 });
-				g.stroke({ color: 0x334155, width: 1 });
-
-				// Bar fill color
-				let fillColor = 0x38bdf8; // Azure spawner
-				if (isLeg) {
-					fillColor = 0xfbbf24; // Legendary gold
-				} else if (b.specialType === 'tower') {
-					fillColor = 0xa855f7; // Tower purple
-				} else if (b.specialType === 'repair') {
-					fillColor = 0x10b981; // Repair green
-				}
-
 				if (pct > 0) {
-					g.roundRect(barX, barY, barW * pct, barH, 1.5);
-					g.fill({ color: fillColor });
-				}
-
-				// Flash highlight when imminent spawn (pct > 0.9)
-				if (pct > 0.9 && !b.specialType) {
-					const pulse = 0.5 + Math.sin(this.sim.gameTime * 20) * 0.5;
-					g.roundRect(barX + barW * pct - 3, barY, 3, barH, 1);
-					g.fill({ color: 0xffffff, alpha: pulse });
+					g.roundRect(barX, barY, barW * pct, barH, 1);
+					g.fill({ color: 0x38bdf8 });
 				}
 			}
 		}
@@ -690,62 +986,174 @@ export class ArenaRenderer {
 
 	private drawCastles(): void {
 		const g = this.buildingsLayer;
-
-		// West Castle
-		this.renderCastleStructure(g, this.sim.castles.west, true);
-
-		// East Castle
-		this.renderCastleStructure(g, this.sim.castles.east, false);
+		this.renderAuthenticCastle(g, this.sim.castles.west, true);
+		this.renderAuthenticCastle(g, this.sim.castles.east, false);
 	}
 
-	private renderCastleStructure(g: Graphics, castle: Castle, isWest: boolean): void {
+	private renderAuthenticCastle(g: Graphics, castle: Castle, isWest: boolean): void {
 		const cx = castle.x;
 		const cy = castle.y;
-		const castleW = 70;
-		const castleH = 110;
+		const teamColor = this.sim.players[castle.team]?.color?.num || (isWest ? 0x0042ff : 0xff0303);
 
-		// Castle main keep
-		g.roundRect(cx - castleW / 2, cy - castleH / 2, castleW, castleH, 10);
-		g.fill({ color: isWest ? 0x1e3a8a : 0x7f1d1d });
-		g.stroke({ color: isWest ? 0x60a5fa : 0xf87171, width: 3 });
-
-		// Roof towers
-		g.rect(cx - castleW / 2 - 4, cy - castleH / 2 - 14, 16, 18);
+		// Stone Courtyard Foundation Slab
+		g.roundRect(cx - 55, cy - 75, 110, 150, 14);
 		g.fill({ color: 0x334155 });
-		g.rect(cx + castleW / 2 - 12, cy - castleH / 2 - 14, 16, 18);
-		g.fill({ color: 0x334155 });
+		g.stroke({ color: 0x1e293b, width: 2 });
 
-		// Castle Gate
-		g.roundRect(cx - 14, cy + castleH / 2 - 32, 28, 32, 4);
+		// Central Keep
+		const keepW = 68;
+		const keepH = 96;
+		g.roundRect(cx - keepW / 2, cy - keepH / 2, keepW, keepH, 8);
+		g.fill({ color: 0x475569 });
+		g.stroke({ color: 0x1e293b, width: 2 });
+
+		// 4 Massive Corner Watchtowers
+		const towers = [
+			{ x: cx - keepW / 2 - 6, y: cy - keepH / 2 - 6 },
+			{ x: cx + keepW / 2 - 14, y: cy - keepH / 2 - 6 },
+			{ x: cx - keepW / 2 - 6, y: cy + keepH / 2 - 14 },
+			{ x: cx + keepW / 2 - 14, y: cy + keepH / 2 - 14 }
+		];
+		for (const t of towers) {
+			// Tower Base
+			g.rect(t.x, t.y, 20, 20);
+			g.fill({ color: 0x64748b });
+			g.stroke({ color: 0x1e293b, width: 1.5 });
+
+			// Conical Roof in Player Color
+			g.poly([t.x + 10, t.y - 12, t.x + 20, t.y, t.x, t.y]);
+			g.fill({ color: teamColor });
+			g.stroke({ color: 0x0f172a, width: 1 });
+		}
+
+		// Arched Castle Gate with Iron Portcullis Grille
+		const gateDir = isWest ? 1 : -1;
+		const gateX = cx + gateDir * (keepW / 2 - 12);
+		g.roundRect(gateX - 8, cy - 16, 16, 32, 4);
 		g.fill({ color: 0x0f172a });
+		// Iron Portcullis Grate
+		for (let gy = cy - 12; gy <= cy + 12; gy += 6) {
+			g.moveTo(gateX - 7, gy);
+			g.lineTo(gateX + 7, gy);
+			g.stroke({ color: 0x94a3b8, width: 1.5 });
+		}
 
-		// Castle HP Bar
+		// Heraldic Flag / Banner Flapping Above Central Keep
+		const flagPoleX = cx;
+		const flagPoleY = cy - keepH / 2 - 22;
+		g.moveTo(flagPoleX, cy - keepH / 2 + 10);
+		g.lineTo(flagPoleX, flagPoleY);
+		g.stroke({ color: 0xd97706, width: 2.5 });
+
+		// Pennant in team color
+		g.poly([flagPoleX, flagPoleY, flagPoleX + 22, flagPoleY + 7, flagPoleX, flagPoleY + 14]);
+		g.fill({ color: teamColor });
+		g.stroke({ color: 0xfef08a, width: 1 });
+
+		// Castle Health Bar
 		const hpPct = Math.max(0, castle.hp / castle.maxHp);
 		const barWidth = 110;
-		const barHeight = 9;
+		const barHeight = 8;
 		const barX = cx - barWidth / 2;
-		const barY = cy - castleH / 2 - 28;
+		const barY = cy - keepH / 2 - 34;
 
 		g.rect(barX - 2, barY - 2, barWidth + 4, barHeight + 4);
 		g.fill({ color: 0x0f172a });
-
 		g.rect(barX, barY, barWidth * hpPct, barHeight);
 		g.fill({ color: hpPct > 0.5 ? 0x22c55e : hpPct > 0.25 ? 0xeab308 : 0xef4444 });
 
-		// Azure Dome Invulnerability Forcefield
+		// Azure Dome Invulnerability Shield
 		if (this.sim.castleInvulnerableTimer[castle.team] > 0) {
-			g.circle(cx, cy, 80);
+			g.circle(cx, cy, 85);
 			g.fill({ color: 0x06b6d4, alpha: 0.25 });
 			g.stroke({ color: 0x38bdf8, width: 3, alpha: 0.85 });
+		}
+	}
 
-			g.circle(cx, cy, 95);
-			g.stroke({ color: 0x67e8f9, width: 1.5, alpha: 0.5 });
+	private drawWorkersLayer(): void {
+		const g = this.workersLayer;
+		g.clear();
+
+		const selectedEntity = this.getSelectedEntity?.() || { type: 'worker' };
+		const isWorkerSelected = selectedEntity.type === 'worker';
+
+		// Render Player's Worker
+		const westWorker = this.sim.players.west?.worker;
+		if (westWorker) {
+			const wx = westWorker.x;
+			const wy = westWorker.y;
+			const bob = Math.sin(this.sim.gameTime * 6) * 1.5;
+			const playerColor = this.sim.players.west.color?.num || 0x0042ff;
+
+			// Selection Ring at Worker's feet
+			if (isWorkerSelected) {
+				const pulse = 0.8 + Math.sin(this.sim.gameTime * 7) * 0.2;
+				g.ellipse(wx, wy + 14, 20, 10);
+				g.stroke({ color: 0x22c55e, width: 2.5, alpha: pulse });
+			}
+
+			// Shadow
+			g.ellipse(wx, wy + 14, 16, 7);
+			g.fill({ color: 0x000000, alpha: 0.35 });
+
+			// Worker Body & Tunic in Player Color
+			g.roundRect(wx - 8, wy - 4 + bob, 16, 16, 4);
+			g.fill({ color: playerColor });
+			g.stroke({ color: 0xe2e8f0, width: 1.5 });
+
+			// Head & Skin
+			g.circle(wx, wy - 10 + bob, 7);
+			g.fill({ color: 0xfcd34d });
+			g.stroke({ color: 0xd97706, width: 1 });
+
+			// Construction Hammer / Mallet
+			const isSwinging = westWorker.isBuilding || westWorker.isRepairing;
+			const hammerSwing = isSwinging ? Math.sin(this.sim.gameTime * 18) * 12 : 0;
+			const hx = wx + 10;
+			const hy = wy + bob - 2 + hammerSwing;
+
+			g.moveTo(hx - 2, hy + 8);
+			g.lineTo(hx + 4, hy - 4);
+			g.stroke({ color: 0x92400e, width: 2.5 });
+			g.rect(hx + 1, hy - 7, 7, 5);
+			g.fill({ color: 0x94a3b8 });
+
+			// Sparks if building or repairing
+			if (isSwinging) {
+				const spX = hx + 5 + Math.sin(this.sim.gameTime * 30) * 6;
+				const spY = hy + Math.cos(this.sim.gameTime * 30) * 6;
+				g.circle(spX, spY, 2.5);
+				g.fill({ color: 0xfef08a });
+			}
+		}
+
+		// Render Bot's Worker
+		const eastWorker = this.sim.players.east?.worker;
+		if (eastWorker) {
+			const ex = eastWorker.x;
+			const ey = eastWorker.y;
+			const bob = Math.sin(this.sim.gameTime * 5) * 1.5;
+			const botColor = this.sim.players.east.color?.num || 0xff0303;
+
+			g.ellipse(ex, ey + 14, 16, 7);
+			g.fill({ color: 0x000000, alpha: 0.35 });
+
+			g.roundRect(ex - 8, ey - 4 + bob, 16, 16, 4);
+			g.fill({ color: botColor });
+			g.stroke({ color: 0xe2e8f0, width: 1.5 });
+
+			g.circle(ex, ey - 10 + bob, 7);
+			g.fill({ color: 0x15803d }); // Orc skin
 		}
 	}
 
 	private drawUnitsLayer(): void {
 		const g = this.unitsLayer;
 		g.clear();
+
+		const selectedEntity = this.getSelectedEntity?.();
+		const westPlayerColor = this.sim.players.west.color?.num || 0x0042ff;
+		const eastPlayerColor = this.sim.players.east.color?.num || 0xff0303;
 
 		for (const u of this.sim.units) {
 			const radius = u.size;
@@ -755,14 +1163,31 @@ export class ArenaRenderer {
 					const fade = Math.max(0, u.deathTimer / 0.7);
 					g.ellipse(u.x, u.y, radius * 0.9, radius * 0.45);
 					g.fill({ color: 0x334155, alpha: fade * 0.65 });
-					g.rect(u.x - 3, u.y - 1, 6, 2);
-					g.fill({ color: 0xe2e8f0, alpha: fade * 0.8 });
 				}
 				continue;
 			}
 
+			// Fog of War check: hide unrevealed enemy units
+			if (this.enableFog && u.team === 'east') {
+				const isRevealed =
+					u.x <= 1200 ||
+					this.sim.units.some(
+						(ally) =>
+							ally.team === 'west' &&
+							ally.state !== 'DEAD' &&
+							Math.hypot(ally.x - u.x, ally.y - u.y) <= 400
+					) ||
+					(this.sim.players.west.worker &&
+						Math.hypot(
+							this.sim.players.west.worker.x - u.x,
+							this.sim.players.west.worker.y - u.y
+						) <= 420);
+				if (!isRevealed) continue;
+			}
+
 			const isWest = u.team === 'west';
 			const isNeutral = u.team === 'neutral';
+			const unitColor = isNeutral ? 0x7e22ce : isWest ? westPlayerColor : eastPlayerColor;
 			const dir = isNeutral ? 1 : isWest ? 1 : -1;
 			const walkBob =
 				u.state === 'WALKING' ? Math.sin(this.sim.gameTime * 14 + u.x * 0.05) * 1.5 : 0;
@@ -771,14 +1196,14 @@ export class ArenaRenderer {
 			const unitX = u.x + attackLunge;
 			const unitY = u.y + walkBob;
 
-			// If flying, draw subtle shadow on the ground & wings
+			// Flying Shadow & Wings
 			if (u.flying) {
-				g.ellipse(unitX, u.y + 16, radius, radius * 0.4);
-				g.fill({ color: 0x000000, alpha: 0.3 });
+				g.ellipse(unitX, u.y + 18, radius, radius * 0.4);
+				g.fill({ color: 0x000000, alpha: 0.35 });
 
-				const flap = Math.sin(this.sim.gameTime * 15) * 3;
+				const flap = Math.sin(this.sim.gameTime * 15) * 4;
 				g.poly([
-					unitX - radius - 5,
+					unitX - radius - 6,
 					unitY - 2 + flap,
 					unitX - radius,
 					unitY - radius * 0.5,
@@ -786,8 +1211,9 @@ export class ArenaRenderer {
 					unitY + radius * 0.5
 				]);
 				g.fill({ color: 0xe0f2fe, alpha: 0.85 });
+
 				g.poly([
-					unitX + radius + 5,
+					unitX + radius + 6,
 					unitY - 2 + flap,
 					unitX + radius,
 					unitY - radius * 0.5,
@@ -797,120 +1223,31 @@ export class ArenaRenderer {
 				g.fill({ color: 0xe0f2fe, alpha: 0.85 });
 			}
 
-			// If neutral boss, draw glowing aura
-			if (isNeutral) {
-				g.circle(unitX, unitY, radius + 5);
-				g.stroke({ color: 0xf59e0b, width: 2, alpha: 0.7 });
-			}
-
-			// Unit circle body
+			// Unit Body in Player Color
 			g.circle(unitX, unitY, radius);
-			g.fill({ color: isNeutral ? 0x7e22ce : isWest ? 0x2563eb : 0xdc2626 });
-			g.stroke({
-				color: isNeutral ? 0xfbbf24 : isWest ? 0xbfdbfe : 0xfecaca,
-				width: isNeutral ? 3 : 2
-			});
+			g.fill({ color: unitColor });
+			g.stroke({ color: 0xffffff, width: 1.5 });
 
-			// Status Effects Visuals
-			if (u.isStunned) {
-				const angle = this.sim.gameTime * 8;
-				const starX = unitX + Math.cos(angle) * (radius + 2);
-				const starY = unitY - radius - 2 + Math.sin(angle) * 3;
-				g.circle(starX, starY, 3);
-				g.fill({ color: 0xfacc15 });
+			// Selection indicator
+			const isSelected =
+				(selectedEntity?.type === 'unit' && selectedEntity.instanceId === u.instanceId) ||
+				(selectedEntity?.type === 'group' && selectedEntity.unitIds.includes(u.instanceId));
+			if (isSelected) {
+				g.ellipse(unitX, unitY + radius * 0.6, radius * 1.3, radius * 0.7);
+				g.stroke({ color: 0x22c55e, width: 2 });
 			}
 
-			if (u.isEnsnared) {
-				g.rect(unitX - radius, unitY - radius, radius * 2, radius * 2);
-				g.stroke({ color: 0xd97706, width: 1.5, alpha: 0.85 });
-			}
-
-			if (u.buffs?.some((b) => b.type === 'poison')) {
-				g.circle(unitX + Math.sin(this.sim.gameTime * 6) * 6, unitY - radius - 3, 2.5);
-				g.fill({ color: 0x22c55e });
-			}
-
-			// Unit Inner Emblem based on Attack Type
-			this.renderUnitEmblem(g, unitX, unitY, u.attackType, radius);
-
-			// Directional weapon & shield
-			if (!isNeutral) {
-				const wpX = unitX + dir * (radius + 2);
-				const wpY = unitY;
-				if (u.attackType === 'pierce') {
-					// Bow arc & arrow
-					g.beginPath();
-					g.arc(wpX - dir * 2, wpY, 6, -Math.PI / 2, Math.PI / 2, dir < 0);
-					g.stroke({ color: 0x92400e, width: 2 });
-					g.beginPath();
-					g.moveTo(wpX - dir * 4, wpY);
-					g.lineTo(wpX + dir * 4, wpY);
-					g.stroke({ color: 0xfef08a, width: 1.5 });
-				} else if (u.attackType === 'siege') {
-					// Cannon barrel
-					g.rect(dir > 0 ? wpX - 2 : wpX - 7, wpY - 3, 9, 6);
-					g.fill({ color: 0x475569 });
-					g.stroke({ color: 0x1e293b, width: 1 });
-				} else if (u.attackType === 'magic') {
-					// Magic orb
-					const orbPulse = Math.sin(this.sim.gameTime * 10) * 1.5;
-					g.circle(wpX, wpY - 2, 4 + orbPulse);
-					g.fill({ color: 0xc084fc, alpha: 0.85 });
-				} else {
-					// Melee Sword & Shield
-					g.beginPath();
-					g.moveTo(wpX, wpY + 5);
-					g.lineTo(wpX + dir * 5, wpY - 5);
-					g.stroke({ color: 0xe2e8f0, width: 2 });
-					// Shield on offhand
-					g.ellipse(unitX - dir * (radius * 0.6), unitY, 3, 6);
-					g.fill({ color: isWest ? 0x1e3a8a : 0x7f1d1d });
-					g.stroke({ color: 0xfbbf24, width: 1 });
-				}
-			}
-
-			// Health Bar
+			// Unit Health Bar
 			const hpPct = Math.max(0, u.hp / u.maxHp);
-			const barW = isNeutral ? radius * 2.8 : radius * 2.2;
-			const barH = isNeutral ? 5 : 3;
+			const barW = radius * 2.2;
+			const barH = 3;
 			const barX = unitX - barW / 2;
-			const barY = unitY - radius - (isNeutral ? 11 : 7);
+			const barY = unitY - radius - 7;
 
 			g.rect(barX - 1, barY - 1, barW + 2, barH + 2);
 			g.fill({ color: 0x000000, alpha: 0.8 });
-
 			g.rect(barX, barY, barW * hpPct, barH);
-			g.fill({
-				color: isNeutral ? 0xf59e0b : hpPct > 0.5 ? 0x4ade80 : hpPct > 0.25 ? 0xfacc15 : 0xf87171
-			});
-		}
-	}
-
-	private renderUnitEmblem(
-		g: Graphics,
-		x: number,
-		y: number,
-		attackType: string,
-		radius: number
-	): void {
-		const r = radius * 0.45;
-		if (attackType === 'pierce') {
-			g.poly([x - r, y + r, x + r, y + r, x, y - r]);
-			g.fill({ color: 0xfef08a });
-		} else if (attackType === 'siege') {
-			g.rect(x - r, y - r, r * 2, r * 2);
-			g.fill({ color: 0xa1a1aa });
-		} else if (attackType === 'magic') {
-			g.poly([x, y - r, x + r, y, x, y + r, x - r, y]);
-			g.fill({ color: 0xa855f7 });
-		} else if (attackType === 'hero' || attackType === 'chaos') {
-			g.rect(x - 2, y - r, 4, r * 2);
-			g.fill({ color: 0xf59e0b });
-			g.rect(x - r, y - 2, r * 2, 4);
-			g.fill({ color: 0xf59e0b });
-		} else {
-			g.circle(x, y, r);
-			g.fill({ color: 0xffffff, alpha: 0.85 });
+			g.fill({ color: hpPct > 0.5 ? 0x4ade80 : hpPct > 0.25 ? 0xfacc15 : 0xf87171 });
 		}
 	}
 
@@ -921,22 +1258,41 @@ export class ArenaRenderer {
 		for (const p of this.sim.projectiles) {
 			if (p.damage <= 0) continue;
 
+			// Parabolic Arc height calculation: z = 4 * H * (d/D) * (1 - d/D)
+			let z = 0;
+			if (p.originX !== undefined && p.originY !== undefined && p.totalDist && p.arcHeight) {
+				const currentDist = Math.hypot(p.x - p.originX, p.y - p.originY);
+				const norm = Math.max(0, Math.min(1, currentDist / p.totalDist));
+				z = 4 * p.arcHeight * norm * (1 - norm);
+			}
+
+			// 1. Ground Shadow underneath
+			g.ellipse(p.x, p.y + 4, 4 + z * 0.05, 2);
+			g.fill({ color: 0x000000, alpha: 0.35 });
+
+			// 2. Projectile elevated in the air by z
+			const projY = p.y - z;
+
 			if (p.attackType === 'magic') {
-				g.circle(p.x, p.y, 5);
+				g.circle(p.x, projY, 5);
 				g.fill({ color: 0xc084fc });
-				g.circle(p.x, p.y, 10);
+				g.circle(p.x, projY, 10);
 				g.fill({ color: 0xa855f7, alpha: 0.35 });
 			} else if (p.attackType === 'siege') {
-				g.circle(p.x, p.y, 6);
-				g.fill({ color: 0x71717a });
-				g.stroke({ color: 0x3f3f46, width: 2 });
+				g.circle(p.x, projY, 7);
+				g.fill({ color: 0x475569 });
+				g.stroke({ color: 0x1e293b, width: 2 });
 			} else {
-				const isWest = p.team === 'west';
-				g.rect(p.x - 4, p.y - 1, 9, 2);
-				g.fill({ color: isWest ? 0x93c5fd : 0xfca5a5 });
+				// Pierce / Arrow facing direction
+				const angle = Math.atan2(p.targetY - p.y, p.targetX - p.x);
+				const len = 10;
+				g.moveTo(p.x - Math.cos(angle) * (len / 2), projY - Math.sin(angle) * (len / 2));
+				g.lineTo(p.x + Math.cos(angle) * (len / 2), projY + Math.sin(angle) * (len / 2));
+				g.stroke({ color: 0xfef08a, width: 2 });
 			}
 		}
 
+		// AoE Splash Circles
 		for (const s of this.sim.splashEffects) {
 			const progress = 1 - s.timer / s.maxTimer;
 			const radius = s.radius * Math.min(1, progress * 1.2);
@@ -955,166 +1311,76 @@ export class ArenaRenderer {
 			const alpha = Math.max(0, 1 - progress);
 
 			g.circle(eff.x, eff.y, currentRadius);
-			g.fill({ color: 0xf97316, alpha: alpha * 0.18 });
+			g.fill({ color: 0xf97316, alpha: alpha * 0.2 });
 			g.stroke({ color: 0xef4444, width: 4 * (1 - progress) + 1, alpha });
-
-			g.circle(eff.x, eff.y, currentRadius * 0.7);
-			g.stroke({ color: 0xfbbf24, width: 2, alpha });
 		}
 	}
 
-	private drawWorkersLayer(): void {
-		const g = this.workersLayer;
+	private drawOrderMarkers(): void {
+		const g = this.uiLayer;
+		for (let i = this.moveMarkers.length - 1; i >= 0; i--) {
+			const m = this.moveMarkers[i];
+			m.timer -= 0.016;
+			if (m.timer <= 0) {
+				this.moveMarkers.splice(i, 1);
+				continue;
+			}
+
+			const progress = 1 - m.timer / m.maxTimer;
+			const radius = 22 * (1 - progress * 0.4);
+			const alpha = Math.max(0, m.timer / m.maxTimer);
+
+			// Authentic 4-prong Warcraft III Order Chevrons (contracting green brackets)
+			for (let a = 0; a < 4; a++) {
+				const ang = (a * Math.PI) / 2 + Math.PI / 4;
+				const cx = m.x + Math.cos(ang) * radius;
+				const cy = m.y + Math.sin(ang) * radius;
+				g.circle(cx, cy, 3);
+				g.fill({ color: 0x22c55e, alpha });
+			}
+			g.ellipse(m.x, m.y, radius * 0.8, radius * 0.4);
+			g.stroke({ color: 0x4ade80, width: 2, alpha });
+		}
+	}
+
+	private drawFogOfWar(): void {
+		const g = this.fogLayer;
+		g.clear();
+		if (!this.enableFog) return;
+
+		// Atmospheric dark mist covering east side beyond river
+		g.rect(1250, 0, ARENA_WIDTH - 1250, ARENA_HEIGHT);
+		g.fill({ color: 0x070b14, alpha: 0.62 });
+
+		// Clear vision circles around friendly player entities
+		for (const u of this.sim.units) {
+			if (u.team === 'west' && u.state !== 'DEAD' && u.x >= 1000) {
+				g.circle(u.x, u.y, 380);
+				g.cut();
+			}
+		}
+
+		const worker = this.sim.players.west.worker;
+		if (worker && worker.x >= 1000) {
+			g.circle(worker.x, worker.y, 400);
+			g.cut();
+		}
+	}
+
+	private drawSelectionUI(): void {
+		const g = this.uiLayer;
 		g.clear();
 
-		const selectedEntity = this.getSelectedEntity?.() || { type: 'worker' };
-		const isWorkerSelected = selectedEntity.type === 'worker';
+		// Drag Selection Box
+		if (this.isBoxSelecting && this.boxStartWorld && this.boxCurrentWorld) {
+			const x = Math.min(this.boxStartWorld.x, this.boxCurrentWorld.x);
+			const y = Math.min(this.boxStartWorld.y, this.boxCurrentWorld.y);
+			const w = Math.abs(this.boxStartWorld.x - this.boxCurrentWorld.x);
+			const h = Math.abs(this.boxStartWorld.y - this.boxCurrentWorld.y);
 
-		// 1. West Player's Worker ("Північний будівельник" / Race Builder)
-		const westWorker = this.sim.players.west?.worker;
-		if (westWorker) {
-			const wx = westWorker.x;
-			const wy = westWorker.y;
-			const bob = Math.sin(this.sim.gameTime * 5) * 1.5;
-
-			// Warcraft III Selection Circle at Worker's Feet (Neon Green)
-			if (isWorkerSelected) {
-				const pulse = 0.8 + Math.sin(this.sim.gameTime * 6) * 0.2;
-				g.ellipse(wx, wy + 14, 20, 10);
-				g.stroke({ color: 0x22c55e, width: 2.5, alpha: pulse });
-				g.ellipse(wx, wy + 14, 23, 11.5);
-				g.stroke({ color: 0x4ade80, width: 1, alpha: pulse * 0.5 });
-
-				// 4 Corner Selection Tick Brackets
-				const ang = this.sim.gameTime * 2;
-				for (let a = 0; a < 4; a++) {
-					const curAng = ang + (a * Math.PI) / 2;
-					const bx = wx + Math.cos(curAng) * 22;
-					const by = wy + 14 + Math.sin(curAng) * 11;
-					g.circle(bx, by, 2);
-					g.fill({ color: 0x86efac });
-				}
-			}
-
-			// Peasant Shadow
-			g.ellipse(wx, wy + 14, 16, 7);
-			g.fill({ color: 0x000000, alpha: 0.35 });
-
-			// Worker Body & Blue Tunic
-			g.roundRect(wx - 8, wy - 4 + bob, 16, 16, 4);
-			g.fill({ color: 0x2563eb }); // Royal blue tunic
-			g.stroke({ color: 0x60a5fa, width: 1.5 });
-
-			// Leather Belt & Buckle
-			g.rect(wx - 7, wy + 6 + bob, 14, 3);
-			g.fill({ color: 0x78350f });
-			g.rect(wx - 2, wy + 5.5 + bob, 4, 4);
-			g.fill({ color: 0xfbbf24 });
-
-			// Head & Face
-			g.circle(wx, wy - 10 + bob, 7);
-			g.fill({ color: 0xfcd34d }); // Skin tone
-			g.stroke({ color: 0xd97706, width: 1 });
-
-			// Hair / Headband (WC3 Peasant look)
-			g.beginPath();
-			g.arc(wx, wy - 11 + bob, 7, Math.PI, 0);
-			g.closePath();
-			g.fill({ color: 0x451a03 });
-
-			// Eyes
-			g.rect(wx + 1, wy - 11 + bob, 2, 2);
-			g.fill({ color: 0x1e293b });
-
-			// Construction Hammer / Mallet in Hand
-			const isSwinging = westWorker.isBuilding;
-			const hammerSwing = isSwinging ? Math.sin(this.sim.gameTime * 16) * 12 : 0;
-			const hx = wx + 10;
-			const hy = wy + bob - 2 + hammerSwing;
-
-			// Hammer Handle
-			g.beginPath();
-			g.moveTo(hx - 2, hy + 8);
-			g.lineTo(hx + 4, hy - 4);
-			g.stroke({ color: 0x92400e, width: 2.5 });
-
-			// Hammer Iron Head
-			g.rect(hx + 1, hy - 7, 7, 5);
-			g.fill({ color: 0x94a3b8 });
-			g.stroke({ color: 0x475569, width: 1 });
-
-			// Spark particles if building
-			if (isSwinging) {
-				const spX = hx + 5 + Math.sin(this.sim.gameTime * 30) * 6;
-				const spY = hy + Math.cos(this.sim.gameTime * 30) * 6;
-				g.circle(spX, spY, 2);
-				g.fill({ color: 0xfef08a });
-			}
-
-			// Small Health bar above worker
-			const hpBarW = 32;
-			const hpBarH = 4;
-			g.rect(wx - hpBarW / 2 - 1, wy - 22 + bob, hpBarW + 2, hpBarH + 2);
-			g.fill({ color: 0x000000, alpha: 0.8 });
-			g.rect(wx - hpBarW / 2, wy - 21 + bob, hpBarW, hpBarH);
-			g.fill({ color: 0x22c55e });
-		}
-
-		// 2. East Enemy Worker (Orc / Red Builder)
-		const eastWorker = this.sim.players.east?.worker;
-		if (eastWorker) {
-			const ex = eastWorker.x;
-			const ey = eastWorker.y;
-			const bob = Math.sin(this.sim.gameTime * 4.5) * 1.5;
-
-			// Shadow
-			g.ellipse(ex, ey + 14, 16, 7);
-			g.fill({ color: 0x000000, alpha: 0.35 });
-
-			// Body & Crimson Tunic
-			g.roundRect(ex - 8, ey - 4 + bob, 16, 16, 4);
-			g.fill({ color: 0x991b1b });
-			g.stroke({ color: 0xf87171, width: 1.5 });
-
-			// Head (Orc Green skin)
-			g.circle(ex, ey - 10 + bob, 7);
-			g.fill({ color: 0x15803d });
-			g.stroke({ color: 0x166534, width: 1 });
-
-			// Hammer
-			g.beginPath();
-			g.moveTo(ex - 8, ey + bob);
-			g.lineTo(ex - 12, ey + bob - 8);
-			g.stroke({ color: 0x78350f, width: 2.5 });
-			g.rect(ex - 16, ey + bob - 11, 7, 5);
-			g.fill({ color: 0x71717a });
-		}
-	}
-
-	private drawSelectionHighlights(): void {
-		const selectedEntity = this.getSelectedEntity?.() || { type: 'worker' };
-
-		// Highlight selected unit if unit is selected
-		if (selectedEntity.type === 'unit') {
-			const u = this.sim.units.find((unit) => unit.instanceId === selectedEntity.instanceId);
-			if (u && u.state !== 'DEAD') {
-				const isWest = u.team === 'west';
-				const color = u.team === 'neutral' ? 0xfbbf24 : isWest ? 0x22c55e : 0xef4444;
-				const pulse = 0.8 + Math.sin(this.sim.gameTime * 8) * 0.2;
-
-				this.workersLayer.ellipse(u.x, u.y + u.size * 0.6, u.size * 1.2, u.size * 0.6);
-				this.workersLayer.stroke({ color, width: 2.5, alpha: pulse });
-
-				// Brackets
-				const ang = this.sim.gameTime * 2;
-				for (let a = 0; a < 4; a++) {
-					const curAng = ang + (a * Math.PI) / 2;
-					const bx = u.x + Math.cos(curAng) * (u.size * 1.3);
-					const by = u.y + u.size * 0.6 + Math.sin(curAng) * (u.size * 0.65);
-					this.workersLayer.circle(bx, by, 2.5);
-					this.workersLayer.fill({ color });
-				}
-			}
+			g.rect(x, y, w, h);
+			g.fill({ color: 0x22c55e, alpha: 0.15 });
+			g.stroke({ color: 0x4ade80, width: 1.5 });
 		}
 	}
 

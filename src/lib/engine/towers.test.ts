@@ -25,7 +25,7 @@ describe('Point 5: Defensive Guard Towers for Each Race', () => {
 
 		const frostTower = getBuilding('h03Q');
 		expect(frostTower).toBeDefined();
-		expect(frostTower?.race).toBe('Север');
+		expect(frostTower?.race).toBe('Північ');
 		expect(frostTower?.attack_type).toBe('magic');
 
 		const plagueTower = getBuilding('n01J');
@@ -35,7 +35,7 @@ describe('Point 5: Defensive Guard Towers for Each Race', () => {
 
 		const elfTower = getBuilding('h014');
 		expect(elfTower).toBeDefined();
-		expect(elfTower?.race).toBe('Эльфы');
+		expect(elfTower?.race).toBe('Ельфи');
 
 		const undeadTower = getBuilding('h01O');
 		expect(undeadTower).toBeDefined();
@@ -49,7 +49,7 @@ describe('Point 5: Defensive Guard Towers for Each Race', () => {
 		const orcBase = getBaseBuildingsForRace('Орки');
 		expect(orcBase.some((b) => b.id === 'o000')).toBe(true);
 
-		const scavengerBase = getBaseBuildingsForRace('Сборщики');
+		const scavengerBase = getBaseBuildingsForRace('Збирачі');
 		expect(scavengerBase.some((b) => b.id === 'cg0a')).toBe(true);
 	});
 

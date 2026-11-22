@@ -7,6 +7,127 @@ export type Team = MatchTeam | 'neutral';
 export type Lane = 'top' | 'bottom';
 export type UnitState = 'WALKING' | 'ATTACKING' | 'DYING' | 'DEAD';
 
+export interface PlayerColorDef {
+	id: number;
+	nameUk: string;
+	nameEn: string;
+	hex: string;
+	num: number;
+	darkHex: string;
+	lightHex: string;
+}
+
+export const WC3_PLAYER_COLORS: PlayerColorDef[] = [
+	{
+		id: 1,
+		nameUk: 'Червоний',
+		nameEn: 'Red',
+		hex: '#ff0303',
+		num: 0xff0303,
+		darkHex: '#7f1d1d',
+		lightHex: '#fca5a5'
+	},
+	{
+		id: 2,
+		nameUk: 'Синій',
+		nameEn: 'Blue',
+		hex: '#0042ff',
+		num: 0x0042ff,
+		darkHex: '#1e3a8a',
+		lightHex: '#93c5fd'
+	},
+	{
+		id: 3,
+		nameUk: 'Бірюзовий',
+		nameEn: 'Teal',
+		hex: '#1ce6b9',
+		num: 0x1ce6b9,
+		darkHex: '#115e59',
+		lightHex: '#5eead4'
+	},
+	{
+		id: 4,
+		nameUk: 'Фіолетовий',
+		nameEn: 'Purple',
+		hex: '#540081',
+		num: 0x540081,
+		darkHex: '#3b0764',
+		lightHex: '#d8b4fe'
+	},
+	{
+		id: 5,
+		nameUk: 'Жовтий',
+		nameEn: 'Yellow',
+		hex: '#fffc01',
+		num: 0xfffc01,
+		darkHex: '#713f12',
+		lightHex: '#fef08a'
+	},
+	{
+		id: 6,
+		nameUk: 'Помаранчевий',
+		nameEn: 'Orange',
+		hex: '#fe8a0e',
+		num: 0xfe8a0e,
+		darkHex: '#7c2d12',
+		lightHex: '#fdba74'
+	},
+	{
+		id: 7,
+		nameUk: 'Зелений',
+		nameEn: 'Green',
+		hex: '#20c000',
+		num: 0x20c000,
+		darkHex: '#14532d',
+		lightHex: '#86efac'
+	},
+	{
+		id: 8,
+		nameUk: 'Рожевий',
+		nameEn: 'Pink',
+		hex: '#e55bb0',
+		num: 0xe55bb0,
+		darkHex: '#831843',
+		lightHex: '#f472b6'
+	},
+	{
+		id: 9,
+		nameUk: 'Сірий',
+		nameEn: 'Gray',
+		hex: '#959697',
+		num: 0x959697,
+		darkHex: '#334155',
+		lightHex: '#cbd5e1'
+	},
+	{
+		id: 10,
+		nameUk: 'Світло-синій',
+		nameEn: 'Light Blue',
+		hex: '#7ebff1',
+		num: 0x7ebff1,
+		darkHex: '#0369a1',
+		lightHex: '#bae6fd'
+	},
+	{
+		id: 11,
+		nameUk: 'Темно-зелений',
+		nameEn: 'Dark Green',
+		hex: '#106246',
+		num: 0x106246,
+		darkHex: '#064e3b',
+		lightHex: '#6ee7b7'
+	},
+	{
+		id: 12,
+		nameUk: 'Коричневий',
+		nameEn: 'Brown',
+		hex: '#4e2a04',
+		num: 0x4e2a04,
+		darkHex: '#382006',
+		lightHex: '#d97706'
+	}
+];
+
 export interface Vector2D {
 	x: number;
 	y: number;
@@ -158,6 +279,8 @@ export interface Building {
 	damageMin?: number;
 	damageMax?: number;
 	attackType?: AttackType;
+	width?: number;
+	height?: number;
 }
 
 export interface Projectile {
@@ -168,6 +291,10 @@ export interface Projectile {
 	y: number;
 	targetX: number;
 	targetY: number;
+	originX?: number;
+	originY?: number;
+	totalDist?: number;
+	arcHeight?: number;
 	speed: number;
 	damage: number;
 	attackType: AttackType;
@@ -211,6 +338,9 @@ export interface WorkerState {
 	isBuilding?: boolean;
 	buildTimer?: number;
 	targetBuildingId?: string | null;
+	isRepairing?: boolean;
+	targetRepairBuildingId?: string | null;
+	path?: { x: number; y: number }[];
 }
 
 export interface PlayerState {
@@ -218,6 +348,7 @@ export interface PlayerState {
 	isBot: boolean;
 	name: string;
 	race: string;
+	color: PlayerColorDef;
 	isRandomRace?: boolean;
 	randomGoldGranted?: boolean;
 	gold: number;

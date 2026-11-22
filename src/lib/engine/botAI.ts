@@ -293,7 +293,7 @@ export class BotAI {
 		const freeSlots: { x: number; y: number }[] = [];
 		for (let x = 0; x < 3; x++) {
 			for (let y = 0; y < 8; y++) {
-				if (!occupied.has(`${x}:${y}`)) {
+				if (!occupied.has(`${x}:${y}`) && this.sim.canBuild(this.team, x, y)) {
 					freeSlots.push({ x, y });
 				}
 			}

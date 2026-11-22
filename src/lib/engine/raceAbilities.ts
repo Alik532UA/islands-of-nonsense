@@ -110,6 +110,16 @@ export const RACE_ABILITIES: Record<string, RaceAbility> = {
 		descriptionEn: '30 damage/s to enemy troops for 8s.',
 		icon: 'Biohazard'
 	},
+	Збирачі: {
+		race: 'Збирачі',
+		nameUk: 'Велика збірка',
+		nameEn: 'Great Assembly',
+		kind: 'sbor',
+		duration: 15,
+		descriptionUk: 'Потужне підсилення: +20% швидкості атаки всім союзникам на 15 с.',
+		descriptionEn: '+20% attack speed to all friendly units for 15s.',
+		icon: 'Wrench'
+	},
 	Сборщики: {
 		race: 'Сборщики',
 		nameUk: 'Велика збірка',

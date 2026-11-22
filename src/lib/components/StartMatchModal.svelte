@@ -1,9 +1,8 @@
 <script lang="ts">
 	import type { SimulationConfig } from '../engine/simulation';
-	import { RACES_LIST } from '../engine/gameData';
 	import { GAME_MODES } from '../engine/gameModes';
 	import { storage } from '../services/storage';
-	import { Swords, Bot, Coins, Trophy, Dices, X, Play, Sliders } from 'lucide-svelte';
+	import { Swords, Bot, Coins, Trophy, Dices, X, Play, Sliders, Eye } from 'lucide-svelte';
 
 	let {
 		isOpen = false,
@@ -22,7 +21,10 @@
 	let startGold = $state(currentConfig.startGold ?? 500);
 	let selectedMode = $state(currentConfig.modeId ?? 'standard');
 	let targetWins = $state(currentConfig.targetWins ?? 2);
-	let selectedRace = $state(currentConfig.westRace ?? 'Люди');
+	let raceChoiceMode = $state<'pick' | 'random'>(
+		currentConfig.allRandom || currentConfig.westRace === 'random' ? 'random' : 'pick'
+	);
+	let fogOfWar = $state(currentConfig.fogOfWar ?? true);
 
 	// Synchronize when opened with currentConfig
 	$effect(() => {
@@ -32,13 +34,20 @@
 			startGold = saved.startGold ?? currentConfig.startGold ?? 500;
 			selectedMode = saved.modeId ?? currentConfig.modeId ?? 'standard';
 			targetWins = saved.targetWins ?? currentConfig.targetWins ?? 2;
-			selectedRace = saved.westRace ?? currentConfig.westRace ?? 'Люди';
+			raceChoiceMode =
+				saved.allRandom || saved.westRace === 'random'
+					? 'random'
+					: currentConfig.allRandom || currentConfig.westRace === 'random'
+						? 'random'
+						: 'pick';
+			fogOfWar = saved.fogOfWar ?? currentConfig.fogOfWar ?? true;
 		}
 	});
 
 	function handleSubmit() {
 		const modeConfig = GAME_MODES[selectedMode] || GAME_MODES.standard;
-		const isAr = modeConfig.allRandom || selectedMode === 'allRandom';
+		const isAr =
+			modeConfig.allRandom || selectedMode === 'allRandom' || raceChoiceMode === 'random';
 		const isUr = modeConfig.uniqueRaces || selectedMode === 'uniqueRaces';
 
 		const newConfig: SimulationConfig = {
@@ -48,7 +57,8 @@
 			allRandom: isAr,
 			uniqueRaces: isUr,
 			targetWins,
-			westRace: isAr ? 'random' : selectedRace
+			westRace: isAr ? 'random' : 'Люди',
+			fogOfWar
 		};
 
 		// Persist settings
@@ -188,17 +198,69 @@
 					<div>
 						<label class="font-bold text-slate-300 flex items-center gap-1.5 mb-1.5">
 							<Dices class="w-4 h-4 text-purple-400" />
-							Стартова раса гравця:
+							Стартова раса:
 						</label>
-						<select
-							bind:value={selectedRace}
-							class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-bold text-slate-200 focus:outline-none focus:border-amber-500 cursor-pointer"
-						>
-							<option value="random">🎲 Випадкова раса (+30% золота)</option>
-							{#each RACES_LIST as r}
-								<option value={r.race}>{r.race}</option>
-							{/each}
-						</select>
+						<div class="grid grid-cols-2 gap-2">
+							<button
+								type="button"
+								onclick={() => (raceChoiceMode = 'pick')}
+								class="py-1.5 px-2.5 rounded-lg border text-center transition cursor-pointer {raceChoiceMode ===
+								'pick'
+									? 'bg-amber-600/30 border-amber-500 text-amber-200 font-bold shadow'
+									: 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'}"
+							>
+								<div class="text-[11px] font-bold">Можна вибрати</div>
+								<div class="text-[9px] text-slate-500">10 сек на вибір</div>
+							</button>
+							<button
+								type="button"
+								onclick={() => (raceChoiceMode = 'random')}
+								class="py-1.5 px-2.5 rounded-lg border text-center transition cursor-pointer {raceChoiceMode ===
+								'random'
+									? 'bg-purple-600/30 border-purple-500 text-purple-200 font-bold shadow'
+									: 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'}"
+							>
+								<div class="text-[11px] font-bold">Випадкова раса</div>
+								<div class="text-[9px] text-slate-500">+30% золота</div>
+							</button>
+						</div>
+					</div>
+				</div>
+
+				<!-- Fog of War Setting -->
+				<div class="bg-slate-950/40 p-3 rounded-2xl border border-slate-800">
+					<div class="flex items-center justify-between">
+						<div>
+							<div class="font-bold text-slate-200 flex items-center gap-1.5">
+								<Eye class="w-4 h-4 text-cyan-400" />
+								<span>Туман війни:</span>
+							</div>
+							<div class="text-[10px] text-slate-400 mt-0.5">
+								{fogOfWar
+									? 'Класичний режим: вороги сховані за річкою'
+									: 'Вся карта повністю відкрита для огляду'}
+							</div>
+						</div>
+						<div class="flex items-center gap-2">
+							<button
+								type="button"
+								onclick={() => (fogOfWar = true)}
+								class="py-1.5 px-3 rounded-xl border text-xs font-bold transition cursor-pointer {fogOfWar
+									? 'bg-cyan-600/30 border-cyan-500 text-cyan-200 shadow-lg shadow-cyan-500/10'
+									: 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'}"
+							>
+								Увімкнено
+							</button>
+							<button
+								type="button"
+								onclick={() => (fogOfWar = false)}
+								class="py-1.5 px-3 rounded-xl border text-xs font-bold transition cursor-pointer {!fogOfWar
+									? 'bg-amber-600/30 border-amber-500 text-amber-200 shadow-lg shadow-amber-500/10'
+									: 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'}"
+							>
+								Вимкнено
+							</button>
+						</div>
 					</div>
 				</div>
 			</div>

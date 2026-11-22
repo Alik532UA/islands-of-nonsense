@@ -327,6 +327,90 @@ export class SoundService {
 		osc.start();
 		osc.stop(ctx.currentTime + 0.46);
 	}
+
+	/**
+	 * Бойовий горн на початку матчу / раунду (середньовічний фанфар)
+	 */
+	public playHorn(): void {
+		if (!this.enabled) return;
+		const ctx = this.getContext();
+		if (!ctx) return;
+
+		const now = ctx.currentTime;
+		const hornNotes = [
+			{ f: 220, start: 0, dur: 0.25 },
+			{ f: 277.18, start: 0.22, dur: 0.25 },
+			{ f: 329.63, start: 0.44, dur: 0.25 },
+			{ f: 440, start: 0.66, dur: 0.7 }
+		];
+
+		hornNotes.forEach(({ f, start, dur }) => {
+			const osc = ctx.createOscillator();
+			const gain = ctx.createGain();
+
+			osc.type = 'sawtooth';
+			osc.frequency.setValueAtTime(f, now + start);
+
+			gain.gain.setValueAtTime(this.volume * 0.4, now + start);
+			gain.gain.exponentialRampToValueAtTime(0.01, now + start + dur);
+
+			osc.connect(gain);
+			gain.connect(ctx.destination);
+
+			osc.start(now + start);
+			osc.stop(now + start + dur + 0.05);
+		});
+	}
+
+	/**
+	 * Звук голосового підтвердження / наказу робітнику (ПКМ)
+	 */
+	public playWorkerAck(): void {
+		if (!this.enabled) return;
+		const ctx = this.getContext();
+		if (!ctx) return;
+
+		const osc = ctx.createOscillator();
+		const gain = ctx.createGain();
+
+		osc.type = 'sine';
+		osc.frequency.setValueAtTime(520, ctx.currentTime);
+		osc.frequency.exponentialRampToValueAtTime(780, ctx.currentTime + 0.08);
+
+		gain.gain.setValueAtTime(this.volume * 0.25, ctx.currentTime);
+		gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+
+		osc.connect(gain);
+		gain.connect(ctx.destination);
+
+		osc.start();
+		osc.stop(ctx.currentTime + 0.11);
+	}
+
+	/**
+	 * Глибокий вибуховий гуркіт облоги
+	 */
+	public playSiegeHit(): void {
+		if (!this.enabled) return;
+		const ctx = this.getContext();
+		if (!ctx) return;
+
+		const osc = ctx.createOscillator();
+		const gain = ctx.createGain();
+
+		osc.type = 'triangle';
+		osc.frequency.setValueAtTime(80, ctx.currentTime);
+		osc.frequency.exponentialRampToValueAtTime(20, ctx.currentTime + 0.3);
+
+		gain.gain.setValueAtTime(this.volume * 0.5, ctx.currentTime);
+		gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.32);
+
+		osc.connect(gain);
+		gain.connect(ctx.destination);
+
+		osc.start();
+		osc.stop(ctx.currentTime + 0.33);
+	}
 }
 
 export const sound = new SoundService();

@@ -118,7 +118,7 @@ export const GUARD_TOWERS: BuildingDefinition[] = [
 		unit: '',
 		upgrade_from: null,
 		upgrade_extra_cost: 0,
-		race: 'Эльфы',
+		race: 'Ельфи',
 		specialType: 'tower'
 	},
 	{
@@ -169,7 +169,7 @@ export const GUARD_TOWERS: BuildingDefinition[] = [
 		unit: '',
 		upgrade_from: null,
 		upgrade_extra_cost: 0,
-		race: 'Север',
+		race: 'Північ',
 		specialType: 'tower'
 	},
 	{
@@ -203,7 +203,7 @@ export const GUARD_TOWERS: BuildingDefinition[] = [
 		unit: '',
 		upgrade_from: null,
 		upgrade_extra_cost: 0,
-		race: 'Ночные эльфы',
+		race: 'Нічні ельфи',
 		specialType: 'tower'
 	},
 	{
@@ -220,7 +220,7 @@ export const GUARD_TOWERS: BuildingDefinition[] = [
 		unit: '',
 		upgrade_from: null,
 		upgrade_extra_cost: 0,
-		race: 'Техники',
+		race: 'Техніки',
 		specialType: 'tower'
 	},
 	{
@@ -237,7 +237,7 @@ export const GUARD_TOWERS: BuildingDefinition[] = [
 		unit: '',
 		upgrade_from: null,
 		upgrade_extra_cost: 0,
-		race: 'Сборщики',
+		race: 'Збирачі',
 		specialType: 'tower'
 	}
 ];
@@ -277,7 +277,27 @@ export function getBuildingsForRace(raceName: string): BuildingDefinition[] {
 }
 
 export function getBaseBuildingsForRace(raceName: string): BuildingDefinition[] {
-	return [...getBuildingsForRace(raceName).filter((b) => !b.upgrade_from), ...SPECIAL_BUILDINGS];
+	// 1. First 6 buildings for training the army of mobs, ordered by gold cost ascending
+	const armySpawners = getBuildingsForRace(raceName).filter(
+		(b) => !b.upgrade_from && !b.specialType
+	);
+	armySpawners.sort((a, b) => (a.gold_cost || 0) - (b.gold_cost || 0));
+	const top6Army = armySpawners.slice(0, 6);
+
+	// 2. Special buildings (defensive guard tower, treasure chest, repair center, recycler) ordered by gold cost ascending
+	const raceTower = GUARD_TOWERS.find((t) => t.race === raceName);
+	const specials: BuildingDefinition[] = [];
+	if (raceTower) {
+		specials.push(raceTower);
+	}
+	for (const sb of SPECIAL_BUILDINGS) {
+		if (!specials.some((s) => s.id === sb.id)) {
+			specials.push(sb);
+		}
+	}
+	specials.sort((a, b) => (a.gold_cost || 0) - (b.gold_cost || 0));
+
+	return [...top6Army, ...specials];
 }
 
 export function getUpgradesForBuilding(buildingId: string): BuildingDefinition[] {
@@ -417,11 +437,39 @@ export function isTowerBuilding(def?: BuildingDefinition | Building): boolean {
 }
 
 /**
+ * Localizes and formats race names into standard Ukrainian canon.
+ */
+export function formatRaceName(race: string): string {
+	const map: Record<string, string> = {
+		Север: 'Північ',
+		Північ: 'Північ',
+		Люди: 'Люди',
+		Орки: 'Орки',
+		Нежить: 'Нежить',
+		Эльфы: 'Ельфи',
+		Ельфи: 'Ельфи',
+		Хаос: 'Хаос',
+		Наги: 'Наги',
+		Порча: 'Порча',
+		'Ночные эльфы': 'Нічні ельфи',
+		'Ночні ельфи': 'Нічні ельфи',
+		'Нічні ельфи': 'Нічні ельфи',
+		Техники: 'Техніки',
+		Техніки: 'Техніки',
+		Сборщики: 'Збирачі',
+		Складальники: 'Збирачі',
+		Збирачі: 'Збирачі'
+	};
+	return map[race] || race;
+}
+
+/**
  * Returns canonical Ukrainian builder unit name for a given race.
  */
 export function getBuilderNameForRace(race: string): string {
-	switch (race) {
-		case 'Север':
+	const canonical = formatRaceName(race);
+	switch (canonical) {
+		case 'Північ':
 			return 'Північний будівельник';
 		case 'Люди':
 			return 'Будівельник Людей';
@@ -437,15 +485,12 @@ export function getBuilderNameForRace(race: string): string {
 			return 'Будівельник Наг';
 		case 'Порча':
 			return 'Будівельник Скверни';
-		case 'Ночні ельфи':
-		case 'Ночные эльфы':
+		case 'Нічні ельфи':
 			return 'Будівельник Нічних Ельфів';
 		case 'Техніки':
-		case 'Техники':
 			return 'Будівельник Техніків';
-		case 'Складальники':
-		case 'Сборщики':
-			return 'Будівельник Складальників';
+		case 'Збирачі':
+			return 'Будівельник Збирачів';
 		default:
 			return 'Північний будівельник';
 	}

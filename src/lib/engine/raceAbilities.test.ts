@@ -21,6 +21,7 @@ describe('Castle Fight - Race Abilities System', () => {
 			'Ельфи',
 			'Північ',
 			'Порча',
+			'Збирачі',
 			'Сборщики'
 		];
 

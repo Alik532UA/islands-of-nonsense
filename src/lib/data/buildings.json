@@ -532,7 +532,7 @@
 		"unit": "h00W",
 		"upgrade_from": "h09X",
 		"upgrade_extra_cost": 360,
-		"race": "Эльфы"
+		"race": "Ельфи"
 	},
 	{
 		"id": "h03F",
@@ -590,7 +590,7 @@
 		"unit": "n00Y",
 		"upgrade_from": "h00T",
 		"upgrade_extra_cost": 220,
-		"race": "Эльфы"
+		"race": "Ельфи"
 	},
 	{
 		"id": "h08Y",
@@ -648,7 +648,7 @@
 		"unit": "n023",
 		"upgrade_from": "h08X",
 		"upgrade_extra_cost": 180,
-		"race": "Эльфы"
+		"race": "Ельфи"
 	},
 	{
 		"id": "h04B",
@@ -1299,7 +1299,7 @@
 		"unit": "n013",
 		"upgrade_from": "h03T",
 		"upgrade_extra_cost": 275,
-		"race": "Север"
+		"race": "Північ"
 	},
 	{
 		"id": "h03J",
@@ -1357,7 +1357,7 @@
 		"unit": "o00A",
 		"upgrade_from": "h03K",
 		"upgrade_extra_cost": 175,
-		"race": "Север"
+		"race": "Північ"
 	},
 	{
 		"id": "h09Y",
@@ -1661,7 +1661,7 @@
 		"unit": "e00J",
 		"upgrade_from": "h088",
 		"upgrade_extra_cost": 190,
-		"race": "Ночные эльфы"
+		"race": "Нічні ельфи"
 	},
 	{
 		"id": "h07L",
@@ -1719,7 +1719,7 @@
 		"unit": "n020",
 		"upgrade_from": "h07M",
 		"upgrade_extra_cost": 200,
-		"race": "Ночные эльфы"
+		"race": "Нічні ельфи"
 	},
 	{
 		"id": "h07N",
@@ -1777,7 +1777,7 @@
 		"unit": "e00A",
 		"upgrade_from": "h07O",
 		"upgrade_extra_cost": 230,
-		"race": "Ночные эльфы"
+		"race": "Нічні ельфи"
 	},
 	{
 		"id": "h03D",
@@ -1836,7 +1836,7 @@
 		"unit": "e003",
 		"upgrade_from": "h00S",
 		"upgrade_extra_cost": 150,
-		"race": "Ночные эльфы"
+		"race": "Нічні ельфи"
 	},
 	{
 		"id": "h03E",
@@ -1895,7 +1895,7 @@
 		"unit": "e004",
 		"upgrade_from": "h03D",
 		"upgrade_extra_cost": 350,
-		"race": "Ночные эльфы"
+		"race": "Нічні ельфи"
 	},
 	{
 		"id": "h09P",
@@ -1951,7 +1951,7 @@
 		"unit": "z003",
 		"upgrade_from": "h05T",
 		"upgrade_extra_cost": 220,
-		"race": "Техники"
+		"race": "Техніки"
 	},
 	{
 		"id": "h09L",
@@ -2009,7 +2009,7 @@
 		"unit": "h06R",
 		"upgrade_from": "h05J",
 		"upgrade_extra_cost": 160,
-		"race": "Техники"
+		"race": "Техніки"
 	},
 	{
 		"id": "h097",
@@ -2071,7 +2071,7 @@
 		"unit": "n024",
 		"upgrade_from": "h05V",
 		"upgrade_extra_cost": 270,
-		"race": "Техники"
+		"race": "Техніки"
 	},
 	{
 		"id": "h09J",
@@ -2130,7 +2130,7 @@
 		"unit": "h06U",
 		"upgrade_from": "h05X",
 		"upgrade_extra_cost": 180,
-		"race": "Техники"
+		"race": "Техніки"
 	},
 	{
 		"id": "h09I",
@@ -2190,7 +2190,7 @@
 		"unit": "h099",
 		"upgrade_from": "h05X",
 		"upgrade_extra_cost": 180,
-		"race": "Техники"
+		"race": "Техніки"
 	},
 	{
 		"id": "h09B",
@@ -2251,7 +2251,7 @@
 		"unit": "h06S",
 		"upgrade_from": "h05X",
 		"upgrade_extra_cost": 180,
-		"race": "Техники"
+		"race": "Техніки"
 	},
 	{
 		"id": "cg07",
@@ -2310,7 +2310,7 @@
 		"unit": "cg13",
 		"upgrade_from": "cg02",
 		"upgrade_extra_cost": 280,
-		"race": "Сборщики"
+		"race": "Збирачі"
 	},
 	{
 		"id": "cg08",
@@ -2369,7 +2369,7 @@
 		"unit": "cg15",
 		"upgrade_from": "cg03",
 		"upgrade_extra_cost": 240,
-		"race": "Сборщики"
+		"race": "Збирачі"
 	},
 	{
 		"id": "cg09",
@@ -2428,7 +2428,7 @@
 		"unit": "cg17",
 		"upgrade_from": "cg04",
 		"upgrade_extra_cost": 200,
-		"race": "Сборщики"
+		"race": "Збирачі"
 	},
 	{
 		"id": "cg0e",
@@ -2487,7 +2487,7 @@
 		"unit": "cg1a",
 		"upgrade_from": "cg05",
 		"upgrade_extra_cost": 330,
-		"race": "Сборщики"
+		"race": "Збирачі"
 	},
 	{
 		"id": "cg0f",
@@ -2546,7 +2546,7 @@
 		"unit": "cg1b",
 		"upgrade_from": "cg06",
 		"upgrade_extra_cost": 330,
-		"race": "Сборщики"
+		"race": "Збирачі"
 	},
 	{
 		"id": "h037",
@@ -3503,7 +3503,7 @@
 		"unit": "h07B",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Эльфы"
+		"race": "Ельфи"
 	},
 	{
 		"id": "h00V",
@@ -3562,7 +3562,7 @@
 		"unit": "h00U",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Эльфы"
+		"race": "Ельфи"
 	},
 	{
 		"id": "h00T",
@@ -3621,7 +3621,7 @@
 		"unit": "n006",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Эльфы"
+		"race": "Ельфи"
 	},
 	{
 		"id": "h08X",
@@ -3679,7 +3679,7 @@
 		"unit": "n022",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Эльфы"
+		"race": "Ельфи"
 	},
 	{
 		"id": "h070",
@@ -3739,7 +3739,7 @@
 		"unit": "e005",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Эльфы"
+		"race": "Ельфи"
 	},
 	{
 		"id": "h06Y",
@@ -3799,7 +3799,7 @@
 		"unit": "n01Y",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Эльфы"
+		"race": "Ельфи"
 	},
 	{
 		"id": "h01K",
@@ -4453,7 +4453,7 @@
 		"unit": "n012",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Север"
+		"race": "Північ"
 	},
 	{
 		"id": "h03S",
@@ -4517,7 +4517,7 @@
 		"unit": "n014",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Север"
+		"race": "Північ"
 	},
 	{
 		"id": "h03K",
@@ -4575,7 +4575,7 @@
 		"unit": "n015",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Север"
+		"race": "Північ"
 	},
 	{
 		"id": "h03U",
@@ -4632,7 +4632,7 @@
 		"unit": "n011",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Север"
+		"race": "Північ"
 	},
 	{
 		"id": "h03I",
@@ -4692,7 +4692,7 @@
 		"unit": "n010",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Север"
+		"race": "Північ"
 	},
 	{
 		"id": "h04U",
@@ -5065,7 +5065,7 @@
 		"unit": "e007",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Ночные эльфы"
+		"race": "Нічні ельфи"
 	},
 	{
 		"id": "h07M",
@@ -5124,7 +5124,7 @@
 		"unit": "n01Z",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Ночные эльфы"
+		"race": "Нічні ельфи"
 	},
 	{
 		"id": "h07O",
@@ -5183,7 +5183,7 @@
 		"unit": "e00B",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Ночные эльфы"
+		"race": "Нічні ельфи"
 	},
 	{
 		"id": "h011",
@@ -5243,7 +5243,7 @@
 		"unit": "e002",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Ночные эльфы"
+		"race": "Нічні ельфи"
 	},
 	{
 		"id": "h00S",
@@ -5301,7 +5301,7 @@
 		"unit": "e001",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Ночные эльфы"
+		"race": "Нічні ельфи"
 	},
 	{
 		"id": "h00B",
@@ -5361,7 +5361,7 @@
 		"unit": "e000",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Ночные эльфы"
+		"race": "Нічні ельфи"
 	},
 	{
 		"id": "h05T",
@@ -5417,7 +5417,7 @@
 		"unit": "z002",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Техники"
+		"race": "Техніки"
 	},
 	{
 		"id": "h05U",
@@ -5478,7 +5478,7 @@
 		"unit": "n01T",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Техники"
+		"race": "Техніки"
 	},
 	{
 		"id": "h05M",
@@ -5538,7 +5538,7 @@
 		"unit": "n01V",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Техники"
+		"race": "Техніки"
 	},
 	{
 		"id": "h05J",
@@ -5596,7 +5596,7 @@
 		"unit": "h06Q",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Техники"
+		"race": "Техніки"
 	},
 	{
 		"id": "h05V",
@@ -5658,7 +5658,7 @@
 		"unit": "n01X",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Техники"
+		"race": "Техніки"
 	},
 	{
 		"id": "h05X",
@@ -5717,7 +5717,7 @@
 		"unit": "h06T",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Техники"
+		"race": "Техніки"
 	},
 	{
 		"id": "cg01",
@@ -5777,7 +5777,7 @@
 		"unit": "cg11",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Сборщики"
+		"race": "Збирачі"
 	},
 	{
 		"id": "cg02",
@@ -5838,7 +5838,7 @@
 		"unit": "cg12",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Сборщики"
+		"race": "Збирачі"
 	},
 	{
 		"id": "cg03",
@@ -5904,7 +5904,7 @@
 		"unit": "cg14",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Сборщики"
+		"race": "Збирачі"
 	},
 	{
 		"id": "cg04",
@@ -5964,7 +5964,7 @@
 		"unit": "cg16",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Сборщики"
+		"race": "Збирачі"
 	},
 	{
 		"id": "cg05",
@@ -6028,7 +6028,7 @@
 		"unit": "cg18",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Сборщики"
+		"race": "Збирачі"
 	},
 	{
 		"id": "cg06",
@@ -6089,6 +6089,6 @@
 		"unit": "cg19",
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
-		"race": "Сборщики"
+		"race": "Збирачі"
 	}
 ]
