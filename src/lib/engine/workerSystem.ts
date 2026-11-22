@@ -621,7 +621,8 @@ export class WorkerSystem {
 							targetBld.y - 15,
 							'#22c55e'
 						);
-						this.sim.onSoundEffect?.('sword');
+						this.sim.onSoundEffect?.('buildingComplete');
+						this.sim.onBuildingComplete?.(targetBld);
 					}
 				} else {
 					w.isBuilding = false;

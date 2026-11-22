@@ -44,6 +44,12 @@ export class DefenseSystem {
 		castle.hp = Math.max(0, castle.hp - finalDamage);
 		this.sim.onSoundEffect?.('hit');
 
+		if (this.sim.gameTime - this.sim.lastCastleAttackAlert[castle.team] >= 10.0) {
+			this.sim.lastCastleAttackAlert[castle.team] = this.sim.gameTime;
+			this.sim.onSoundEffect?.('castleUnderAttack');
+			this.sim.onCastleUnderAttack?.(castle.team, castle.hp / castle.maxHp);
+		}
+
 		if (attacker.team === 'west' || attacker.team === 'east') {
 			this.sim.players[attacker.team].stats.damageToCastle += finalDamage;
 			this.sim.players[attacker.team].stats.totalDamageDealt += finalDamage;

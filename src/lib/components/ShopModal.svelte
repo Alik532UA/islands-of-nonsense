@@ -32,6 +32,8 @@
 		const success = sim.buyCastleItem('west', itemId);
 		if (success) {
 			sound.playCoin();
+		} else {
+			sound.playErrorResource();
 		}
 	}
 

@@ -607,6 +607,7 @@ export class EconomySystem {
 					myCastle.y - 60,
 					'#78716c'
 				);
+				this.sim.onSoundEffect?.('bossSpawn');
 				break;
 			}
 			case 'I009': {

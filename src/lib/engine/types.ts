@@ -466,3 +466,28 @@ export interface GoldCoin {
 	lifeTime: number;
 	maxLifeTime: number;
 }
+
+export type SoundEffectType =
+	| 'hit'
+	| 'sword'
+	| 'bow'
+	| 'magic'
+	| 'death'
+	| 'unit_death'
+	| 'attack_normal'
+	| 'attack_pierce'
+	| 'attack_magic'
+	| 'attack_siege'
+	| 'buildingDestroyed'
+	| 'building_destroyed'
+	| 'building_repair'
+	| 'upgrade'
+	| 'coin'
+	| 'buildingComplete'
+	| 'castleUnderAttack'
+	| 'bossSpawn'
+	| 'victory'
+	| 'defeat'
+	| 'errorResource'
+	| 'lowCastleHp'
+	| 'horn';

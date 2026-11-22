@@ -129,6 +129,8 @@
 							sound.playUpgrade();
 							uiTick = sim.stateVersion;
 						}
+					} else {
+						sound.playErrorResource();
 					}
 				}
 			} else if (
@@ -163,6 +165,8 @@
 		if (success) {
 			sound.playUpgrade();
 			uiTick = sim.stateVersion;
+		} else {
+			sound.playErrorResource();
 		}
 	}
 
@@ -220,6 +224,30 @@
 				case 'coin':
 					sound.playCoin();
 					break;
+				case 'buildingComplete':
+					sound.playBuildingComplete();
+					break;
+				case 'castleUnderAttack':
+					sound.playCastleUnderAttack();
+					break;
+				case 'bossSpawn':
+					sound.playBossSpawn();
+					break;
+				case 'victory':
+					sound.playVictory();
+					break;
+				case 'defeat':
+					sound.playDefeat();
+					break;
+				case 'errorResource':
+					sound.playErrorResource();
+					break;
+				case 'lowCastleHp':
+					sound.playLowCastleHp();
+					break;
+				case 'horn':
+					sound.playHorn();
+					break;
 			}
 		};
 	}
@@ -243,6 +271,8 @@
 						selectedPlacedBuildingId = null;
 						selectedEntity = { type: 'worker' };
 						uiTick = sim.stateVersion;
+					} else {
+						sound.playErrorResource();
 					}
 				} else {
 					const existing = sim.buildings.find((b) => b.tileX === tileX && b.tileY === tileY);

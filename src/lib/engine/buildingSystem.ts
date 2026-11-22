@@ -659,6 +659,11 @@ export class BuildingSystem {
 		};
 
 		this.sim.units.push(unit);
+		const bDef = getBuilding(building.defId);
+		if (bDef && isLegendaryBuilding(bDef)) {
+			this.sim.onSoundEffect?.('bossSpawn');
+			this.sim.onBossSpawn?.(unit);
+		}
 		this.sim.notifyStateChanged();
 		return unit;
 	}

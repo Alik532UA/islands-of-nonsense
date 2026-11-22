@@ -12,7 +12,8 @@ import type {
 	GoldCoin,
 	AttackType,
 	BuildingPerformance,
-	LightningEffect
+	LightningEffect,
+	SoundEffectType
 } from './types';
 import { SpatialHashGrid } from './spatialGrid';
 import { getBuilderNameForRace, RACES_LIST } from './gameData';
@@ -138,12 +139,17 @@ export class Simulation {
 	public readonly combatSystem: CombatSystem;
 	public readonly economySystem: EconomySystem;
 
+	// WC3 Combat & Audio Alert Timers
+	public lastCastleAttackAlert: Record<MatchTeam, number> = { west: -99, east: -99 };
+	public lastLowCastleHpAlert: Record<MatchTeam, number> = { west: -99, east: -99 };
+
 	// Callbacks
 	public onFloatingText?: (text: FloatingText) => void;
 	public onRoundEnd?: (winner: MatchTeam) => void;
-	public onSoundEffect?: (
-		sound: 'hit' | 'sword' | 'bow' | 'magic' | 'death' | 'buildingDestroyed' | 'upgrade' | 'coin'
-	) => void;
+	public onSoundEffect?: (sound: SoundEffectType) => void;
+	public onCastleUnderAttack?: (team: MatchTeam, hpPercent: number) => void;
+	public onBuildingComplete?: (building: Building) => void;
+	public onBossSpawn?: (unit: Unit) => void;
 
 	public setPlayerPreferredLane(team: MatchTeam, lane: 'auto' | 'top' | 'bottom'): void {
 		if (this.players[team]) {
@@ -673,6 +679,8 @@ export class Simulation {
 		this.winner = null;
 		this.roundWinner = null;
 		this.buildingStats = {};
+		this.lastCastleAttackAlert = { west: -99, east: -99 };
+		this.lastLowCastleHpAlert = { west: -99, east: -99 };
 
 		for (const p of this.allPlayers) {
 			p.forge = { attack: 0, armor: 0, econ: 0 };
@@ -798,6 +806,14 @@ export class Simulation {
 		this.combatSystem.updateCastles(dt);
 		this.combatSystem.updateTowers(dt);
 
+		// Critical Castle HP alarm heartbeat (< 30% HP for player team)
+		if (this.castles.west.hp > 0 && this.castles.west.hp < this.castles.west.maxHp * 0.3) {
+			if (this.gameTime - this.lastLowCastleHpAlert.west >= 8.0) {
+				this.lastLowCastleHpAlert.west = this.gameTime;
+				this.onSoundEffect?.('lowCastleHp');
+			}
+		}
+
 		// 11. Update Floating texts
 		this.updateFloatingTexts(dt);
 
@@ -813,6 +829,7 @@ export class Simulation {
 			if (this.score.east >= this.targetWins) {
 				this.matchWinner = 'east';
 			}
+			this.onSoundEffect?.('defeat');
 			this.onRoundEnd?.('east');
 			this.notifyStateChanged();
 		} else if (this.castles.east.hp <= 0 && !this.winner) {
@@ -822,6 +839,7 @@ export class Simulation {
 			if (this.score.west >= this.targetWins) {
 				this.matchWinner = 'west';
 			}
+			this.onSoundEffect?.('victory');
 			this.onRoundEnd?.('west');
 			this.notifyStateChanged();
 		}
@@ -967,6 +985,8 @@ export class Simulation {
 		this.units.push(unit);
 		this.activeBossInstanceId = unit.instanceId;
 		this.addFloatingText(`БОСС: ${bossDef.nameUk}!`, centerX, laneY - 40, '#f59e0b');
+		this.onSoundEffect?.('bossSpawn');
+		this.onBossSpawn?.(unit);
 		this.notifyStateChanged();
 		return unit;
 	}
