@@ -74,6 +74,39 @@ export class EconomySystem {
 				this.sim.addFloatingText(`+${payout}g`, myCastle.x, myCastle.y - 50, '#fbbf24');
 			}
 
+			// Domination Mode (-dm / -dom): bonus +15g per controlled lane center
+			if (this.sim.gameModeConfig?.domination) {
+				const midMinX = ARENA_WIDTH * 0.35;
+				const midMaxX = ARENA_WIDTH * 0.65;
+				for (const lane of ['top', 'bottom'] as Lane[]) {
+					let westCount = 0;
+					let eastCount = 0;
+					for (const u of this.sim.units) {
+						if (u.state === 'DEAD' || u.lane !== lane || u.x < midMinX || u.x > midMaxX) continue;
+						if (u.team === 'west') westCount++;
+						else if (u.team === 'east') eastCount++;
+					}
+					const laneY = lane === 'top' ? TOP_LANE_Y : BOTTOM_LANE_Y;
+					if (westCount > eastCount && westCount >= 2) {
+						this.sim.players.west.gold += 15;
+						this.sim.addFloatingText(
+							'+15g Домінування',
+							ARENA_WIDTH / 2 - 120,
+							laneY - 25,
+							'#38bdf8'
+						);
+					} else if (eastCount > westCount && eastCount >= 2) {
+						this.sim.players.east.gold += 15;
+						this.sim.addFloatingText(
+							'+15g Домінування',
+							ARENA_WIDTH / 2 + 120,
+							laneY - 25,
+							'#f43f5e'
+						);
+					}
+				}
+			}
+
 			this.sim.notifyStateChanged();
 		}
 	}
@@ -391,6 +424,8 @@ export class EconomySystem {
 	}
 
 	public canBuyCastleItem(team: MatchTeam, itemId: string): boolean {
+		if (this.sim.gameModeConfig?.noItems) return false;
+		if (itemId === 'I00N' && !this.sim.gameModeConfig?.nuclearWarheads) return false;
 		const item = CASTLE_ITEMS[itemId];
 		if (!item) return false;
 		const player = this.sim.players[team];
@@ -581,6 +616,29 @@ export class EconomySystem {
 				);
 				break;
 			}
+			case 'I00N': {
+				const enemyCastle = this.sim.castles[enemyTeam];
+				this.sim.rescueStrikeEffects.push({
+					team,
+					x: enemyCastle.x,
+					y: enemyCastle.y,
+					radius: 900,
+					timer: 1.5,
+					maxTimer: 1.5
+				});
+				for (const u of this.sim.units) {
+					if (u.team === enemyTeam && u.state !== 'DEAD') {
+						const dist = Math.hypot(u.x - enemyCastle.x, u.y - enemyCastle.y);
+						if (dist <= 900) {
+							this.sim.combatSystem.applyUnitDamage(u, 900, 'siege', team, true);
+						}
+					}
+				}
+				enemyCastle.hp = Math.max(0, enemyCastle.hp - 800);
+				this.sim.addFloatingText('Ядерний Удар!', enemyCastle.x, enemyCastle.y - 70, '#ef4444');
+				this.sim.onSoundEffect?.('hit');
+				break;
+			}
 		}
 
 		this.sim.onSoundEffect?.('upgrade');
@@ -589,6 +647,7 @@ export class EconomySystem {
 	}
 
 	public canUseRescueStrike(team: MatchTeam): boolean {
+		if (this.sim.gameModeConfig?.noRescueStrike) return false;
 		return this.sim.rescueStrikeCooldown[team] <= 0;
 	}
 

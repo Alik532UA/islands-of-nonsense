@@ -175,6 +175,51 @@ export class BuildingSystem {
 			}
 		}
 
+		const startX = team === 'west' ? WEST_GRID_START_X : EAST_GRID_START_X;
+		const startY = team === 'west' ? WEST_GRID_START_Y : EAST_GRID_START_Y;
+		const worldX = startX + tileX * GRID_STEP;
+		const worldY = startY + tileY * GRID_STEP;
+
+		// Check game mode building restrictions (-nu, -na, -nl)
+		if (this.sim.gameModeConfig?.noSpecialBuildings) {
+			if (bDef.specialType && bDef.specialType !== 'tower' && bDef.specialType !== 'treasure') {
+				this.sim.addFloatingText(
+					'Режим -nu: особливі споруди заборонені!',
+					worldX,
+					worldY - 20,
+					'#ef4444'
+				);
+				return false;
+			}
+		}
+
+		if (this.sim.gameModeConfig?.noArtillery) {
+			const spawnedUnit = getUnit(bDef.unit);
+			const isArtillery =
+				bDef.attack_type === 'siege' ||
+				spawnedUnit?.attack_type === 'siege' ||
+				['h001', 'h048', 'h01E', 'u008', 'cg0a', 'h04P'].includes(bDef.id);
+			if (isArtillery) {
+				this.sim.addFloatingText(
+					'Режим -na: артилерія заборонена!',
+					worldX,
+					worldY - 20,
+					'#ef4444'
+				);
+				return false;
+			}
+		}
+
+		if (this.sim.gameModeConfig?.noLegendaries && isLegendaryBuilding(bDef)) {
+			this.sim.addFloatingText(
+				'Режим -nl: легендарні споруди заборонені!',
+				worldX,
+				worldY - 20,
+				'#ef4444'
+			);
+			return false;
+		}
+
 		// Validate build plot
 		if (!this.canBuild(team, tileX, tileY)) return false;
 
@@ -182,19 +227,14 @@ export class BuildingSystem {
 		player.gold -= cost;
 		player.stats.goldSpent += cost;
 
-		const startX = team === 'west' ? WEST_GRID_START_X : EAST_GRID_START_X;
-		const startY = team === 'west' ? WEST_GRID_START_Y : EAST_GRID_START_Y;
-
-		const worldX = startX + tileX * GRID_STEP;
-		const worldY = startY + tileY * GRID_STEP;
-
 		const spawnCd = getSpawnCooldown(bDef, getUnit(bDef.unit));
 
 		const isBot = player.isBot;
 		const buildTime = isBot ? 2.5 : 3.5;
 
-		// Natural automated lane determination based on physical courtyard placement
-		const resolvedLane: Lane = worldY < ARENA_HEIGHT / 2 ? 'top' : 'bottom';
+		// Natural automated lane determination based on physical courtyard placement (or single lane mode)
+		const resolvedLane: Lane =
+			this.sim.gameModeConfig?.singleLane ?? (worldY < ARENA_HEIGHT / 2 ? 'top' : 'bottom');
 
 		const building: Building = {
 			instanceId: `bld_${this.sim.nextBuildingId++}`,
@@ -303,6 +343,49 @@ export class BuildingSystem {
 				);
 				return false;
 			}
+		}
+
+		if (this.sim.gameModeConfig?.noSpecialBuildings) {
+			if (
+				targetDef.specialType &&
+				targetDef.specialType !== 'tower' &&
+				targetDef.specialType !== 'treasure'
+			) {
+				this.sim.addFloatingText(
+					'Режим -nu: особливі споруди заборонені!',
+					building.x,
+					building.y - 20,
+					'#ef4444'
+				);
+				return false;
+			}
+		}
+
+		if (this.sim.gameModeConfig?.noArtillery) {
+			const spawnedUnit = getUnit(targetDef.unit);
+			const isArtillery =
+				targetDef.attack_type === 'siege' ||
+				spawnedUnit?.attack_type === 'siege' ||
+				['h001', 'h048', 'h01E', 'u008', 'cg0a', 'h04P'].includes(targetDef.id);
+			if (isArtillery) {
+				this.sim.addFloatingText(
+					'Режим -na: артилерія заборонена!',
+					building.x,
+					building.y - 20,
+					'#ef4444'
+				);
+				return false;
+			}
+		}
+
+		if (this.sim.gameModeConfig?.noLegendaries && isLegendaryBuilding(targetDef)) {
+			this.sim.addFloatingText(
+				'Режим -nl: легендарні споруди заборонені!',
+				building.x,
+				building.y - 20,
+				'#ef4444'
+			);
+			return false;
 		}
 
 		const upgradeCost =

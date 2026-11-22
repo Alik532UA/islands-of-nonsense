@@ -97,4 +97,100 @@ describe('Point 9: Game Modes & Random Race Bonus (+30% Gold)', () => {
 		// Both teams should have different races due to uniqueRaces
 		expect(sim.players.west.race).not.toBe(sim.players.east.race);
 	});
+
+	it('забороняє будівництво особливих споруд у режимі -nu / noSpecial', () => {
+		const sim = new Simulation({
+			botDifficulty: 0,
+			startGold: 1000,
+			modeId: 'noSpecial',
+			westRace: 'Люди'
+		});
+
+		// cg07_recycler is a special recycler building
+		const builtSpecial = sim.build('west', 'cg07_recycler', 0, 0);
+		expect(builtSpecial).toBe(false);
+
+		// h03Q is Frost Tower - defensive towers are allowed
+		const builtTower = sim.build('west', 'h03Q', 0, 0);
+		expect(builtTower).toBe(true);
+	});
+
+	it('забороняє будівництво артилерії у режимі -na / noArtillery', () => {
+		const sim = new Simulation({
+			botDifficulty: 0,
+			startGold: 1000,
+			modeId: 'noArtillery',
+			westRace: 'Люди'
+		});
+
+		// cg0a is Garbage Ballista (attack_type: siege)
+		const builtArtillery = sim.build('west', 'cg0a', 0, 0);
+		expect(builtArtillery).toBe(false);
+
+		// Guard Tower (h006) is allowed
+		const builtNormal = sim.build('west', 'h006', 0, 0);
+		expect(builtNormal).toBe(true);
+	});
+
+	it('вимикає Рятівний Удар у режимі -nw / noRescueStrike', () => {
+		const sim = new Simulation({
+			botDifficulty: 0,
+			startGold: 500,
+			modeId: 'noRescueStrike'
+		});
+
+		expect(sim.canUseRescueStrike('west')).toBe(false);
+		expect(sim.triggerRescueStrike('west')).toBeNull();
+	});
+
+	it('спрямовує війська на одну лінію в режимі -sl / singleLane', () => {
+		const sim = new Simulation({
+			botDifficulty: 0,
+			startGold: 500,
+			modeId: 'singleLane'
+		});
+
+		const unit = sim.spawnUnitDirectly({
+			team: 'west',
+			lane: 'bottom', // attempts to spawn on bottom
+			x: 500,
+			y: 600
+		});
+
+		expect(unit.lane).toBe('top');
+	});
+
+	it('надає бонуси доходу за утримання ліній у режимі -dm / domination', () => {
+		const sim = new Simulation({
+			botDifficulty: 0,
+			startGold: 500,
+			modeId: 'domination'
+		});
+
+		// Spawn 3 west units in middle domination zone on top lane
+		sim.spawnUnitDirectly({ team: 'west', lane: 'top', x: 3500, y: sim.topLaneY });
+		sim.spawnUnitDirectly({ team: 'west', lane: 'top', x: 3520, y: sim.topLaneY });
+		sim.spawnUnitDirectly({ team: 'west', lane: 'top', x: 3540, y: sim.topLaneY });
+
+		const initialGold = sim.players.west.gold;
+		// Step economy to trigger income cycle
+		sim.economySystem.updateEconomy(sim.incomeInterval + 0.1);
+
+		// Gold should increase by base income + 15 domination bonus
+		expect(sim.players.west.gold).toBeGreaterThan(initialGold + 15);
+	});
+
+	it('дозволяє покупку ядерної боєголовки у режимі -nuke / nuclearWarheads', () => {
+		const sim = new Simulation({
+			botDifficulty: 0,
+			startGold: 1000,
+			modeId: 'nuclearWarheads'
+		});
+
+		expect(sim.canBuyCastleItem('west', 'I00N')).toBe(true);
+		const initialHp = sim.castles.east.hp;
+		const bought = sim.buyCastleItem('west', 'I00N');
+		expect(bought).toBe(true);
+		expect(sim.castles.east.hp).toBe(initialHp - 800);
+	});
 });

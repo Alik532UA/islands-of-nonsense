@@ -116,6 +116,18 @@ export const CASTLE_ITEMS: Record<string, CastleItem> = {
 		descriptionEn: 'Legendary snack: repairs castle for +2500 HP and grants +100 gold bonus.',
 		icon: 'Crown',
 		cooldown: 120
+	},
+	I00N: {
+		id: 'I00N',
+		nameUk: 'Ядерна Боєголовка',
+		nameEn: 'Nuclear Warhead',
+		cost: 650,
+		descriptionUk:
+			'Спустошливий тактичний ядерний удар по ворожих позиціях (900 шкоди в радіусі 900 px).',
+		descriptionEn:
+			'Devastating tactical nuclear strike on enemy positions (900 damage in 900 px radius).',
+		icon: 'Radiation',
+		cooldown: 60
 	}
 };
 

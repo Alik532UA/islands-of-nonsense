@@ -20,6 +20,7 @@ import { WorkerSystem } from './workerSystem';
 import { BuildingSystem } from './buildingSystem';
 import { CombatSystem } from './combatSystem';
 import { EconomySystem } from './economySystem';
+import { getGameMode, type GameModeConfig } from './gameModes';
 
 import { ARENA_WIDTH, ARENA_HEIGHT, TOP_LANE_Y, BOTTOM_LANE_Y, type CoinMode } from './constants';
 export * from './constants';
@@ -44,6 +45,7 @@ export interface SimulationConfig {
  */
 export class Simulation {
 	public config: SimulationConfig;
+	public gameModeConfig: GameModeConfig;
 	public tick = 0;
 	public gameTime = 0; // seconds
 	public isRunning = true;
@@ -156,15 +158,23 @@ export class Simulation {
 
 	constructor(config: SimulationConfig = { botDifficulty: 0, startGold: 500 }) {
 		this.config = config;
+		this.gameModeConfig = getGameMode(config.modeId || 'standard');
+		if (config.allRandom !== undefined) {
+			this.gameModeConfig.allRandom = config.allRandom;
+		}
+		if (config.uniqueRaces !== undefined) {
+			this.gameModeConfig.uniqueRaces = config.uniqueRaces;
+		}
 		this.coinMode = config.coinMode ?? 'normal';
 		if (this.coinMode === 'crazy') {
 			this.coinSpawnTimer = 20.0;
 			this.coinSpawnInterval = 20.0;
 		}
 		this.targetWins = config.targetWins ?? 2;
+		const castleHp = Math.round(14000 * (this.gameModeConfig.castleHpMultiplier || 1.0));
 		this.castles = {
-			west: { team: 'west', x: 200, y: 1200, hp: 14000, maxHp: 14000 },
-			east: { team: 'east', x: ARENA_WIDTH - 200, y: 1200, hp: 14000, maxHp: 14000 }
+			west: { team: 'west', x: 200, y: 1200, hp: castleHp, maxHp: castleHp },
+			east: { team: 'east', x: ARENA_WIDTH - 200, y: 1200, hp: castleHp, maxHp: castleHp }
 		};
 
 		const availableRaces = RACES_LIST.map((r) => r.race);
@@ -448,9 +458,10 @@ export class Simulation {
 			}
 		}
 
+		const castleHp = Math.round(14000 * (this.gameModeConfig?.castleHpMultiplier || 1.0));
 		this.castles = {
-			west: { team: 'west', x: 200, y: 1200, hp: 14000, maxHp: 14000 },
-			east: { team: 'east', x: ARENA_WIDTH - 200, y: 1200, hp: 14000, maxHp: 14000 }
+			west: { team: 'west', x: 200, y: 1200, hp: castleHp, maxHp: castleHp },
+			east: { team: 'east', x: ARENA_WIDTH - 200, y: 1200, hp: castleHp, maxHp: castleHp }
 		};
 
 		if (this.players.west.worker) {
@@ -610,16 +621,23 @@ export class Simulation {
 		immolationDps?: number;
 		hasReincarnated?: boolean;
 	}): Unit {
+		const targetLane: Lane = this.gameModeConfig?.singleLane ?? options.lane;
+		const targetY = this.gameModeConfig?.singleLane
+			? this.gameModeConfig.singleLane === 'top'
+				? TOP_LANE_Y
+				: BOTTOM_LANE_Y
+			: options.y;
+
 		const unit: Unit = {
 			instanceId: `test_unit_${this.nextUnitId++}`,
 			defId: 'test',
 			name: 'Тестовий боєць',
 			team: options.team,
-			lane: options.lane,
+			lane: targetLane,
 			x: options.x,
-			y: options.y,
+			y: targetY,
 			prevX: options.x,
-			prevY: options.y,
+			prevY: targetY,
 			hp: options.hp ?? 500,
 			maxHp: options.maxHp ?? options.hp ?? 500,
 			armor: options.armor ?? 2,
