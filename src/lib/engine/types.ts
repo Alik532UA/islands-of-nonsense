@@ -360,6 +360,18 @@ export interface Projectile {
 	isCrit: boolean;
 	team: Team;
 	splashRadius?: number;
+	hasFrost?: boolean;
+}
+
+export interface LightningEffect {
+	id?: string;
+	sourceX: number;
+	sourceY: number;
+	targetX: number;
+	targetY: number;
+	timer: number;
+	maxTimer: number;
+	color?: number;
 }
 
 export interface Castle {

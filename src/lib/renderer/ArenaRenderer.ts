@@ -590,6 +590,7 @@ export class ArenaRenderer {
 		this.entityRenderer.drawCastles(this.buildingsLayer, selectedEntity);
 		this.entityRenderer.drawProjectilesLayer(this.projectilesLayer);
 		this.entityRenderer.drawRescueStrikeEffects(this.projectilesLayer);
+		this.entityRenderer.drawLightningEffects(this.projectilesLayer);
 		this.overlayRenderer.drawDayNight(this.dayNightLayer, this.sim.dayNightCycle);
 		this.overlayRenderer.drawOrderMarkers(this.uiLayer, this.moveMarkers);
 		this.overlayRenderer.drawFogOfWar(this.fogLayer, this.enableFog);

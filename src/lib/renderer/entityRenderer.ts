@@ -509,7 +509,7 @@ export class EntityRenderer {
 				g.fill({ color: 0xe2e8f0, alpha: 0.85 });
 			}
 
-			// Active Buff Auras
+			// Active Buff Auras & Spell Effects
 			if (u.buffs && u.buffs.length > 0) {
 				for (const buff of u.buffs) {
 					if (buff.type === 'dmg') {
@@ -521,7 +521,70 @@ export class EntityRenderer {
 					} else if (buff.type === 'as') {
 						g.circle(u.x, renderY, radius + 6);
 						g.stroke({ color: 0x4ade80, width: 1.5, alpha: 0.65 });
+					} else if (buff.type === 'bloodlust') {
+						g.circle(u.x, renderY, radius + 5);
+						g.stroke({ color: 0xef4444, width: 2.5, alpha: 0.85 });
+					} else if (buff.type === 'inner_fire') {
+						g.circle(u.x, renderY, radius + 6);
+						g.stroke({ color: 0xfbbf24, width: 2, alpha: 0.75 });
+					} else if (buff.type === 'armor_buff') {
+						g.circle(u.x, renderY, radius + 4);
+						g.stroke({ color: 0xa3e635, width: 1.5, alpha: 0.7 });
+					} else if (buff.type === 'frost' || buff.type === 'slow') {
+						// Swirling ice crystals
+						for (let i = 0; i < 3; i++) {
+							const iceAngle = (i * 2 * Math.PI) / 3 + this.sim.gameTime * 3.5;
+							const ix = u.x + Math.cos(iceAngle) * (radius + 5);
+							const iy = renderY + Math.sin(iceAngle) * (radius + 5);
+							g.rect(ix - 2, iy - 2, 4, 4);
+							g.fill({ color: 0x67e8f9, alpha: 0.9 });
+							g.stroke({ color: 0xe0f2fe, width: 1 });
+						}
+					} else if (buff.type === 'curse') {
+						const curseAngle = this.sim.gameTime * 3;
+						g.circle(u.x + Math.cos(curseAngle) * 7, renderY - radius - 8, 3.5);
+						g.fill({ color: 0x6b21a8, alpha: 0.75 });
+					} else if (buff.type === 'poison' || buff.type === 'infect') {
+						const pAngle = this.sim.gameTime * 4;
+						g.circle(u.x + Math.sin(pAngle) * 6, renderY + Math.cos(pAngle) * 6, 2.5);
+						g.fill({ color: 0x22c55e, alpha: 0.8 });
 					}
+				}
+			}
+
+			// Stun dizzy stars overhead
+			if (u.isStunned) {
+				const starRadius = radius * 0.75;
+				for (let i = 0; i < 3; i++) {
+					const sAngle = (i * 2 * Math.PI) / 3 + this.sim.gameTime * 6;
+					const sx = u.x + Math.cos(sAngle) * starRadius;
+					const sy = renderY - radius - 12 + Math.sin(sAngle) * 2;
+					g.circle(sx, sy, 2.5);
+					g.fill({ color: 0xfacc15 });
+				}
+			}
+
+			// Ensnare web on ground
+			if (u.isEnsnared) {
+				g.ellipse(u.x, renderY + radius * 0.4, radius * 1.3, radius * 0.6);
+				g.stroke({ color: 0xe2e8f0, width: 1.5, alpha: 0.8 });
+				g.moveTo(u.x - radius, renderY + radius * 0.4);
+				g.lineTo(u.x + radius, renderY + radius * 0.4);
+				g.stroke({ color: 0xe2e8f0, width: 1, alpha: 0.6 });
+			}
+
+			// Immolation flickering fire aura
+			if (u.immolationDps && u.immolationDps > 0) {
+				const flameR = radius + 6;
+				const flicker = Math.sin(this.sim.gameTime * 18 + u.x) * 2;
+				g.circle(u.x, renderY, flameR + flicker);
+				g.stroke({ color: 0xf97316, width: 2, alpha: 0.65 });
+				for (let i = 0; i < 4; i++) {
+					const flameAngle = (i * Math.PI) / 2 + this.sim.gameTime * 4;
+					const fx = u.x + Math.cos(flameAngle) * (flameR - 1);
+					const fy = renderY + Math.sin(flameAngle) * (flameR - 1);
+					g.circle(fx, fy, 3);
+					g.fill({ color: 0xfacc15, alpha: 0.85 });
 				}
 			}
 
@@ -584,21 +647,52 @@ export class EntityRenderer {
 			const projY = p.y - z;
 
 			if (p.attackType === 'magic') {
+				const isFrost = p.hasFrost;
+				const coreColor = isFrost ? 0x38bdf8 : 0xc084fc;
+				const haloColor = isFrost ? 0x0284c7 : 0xa855f7;
+
 				g.circle(p.x, projY, 5);
-				g.fill({ color: 0xc084fc });
+				g.fill({ color: coreColor });
 				g.circle(p.x, projY, 10);
-				g.fill({ color: 0xa855f7, alpha: 0.35 });
+				g.fill({ color: haloColor, alpha: 0.35 });
+
+				// Orbiting magical sparkle
+				const sparkleAngle = this.sim.gameTime * 20;
+				g.circle(p.x + Math.cos(sparkleAngle) * 5, projY + Math.sin(sparkleAngle) * 5, 2);
+				g.fill({ color: 0xffffff, alpha: 0.85 });
 			} else if (p.attackType === 'siege') {
+				// Ballistic artillery smoke puffs
+				const dirNormX = (p.targetX - (p.originX ?? p.x)) / (p.totalDist || 1);
+				const dirNormY = (p.targetY - (p.originY ?? p.y)) / (p.totalDist || 1);
+				for (let s = 1; s <= 3; s++) {
+					const puffX = p.x - dirNormX * s * 8;
+					const puffY = projY - dirNormY * s * 8 + s * 1.5;
+					g.circle(puffX, puffY, Math.max(1, 4 - s));
+					g.fill({ color: 0x64748b, alpha: 0.35 / s });
+				}
+
+				// Molten burning boulder / mortar shell
 				g.circle(p.x, projY, 7);
-				g.fill({ color: 0x475569 });
+				g.fill({ color: 0x334155 });
 				g.stroke({ color: 0x1e293b, width: 2 });
+				g.circle(p.x, projY, 3);
+				g.fill({ color: 0xf97316 });
 			} else {
 				// Pierce / Arrow facing direction
 				const angle = Math.atan2(p.targetY - p.y, p.targetX - p.x);
-				const len = 10;
-				g.moveTo(p.x - Math.cos(angle) * (len / 2), projY - Math.sin(angle) * (len / 2));
-				g.lineTo(p.x + Math.cos(angle) * (len / 2), projY + Math.sin(angle) * (len / 2));
-				g.stroke({ color: 0xfef08a, width: 2 });
+				const len = 12;
+				const headX = p.x + Math.cos(angle) * (len / 2);
+				const headY = projY + Math.sin(angle) * (len / 2);
+				const tailX = p.x - Math.cos(angle) * (len / 2);
+				const tailY = projY - Math.sin(angle) * (len / 2);
+
+				g.moveTo(tailX, tailY);
+				g.lineTo(headX, headY);
+				g.stroke({ color: 0xd97706, width: 2 });
+
+				// Arrow tip
+				g.circle(headX, headY, 2);
+				g.fill({ color: 0xe2e8f0 });
 			}
 		}
 
@@ -610,6 +704,45 @@ export class EntityRenderer {
 			g.circle(s.x, s.y, radius);
 			g.fill({ color: 0xf97316, alpha: alpha * 0.25 });
 			g.stroke({ color: 0xfbbf24, width: 2, alpha });
+		}
+	}
+
+	public drawLightningEffects(g: Graphics): void {
+		for (const eff of this.sim.lightningEffects) {
+			const alpha = Math.max(0, eff.timer / eff.maxTimer);
+			const color = eff.color ?? 0x67e8f9;
+
+			const dx = eff.targetX - eff.sourceX;
+			const dy = eff.targetY - eff.sourceY;
+			const dist = Math.hypot(dx, dy);
+			const segments = Math.max(3, Math.floor(dist / 35));
+
+			const perpX = -dy / (dist || 1);
+			const perpY = dx / (dist || 1);
+
+			// Outer electric bolt
+			g.moveTo(eff.sourceX, eff.sourceY);
+			for (let i = 1; i < segments; i++) {
+				const t = i / segments;
+				const jitter = Math.sin(i * 13.7 + this.sim.gameTime * 25) * 12;
+				const px = eff.sourceX + dx * t + perpX * jitter;
+				const py = eff.sourceY + dy * t + perpY * jitter;
+				g.lineTo(px, py);
+			}
+			g.lineTo(eff.targetX, eff.targetY);
+			g.stroke({ color, width: 3, alpha });
+
+			// Inner electric core
+			g.moveTo(eff.sourceX, eff.sourceY);
+			for (let i = 1; i < segments; i++) {
+				const t = i / segments;
+				const jitter = Math.sin(i * 13.7 + this.sim.gameTime * 25) * 12;
+				const px = eff.sourceX + dx * t + perpX * jitter;
+				const py = eff.sourceY + dy * t + perpY * jitter;
+				g.lineTo(px, py);
+			}
+			g.lineTo(eff.targetX, eff.targetY);
+			g.stroke({ color: 0xffffff, width: 1.2, alpha: alpha * 0.9 });
 		}
 	}
 

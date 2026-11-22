@@ -316,6 +316,15 @@ export class CombatSystem {
 					enemyTarget.buffs = enemyTarget.buffs || [];
 					enemyTarget.buffs.push({ type: 'stun', timer: 2.0, value: 0 });
 					enemyTarget.isStunned = true;
+					this.sim.lightningEffects.push({
+						sourceX: u.x,
+						sourceY: u.y - 15,
+						targetX: enemyTarget.x,
+						targetY: enemyTarget.y,
+						timer: 0.35,
+						maxTimer: 0.35,
+						color: 0x38bdf8
+					});
 					this.applyUnitDamage(enemyTarget, 100, 'magic', u.team, true, u);
 					u.abilityCooldownTimer = 12.0;
 					this.sim.addFloatingText(
@@ -345,7 +354,20 @@ export class CombatSystem {
 					);
 					const chainTargets = enemies.slice(0, 4);
 					const damages = [120, 90, 65, 45];
+					let prevX = u.x;
+					let prevY = u.y;
 					chainTargets.forEach((target, idx) => {
+						this.sim.lightningEffects.push({
+							sourceX: prevX,
+							sourceY: prevY,
+							targetX: target.x,
+							targetY: target.y,
+							timer: 0.3,
+							maxTimer: 0.3,
+							color: 0x67e8f9
+						});
+						prevX = target.x;
+						prevY = target.y;
 						this.applyUnitDamage(target, damages[idx] || 40, 'magic', u.team, false, u);
 					});
 					u.abilityCooldownTimer = 12.0;
@@ -856,13 +878,14 @@ export class CombatSystem {
 				originX: attacker.x,
 				originY: attacker.y,
 				totalDist: dist,
-				arcHeight: attacker.attackType === 'pierce' ? 35 : attacker.attackType === 'siege' ? 65 : 0,
+				arcHeight: attacker.attackType === 'siege' ? 75 : attacker.attackType === 'pierce' ? 35 : 0,
 				speed: 650,
 				damage: rawDmg,
 				attackType: attacker.attackType,
 				isCrit,
 				team: attacker.team,
-				splashRadius: attacker.splashRadius
+				splashRadius: attacker.splashRadius,
+				hasFrost: !!(attacker.frostOnHit || attacker.abilities?.some((a) => a.type === 'frost'))
 			});
 		} else {
 			this.applyUnitDamage(target, rawDmg, attacker.attackType, attacker.team, isCrit, attacker);

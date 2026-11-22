@@ -11,7 +11,8 @@ import type {
 	FloatingText,
 	GoldCoin,
 	AttackType,
-	BuildingPerformance
+	BuildingPerformance,
+	LightningEffect
 } from './types';
 import { SpatialHashGrid } from './spatialGrid';
 import { getBuilderNameForRace, RACES_LIST } from './gameData';
@@ -105,6 +106,9 @@ export class Simulation {
 		timer: number;
 		maxTimer: number;
 	}[] = [];
+
+	// Procedural Lightning Effects (Chain Lightning, Thunderbolt)
+	public lightningEffects: LightningEffect[] = [];
 
 	// Neutral Central Bosses (Spawn every 180s, alternating lanes)
 	public bossSpawnTimer = 180.0;
@@ -426,6 +430,7 @@ export class Simulation {
 		this.rescueStrikeCooldown = { west: 0, east: 0 };
 		this.rescueStrikeEffects = [];
 		this.splashEffects = [];
+		this.lightningEffects = [];
 		this.bossSpawnTimer = 180.0;
 		this.bossIndex = 0;
 		this.lastBossLane = 'bottom';
@@ -517,6 +522,11 @@ export class Simulation {
 			eff.timer -= dt;
 		}
 		this.splashEffects = this.splashEffects.filter((eff) => eff.timer > 0);
+
+		for (const eff of this.lightningEffects) {
+			eff.timer -= dt;
+		}
+		this.lightningEffects = this.lightningEffects.filter((eff) => eff.timer > 0);
 
 		// 1. Update Workers
 		this.workerSystem.updateWorkers(dt);
