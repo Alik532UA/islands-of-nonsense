@@ -18,11 +18,18 @@
 		Footprints,
 		Hammer,
 		Layers,
-		Users
+		Users,
+		Castle
 	} from 'lucide-svelte';
 	import Minimap from './Minimap.svelte';
-	import { DAMAGE_MULTIPLIERS } from '../engine/damageMatrix';
-	import type { AttackType, ArmorType } from '../engine/types';
+	import CombatMatrixTooltip, {
+		ATTACK_NAMES_UK,
+		ARMOR_NAMES_UK,
+		normalizeArmorKey,
+		normalizeAttackKey
+	} from './CombatMatrixTooltip.svelte';
+	import type { SelectedEntity } from '../renderer/entityRenderer';
+	import { CASTLE_ITEMS } from '../engine/items';
 
 	let {
 		sim,
@@ -34,9 +41,11 @@
 		selectedPlacedBuildingId = $bindable(null),
 		selectedUnitId = $bindable(null),
 		selectedGroup = null,
+		selectedEntity = null,
 		onSelectBuilding,
 		onUpgradeBuilding,
 		onSellBuilding,
+		onContinueConstruction,
 		onMinimapClick,
 		onClearSelection
 	}: {
@@ -49,9 +58,11 @@
 		selectedPlacedBuildingId: string | null;
 		selectedUnitId?: string | null;
 		selectedGroup?: string[] | null;
+		selectedEntity?: SelectedEntity;
 		onSelectBuilding: (id: string | null) => void;
 		onUpgradeBuilding?: (instanceId: string, targetDefId: string) => void;
 		onSellBuilding?: (instanceId: string) => void;
+		onContinueConstruction?: (instanceId: string) => void;
 		onMinimapClick?: (arenaX: number, arenaY: number) => void;
 		onClearSelection?: () => void;
 	} = $props();
@@ -73,11 +84,16 @@
 		placedBuilding ? getUpgradesForBuilding(placedBuilding.defId) : []
 	);
 
-	// Unit state
+	// Unit state (friendly, enemy or neutral)
 	let selectedUnit = $derived(
 		selectedUnitId
 			? sim.units.find((u) => u.instanceId === selectedUnitId && u.state !== 'DEAD') || null
 			: null
+	);
+
+	// Castle state
+	let selectedCastle = $derived(
+		selectedEntity?.type === 'castle' ? sim.castles[selectedEntity.team] : null
 	);
 
 	// Group selection state
@@ -95,9 +111,17 @@
 		return Array.from(map.entries()).map(([name, count]) => ({ name, count }));
 	});
 
-	// Determine active entity: Group > Building > Unit > Worker (default)
-	let activeEntityType = $derived<'group' | 'building' | 'unit' | 'worker'>(
-		groupUnits.length > 1 ? 'group' : placedBuilding ? 'building' : selectedUnit ? 'unit' : 'worker'
+	// Determine active entity: Castle > Group > Building > Unit > Worker (default)
+	let activeEntityType = $derived<'castle' | 'group' | 'building' | 'unit' | 'worker'>(
+		selectedCastle
+			? 'castle'
+			: groupUnits.length > 1
+				? 'group'
+				: placedBuilding
+					? 'building'
+					: selectedUnit
+						? 'unit'
+						: 'worker'
 	);
 
 	let hoveredBuilding = $state<BuildingDefinition | null>(null);
@@ -109,44 +133,6 @@
 		key: string;
 		label: string;
 	} | null>(null);
-
-	const ATTACK_NAMES_UK: Record<string, string> = {
-		normal: 'Звичайна',
-		pierce: 'Колюча',
-		siege: 'Облога',
-		magic: 'Магічна',
-		chaos: 'Хаос',
-		hero: 'Герой'
-	};
-
-	const ARMOR_NAMES_UK: Record<string, string> = {
-		none: 'Без броні',
-		small: 'Легка',
-		medium: 'Середня',
-		large: 'Важка',
-		fort: 'Укріплена',
-		hero: 'Герой'
-	};
-
-	function normalizeArmorKey(raw: string): ArmorType {
-		const s = raw.toLowerCase();
-		if (s === 'heavy' || s === 'large') return 'large';
-		if (s === 'light' || s === 'small') return 'small';
-		if (s === 'unarmored' || s === 'none') return 'none';
-		if (s === 'fortified' || s === 'fort') return 'fort';
-		if (s === 'hero') return 'hero';
-		return 'medium';
-	}
-
-	function normalizeAttackKey(raw: string): AttackType {
-		const s = raw.toLowerCase();
-		if (s === 'pierce' || s.includes('колюч')) return 'pierce';
-		if (s === 'siege' || s.includes('облог')) return 'siege';
-		if (s === 'magic' || s.includes('магіч')) return 'magic';
-		if (s === 'chaos' || s.includes('хаос')) return 'chaos';
-		if (s === 'hero' || s.includes('герой')) return 'hero';
-		return 'normal';
-	}
 
 	const HOTKEYS = ['Q', 'W', 'E', 'R', 'A', 'S', 'D', 'F', 'Z', 'X', 'C', 'V'];
 
@@ -168,9 +154,9 @@
 			}
 		}
 
-		// Hotkeys Q..V for command card in worker mode
+		// Hotkeys Q..V for command card ONLY in worker mode
 		const idx = HOTKEYS.indexOf(key);
-		if (idx !== -1 && idx < availableBuildings.length && !placedBuilding) {
+		if (idx !== -1 && idx < availableBuildings.length && activeEntityType === 'worker') {
 			const bld = availableBuildings[idx];
 			onSelectBuilding(selectedBuildingId === bld.id ? null : bld.id);
 		}
@@ -198,7 +184,20 @@
 		<div
 			class="relative w-20 h-20 rounded-md border-2 border-[#8c7456] bg-[#0c1017] flex items-center justify-center overflow-hidden shadow-md"
 		>
-			{#if activeEntityType === 'group'}
+			{#if activeEntityType === 'castle' && selectedCastle}
+				<!-- Castle Keep Portrait -->
+				{@const isFriendly = selectedCastle.team === 'west'}
+				<div
+					class="flex flex-col items-center justify-center {isFriendly
+						? 'text-amber-300'
+						: 'text-rose-400'}"
+				>
+					<Castle class="w-9 h-9 {isFriendly ? 'text-amber-400' : 'text-rose-400'}" />
+					<span class="text-[9px] font-bold uppercase truncate max-w-[70px]">
+						{isFriendly ? 'Ваш Замок' : 'Замок Ворога'}
+					</span>
+				</div>
+			{:else if activeEntityType === 'group'}
 				<!-- Group / Squad Portrait -->
 				<div class="flex flex-col items-center justify-center text-amber-300">
 					<Users class="w-9 h-9 text-amber-400" />
@@ -214,10 +213,23 @@
 				</div>
 			{:else if activeEntityType === 'unit' && selectedUnit}
 				<!-- Soldier / Combatant Portrait -->
-				<div class="flex flex-col items-center justify-center text-blue-300">
-					<Swords class="w-9 h-9 text-blue-400" />
+				{@const isEnemy = selectedUnit.team === 'east'}
+				<div
+					class="flex flex-col items-center justify-center {isEnemy
+						? 'text-rose-400'
+						: selectedUnit.team === 'neutral'
+							? 'text-purple-300'
+							: 'text-blue-300'}"
+				>
+					<Swords
+						class="w-9 h-9 {isEnemy
+							? 'text-rose-400'
+							: selectedUnit.team === 'neutral'
+								? 'text-purple-400'
+								: 'text-blue-400'}"
+					/>
 					<span class="text-[9px] font-bold uppercase truncate max-w-[70px]">
-						{selectedUnit.attackType}
+						{isEnemy ? 'Ворог' : selectedUnit.attackType}
 					</span>
 				</div>
 			{:else}
@@ -250,11 +262,25 @@
 
 		<!-- Vital Bars -->
 		<div class="w-full mt-2 flex flex-col gap-1">
-			<!-- Green Health Bar -->
+			<!-- Health Bar -->
 			<div
 				class="relative w-full h-4 bg-[#0c1017] rounded border border-[#3b3226] overflow-hidden flex items-center justify-center shadow-inner"
 			>
-				{#if activeEntityType === 'group'}
+				{#if activeEntityType === 'castle' && selectedCastle}
+					{@const cHp = selectedCastle.hp}
+					{@const cMaxHp = selectedCastle.maxHp}
+					{@const cPct = Math.max(0, Math.min(100, (cHp / cMaxHp) * 100))}
+					{@const isFriendly = selectedCastle.team === 'west'}
+					<div
+						class="absolute left-0 top-0 bottom-0 {isFriendly
+							? 'bg-[#22c55e]'
+							: 'bg-[#ef4444]'} transition-all"
+						style="width: {cPct}%"
+					></div>
+					<span class="relative z-10 text-[9px] font-mono font-bold text-white drop-shadow">
+						{Math.ceil(cHp)} / {cMaxHp}
+					</span>
+				{:else if activeEntityType === 'group'}
 					{@const totalHp = groupUnits.reduce((acc, u) => acc + u.hp, 0)}
 					{@const totalMaxHp = groupUnits.reduce((acc, u) => acc + u.maxHp, 0)}
 					{@const pct = Math.max(0, Math.min(100, (totalHp / (totalMaxHp || 1)) * 100))}
@@ -277,9 +303,14 @@
 						{Math.ceil(bHp)} / {bMaxHp}
 					</span>
 				{:else if activeEntityType === 'unit' && selectedUnit}
+					{@const isEnemy = selectedUnit.team === 'east'}
 					{@const hpPct = Math.max(0, Math.min(100, (selectedUnit.hp / selectedUnit.maxHp) * 100))}
 					<div
-						class="absolute left-0 top-0 bottom-0 bg-[#22c55e] transition-all"
+						class="absolute left-0 top-0 bottom-0 {isEnemy
+							? 'bg-[#ef4444]'
+							: selectedUnit.team === 'neutral'
+								? 'bg-[#a855f7]'
+								: 'bg-[#22c55e]'} transition-all"
 						style="width: {hpPct}%"
 					></div>
 					<span class="relative z-10 text-[9px] font-mono font-bold text-white drop-shadow">
@@ -328,9 +359,21 @@
 		<!-- Header: Entity Name -->
 		<div class="flex items-center justify-between border-b border-[#3b3226] pb-1">
 			<div class="flex items-center gap-2">
-				<span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+				<span
+					class="w-2.5 h-2.5 rounded-full {activeEntityType === 'castle'
+						? selectedCastle?.team === 'west'
+							? 'bg-amber-400'
+							: 'bg-rose-500'
+						: activeEntityType === 'unit' && selectedUnit?.team === 'east'
+							? 'bg-rose-500'
+							: 'bg-emerald-400'} animate-pulse"
+				></span>
 				<span class="text-sm font-bold text-[#fef08a] truncate max-w-[220px]">
-					{#if activeEntityType === 'group'}
+					{#if activeEntityType === 'castle' && selectedCastle}
+						{selectedCastle.team === 'west'
+							? 'Західна Цитадель (Ваш замок)'
+							: 'Східна Фортеця (Замок ворога)'}
+					{:else if activeEntityType === 'group'}
 						Загін військ ({groupUnits.length} бійців)
 					{:else if activeEntityType === 'building' && placedBuilding}
 						{placedBuilding.name}
@@ -348,6 +391,34 @@
 				>
 					<span class="text-[11px] text-[#9ca3af]">Раса:</span>
 					<span class="text-xs font-bold text-amber-300">{formatRaceName(player.race)}</span>
+				</div>
+			{:else if activeEntityType === 'castle' && selectedCastle}
+				<div
+					class="flex items-center gap-1.5 bg-[#0c1017] px-2.5 py-0.5 rounded border {selectedCastle.team ===
+					'west'
+						? 'border-blue-500/60 text-blue-300'
+						: 'border-rose-500/60 text-rose-300'}"
+				>
+					<span class="text-xs font-bold">
+						{selectedCastle.team === 'west' ? 'Союзний замок' : 'Ціль: Ворог'}
+					</span>
+				</div>
+			{:else if activeEntityType === 'unit' && selectedUnit}
+				<div
+					class="flex items-center gap-1.5 bg-[#0c1017] px-2.5 py-0.5 rounded border {selectedUnit.team ===
+					'west'
+						? 'border-blue-500/60 text-blue-300'
+						: selectedUnit.team === 'neutral'
+							? 'border-purple-500/60 text-purple-300'
+							: 'border-rose-500/60 text-rose-300'}"
+				>
+					<span class="text-xs font-bold">
+						{selectedUnit.team === 'west'
+							? 'Союзник'
+							: selectedUnit.team === 'neutral'
+								? 'Нейтральний'
+								: 'Ворог'}
+					</span>
 				</div>
 			{/if}
 		</div>
@@ -374,7 +445,11 @@
 					class="flex items-center gap-1.5 text-slate-300 cursor-help"
 					onmouseenter={() => {
 						const rawArmor =
-							activeEntityType === 'building' ? 'fort' : selectedUnit?.armorType || 'none';
+							activeEntityType === 'castle'
+								? 'fort'
+								: activeEntityType === 'building'
+									? 'fort'
+									: selectedUnit?.armorType || 'none';
 						const norm = normalizeArmorKey(rawArmor);
 						hoveredMatrix = {
 							kind: 'armor',
@@ -391,6 +466,8 @@
 					>
 						{#if activeEntityType === 'worker'}
 							Неуразливий
+						{:else if activeEntityType === 'castle'}
+							Укріплена (15)
 						{:else if activeEntityType === 'building'}
 							Укріплена (5)
 						{:else if selectedUnit}
@@ -406,11 +483,13 @@
 					class="flex items-center gap-1.5 text-slate-300 cursor-help"
 					onmouseenter={() => {
 						const rawAttack =
-							activeEntityType === 'building'
-								? placedBuilding?.specialType === 'tower'
-									? 'pierce'
-									: ''
-								: selectedUnit?.attackType || '';
+							activeEntityType === 'castle'
+								? 'siege'
+								: activeEntityType === 'building'
+									? placedBuilding?.specialType === 'tower'
+										? 'pierce'
+										: ''
+									: selectedUnit?.attackType || '';
 						if (rawAttack) {
 							const norm = normalizeAttackKey(rawAttack);
 							hoveredMatrix = {
@@ -429,6 +508,8 @@
 					>
 						{#if activeEntityType === 'worker'}
 							Немає
+						{:else if activeEntityType === 'castle'}
+							120-150 (Облога)
 						{:else if activeEntityType === 'building'}
 							{#if placedBuilding?.specialType === 'tower'}
 								{placedBuilding.damageMin}-{placedBuilding.damageMax} (Колюча)
@@ -446,7 +527,11 @@
 					<Footprints class="w-3.5 h-3.5 text-amber-400 shrink-0" />
 					<span class="text-[#9ca3af]">Швидкість:</span>
 					<span class="font-mono text-slate-200">
-						{activeEntityType === 'worker' ? '260' : (selectedUnit?.speed ?? 'Нерухомо')}
+						{activeEntityType === 'worker'
+							? '260'
+							: activeEntityType === 'castle'
+								? 'Нерухомо'
+								: (selectedUnit?.speed ?? 'Нерухомо')}
 					</span>
 				</div>
 
@@ -455,8 +540,14 @@
 					<Layers class="w-3.5 h-3.5 text-purple-400 shrink-0" />
 					<span class="text-[#9ca3af]">Статус:</span>
 					<span class="text-[11px] text-purple-200 truncate max-w-[130px]">
-						{#if activeEntityType === 'building'}
-							{placedUnit ? `Спавнить ${placedUnit.name}` : 'Спеціальна'}
+						{#if activeEntityType === 'castle'}
+							Головна Цитадель
+						{:else if activeEntityType === 'building'}
+							{#if placedBuilding?.isUnderConstruction}
+								Будівництво...
+							{:else}
+								{placedUnit ? `Спавнить ${placedUnit.name}` : 'Спеціальна'}
+							{/if}
 						{:else if activeEntityType === 'unit'}
 							{selectedUnit?.flying ? 'Літаючий' : 'Наземний'}
 						{:else}
@@ -469,73 +560,22 @@
 
 		<!-- Floating Damage Matrix Tooltip Card -->
 		{#if hoveredMatrix}
-			<div
-				class="absolute bottom-full left-1/4 mb-2 w-72 bg-[#10141f]/98 border-2 border-[#8c7456] rounded-xl p-3 text-xs shadow-2xl backdrop-blur z-50 pointer-events-none"
-				style="box-shadow: 0 10px 30px rgba(0,0,0,0.9);"
-			>
-				{#if hoveredMatrix.kind === 'attack'}
-					<div class="border-b border-[#3b3226] pb-1.5 mb-2 flex items-center justify-between">
-						<span class="font-bold text-[#fef08a] text-xs">
-							Атака: {hoveredMatrix.label}
-						</span>
-						<span class="text-[10px] text-slate-400 font-mono">Ефективність</span>
-					</div>
-					<div class="grid grid-cols-2 gap-x-2 gap-y-1 text-[10px]">
-						{#each ['none', 'small', 'medium', 'large', 'fort', 'hero'] as armKey}
-							{@const mult =
-								DAMAGE_MULTIPLIERS[hoveredMatrix.key as AttackType]?.[armKey as ArmorType] ?? 1.0}
-							{@const pct = Math.round(mult * 100)}
-							<div
-								class="flex justify-between items-center bg-[#0d1017] px-1.5 py-0.5 rounded border border-[#2d3748]"
-							>
-								<span class="text-slate-400">{ARMOR_NAMES_UK[armKey]}:</span>
-								<span
-									class="font-mono font-bold {pct > 100
-										? 'text-emerald-400'
-										: pct === 100
-											? 'text-slate-200'
-											: 'text-rose-400'}"
-								>
-									{pct}%
-								</span>
-							</div>
-						{/each}
-					</div>
-				{:else}
-					<div class="border-b border-[#3b3226] pb-1.5 mb-2 flex items-center justify-between">
-						<span class="font-bold text-[#fef08a] text-xs">
-							Броня: {hoveredMatrix.label}
-						</span>
-						<span class="text-[10px] text-slate-400 font-mono">Отримувана шкода</span>
-					</div>
-					<div class="grid grid-cols-2 gap-x-2 gap-y-1 text-[10px]">
-						{#each ['normal', 'pierce', 'siege', 'magic', 'chaos', 'hero'] as atkKey}
-							{@const mult =
-								DAMAGE_MULTIPLIERS[atkKey as AttackType]?.[hoveredMatrix.key as ArmorType] ?? 1.0}
-							{@const pct = Math.round(mult * 100)}
-							<div
-								class="flex justify-between items-center bg-[#0d1017] px-1.5 py-0.5 rounded border border-[#2d3748]"
-							>
-								<span class="text-slate-400">{ATTACK_NAMES_UK[atkKey]}:</span>
-								<span
-									class="font-mono font-bold {pct > 100
-										? 'text-rose-400'
-										: pct === 100
-											? 'text-slate-200'
-											: 'text-emerald-400'}"
-								>
-									{pct}%
-								</span>
-							</div>
-						{/each}
-					</div>
-				{/if}
-			</div>
+			<CombatMatrixTooltip matrix={hoveredMatrix} />
 		{/if}
 
 		<!-- Footer Info: Lane Preference for Worker OR Progress bar for Building -->
 		<div class="border-t border-[#3b3226] pt-1 flex items-center justify-between text-[11px]">
-			{#if activeEntityType === 'group'}
+			{#if activeEntityType === 'castle' && selectedCastle}
+				<span class="text-[#9ca3af] text-[10px]">
+					{selectedCastle.team === 'west' ? 'Головна Цитадель (Союзник)' : 'Ворожа Цитадель (Ціль)'}
+				</span>
+				<button
+					onclick={() => onClearSelection?.()}
+					class="px-1.5 py-0.5 bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] rounded text-[9px] text-[#fef08a] cursor-pointer"
+				>
+					Закрити (Esc)
+				</button>
+			{:else if activeEntityType === 'group'}
 				<span class="text-[#9ca3af] text-[10px]">Виділено загін бійців</span>
 				<button
 					onclick={() => onClearSelection?.()}
@@ -547,18 +587,46 @@
 				<span class="text-[10px] text-[#86efac] font-mono">Виділено: Робітник</span>
 			{:else if activeEntityType === 'building' && placedBuilding}
 				<div class="flex items-center gap-2 w-full justify-between">
-					<span class="text-[#9ca3af] text-[10px]">
-						КД: {placedBuilding.spawnCooldown}с (залишилось {placedBuilding.spawnTimer.toFixed(1)}с)
-					</span>
-					<div class="w-32 h-2 bg-[#0c1017] rounded-full overflow-hidden border border-[#3b3226]">
-						<div
-							class="h-full bg-cyan-400 transition-all"
-							style="width: {Math.max(
-								0,
-								Math.min(100, (1 - placedBuilding.spawnTimer / placedBuilding.spawnCooldown) * 100)
-							)}%"
-						></div>
-					</div>
+					{#if placedBuilding.isUnderConstruction}
+						<span class="text-amber-300 text-[10px] font-bold">
+							Триває будівництво ({Math.round(
+								((placedBuilding.buildProgress || 0) / (placedBuilding.maxBuildProgress || 3.5)) *
+									100
+							)}%)
+						</span>
+						<div class="w-32 h-2 bg-[#0c1017] rounded-full overflow-hidden border border-[#3b3226]">
+							<div
+								class="h-full bg-amber-400 transition-all"
+								style="width: {Math.max(
+									0,
+									Math.min(
+										100,
+										((placedBuilding.buildProgress || 0) /
+											(placedBuilding.maxBuildProgress || 3.5)) *
+											100
+									)
+								)}%"
+							></div>
+						</div>
+					{:else}
+						<span class="text-[#9ca3af] text-[10px]">
+							КД: {placedBuilding.spawnCooldown}с (залишилось {placedBuilding.spawnTimer.toFixed(
+								1
+							)}с)
+						</span>
+						<div class="w-32 h-2 bg-[#0c1017] rounded-full overflow-hidden border border-[#3b3226]">
+							<div
+								class="h-full bg-cyan-400 transition-all"
+								style="width: {Math.max(
+									0,
+									Math.min(
+										100,
+										(1 - placedBuilding.spawnTimer / placedBuilding.spawnCooldown) * 100
+									)
+								)}%"
+							></div>
+						</div>
+					{/if}
 					<button
 						onclick={() => (selectedPlacedBuildingId = null)}
 						class="px-1.5 py-0.5 bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] rounded text-[9px] text-[#fef08a] cursor-pointer"
@@ -567,7 +635,13 @@
 					</button>
 				</div>
 			{:else}
-				<span class="text-[#9ca3af] text-[10px]">Боєць на полі бою</span>
+				<span class="text-[#9ca3af] text-[10px]">
+					{selectedUnit?.team === 'west'
+						? 'Союзний боєць'
+						: selectedUnit?.team === 'neutral'
+							? 'Нейтральний бос'
+							: 'Ворожий боєць'}
+				</span>
 				<button
 					onclick={() => (selectedUnitId = null)}
 					class="px-1.5 py-0.5 bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] rounded text-[9px] text-[#fef08a] cursor-pointer"
@@ -587,52 +661,20 @@
 
 		<!-- 2 columns x 3 rows grid of worn leather inventory pouches -->
 		<div class="grid grid-cols-2 gap-1.5">
-			<!-- Slot 1: Golden Cheese if purchased -->
-			<div
-				class="w-9 h-9 rounded bg-[#0c1017] border border-[#544738] flex items-center justify-center text-xs shadow-inner cursor-pointer"
-				title={player.maxFood > 0 ? 'Золотий Сир (+1 Ліміт їжі)' : 'Порожній слот'}
-			>
-				{#if player.maxFood > 0}
-					<span class="text-base">🧀</span>
-				{:else}
-					<div class="w-3 h-3 rounded-full bg-[#1e2433] opacity-40"></div>
-				{/if}
-			</div>
-
-			<!-- Slot 2 -->
-			<div
-				class="w-9 h-9 rounded bg-[#0c1017] border border-[#544738] flex items-center justify-center text-xs shadow-inner"
-			>
-				<div class="w-3 h-3 rounded-full bg-[#1e2433] opacity-40"></div>
-			</div>
-
-			<!-- Slot 3 -->
-			<div
-				class="w-9 h-9 rounded bg-[#0c1017] border border-[#544738] flex items-center justify-center text-xs shadow-inner"
-			>
-				<div class="w-3 h-3 rounded-full bg-[#1e2433] opacity-40"></div>
-			</div>
-
-			<!-- Slot 4 -->
-			<div
-				class="w-9 h-9 rounded bg-[#0c1017] border border-[#544738] flex items-center justify-center text-xs shadow-inner"
-			>
-				<div class="w-3 h-3 rounded-full bg-[#1e2433] opacity-40"></div>
-			</div>
-
-			<!-- Slot 5 -->
-			<div
-				class="w-9 h-9 rounded bg-[#0c1017] border border-[#544738] flex items-center justify-center text-xs shadow-inner"
-			>
-				<div class="w-3 h-3 rounded-full bg-[#1e2433] opacity-40"></div>
-			</div>
-
-			<!-- Slot 6 -->
-			<div
-				class="w-9 h-9 rounded bg-[#0c1017] border border-[#544738] flex items-center justify-center text-xs shadow-inner"
-			>
-				<div class="w-3 h-3 rounded-full bg-[#1e2433] opacity-40"></div>
-			</div>
+			{#each [0, 1, 2, 3, 4, 5] as slotIdx}
+				<div
+					class="w-9 h-9 rounded bg-[#0c1017] border border-[#544738] flex items-center justify-center text-xs shadow-inner cursor-pointer"
+					title={slotIdx === 0 && player.maxFood > 0
+						? 'Золотий Сир (+1 Ліміт їжі)'
+						: 'Порожній слот'}
+				>
+					{#if slotIdx === 0 && player.maxFood > 0}
+						<span class="text-base">🧀</span>
+					{:else}
+						<div class="w-3 h-3 rounded-full bg-[#1e2433] opacity-40"></div>
+					{/if}
+				</div>
+			{/each}
 		</div>
 	</div>
 
@@ -642,31 +684,43 @@
 		style="box-shadow: inset 0 0 10px rgba(0,0,0,0.8);"
 	>
 		{#if placedBuilding}
-			<!-- Placed Building Commands: Upgrades & Sell -->
+			<!-- Placed Building Commands: Upgrades, Continue Construction, Sell -->
 			<div class="grid grid-cols-4 gap-1.5 w-[280px]">
-				{#each availableUpgrades as up, uIdx}
-					{@const upCost =
-						up.upgrade_extra_cost > 0
-							? up.upgrade_extra_cost
-							: Math.max(50, (up.gold_cost || 200) - placedBuilding.goldCost)}
-					{@const canAfford = playerGold >= upCost}
+				{#if placedBuilding.isUnderConstruction}
+					<!-- Under construction: Show "Continue Construction" button -->
 					<button
-						onclick={() => onUpgradeBuilding?.(placedBuilding.instanceId, up.id)}
-						disabled={!canAfford}
-						class="relative w-16 h-10 rounded border flex flex-col items-center justify-center p-1 transition cursor-pointer {canAfford
-							? 'bg-[#1e3a5f] hover:bg-[#2563eb] border-blue-400 text-white shadow'
-							: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
-						title="{up.name} ({upCost}g)"
+						onclick={() => onContinueConstruction?.(placedBuilding.instanceId)}
+						class="col-span-2 h-10 rounded border border-amber-500 bg-amber-950/70 hover:bg-amber-900/90 text-amber-200 flex items-center justify-center gap-1.5 px-2 transition cursor-pointer shadow"
+						title="Відправити робітника добудувати споруду"
 					>
-						<span
-							class="absolute top-0.5 right-1 text-[8px] font-mono font-bold text-amber-300 drop-shadow"
-						>
-							[{uIdx + 1}]
-						</span>
-						<span class="text-[10px] font-bold truncate max-w-[50px]">{up.name}</span>
-						<span class="text-[9px] text-amber-300 font-mono font-bold">🪙 {upCost}</span>
+						<Hammer class="w-4 h-4 text-amber-400" />
+						<span class="text-[10px] font-bold">Добудувати</span>
 					</button>
-				{/each}
+				{:else}
+					{#each availableUpgrades as up, uIdx}
+						{@const upCost =
+							up.upgrade_extra_cost > 0
+								? up.upgrade_extra_cost
+								: Math.max(50, (up.gold_cost || 200) - placedBuilding.goldCost)}
+						{@const canAfford = playerGold >= upCost}
+						<button
+							onclick={() => onUpgradeBuilding?.(placedBuilding.instanceId, up.id)}
+							disabled={!canAfford}
+							class="relative w-16 h-10 rounded border flex flex-col items-center justify-center p-1 transition cursor-pointer {canAfford
+								? 'bg-[#1e3a5f] hover:bg-[#2563eb] border-blue-400 text-white shadow'
+								: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
+							title="{up.name} ({upCost}g)"
+						>
+							<span
+								class="absolute top-0.5 right-1 text-[8px] font-mono font-bold text-amber-300 drop-shadow"
+							>
+								[{uIdx + 1}]
+							</span>
+							<span class="text-[10px] font-bold truncate max-w-[50px]">{up.name}</span>
+							<span class="text-[9px] text-amber-300 font-mono font-bold">🪙 {upCost}</span>
+						</button>
+					{/each}
+				{/if}
 
 				<!-- Sell button in slot 11 -->
 				<button
@@ -692,6 +746,114 @@
 					<X class="w-4 h-4 text-slate-300" />
 					<span class="text-[8px] font-mono">Esc</span>
 				</button>
+			</div>
+		{:else if activeEntityType === 'castle' && selectedCastle}
+			<!-- Castle Command Card: Shop & Defense Items -->
+			<div class="flex flex-col justify-between w-[280px] h-full py-1">
+				<div class="flex items-center justify-between border-b border-[#3b3226] pb-1">
+					<span class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
+						<Castle class="w-3.5 h-3.5 text-amber-400" />
+						{selectedCastle.team === 'west' ? 'Магазин Замку' : 'Ворожа База'}
+					</span>
+					<button
+						onclick={() => onClearSelection?.()}
+						class="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 bg-[#1e2433] rounded border border-slate-700 cursor-pointer"
+					>
+						Закрити (Esc)
+					</button>
+				</div>
+				{#if selectedCastle.team === 'west'}
+					<div class="grid grid-cols-4 gap-1.5">
+						{#each Object.values(CASTLE_ITEMS).slice(0, 4) as item}
+							{@const canAfford = playerGold >= item.cost}
+							<button
+								onclick={() => {
+									if (sim.canBuyCastleItem('west', item.id)) {
+										sim.buyCastleItem('west', item.id);
+									}
+								}}
+								disabled={!canAfford}
+								class="w-16 h-11 rounded border flex flex-col items-center justify-center p-0.5 transition cursor-pointer {canAfford
+									? 'bg-[#1b263b] hover:bg-[#253959] border-amber-500/60 text-white shadow'
+									: 'bg-[#12161f] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
+								title="{item.nameUk} ({item.cost}g) - {item.descriptionUk}"
+							>
+								<span class="text-xs font-bold text-slate-200 truncate max-w-[55px]">
+									{item.nameUk}
+								</span>
+								<span class="text-[8px] text-amber-300 font-mono font-bold">🪙{item.cost}</span>
+							</button>
+						{/each}
+					</div>
+				{:else}
+					<div
+						class="flex flex-col items-center justify-center text-center p-2 text-rose-300 text-xs"
+					>
+						<span class="font-bold">Ціль: Знищити ворожу цитадель!</span>
+						<span class="text-[10px] text-slate-400 mt-1">
+							Знищення замку приносить перемогу у раунді
+						</span>
+					</div>
+				{/if}
+			</div>
+		{:else if activeEntityType === 'unit' && selectedUnit}
+			<!-- Unit Profile Card (No worker buttons!) -->
+			<div class="flex flex-col justify-between w-[280px] h-full py-1">
+				<div class="flex items-center justify-between border-b border-[#3b3226] pb-1">
+					<span
+						class="text-[11px] font-bold {selectedUnit.team === 'west'
+							? 'text-blue-300'
+							: selectedUnit.team === 'neutral'
+								? 'text-purple-300'
+								: 'text-rose-400'} flex items-center gap-1"
+					>
+						<Swords class="w-3.5 h-3.5" />
+						{selectedUnit.name}
+					</span>
+					<button
+						onclick={() => (selectedUnitId = null)}
+						class="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 bg-[#1e2433] rounded border border-slate-700 cursor-pointer"
+					>
+						Закрити (Esc)
+					</button>
+				</div>
+				<div
+					class="flex flex-col gap-1 text-[10px] text-slate-300 bg-[#0d1017] p-2 rounded border border-[#2d3748]"
+				>
+					<div class="flex justify-between">
+						<span class="text-slate-400">Дистанція атаки:</span>
+						<span class="font-mono text-amber-300 font-bold">{selectedUnit.range} px</span>
+					</div>
+					<div class="flex justify-between">
+						<span class="text-slate-400">Швидкість атаки:</span>
+						<span class="font-mono text-slate-200">{selectedUnit.attackCooldown.toFixed(1)} с</span>
+					</div>
+					<div class="flex justify-between">
+						<span class="text-slate-400">Тип пересування:</span>
+						<span class="font-bold {selectedUnit.flying ? 'text-cyan-300' : 'text-emerald-300'}">
+							{selectedUnit.flying ? 'Повітряний юніт' : 'Наземний юніт'}
+						</span>
+					</div>
+				</div>
+			</div>
+		{:else if activeEntityType === 'group'}
+			<!-- Group Profile Card -->
+			<div class="flex flex-col justify-between w-[280px] h-full py-1">
+				<div class="flex items-center justify-between border-b border-[#3b3226] pb-1">
+					<span class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
+						<Users class="w-3.5 h-3.5" />
+						Загін бійців ({groupUnits.length})
+					</span>
+					<button
+						onclick={() => onClearSelection?.()}
+						class="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 bg-[#1e2433] rounded border border-slate-700 cursor-pointer"
+					>
+						Закрити (Esc)
+					</button>
+				</div>
+				<div class="text-[10px] text-slate-400 text-center p-2">
+					Виділено загін бійців на полі бою. Відображаються сумарні показники здоров'я.
+				</div>
 			</div>
 		{:else}
 			<!-- 4x3 Grid of 12 Command Buttons for Worker -->

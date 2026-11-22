@@ -123,6 +123,13 @@ export class OverlayRenderer {
 			g.circle(worker.x, worker.y, 480);
 			g.cut();
 		}
+
+		for (const b of this.sim.buildings) {
+			if (b.team === 'west' && b.x >= 1400) {
+				g.circle(b.x + CELL_SIZE / 2, b.y + CELL_SIZE / 2, 450);
+				g.cut();
+			}
+		}
 	}
 
 	public drawSelectionUI(

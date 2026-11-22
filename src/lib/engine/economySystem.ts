@@ -40,7 +40,7 @@ export class EconomySystem {
 		}
 
 		const treasureBoxes = this.sim.buildings.filter(
-			(b) => b.team === team && b.specialType === 'treasure'
+			(b) => b.team === team && b.specialType === 'treasure' && !b.isUnderConstruction
 		).length;
 		if (treasureBoxes > 0) {
 			multiplier *= 1 + 0.2 * treasureBoxes;

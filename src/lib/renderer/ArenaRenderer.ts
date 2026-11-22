@@ -10,6 +10,7 @@ import {
 	GRID_STEP
 } from '../engine/simulation';
 import { sound } from '../services/audio';
+import type { Unit } from '../engine/types';
 import { TerrainRenderer } from './terrainRenderer';
 import { EntityRenderer, type SelectedEntity } from './entityRenderer';
 import { OverlayRenderer } from './overlayRenderer';
@@ -312,7 +313,7 @@ export class ArenaRenderer {
 				});
 				sound.playWorkerAck();
 
-				// Check if RMB clicked an injured friendly building or castle to repair
+				// Check if RMB clicked an injured friendly building or castle to repair / continue construction
 				const clickedBuilding = this.sim.buildings.find(
 					(b) =>
 						b.team === 'west' &&
@@ -322,9 +323,15 @@ export class ArenaRenderer {
 				const westCastle = this.sim.castles.west;
 				const clickedCastle = Math.hypot(world.x - westCastle.x, world.y - westCastle.y) <= 80;
 
-				if (clickedBuilding && clickedBuilding.hp < clickedBuilding.maxHp) {
-					this.sim.repairBuilding('west', clickedBuilding.instanceId);
-					return;
+				if (clickedBuilding) {
+					if (clickedBuilding.isUnderConstruction) {
+						this.sim.continueConstruction('west', clickedBuilding.instanceId);
+						return;
+					}
+					if (clickedBuilding.hp < clickedBuilding.maxHp) {
+						this.sim.repairBuilding('west', clickedBuilding.instanceId);
+						return;
+					}
 				} else if (clickedCastle && westCastle.hp < westCastle.maxHp) {
 					this.sim.repairBuilding('west', 'castle_west');
 					return;
@@ -406,24 +413,21 @@ export class ArenaRenderer {
 				const maxY = Math.max(this.boxStartWorld.y, this.boxCurrentWorld.y);
 
 				const selectedUnits = this.sim.units.filter(
-					(u) =>
-						u.state !== 'DEAD' &&
-						u.team === 'west' &&
-						u.x >= minX &&
-						u.x <= maxX &&
-						u.y >= minY &&
-						u.y <= maxY
+					(u) => u.state !== 'DEAD' && u.x >= minX && u.x <= maxX && u.y >= minY && u.y <= maxY
 				);
 
-				if (selectedUnits.length > 1) {
+				const friendly = selectedUnits.filter((u) => u.team === 'west');
+				const targets = friendly.length > 0 ? friendly : selectedUnits;
+
+				if (targets.length > 1) {
 					this.onSelectEntity?.({
 						type: 'group',
-						unitIds: selectedUnits.map((u) => u.instanceId)
+						unitIds: targets.map((u) => u.instanceId)
 					});
-				} else if (selectedUnits.length === 1) {
+				} else if (targets.length === 1) {
 					this.onSelectEntity?.({
 						type: 'unit',
-						instanceId: selectedUnits[0].instanceId
+						instanceId: targets[0].instanceId
 					});
 				}
 
@@ -493,14 +497,21 @@ export class ArenaRenderer {
 				}
 			}
 
-			// D. Check Unit click
+			// D. Check Unit click (friendly, enemy or neutral mobs)
+			let closestUnit: Unit | null = null;
+			let closestUnitDist = Infinity;
 			for (const u of this.sim.units) {
 				if (u.state === 'DEAD') continue;
 				const dist = Math.hypot(world.x - u.x, world.y - u.y);
-				if (dist <= u.size + 12) {
-					this.onSelectEntity?.({ type: 'unit', instanceId: u.instanceId });
-					return;
+				const hitRadius = Math.max(u.size * 2.2, 38);
+				if (dist <= hitRadius && dist < closestUnitDist) {
+					closestUnitDist = dist;
+					closestUnit = u;
 				}
+			}
+			if (closestUnit) {
+				this.onSelectEntity?.({ type: 'unit', instanceId: closestUnit.instanceId });
+				return;
 			}
 
 			// E. Check Placed Building click (2x2 footprint)
@@ -514,6 +525,24 @@ export class ArenaRenderer {
 					this.onSelectEntity?.({ type: 'building', instanceId: b.instanceId });
 					return;
 				}
+			}
+
+			// F. Check Castle click (West or East Castle)
+			const distWestCastle = Math.hypot(
+				world.x - this.sim.castles.west.x,
+				world.y - this.sim.castles.west.y
+			);
+			if (distWestCastle <= 110) {
+				this.onSelectEntity?.({ type: 'castle', team: 'west' });
+				return;
+			}
+			const distEastCastle = Math.hypot(
+				world.x - this.sim.castles.east.x,
+				world.y - this.sim.castles.east.y
+			);
+			if (distEastCastle <= 110) {
+				this.onSelectEntity?.({ type: 'castle', team: 'east' });
+				return;
 			}
 
 			// Default fallback: select worker
@@ -536,7 +565,7 @@ export class ArenaRenderer {
 		this.entityRenderer.drawWorkersLayer(this.workersLayer, isWorkerSelected);
 		this.entityRenderer.drawUnitsLayer(this.unitsLayer, selectedEntity, this.enableFog);
 		this.entityRenderer.drawCoinsLayer(this.coinsLayer);
-		this.entityRenderer.drawCastles(this.buildingsLayer);
+		this.entityRenderer.drawCastles(this.buildingsLayer, selectedEntity);
 		this.entityRenderer.drawProjectilesLayer(this.projectilesLayer);
 		this.entityRenderer.drawRescueStrikeEffects(this.projectilesLayer);
 		this.overlayRenderer.drawOrderMarkers(this.uiLayer, this.moveMarkers);

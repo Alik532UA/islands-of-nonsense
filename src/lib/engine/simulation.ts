@@ -744,6 +744,10 @@ export class Simulation {
 		return this.workerSystem.repairBuilding(team, buildingInstanceId);
 	}
 
+	public continueConstruction(team: MatchTeam, buildingInstanceId: string): boolean {
+		return this.workerSystem.continueConstruction(team, buildingInstanceId);
+	}
+
 	// Building System
 	public canBuild(team: MatchTeam, tileX: number, tileY: number): boolean {
 		return this.buildingSystem.canBuild(team, tileX, tileY);

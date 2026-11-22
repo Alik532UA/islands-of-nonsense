@@ -1,6 +1,6 @@
 import type { Graphics } from 'pixi.js';
 import type { Simulation } from '../engine/simulation';
-import type { Castle } from '../engine/types';
+import type { Castle, MatchTeam } from '../engine/types';
 import { CELL_SIZE } from '../engine/simulation';
 
 export type SelectedEntity =
@@ -8,6 +8,7 @@ export type SelectedEntity =
 	| { type: 'building'; instanceId: string }
 	| { type: 'unit'; instanceId: string }
 	| { type: 'group'; unitIds: string[] }
+	| { type: 'castle'; team: MatchTeam }
 	| null;
 
 export class EntityRenderer {
@@ -182,12 +183,19 @@ export class EntityRenderer {
 		}
 	}
 
-	public drawCastles(g: Graphics): void {
-		this.renderAuthenticCastle(g, this.sim.castles.west, true);
-		this.renderAuthenticCastle(g, this.sim.castles.east, false);
+	public drawCastles(g: Graphics, selectedEntity?: SelectedEntity): void {
+		const westSelected = selectedEntity?.type === 'castle' && selectedEntity.team === 'west';
+		const eastSelected = selectedEntity?.type === 'castle' && selectedEntity.team === 'east';
+		this.renderAuthenticCastle(g, this.sim.castles.west, true, westSelected);
+		this.renderAuthenticCastle(g, this.sim.castles.east, false, eastSelected);
 	}
 
-	public renderAuthenticCastle(g: Graphics, castle: Castle, isWest: boolean): void {
+	public renderAuthenticCastle(
+		g: Graphics,
+		castle: Castle,
+		isWest: boolean,
+		isSelected = false
+	): void {
 		const cx = castle.x;
 		const cy = castle.y;
 		const teamColor = this.sim.players[castle.team]?.color?.num || (isWest ? 0x0042ff : 0xff0303);
@@ -195,7 +203,13 @@ export class EntityRenderer {
 		// Stone Courtyard Foundation Slab (200x260)
 		g.roundRect(cx - 100, cy - 130, 200, 260, 16);
 		g.fill({ color: 0x334155 });
-		g.stroke({ color: 0x1e293b, width: 3 });
+		g.stroke({ color: isSelected ? 0xf59e0b : 0x1e293b, width: isSelected ? 4 : 3 });
+
+		// Selection Halo for Castle
+		if (isSelected) {
+			g.roundRect(cx - 106, cy - 136, 212, 272, 18);
+			g.stroke({ color: 0xfbbf24, width: 2, alpha: 0.85 });
+		}
 
 		// Central Keep (120x160)
 		const keepW = 120;
@@ -372,7 +386,12 @@ export class EntityRenderer {
 						Math.hypot(
 							this.sim.players.west.worker.x - u.x,
 							this.sim.players.west.worker.y - u.y
-						) <= 480);
+						) <= 480) ||
+					this.sim.buildings.some(
+						(b) =>
+							b.team === 'west' &&
+							Math.hypot(b.x + CELL_SIZE / 2 - u.x, b.y + CELL_SIZE / 2 - u.y) <= 450
+					);
 				if (!isRevealed) continue;
 			}
 
@@ -381,14 +400,15 @@ export class EntityRenderer {
 			const unitColor = isNeutral ? 0x7e22ce : isWest ? westPlayerColor : eastPlayerColor;
 			const dir = isNeutral ? 1 : isWest ? 1 : -1;
 
-			// Selection indicator ring
+			// Selection indicator ring (Green for friendly, Red for enemy, Purple for neutral)
 			const isSelected =
 				(selectedEntity?.type === 'unit' && selectedEntity.instanceId === u.instanceId) ||
 				(selectedEntity?.type === 'group' && selectedEntity.unitIds.includes(u.instanceId));
 
 			if (isSelected) {
+				const ringColor = isNeutral ? 0xa855f7 : isWest ? 0x22c55e : 0xef4444;
 				g.ellipse(u.x, u.y + radius * 0.7, radius * 1.35, radius * 0.7);
-				g.stroke({ color: 0x22c55e, width: 2 });
+				g.stroke({ color: ringColor, width: 2.5 });
 			}
 
 			// Shadow

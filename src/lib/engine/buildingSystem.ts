@@ -341,6 +341,8 @@ export class BuildingSystem {
 	}
 
 	public updateBuildings(dt: number): void {
+		const castleHealAmount: Record<MatchTeam, number> = { west: 0, east: 0 };
+
 		for (const b of this.sim.buildings) {
 			if (b.isUnderConstruction) {
 				continue;
@@ -349,11 +351,7 @@ export class BuildingSystem {
 				b.spawnTimer -= dt;
 				if (b.spawnTimer <= 0) {
 					b.spawnTimer = 1.0;
-					const castle = this.sim.castles[b.team];
-					if (castle.hp < castle.maxHp) {
-						castle.hp = Math.min(castle.maxHp, castle.hp + 25);
-						this.sim.addFloatingText('+25 HP', castle.x, castle.y - 45, '#10b981');
-					}
+					castleHealAmount[b.team] += 25;
 				}
 				continue;
 			}
@@ -365,6 +363,18 @@ export class BuildingSystem {
 			if (b.spawnTimer <= 0) {
 				b.spawnTimer = b.spawnCooldown;
 				this.spawnUnitFromBuilding(b);
+			}
+		}
+
+		for (const team of ['west', 'east'] as MatchTeam[]) {
+			const heal = castleHealAmount[team];
+			if (heal > 0) {
+				const castle = this.sim.castles[team];
+				if (castle.hp < castle.maxHp) {
+					const actual = Math.min(castle.maxHp - castle.hp, heal);
+					castle.hp += actual;
+					this.sim.addFloatingText(`+${actual} HP`, castle.x, castle.y - 45, '#10b981');
+				}
 			}
 		}
 	}

@@ -131,7 +131,7 @@ export class CombatSystem {
 				Math.max(u.range, 350),
 				u.team,
 				u.lane, // Filters strictly to u.lane!
-				u.range > 120 // ranged units can hit air
+				u.range > 120 || !!u.flying // ranged units or flying units can hit air
 			);
 
 			if (enemyTarget && enemyTarget.hp > 0 && enemyTarget.lane === u.lane) {
@@ -175,13 +175,14 @@ export class CombatSystem {
 					u.y += dirY * currentSpeed * dt;
 				}
 			} else if (u.team === 'neutral') {
-				// Boss Leash & Patrol: Stay near center of the lane (leash radius 400)
+				// Boss Leash & Patrol: Patrol across river crossing
 				u.currentTargetId = null;
 				const centerX = ARENA_WIDTH / 2;
-				const dx = centerX - u.x;
+				const patrolTargetX = centerX + Math.sin(this.sim.gameTime * 0.4) * 200;
+				const dx = patrolTargetX - u.x;
 				const dy = targetLaneY - u.y;
 				const dist = Math.hypot(dx, dy);
-				if (dist > 25) {
+				if (dist > 12) {
 					u.state = 'WALKING';
 					u.x += (dx / dist) * currentSpeed * dt;
 					u.y += (dy / dist) * currentSpeed * dt;
@@ -211,6 +212,9 @@ export class CombatSystem {
 					}
 				}
 
+				const westGateX = 1480;
+				const eastGateX = ARENA_WIDTH - 1480;
+
 				// Check whether Castle or Building should be targeted:
 				// If in attack range of Castle, or Castle is closer than any building, attack Castle!
 				const castleInRange = distToCastle <= u.range + 65;
@@ -236,10 +240,22 @@ export class CombatSystem {
 						u.state = 'WALKING';
 						u.currentTargetId = null;
 						u.targetBuildingId = null;
-						const cDirX = (targetCastle.x - u.x) / (distToCastle + 60);
-						const cDirY = (targetCastle.y - u.y) / (distToCastle + 60);
-						u.x += cDirX * currentSpeed * dt;
-						u.y += cDirY * currentSpeed * dt;
+
+						// If not yet inside enemy base courtyard, navigate through gate first!
+						let navTargetX = targetCastle.x;
+						let navTargetY = targetCastle.y;
+						if (u.team === 'west' && u.x < eastGateX) {
+							navTargetX = eastGateX;
+							navTargetY = targetLaneY;
+						} else if (u.team === 'east' && u.x > westGateX) {
+							navTargetX = westGateX;
+							navTargetY = targetLaneY;
+						}
+						const dNav = Math.hypot(navTargetX - u.x, navTargetY - u.y);
+						if (dNav > 5) {
+							u.x += ((navTargetX - u.x) / dNav) * currentSpeed * dt;
+							u.y += ((navTargetY - u.y) / dNav) * currentSpeed * dt;
+						}
 					}
 				} else if (closestBld) {
 					// Target & Attack Building!
@@ -265,11 +281,25 @@ export class CombatSystem {
 						u.targetBuildingId = closestBld.instanceId;
 						const bx = closestBld.x + CELL_SIZE / 2;
 						const by = closestBld.y + CELL_SIZE / 2;
-						const d = Math.hypot(bx - u.x, by - u.y);
-						const dirX = (bx - u.x) / d;
-						const dirY = (by - u.y) / d;
-						u.x += dirX * currentSpeed * dt;
-						u.y += dirY * currentSpeed * dt;
+
+						// If outside enemy base courtyard, navigate through gate first!
+						let navTargetX = bx;
+						let navTargetY = by;
+						if (u.team === 'west' && u.x < eastGateX) {
+							navTargetX = eastGateX;
+							navTargetY = targetLaneY;
+						} else if (u.team === 'east' && u.x > westGateX) {
+							navTargetX = westGateX;
+							navTargetY = targetLaneY;
+						}
+
+						const d = Math.hypot(navTargetX - u.x, navTargetY - u.y);
+						if (d > 5) {
+							const dirX = (navTargetX - u.x) / d;
+							const dirY = (navTargetY - u.y) / d;
+							u.x += dirX * currentSpeed * dt;
+							u.y += dirY * currentSpeed * dt;
+						}
 					}
 				} else {
 					// March towards Enemy Castle!
@@ -277,32 +307,82 @@ export class CombatSystem {
 					u.targetBuildingId = null;
 					u.state = 'WALKING';
 
-					if (isNearEnemyBase) {
+					const isWest = u.team === 'west';
+					const ownGateX = isWest ? westGateX : eastGateX;
+					const inOwnCourtyard = isWest ? u.x < westGateX : u.x > eastGateX;
+					const onHighway = isWest ? u.x < eastGateX : u.x > westGateX;
+
+					if (inOwnCourtyard) {
+						// Step 1: In base courtyard -> march towards road gate
+						const gdx = ownGateX - u.x;
+						const gdy = targetLaneY - u.y;
+						const gdist = Math.hypot(gdx, gdy);
+						if (gdist > 5) {
+							u.x += (gdx / gdist) * currentSpeed * dt;
+							u.y += (gdy / gdist) * currentSpeed * dt;
+						}
+					} else if (onHighway) {
+						// Step 2: On highway corridor -> march along lane
+						const stepX = (isWest ? 1 : -1) * currentSpeed * dt;
+						let stepY = 0;
+						const laneDistY = u.y - targetLaneY;
+						if (Math.abs(laneDistY) > 35) {
+							stepY =
+								-Math.sign(laneDistY) * Math.min(Math.abs(laneDistY) - 35, currentSpeed * dt * 0.5);
+						}
+						u.x += stepX;
+						u.y += stepY;
+					} else {
+						// Step 3: Inside enemy base courtyard -> steer directly to Castle
 						const dirX = (targetCastle.x - u.x) / (distToCastle + 60);
 						const dirY = (targetCastle.y - u.y) / (distToCastle + 60);
 						u.x += dirX * currentSpeed * dt;
 						u.y += dirY * currentSpeed * dt;
-					} else {
-						// Highway corridor march: march forward along X
-						const stepX = (u.team === 'west' ? 1 : -1) * currentSpeed * dt;
-						let stepY = 0;
-						// Soft lane centering only if straying too far from lane corridor
-						const laneDistY = u.y - targetLaneY;
-						if (Math.abs(laneDistY) > 60) {
-							stepY =
-								-Math.sign(laneDistY) * Math.min(Math.abs(laneDistY) - 60, currentSpeed * dt * 0.4);
-						}
-						u.x += stepX;
-						u.y += stepY;
 					}
 				}
 			}
 
-			// Enforce solid obstacle collision for ground units (flying units glide freely over buildings)
+			// Enforce solid obstacle collision with tangent sliding for ground units
 			if (!u.flying) {
+				const intendedDist = Math.hypot(u.x - u.prevX, u.y - u.prevY);
 				const resolved = this.sim.workerSystem.resolveGroundObstacles(u.x, u.y, u.size);
-				u.x = resolved.x;
-				u.y = resolved.y;
+				const movedDist = Math.hypot(resolved.x - u.prevX, resolved.y - u.prevY);
+
+				if (intendedDist > 0.5 && movedDist < intendedDist * 0.35) {
+					// Blocked by wall or building: slide along tangent
+					const dirX = (u.x - u.prevX) / intendedDist;
+					const dirY = (u.y - u.prevY) / intendedDist;
+					const perpX = -dirY;
+					const perpY = dirX;
+
+					const s1 = this.sim.workerSystem.resolveGroundObstacles(
+						u.prevX + perpX * currentSpeed * dt,
+						u.prevY + perpY * currentSpeed * dt,
+						u.size
+					);
+					const s2 = this.sim.workerSystem.resolveGroundObstacles(
+						u.prevX - perpX * currentSpeed * dt,
+						u.prevY - perpY * currentSpeed * dt,
+						u.size
+					);
+
+					const d1 = Math.abs(s1.y - targetLaneY);
+					const d2 = Math.abs(s2.y - targetLaneY);
+
+					if (d1 <= d2 && Math.hypot(s1.x - u.prevX, s1.y - u.prevY) > intendedDist * 0.3) {
+						u.x = s1.x;
+						u.y = s1.y;
+					} else if (Math.hypot(s2.x - u.prevX, s2.y - u.prevY) > intendedDist * 0.3) {
+						u.x = s2.x;
+						u.y = s2.y;
+					} else {
+						u.x = resolved.x;
+						u.y = resolved.y;
+					}
+				} else {
+					u.x = resolved.x;
+					u.y = resolved.y;
+				}
 			}
 		}
 

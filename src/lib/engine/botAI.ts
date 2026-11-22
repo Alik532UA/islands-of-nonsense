@@ -285,10 +285,10 @@ export class BotAI {
 			return;
 		}
 
-		// 6. Building placement decision:
+		// 6. Building placement decision across base platform:
 		const freeSlots: { x: number; y: number }[] = [];
-		for (let x = 0; x <= 16; x += 2) {
-			for (let y = 0; y <= 24; y += 2) {
+		for (let x = 0; x <= 32; x += 2) {
+			for (let y = 0; y <= 58; y += 2) {
 				if (this.sim.canBuild(this.team, x, y)) {
 					freeSlots.push({ x, y });
 				}
@@ -348,20 +348,21 @@ export class BotAI {
 		scoredCandidates.sort((a, b) => b.score - a.score);
 		const chosenBuilding = scoredCandidates[0].building;
 
-		// Tactical lane selection based on lane pressure & balance
+		// Tactical lane selection based on lane pressure & balance across 60-row arena grid
+		const midTileY = 30;
 		let preferredSlots: { x: number; y: number }[] = [];
 		if (scan.topPressure > scan.bottomPressure + 300) {
-			preferredSlots = freeSlots.filter((s) => s.y < 4);
+			preferredSlots = freeSlots.filter((s) => s.y < midTileY);
 		} else if (scan.bottomPressure > scan.topPressure + 300) {
-			preferredSlots = freeSlots.filter((s) => s.y >= 4);
+			preferredSlots = freeSlots.filter((s) => s.y >= midTileY);
 		} else {
 			// Balance lane building count
-			const topCount = myBuildings.filter((b) => b.tileY < 4).length;
-			const bottomCount = myBuildings.filter((b) => b.tileY >= 4).length;
+			const topCount = myBuildings.filter((b) => b.tileY < midTileY).length;
+			const bottomCount = myBuildings.filter((b) => b.tileY >= midTileY).length;
 			if (topCount < bottomCount) {
-				preferredSlots = freeSlots.filter((s) => s.y < 4);
+				preferredSlots = freeSlots.filter((s) => s.y < midTileY);
 			} else if (bottomCount < topCount) {
-				preferredSlots = freeSlots.filter((s) => s.y >= 4);
+				preferredSlots = freeSlots.filter((s) => s.y >= midTileY);
 			}
 		}
 

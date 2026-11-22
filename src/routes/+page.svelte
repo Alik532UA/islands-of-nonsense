@@ -56,59 +56,83 @@
 		} else if (e.key === 'F9') {
 			e.preventDefault();
 			isCommanderOpen = !isCommanderOpen;
-		} else if (
-			e.code === 'Space' &&
-			!e.repeat &&
-			!isForgeOpen &&
-			!isCommanderOpen &&
-			!isShopOpen &&
-			!isSettingsOpen
-		) {
-			e.preventDefault();
-			sim.isRunning = !sim.isRunning;
-			uiTick = sim.stateVersion;
-		} else if ((e.key === 'f' || e.key === 'F') && !e.repeat) {
-			isForgeOpen = !isForgeOpen;
-		} else if ((e.key === 'c' || e.key === 'C') && !e.repeat) {
-			isCommanderOpen = !isCommanderOpen;
-		} else if ((e.key === 'b' || e.key === 'B') && !e.repeat) {
-			isShopOpen = !isShopOpen;
-		} else if (
-			(e.key === 'r' || e.key === 'R') &&
-			!e.repeat &&
-			!isForgeOpen &&
-			!isCommanderOpen &&
-			!isShopOpen
-		) {
-			if (sim.canUseRaceSkill('west')) {
-				const success = sim.useRaceSkill('west');
-				if (success) {
-					sound.playUpgrade();
-					uiTick = sim.stateVersion;
+		} else {
+			const isWorkerGridActive =
+				selectedEntity?.type === 'worker' &&
+				!selectedPlacedBuildingId &&
+				!isForgeOpen &&
+				!isCommanderOpen &&
+				!isShopOpen &&
+				!isSettingsOpen;
+
+			if (
+				e.code === 'Space' &&
+				!e.repeat &&
+				!isForgeOpen &&
+				!isCommanderOpen &&
+				!isShopOpen &&
+				!isSettingsOpen
+			) {
+				e.preventDefault();
+				sim.isRunning = !sim.isRunning;
+				uiTick = sim.stateVersion;
+			} else if (
+				(e.key === 'f' || e.key === 'F') &&
+				!e.repeat &&
+				(!isWorkerGridActive || e.altKey)
+			) {
+				isForgeOpen = !isForgeOpen;
+			} else if (
+				(e.key === 'c' || e.key === 'C') &&
+				!e.repeat &&
+				(!isWorkerGridActive || e.altKey)
+			) {
+				isCommanderOpen = !isCommanderOpen;
+			} else if (
+				(e.key === 'b' || e.key === 'B') &&
+				!e.repeat &&
+				(!isWorkerGridActive || e.altKey)
+			) {
+				isShopOpen = !isShopOpen;
+			} else if (
+				(e.key === 'r' || e.key === 'R') &&
+				!e.repeat &&
+				!isForgeOpen &&
+				!isCommanderOpen &&
+				!isShopOpen &&
+				(!isWorkerGridActive || e.altKey)
+			) {
+				if (sim.canUseRaceSkill('west')) {
+					const success = sim.useRaceSkill('west');
+					if (success) {
+						sound.playUpgrade();
+						uiTick = sim.stateVersion;
+					}
 				}
-			}
-		} else if (
-			(e.key === 'e' || e.key === 'E') &&
-			!e.repeat &&
-			!isForgeOpen &&
-			!isCommanderOpen &&
-			!isShopOpen
-		) {
-			if (sim.canUseRescueStrike('west')) {
-				const res = sim.triggerRescueStrike('west');
-				if (res) {
-					sound.playRescueStrike();
-					uiTick = sim.stateVersion;
+			} else if (
+				(e.key === 'e' || e.key === 'E') &&
+				!e.repeat &&
+				!isForgeOpen &&
+				!isCommanderOpen &&
+				!isShopOpen &&
+				(!isWorkerGridActive || e.altKey)
+			) {
+				if (sim.canUseRescueStrike('west')) {
+					const res = sim.triggerRescueStrike('west');
+					if (res) {
+						sound.playRescueStrike();
+						uiTick = sim.stateVersion;
+					}
 				}
+			} else if (e.key === 'ArrowLeft') {
+				renderer?.setCamera(cameraX - 240, cameraY);
+			} else if (e.key === 'ArrowRight') {
+				renderer?.setCamera(cameraX + 240, cameraY);
+			} else if (e.key === 'ArrowUp') {
+				renderer?.setCamera(cameraX, cameraY - 240);
+			} else if (e.key === 'ArrowDown') {
+				renderer?.setCamera(cameraY + 240, cameraY);
 			}
-		} else if (e.key === 'ArrowLeft') {
-			renderer?.setCamera(cameraX - 240, cameraY);
-		} else if (e.key === 'ArrowRight') {
-			renderer?.setCamera(cameraX + 240, cameraY);
-		} else if (e.key === 'ArrowUp') {
-			renderer?.setCamera(cameraX, cameraY - 240);
-		} else if (e.key === 'ArrowDown') {
-			renderer?.setCamera(cameraX, cameraY + 240);
 		}
 	}
 
@@ -130,24 +154,38 @@
 		}
 	}
 
+	function handleContinueConstruction(instanceId: string) {
+		const success = sim.continueConstruction('west', instanceId);
+		if (success) {
+			sound.playWorkerAck();
+			uiTick = sim.stateVersion;
+		}
+	}
+
 	function attachAudioHandlers(s: Simulation) {
 		s.onSoundEffect = (type: string) => {
 			switch (type) {
+				case 'sword':
 				case 'attack_normal':
 					sound.playSwordClash();
 					break;
+				case 'bow':
 				case 'attack_pierce':
 					sound.playBowShot();
 					break;
+				case 'magic':
 				case 'attack_magic':
 					sound.playMagicCast();
 					break;
+				case 'hit':
 				case 'attack_siege':
 					sound.playHit();
 					break;
+				case 'death':
 				case 'unit_death':
 					sound.playUnitDeath();
 					break;
+				case 'buildingDestroyed':
 				case 'building_destroyed':
 					sound.playBuildingDestroyed();
 					break;
@@ -398,6 +436,7 @@
 		{cameraX}
 		{cameraY}
 		{zoom}
+		{selectedEntity}
 		selectedGroup={selectedEntity?.type === 'group' ? selectedEntity.unitIds : null}
 		bind:selectedBuildingId
 		bind:selectedPlacedBuildingId
@@ -412,6 +451,7 @@
 		}}
 		onUpgradeBuilding={handleUpgradeBuilding}
 		onSellBuilding={handleSellBuilding}
+		onContinueConstruction={handleContinueConstruction}
 		onMinimapClick={(ax: number, ay: number) => renderer?.setCamera(ax, ay)}
 		onClearSelection={() => {
 			selectedEntity = { type: 'worker' };

@@ -2,6 +2,29 @@ import type { Simulation } from './simulation';
 import { ARENA_WIDTH, ARENA_HEIGHT, CELL_SIZE } from './simulation';
 import type { MatchTeam, WorkerState } from './types';
 
+export const SOLID_MAP_OBSTACLES = [
+	// West Castle (solid stone fortress)
+	{ minX: 80, maxX: 320, minY: 1060, maxY: 1340 },
+	// East Castle (solid stone fortress)
+	{ minX: ARENA_WIDTH - 320, maxX: ARENA_WIDTH - 80, minY: 1060, maxY: 1340 },
+	// Central Mountain Ridge (dividing Top and Bottom lanes)
+	{ minX: 1460, maxX: ARENA_WIDTH - 1460, minY: 1040, maxY: 1360 },
+	// Arena Upper Perimeter Wall
+	{ minX: 0, maxX: ARENA_WIDTH, minY: 0, maxY: 60 },
+	// Arena Lower Perimeter Wall
+	{ minX: 0, maxX: ARENA_WIDTH, minY: ARENA_HEIGHT - 60, maxY: ARENA_HEIGHT },
+	// West Base Ramparts with open Road Gates (Top gate at 560..760, Bot gate at 1640..1840)
+	{ minX: 1440, maxX: 1500, minY: 60, maxY: 560 },
+	{ minX: 1440, maxX: 1500, minY: 760, maxY: 1040 },
+	{ minX: 1440, maxX: 1500, minY: 1360, maxY: 1640 },
+	{ minX: 1440, maxX: 1500, minY: 1840, maxY: ARENA_HEIGHT - 60 },
+	// East Base Ramparts with open Road Gates
+	{ minX: ARENA_WIDTH - 1500, maxX: ARENA_WIDTH - 1440, minY: 60, maxY: 560 },
+	{ minX: ARENA_WIDTH - 1500, maxX: ARENA_WIDTH - 1440, minY: 760, maxY: 1040 },
+	{ minX: ARENA_WIDTH - 1500, maxX: ARENA_WIDTH - 1440, minY: 1360, maxY: 1640 },
+	{ minX: ARENA_WIDTH - 1500, maxX: ARENA_WIDTH - 1440, minY: 1840, maxY: ARENA_HEIGHT - 60 }
+];
+
 /**
  * WorkerSystem handles worker navigation, A* pathfinding,
  * dynamic obstacle collision resolution, and building construction/repairs.
@@ -51,30 +74,7 @@ export class WorkerSystem {
 		}
 
 		// 2. Solid Map Walls & Terrain Obstacles (including Castles)
-		const solidWalls = [
-			// West Castle (solid stone fortress)
-			{ minX: 80, maxX: 320, minY: 1060, maxY: 1340 },
-			// East Castle (solid stone fortress)
-			{ minX: ARENA_WIDTH - 320, maxX: ARENA_WIDTH - 80, minY: 1060, maxY: 1340 },
-			// Central Mountain Ridge (dividing Top and Bottom lanes)
-			{ minX: 1460, maxX: ARENA_WIDTH - 1460, minY: 1040, maxY: 1360 },
-			// Arena Upper Perimeter Wall
-			{ minX: 0, maxX: ARENA_WIDTH, minY: 0, maxY: 60 },
-			// Arena Lower Perimeter Wall
-			{ minX: 0, maxX: ARENA_WIDTH, minY: ARENA_HEIGHT - 60, maxY: ARENA_HEIGHT },
-			// West Base Ramparts with open Road Gates (Top gate at 560..760, Bot gate at 1640..1840)
-			{ minX: 1440, maxX: 1500, minY: 60, maxY: 560 },
-			{ minX: 1440, maxX: 1500, minY: 760, maxY: 1040 },
-			{ minX: 1440, maxX: 1500, minY: 1360, maxY: 1640 },
-			{ minX: 1440, maxX: 1500, minY: 1840, maxY: ARENA_HEIGHT - 60 },
-			// East Base Ramparts with open Road Gates
-			{ minX: ARENA_WIDTH - 1500, maxX: ARENA_WIDTH - 1440, minY: 60, maxY: 560 },
-			{ minX: ARENA_WIDTH - 1500, maxX: ARENA_WIDTH - 1440, minY: 760, maxY: 1040 },
-			{ minX: ARENA_WIDTH - 1500, maxX: ARENA_WIDTH - 1440, minY: 1360, maxY: 1640 },
-			{ minX: ARENA_WIDTH - 1500, maxX: ARENA_WIDTH - 1440, minY: 1840, maxY: ARENA_HEIGHT - 60 }
-		];
-
-		for (const wall of solidWalls) {
+		for (const wall of SOLID_MAP_OBSTACLES) {
 			if (
 				currX >= wall.minX - radius &&
 				currX <= wall.maxX + radius &&
@@ -115,24 +115,22 @@ export class WorkerSystem {
 		// Base territory boundaries
 		if (team === 'west') {
 			if (x < 180 || x > 1520 || y < 80 || y > ARENA_HEIGHT - 80) return true;
-			// West Castle
-			if (x >= 80 - radius && x <= 320 + radius && y >= 1060 - radius && y <= 1340 + radius)
-				return true;
 		} else {
 			if (x < ARENA_WIDTH - 1520 || x > ARENA_WIDTH - 180 || y < 80 || y > ARENA_HEIGHT - 80)
 				return true;
-			// East Castle
-			if (
-				x >= ARENA_WIDTH - 320 - radius &&
-				x <= ARENA_WIDTH - 80 + radius &&
-				y >= 1060 - radius &&
-				y <= 1340 + radius
-			)
-				return true;
 		}
 
-		// Perimeter walls
-		if (y < 60 + radius || y > ARENA_HEIGHT - 60 - radius) return true;
+		// Perimeter walls and solid terrain obstacles
+		for (const wall of SOLID_MAP_OBSTACLES) {
+			if (
+				x >= wall.minX - radius &&
+				x <= wall.maxX + radius &&
+				y >= wall.minY - radius &&
+				y <= wall.maxY + radius
+			) {
+				return true;
+			}
+		}
 
 		// Solid buildings (CELL_SIZE footprint)
 		for (const b of this.sim.buildings) {
@@ -190,8 +188,8 @@ export class WorkerSystem {
 		}
 
 		// 2. Setup A* navigation grid across the base courtyard
-		const minX = team === 'west' ? 200 : ARENA_WIDTH - 1500;
-		const maxX = team === 'west' ? 1500 : ARENA_WIDTH - 200;
+		const minX = team === 'west' ? 160 : ARENA_WIDTH - 1520;
+		const maxX = team === 'west' ? 1520 : ARENA_WIDTH - 160;
 		const minY = 80;
 		const maxY = ARENA_HEIGHT - 80;
 		const step = 40;
@@ -215,8 +213,8 @@ export class WorkerSystem {
 			let bestDist = Infinity;
 			let bestC = endCol;
 			let bestR = endRow;
-			for (let dc = -2; dc <= 2; dc++) {
-				for (let dr = -2; dr <= 2; dr++) {
+			for (let dc = -4; dc <= 4; dc++) {
+				for (let dr = -4; dr <= 4; dr++) {
 					const nc = clampCol(endCol + dc);
 					const nr = clampRow(endRow + dr);
 					const nx = getNodeX(nc);
@@ -236,7 +234,7 @@ export class WorkerSystem {
 		}
 
 		const startIndex = startRow * cols + startCol;
-		const endIndex = endRow * cols + endCol;
+		let endIndex = endRow * cols + endCol;
 
 		if (startIndex === endIndex) {
 			return [{ x: targetX, y: targetY }];
@@ -314,7 +312,23 @@ export class WorkerSystem {
 		}
 
 		if (!foundEnd) {
-			return [{ x: targetX, y: targetY }];
+			// If destination cannot be reached directly, path to the closest explored node
+			let closestNode = startIndex;
+			let closestDist = Infinity;
+			for (const node of cameFrom.keys()) {
+				const c = node % cols;
+				const r = Math.floor(node / cols);
+				const d = Math.hypot(getNodeX(c) - targetX, getNodeY(r) - targetY);
+				if (d < closestDist) {
+					closestDist = d;
+					closestNode = node;
+				}
+			}
+			if (closestNode !== startIndex) {
+				endIndex = closestNode;
+			} else {
+				return [{ x: targetX, y: targetY }];
+			}
 		}
 
 		// Reconstruct raw waypoints
@@ -443,6 +457,30 @@ export class WorkerSystem {
 		}
 	}
 
+	public continueConstruction(team: MatchTeam, buildingInstanceId: string): boolean {
+		const targetBld = this.sim.buildings.find(
+			(b) => b.instanceId === buildingInstanceId && b.team === team
+		);
+		if (!targetBld || !targetBld.isUnderConstruction) return false;
+
+		const w = this.sim.players[team]?.worker;
+		if (w) {
+			const isWest = targetBld.team === 'west';
+			const exteriorTargetX = isWest ? targetBld.x - 16 : targetBld.x + CELL_SIZE + 16;
+			const exteriorTargetY = targetBld.y + CELL_SIZE / 2;
+			w.targetX = exteriorTargetX;
+			w.targetY = exteriorTargetY;
+			w.isBuilding = false;
+			w.targetBuildingId = buildingInstanceId;
+			w.isRepairing = false;
+			w.targetRepairBuildingId = null;
+			w.path = this.findWorkerPath(team, w.x, w.y, exteriorTargetX, exteriorTargetY);
+			this.sim.notifyStateChanged();
+			return true;
+		}
+		return false;
+	}
+
 	public repairBuilding(team: MatchTeam, buildingInstanceId: string): boolean {
 		const targetBld =
 			this.sim.buildings.find((b) => b.instanceId === buildingInstanceId && b.team === team) ||
@@ -450,6 +488,11 @@ export class WorkerSystem {
 				? this.sim.castles[team]
 				: null);
 		if (!targetBld) return false;
+
+		// If building is still under construction, redirect worker to continue construction!
+		if ('isUnderConstruction' in targetBld && targetBld.isUnderConstruction) {
+			return this.continueConstruction(team, buildingInstanceId);
+		}
 
 		const w = this.sim.players[team]?.worker;
 		if (w) {

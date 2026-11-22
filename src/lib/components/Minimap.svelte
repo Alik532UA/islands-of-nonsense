@@ -237,8 +237,10 @@
 		}
 
 		// 7. Camera Viewport Box (Frustum)
-		const viewWorldW = 1200 / zoom;
-		const viewWorldH = 750 / zoom;
+		const screenW = typeof window !== 'undefined' ? window.innerWidth : 1200;
+		const screenH = typeof window !== 'undefined' ? window.innerHeight : 750;
+		const viewWorldW = screenW / zoom;
+		const viewWorldH = screenH / zoom;
 		const camBoxX = (cameraX - viewWorldW / 2) * scaleX;
 		const camBoxY = (cameraY - viewWorldH / 2) * scaleY;
 		const camBoxW = viewWorldW * scaleX;
