@@ -13,6 +13,7 @@
 	import VictoryModal from '$lib/components/VictoryModal.svelte';
 	import ShopModal from '$lib/components/ShopModal.svelte';
 	import StartMatchModal from '$lib/components/StartMatchModal.svelte';
+	import PauseMenuModal from '$lib/components/PauseMenuModal.svelte';
 	import { storage } from '$lib/services/storage';
 	import { createKeySequence, listenForSequences } from '$lib/debug/keySequence';
 	import { shortcutLetter, isEditableTarget } from '$lib/hotkeys/hotkeys';
@@ -48,6 +49,31 @@
 	let isCommanderOpen = $state(false);
 	let isShopOpen = $state(false);
 	let isSettingsOpen = $state(true);
+	let isPauseMenuOpen = $state(false);
+
+	function openPauseMenu() {
+		sim.isRunning = false;
+		isPauseMenuOpen = true;
+		uiTick = sim.stateVersion;
+	}
+
+	function resumeFromPauseMenu() {
+		isPauseMenuOpen = false;
+		sim.isRunning = true;
+		uiTick = sim.stateVersion;
+	}
+
+	function handleRestartMatch() {
+		isPauseMenuOpen = false;
+		handleStartNewMatch(sim.config);
+	}
+
+	function handleSurrender() {
+		isPauseMenuOpen = false;
+		sim.castles.west.hp = 0;
+		sim.isRunning = false;
+		uiTick = sim.stateVersion;
+	}
 
 	let animFrameId: number;
 	let unlistenSequences: (() => void) | null = null;
@@ -59,6 +85,19 @@
 		const letter = shortcutLetter(e);
 
 		if (e.key === 'Escape') {
+			if (isPauseMenuOpen) {
+				resumeFromPauseMenu();
+				return;
+			}
+			const hadActiveModalOrSelection =
+				selectedBuildingId !== null ||
+				selectedPlacedBuildingId !== null ||
+				selectedUnitId !== null ||
+				isForgeOpen ||
+				isCommanderOpen ||
+				isShopOpen ||
+				isSettingsOpen;
+
 			selectedBuildingId = null;
 			selectedPlacedBuildingId = null;
 			selectedUnitId = null;
@@ -67,6 +106,10 @@
 			isCommanderOpen = false;
 			isShopOpen = false;
 			isSettingsOpen = false;
+
+			if (!hadActiveModalOrSelection) {
+				openPauseMenu();
+			}
 		} else if (e.key === 'F9') {
 			e.preventDefault();
 			isCommanderOpen = !isCommanderOpen;
@@ -602,7 +645,7 @@
 		onOpenForge={() => (isForgeOpen = true)}
 		onOpenCommander={() => (isCommanderOpen = true)}
 		onOpenShop={() => (isShopOpen = true)}
-		onOpenSettings={() => (isSettingsOpen = true)}
+		onOpenSettings={openPauseMenu}
 	/>
 
 	<!-- Arena Viewport: Fullscreen Responsive with Pan & Zoom -->
@@ -762,5 +805,15 @@
 			}
 		}}
 		onStartMatch={handleStartNewMatch}
+	/>
+	<PauseMenuModal
+		isOpen={isPauseMenuOpen}
+		onResume={resumeFromPauseMenu}
+		onRestart={handleRestartMatch}
+		onOpenSettings={() => {
+			isPauseMenuOpen = false;
+			isSettingsOpen = true;
+		}}
+		onSurrender={handleSurrender}
 	/>
 </main>
