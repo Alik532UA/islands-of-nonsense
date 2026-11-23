@@ -513,8 +513,10 @@
 			chosenWestRace =
 				newConfig.westRace && newConfig.westRace !== 'random'
 					? newConfig.westRace
-					: sim.players.west.race;
-			countdownSeconds = 10;
+					: sim.players.west.isRandomRace
+						? 'random'
+						: sim.players.west.race;
+			countdownSeconds = 15;
 			if (countdownTimer) clearInterval(countdownTimer);
 			countdownTimer = setInterval(() => {
 				countdownSeconds--;
@@ -530,11 +532,8 @@
 			clearInterval(countdownTimer);
 			countdownTimer = null;
 		}
-		if (chosenWestRace && sim.players.west.race !== chosenWestRace) {
-			sim.players.west.race = chosenWestRace;
-			if (sim.players.west.worker) {
-				sim.players.west.worker.name = getBuilderNameForRace(chosenWestRace);
-			}
+		if (chosenWestRace) {
+			sim.setPlayerRace('west', chosenWestRace);
 		}
 		matchPhase = 'BATTLE';
 		sim.isRunning = true;
@@ -580,9 +579,11 @@
 							<h3 class="text-base font-bold text-[#fef08a] uppercase tracking-wide">
 								Вибір раси королівства
 							</h3>
-							<p class="text-xs text-slate-400">Оберіть расу до закінчення зворотного відліку</p>
+							<p class="text-xs text-slate-400">
+								Оберіть расу або випадковий вибір (+30% золота) до закінчення відліку
+							</p>
 						</div>
-						<!-- 10-second countdown badge -->
+						<!-- 15-second countdown badge -->
 						<div
 							class="px-3.5 py-1.5 bg-amber-500/20 border-2 border-amber-400/80 rounded-2xl flex items-center gap-1.5 animate-pulse"
 						>
@@ -592,7 +593,24 @@
 					</div>
 
 					<!-- Race pick chips -->
-					<div class="grid grid-cols-4 gap-2 text-xs">
+					<div class="grid grid-cols-3 sm:grid-cols-4 gap-2 text-xs">
+						<!-- Random Race Option with +30% gold bonus -->
+						<button
+							onclick={() => {
+								chosenWestRace = 'random';
+								sound.playUpgrade();
+							}}
+							class="p-2.5 rounded-xl border text-center transition cursor-pointer flex flex-col items-center justify-center gap-1 {chosenWestRace ===
+							'random'
+								? 'bg-purple-600/30 border-purple-400 text-purple-200 ring-2 ring-purple-400/50 font-bold shadow-lg'
+								: 'bg-[#1e172f] border-purple-800/60 hover:border-purple-600 text-purple-300'}"
+						>
+							<span class="text-xs font-bold">🎲 Випадкова</span>
+							<span class="text-[10px] text-amber-300 font-black">+30% золота</span>
+							{#if chosenWestRace === 'random'}
+								<span class="text-[9px] text-emerald-400 font-bold">✓ Обрано</span>
+							{/if}
+						</button>
 						{#each RACES_LIST as raceDef}
 							{@const isSelected = chosenWestRace === raceDef.race}
 							<button

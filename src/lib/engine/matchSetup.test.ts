@@ -133,4 +133,67 @@ describe('Point 7: Start Match Setup & Configuration', () => {
 		storage.setJSON('skip_start_modal', false);
 		expect(storage.getJSON<boolean>('skip_start_modal', false)).toBe(false);
 	});
+
+	it('awards +30% starting gold when selecting random race during pre-match phase', () => {
+		const startGold = 500;
+		const sim = new Simulation({
+			botDifficulty: 0,
+			startGold,
+			westRace: 'Люди',
+			eastRace: 'Орки'
+		});
+
+		expect(sim.players.west.gold).toBe(500);
+		expect(sim.players.west.isRandomRace).toBe(false);
+
+		// Switch to random race within first 15 seconds
+		const switched = sim.setPlayerRace('west', 'random');
+		expect(switched).toBe(true);
+		expect(sim.players.west.isRandomRace).toBe(true);
+		expect(sim.players.west.randomGoldGranted).toBe(true);
+		// 500 + round(500 * 0.3) = 500 + 150 = 650
+		expect(sim.players.west.gold).toBe(650);
+
+		// If player switches to a specific race before match starts, bonus is removed
+		sim.setPlayerRace('west', 'Ельфи');
+		expect(sim.players.west.isRandomRace).toBe(false);
+		expect(sim.players.west.randomGoldGranted).toBe(false);
+		expect(sim.players.west.gold).toBe(500);
+	});
+
+	it('preserves +30% random race bonus across resetRound() in multi-round matches', () => {
+		const startGold = 600;
+		const sim = new Simulation({
+			botDifficulty: 15,
+			startGold,
+			westRace: 'random',
+			eastRace: 'Орки'
+		});
+
+		// Starting gold with random bonus: 600 * 1.3 = 780
+		expect(sim.players.west.gold).toBe(780);
+		expect(sim.players.west.isRandomRace).toBe(true);
+
+		// Simulate expenditure and round reset
+		sim.players.west.gold = 120;
+		sim.resetRound();
+
+		// After round reset, random race player gets fresh 780 gold, while east (non-random) gets 600
+		expect(sim.players.west.gold).toBe(780);
+		expect(sim.players.east.gold).toBe(600);
+	});
+
+	it('enforces unique race rule preventing selection of enemy race', () => {
+		const sim = new Simulation({
+			botDifficulty: 0,
+			startGold: 500,
+			uniqueRaces: true,
+			westRace: 'Люди',
+			eastRace: 'Орки'
+		});
+
+		const success = sim.setPlayerRace('west', 'Орки');
+		expect(success).toBe(false);
+		expect(sim.players.west.race).toBe('Люди');
+	});
 });

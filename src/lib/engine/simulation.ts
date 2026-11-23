@@ -438,8 +438,8 @@ export class Simulation {
 			const p3Choice = takeRace(undefined, true);
 			const p4Choice = takeRace(undefined, true);
 
-			const p3Gold = p3Choice.isRandom ? Math.round(config.startGold * 1.3) : config.startGold;
-			const p4Gold = p4Choice.isRandom ? Math.round(config.startGold * 1.3) : config.startGold;
+			const p3Gold = config.startGold;
+			const p4Gold = config.startGold;
 
 			const p3: PlayerState = {
 				id: 'p3',
@@ -450,7 +450,7 @@ export class Simulation {
 				color: WC3_PLAYER_COLORS[2],
 				race: p3Choice.race,
 				isRandomRace: p3Choice.isRandom,
-				randomGoldGranted: p3Choice.isRandom,
+				randomGoldGranted: false,
 				gold: p3Gold,
 				lumber: 125,
 				food: 0,
@@ -491,7 +491,7 @@ export class Simulation {
 				color: WC3_PLAYER_COLORS[3],
 				race: p4Choice.race,
 				isRandomRace: p4Choice.isRandom,
-				randomGoldGranted: p4Choice.isRandom,
+				randomGoldGranted: false,
 				gold: p4Gold,
 				lumber: 125,
 				food: 0,
@@ -531,8 +531,8 @@ export class Simulation {
 			const p5Choice = takeRace(undefined, true);
 			const p6Choice = takeRace(undefined, true);
 
-			const p5Gold = p5Choice.isRandom ? Math.round(config.startGold * 1.3) : config.startGold;
-			const p6Gold = p6Choice.isRandom ? Math.round(config.startGold * 1.3) : config.startGold;
+			const p5Gold = config.startGold;
+			const p6Gold = config.startGold;
 
 			const p5: PlayerState = {
 				id: 'p5',
@@ -543,7 +543,7 @@ export class Simulation {
 				color: WC3_PLAYER_COLORS[4],
 				race: p5Choice.race,
 				isRandomRace: p5Choice.isRandom,
-				randomGoldGranted: p5Choice.isRandom,
+				randomGoldGranted: false,
 				gold: p5Gold,
 				lumber: 125,
 				food: 0,
@@ -584,7 +584,7 @@ export class Simulation {
 				color: WC3_PLAYER_COLORS[5],
 				race: p6Choice.race,
 				isRandomRace: p6Choice.isRandom,
-				randomGoldGranted: p6Choice.isRandom,
+				randomGoldGranted: false,
 				gold: p6Gold,
 				lumber: 125,
 				food: 0,
@@ -836,7 +836,9 @@ export class Simulation {
 
 		for (const p of this.allPlayers) {
 			p.forge = { attack: 0, armor: 0, econ: 0 };
-			p.gold = 500;
+			const baseStartGold = this.config.startGold ?? 500;
+			p.gold = !p.isBot && p.isRandomRace ? Math.round(baseStartGold * 1.3) : baseStartGold;
+			p.randomGoldGranted = !p.isBot && !!p.isRandomRace;
 			p.lumber = 125;
 			p.food = 0;
 			p.maxFood = 0;
