@@ -6,34 +6,16 @@ import {
 	BOTTOM_LANE_Y,
 	CELL_SIZE,
 	BRIDGE_SPAN_MIN_X,
-	BRIDGE_SPAN_MAX_X,
-	WEST_ROAD_MERGE_X,
-	EAST_ROAD_MERGE_X
+	BRIDGE_SPAN_MAX_X
 } from './constants';
 import type { Unit, Building, Castle, MatchTeam, Team, Lane, AttackType } from './types';
 import { calculateDamage, getDamageMultiplier } from './damageMatrix';
 import { DefenseSystem } from './defenseSystem';
-import { applyCrowdSeparation } from './crowdPhysics';
-import { logService } from '../services/logService.svelte';
+import { UnitSpellSystem, SPELL_MANA_COSTS } from './unitSpells';
+import { UnitNavigation } from './unitNavigation';
 
-export const SPELL_MANA_COSTS: Record<string, number> = {
-	heal: 25,
-	bloodlust: 40,
-	slow: 50,
-	curse: 40,
-	inner_fire: 35,
-	thunderbolt: 75,
-	chain_lightning: 100,
-	stomp: 65,
-	ensnare: 50,
-	mana_burn: 35,
-	raise_dead: 45,
-	corpse_explosion: 35,
-	polymorph: 60,
-	cyclone: 50,
-	banish: 40,
-	dispel: 45
-};
+export { SPELL_MANA_COSTS };
+import { applyCrowdSeparation } from './crowdPhysics';
 
 /**
  * CombatSystem handles unit state machines, targeting, pathing towards objectives,
@@ -41,8 +23,16 @@ export const SPELL_MANA_COSTS: Record<string, number> = {
  */
 export class CombatSystem {
 	public defenseSystem: DefenseSystem;
+	public spellSystem: UnitSpellSystem;
+	public navigation: UnitNavigation;
 
 	constructor(private sim: Simulation) {
+		this.spellSystem = new UnitSpellSystem(
+			sim,
+			(target, rawDamage, attackType, attackerTeam, isCrit, attackerUnit) =>
+				this.applyUnitDamage(target, rawDamage, attackType, attackerTeam, !!isCrit, attackerUnit)
+		);
+		this.navigation = new UnitNavigation(sim);
 		this.defenseSystem = new DefenseSystem(sim, {
 			applyUnitDamage: (target, rawDamage, attackType, attackerTeam, isCrit, attackerUnit) =>
 				this.applyUnitDamage(target, rawDamage, attackType, attackerTeam, !!isCrit, attackerUnit),
@@ -235,717 +225,8 @@ export class CombatSystem {
 				u.flying = false;
 			}
 
-			// Mana regeneration tick
-			if (u.maxMana && u.maxMana > 0 && u.mana !== undefined) {
-				u.mana = Math.min(u.maxMana, u.mana + (u.manaRegen || 0) * dt);
-			}
-
-			// Tactical abilities cooldown tick
-			if (u.abilityCooldownTimer && u.abilityCooldownTimer > 0) {
-				u.abilityCooldownTimer = Math.max(0, u.abilityCooldownTimer - dt);
-			}
-
-			// 1. Ensnare ability (Web down flying enemies)
-			const ensnareCost = SPELL_MANA_COSTS.ensnare;
-			if (
-				u.abilityType === 'ensnare' &&
-				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
-				(!u.maxMana || (u.mana ?? 0) >= ensnareCost)
-			) {
-				const enemyFlying = this.sim.units.find(
-					(other) =>
-						other.team !== u.team &&
-						other.lane === u.lane &&
-						other.state !== 'DEAD' &&
-						other.flying &&
-						Math.hypot(other.x - u.x, other.y - u.y) <= 450
-				);
-				if (enemyFlying) {
-					if (u.maxMana && u.mana !== undefined) {
-						u.mana = Math.max(0, u.mana - ensnareCost);
-					}
-					enemyFlying.buffs = enemyFlying.buffs || [];
-					enemyFlying.buffs.push({ type: 'ensnare', timer: 6.0, value: 0 });
-					enemyFlying.flying = false;
-					enemyFlying.isEnsnared = true;
-					u.abilityCooldownTimer = 12.0;
-					this.sim.addFloatingText('Сітка!', enemyFlying.x, enemyFlying.y - 20, '#a3e635');
-				}
-			}
-
-			// 2. Heal ability (Support wounded allies)
-			const healCost = SPELL_MANA_COSTS.heal;
-			if (
-				u.abilityType === 'heal' &&
-				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
-				(!u.maxMana || (u.mana ?? 0) >= healCost)
-			) {
-				const injuredCandidates = this.sim.units.filter(
-					(other) =>
-						other.team === u.team &&
-						other.lane === u.lane &&
-						other.state !== 'DEAD' &&
-						other.maxHp - other.hp >= 15 &&
-						Math.hypot(other.x - u.x, other.y - u.y) <= 350
-				);
-				injuredCandidates.sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp);
-				const injuredAlly = injuredCandidates[0];
-				if (injuredAlly) {
-					if (u.maxMana && u.mana !== undefined) {
-						u.mana = Math.max(0, u.mana - healCost);
-					}
-					injuredAlly.hp = Math.min(injuredAlly.maxHp, injuredAlly.hp + 65);
-					u.abilityCooldownTimer = 3.5;
-					this.sim.addFloatingText('+65 HP', injuredAlly.x, injuredAlly.y - 20, '#10b981');
-				}
-			}
-
-			// 3. Command Aura (Buff nearby allies damage)
-			if (u.abilityType === 'aura_dmg') {
-				for (const ally of this.sim.units) {
-					if (
-						ally.team === u.team &&
-						ally.lane === u.lane &&
-						ally.state !== 'DEAD' &&
-						ally.instanceId !== u.instanceId &&
-						Math.hypot(ally.x - u.x, ally.y - u.y) <= 300
-					) {
-						ally.buffs = ally.buffs || [];
-						if (!ally.buffs.some((b) => b.type === 'dmg' && b.value === 0.15)) {
-							ally.buffs.push({ type: 'dmg', timer: 1.5, value: 0.15 });
-						}
-					}
-				}
-			}
-
-			// 4. Bloodlust ability
-			const hasBloodlust =
-				u.abilityType === 'bloodlust' || u.abilities?.some((a) => a.type === 'bloodlust');
-			const bloodlustCost = SPELL_MANA_COSTS.bloodlust;
-			if (
-				hasBloodlust &&
-				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
-				(!u.maxMana || (u.mana ?? 0) >= bloodlustCost)
-			) {
-				const unbuffedAllies = this.sim.units.filter(
-					(other) =>
-						other.team === u.team &&
-						other.lane === u.lane &&
-						other.state !== 'DEAD' &&
-						other.instanceId !== u.instanceId &&
-						!other.buffs?.some((b) => b.type === 'bloodlust') &&
-						Math.hypot(other.x - u.x, other.y - u.y) <= 400
-				);
-				unbuffedAllies.sort((a, b) => {
-					const dpsA = (a.damageMax || a.damageMin || 10) / (a.attackCooldown || 1.5);
-					const dpsB = (b.damageMax || b.damageMin || 10) / (b.attackCooldown || 1.5);
-					return dpsB - dpsA;
-				});
-				const unbuffedAlly = unbuffedAllies[0];
-				if (unbuffedAlly) {
-					if (u.maxMana && u.mana !== undefined) {
-						u.mana = Math.max(0, u.mana - bloodlustCost);
-					}
-					unbuffedAlly.buffs = unbuffedAlly.buffs || [];
-					unbuffedAlly.buffs.push({ type: 'bloodlust', timer: 10.0, value: 0.4 });
-					u.abilityCooldownTimer = 10.0;
-					this.sim.addFloatingText(
-						'Лють! (+40% шв.)',
-						unbuffedAlly.x,
-						unbuffedAlly.y - 20,
-						'#ef4444'
-					);
-				}
-			}
-
-			// 5. Slow ability
-			const hasSlow = u.abilityType === 'slow' || u.abilities?.some((a) => a.type === 'slow');
-			const slowCost = SPELL_MANA_COSTS.slow;
-			if (
-				hasSlow &&
-				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
-				(!u.maxMana || (u.mana ?? 0) >= slowCost)
-			) {
-				const enemyCandidates = this.sim.units.filter(
-					(other) =>
-						other.team !== u.team &&
-						other.lane === u.lane &&
-						other.state !== 'DEAD' &&
-						!other.buffs?.some((b) => b.type === 'slow') &&
-						Math.hypot(other.x - u.x, other.y - u.y) <= 450
-				);
-				enemyCandidates.sort(
-					(a, b) => (b.damageMax || b.damageMin || 10) - (a.damageMax || a.damageMin || 10)
-				);
-				const enemyTarget = enemyCandidates[0];
-				if (enemyTarget) {
-					if (u.maxMana && u.mana !== undefined) {
-						u.mana = Math.max(0, u.mana - slowCost);
-					}
-					enemyTarget.buffs = enemyTarget.buffs || [];
-					enemyTarget.buffs.push({ type: 'slow', timer: 6.0, value: 0.35 });
-					u.abilityCooldownTimer = 8.0;
-					this.sim.addFloatingText('Уповільнення!', enemyTarget.x, enemyTarget.y - 20, '#93c5fd');
-				}
-			}
-
-			// 6. Curse ability
-			const hasCurse = u.abilityType === 'curse' || u.abilities?.some((a) => a.type === 'curse');
-			const curseCost = SPELL_MANA_COSTS.curse;
-			if (
-				hasCurse &&
-				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
-				(!u.maxMana || (u.mana ?? 0) >= curseCost)
-			) {
-				const enemyCandidates = this.sim.units.filter(
-					(other) =>
-						other.team !== u.team &&
-						other.lane === u.lane &&
-						other.state !== 'DEAD' &&
-						!other.buffs?.some((b) => b.type === 'curse') &&
-						Math.hypot(other.x - u.x, other.y - u.y) <= 450
-				);
-				enemyCandidates.sort(
-					(a, b) => (b.damageMax || b.damageMin || 10) - (a.damageMax || a.damageMin || 10)
-				);
-				const enemyTarget = enemyCandidates[0];
-				if (enemyTarget) {
-					if (u.maxMana && u.mana !== undefined) {
-						u.mana = Math.max(0, u.mana - curseCost);
-					}
-					enemyTarget.buffs = enemyTarget.buffs || [];
-					enemyTarget.buffs.push({ type: 'curse', timer: 8.0, value: 0.33 });
-					u.abilityCooldownTimer = 9.0;
-					this.sim.addFloatingText('Прокляття!', enemyTarget.x, enemyTarget.y - 20, '#c084fc');
-				}
-			}
-
-			// 7. Inner Fire ability
-			const hasInnerFire =
-				u.abilityType === 'inner_fire' || u.abilities?.some((a) => a.type === 'inner_fire');
-			const innerFireCost = SPELL_MANA_COSTS.inner_fire;
-			if (
-				hasInnerFire &&
-				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
-				(!u.maxMana || (u.mana ?? 0) >= innerFireCost)
-			) {
-				const unbuffedAllies = this.sim.units.filter(
-					(other) =>
-						other.team === u.team &&
-						other.lane === u.lane &&
-						other.state !== 'DEAD' &&
-						other.instanceId !== u.instanceId &&
-						!other.buffs?.some((b) => b.type === 'inner_fire') &&
-						Math.hypot(other.x - u.x, other.y - u.y) <= 400
-				);
-				unbuffedAllies.sort((a, b) => b.maxHp - a.maxHp);
-				const unbuffedAlly = unbuffedAllies[0];
-				if (unbuffedAlly) {
-					if (u.maxMana && u.mana !== undefined) {
-						u.mana = Math.max(0, u.mana - innerFireCost);
-					}
-					unbuffedAlly.buffs = unbuffedAlly.buffs || [];
-					unbuffedAlly.buffs.push({ type: 'inner_fire', timer: 12.0, value: 0.25 });
-					u.abilityCooldownTimer = 12.0;
-					this.sim.addFloatingText('Вогонь віри!', unbuffedAlly.x, unbuffedAlly.y - 20, '#fbbf24');
-				}
-			}
-
-			// 8. Thunderbolt (Storm Bolt)
-			const hasThunderbolt =
-				u.abilityType === 'thunderbolt' || u.abilities?.some((a) => a.type === 'thunderbolt');
-			const tbCost = SPELL_MANA_COSTS.thunderbolt;
-			if (
-				hasThunderbolt &&
-				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
-				(!u.maxMana || (u.mana ?? 0) >= tbCost)
-			) {
-				const enemyTarget = this.sim.units.find(
-					(other) =>
-						other.team !== u.team &&
-						other.lane === u.lane &&
-						other.state !== 'DEAD' &&
-						Math.hypot(other.x - u.x, other.y - u.y) <= 450
-				);
-				if (enemyTarget) {
-					if (u.maxMana && u.mana !== undefined) {
-						u.mana = Math.max(0, u.mana - tbCost);
-					}
-					enemyTarget.buffs = enemyTarget.buffs || [];
-					enemyTarget.buffs.push({ type: 'stun', timer: 2.0, value: 0 });
-					enemyTarget.isStunned = true;
-					this.sim.lightningEffects.push({
-						sourceX: u.x,
-						sourceY: u.y - 15,
-						targetX: enemyTarget.x,
-						targetY: enemyTarget.y,
-						timer: 0.35,
-						maxTimer: 0.35,
-						color: 0x38bdf8
-					});
-					this.applyUnitDamage(enemyTarget, 100, 'magic', u.team, true, u);
-					u.abilityCooldownTimer = 12.0;
-					this.sim.addFloatingText(
-						'*Громовий удар!*',
-						enemyTarget.x,
-						enemyTarget.y - 25,
-						'#38bdf8'
-					);
-				}
-			}
-
-			// 9. Chain Lightning
-			const hasChainLightning =
-				u.abilityType === 'chain_lightning' ||
-				u.abilities?.some((a) => a.type === 'chain_lightning');
-			const clCost = SPELL_MANA_COSTS.chain_lightning;
-			if (
-				hasChainLightning &&
-				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
-				(!u.maxMana || (u.mana ?? 0) >= clCost)
-			) {
-				const enemies = this.sim.units.filter(
-					(other) =>
-						other.team !== u.team &&
-						other.lane === u.lane &&
-						other.state !== 'DEAD' &&
-						Math.hypot(other.x - u.x, other.y - u.y) <= 500
-				);
-				if (enemies.length > 0) {
-					if (u.maxMana && u.mana !== undefined) {
-						u.mana = Math.max(0, u.mana - clCost);
-					}
-					enemies.sort(
-						(a, b) => Math.hypot(a.x - u.x, a.y - u.y) - Math.hypot(b.x - u.x, b.y - u.y)
-					);
-					const chainTargets = enemies.slice(0, 4);
-					const damages = [120, 90, 65, 45];
-					let prevX = u.x;
-					let prevY = u.y;
-					chainTargets.forEach((target, idx) => {
-						this.sim.lightningEffects.push({
-							sourceX: prevX,
-							sourceY: prevY,
-							targetX: target.x,
-							targetY: target.y,
-							timer: 0.3,
-							maxTimer: 0.3,
-							color: 0x67e8f9
-						});
-						prevX = target.x;
-						prevY = target.y;
-						this.applyUnitDamage(target, damages[idx] || 40, 'magic', u.team, false, u);
-					});
-					u.abilityCooldownTimer = 12.0;
-					this.sim.addFloatingText('Блискавка!', u.x, u.y - 25, '#67e8f9');
-				}
-			}
-
-			// 10. War Stomp
-			const hasStomp = u.abilityType === 'stomp' || u.abilities?.some((a) => a.type === 'stomp');
-			const stompCost = SPELL_MANA_COSTS.stomp;
-			if (
-				hasStomp &&
-				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
-				(!u.maxMana || (u.mana ?? 0) >= stompCost)
-			) {
-				const nearbyEnemies = this.sim.units.filter(
-					(other) =>
-						other.team !== u.team &&
-						other.lane === u.lane &&
-						other.state !== 'DEAD' &&
-						!other.flying &&
-						Math.hypot(other.x - u.x, other.y - u.y) <= 180
-				);
-				if (nearbyEnemies.length >= 1) {
-					if (u.maxMana && u.mana !== undefined) {
-						u.mana = Math.max(0, u.mana - stompCost);
-					}
-					for (const enemy of nearbyEnemies) {
-						enemy.buffs = enemy.buffs || [];
-						enemy.buffs.push({ type: 'stun', timer: 1.5, value: 0 });
-						enemy.isStunned = true;
-						this.applyUnitDamage(enemy, 75, 'normal', u.team, false, u);
-					}
-					u.abilityCooldownTimer = 10.0;
-					this.sim.addFloatingText('Громовий тупіт!', u.x, u.y - 25, '#d97706');
-				}
-			}
-
-			// 11. Mana Burn
-			const hasManaBurn =
-				u.abilityType === 'mana_burn' || u.abilities?.some((a) => a.type === 'mana_burn');
-			const mbCost = SPELL_MANA_COSTS.mana_burn;
-			if (
-				hasManaBurn &&
-				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
-				(!u.maxMana || (u.mana ?? 0) >= mbCost)
-			) {
-				const enemyWithMana = this.sim.units.find(
-					(other) =>
-						other.team !== u.team &&
-						other.lane === u.lane &&
-						other.state !== 'DEAD' &&
-						other.maxMana &&
-						other.maxMana > 0 &&
-						(other.mana || 0) > 0 &&
-						Math.hypot(other.x - u.x, other.y - u.y) <= 400
-				);
-				if (enemyWithMana) {
-					const burned = Math.min(50, enemyWithMana.mana || 0);
-					enemyWithMana.mana = Math.max(0, (enemyWithMana.mana || 0) - burned);
-					this.applyUnitDamage(enemyWithMana, burned, 'magic', u.team, false, u);
-					if (u.maxMana && u.mana !== undefined) {
-						u.mana = Math.max(0, u.mana - mbCost);
-					}
-					u.abilityCooldownTimer = 10.0;
-					this.sim.addFloatingText(
-						`Спалення мани (-${burned})`,
-						enemyWithMana.x,
-						enemyWithMana.y - 20,
-						'#38bdf8'
-					);
-				}
-			}
-
-			// 11. Immolation Aura
-			if (u.immolationDps && u.immolationDps > 0) {
-				for (const enemy of this.sim.units) {
-					if (
-						enemy.team !== u.team &&
-						enemy.lane === u.lane &&
-						enemy.state !== 'DEAD' &&
-						Math.hypot(enemy.x - u.x, enemy.y - u.y) <= 200
-					) {
-						enemy.hp -= u.immolationDps * dt;
-						if (enemy.hp <= 0) {
-							this.applyUnitDamage(enemy, 1, 'magic', u.team, false, u);
-						}
-					}
-				}
-			}
-
-			// 12. Auras: Devotion & Endurance
-			if (u.abilityType === 'aura_armor' || u.abilities?.some((a) => a.type === 'aura_armor')) {
-				for (const ally of this.sim.units) {
-					if (
-						ally.team === u.team &&
-						ally.lane === u.lane &&
-						ally.state !== 'DEAD' &&
-						ally.instanceId !== u.instanceId &&
-						Math.hypot(ally.x - u.x, ally.y - u.y) <= 300
-					) {
-						ally.buffs = ally.buffs || [];
-						if (!ally.buffs.some((b) => b.type === 'armor_buff')) {
-							ally.buffs.push({ type: 'armor_buff', timer: 1.5, value: 3 });
-						}
-					}
-				}
-			}
-			if (u.abilityType === 'aura_speed' || u.abilities?.some((a) => a.type === 'aura_speed')) {
-				for (const ally of this.sim.units) {
-					if (
-						ally.team === u.team &&
-						ally.lane === u.lane &&
-						ally.state !== 'DEAD' &&
-						ally.instanceId !== u.instanceId &&
-						Math.hypot(ally.x - u.x, ally.y - u.y) <= 300
-					) {
-						ally.buffs = ally.buffs || [];
-						if (!ally.buffs.some((b) => b.type === 'as')) {
-							ally.buffs.push({ type: 'as', timer: 1.5, value: 0.2 });
-						}
-					}
-				}
-			}
-
-			// 13. Raise Dead (Некромантія)
-			const hasRaiseDead =
-				u.abilityType === 'raise_dead' || u.abilities?.some((a) => a.type === 'raise_dead');
-			const rdCost = SPELL_MANA_COSTS.raise_dead ?? 45;
-			if (
-				hasRaiseDead &&
-				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
-				(!u.maxMana || (u.mana ?? 0) >= rdCost)
-			) {
-				const corpseIdx = this.sim.corpses.findIndex(
-					(c) => c.lane === u.lane && Math.hypot(c.x - u.x, c.y - u.y) <= 450
-				);
-				if (corpseIdx !== -1) {
-					const corpse = this.sim.corpses.splice(corpseIdx, 1)[0];
-					if (u.maxMana && u.mana !== undefined) {
-						u.mana = Math.max(0, u.mana - rdCost);
-					}
-					u.abilityCooldownTimer = 8.0;
-					this.sim.spawnUnitDirectly({
-						team: u.team,
-						lane: u.lane,
-						x: corpse.x,
-						y: corpse.y,
-						name: 'Скелет-воїн',
-						hp: 240,
-						maxHp: 240,
-						armor: 1,
-						armorType: 'large',
-						attackType: 'normal',
-						damage: 18,
-						range: 100,
-						attackCooldown: 1.1,
-						speed: 130,
-						flying: false,
-						timedLife: 25.0,
-						isSummoned: true
-					});
-					this.sim.addFloatingText('Підняття мерця! 💀', corpse.x, corpse.y - 20, '#a855f7');
-				}
-			}
-
-			// 14. Corpse Explosion (Вибух трупа)
-			const hasCorpseExplosion =
-				u.abilityType === 'corpse_explosion' ||
-				u.abilities?.some((a) => a.type === 'corpse_explosion');
-			const ceCost = SPELL_MANA_COSTS.corpse_explosion ?? 35;
-			if (
-				hasCorpseExplosion &&
-				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
-				(!u.maxMana || (u.mana ?? 0) >= ceCost)
-			) {
-				const corpseIdx = this.sim.corpses.findIndex((c) => {
-					if (c.lane !== u.lane || Math.hypot(c.x - u.x, c.y - u.y) > 450) return false;
-					return this.sim.units.some(
-						(other) =>
-							other.team !== u.team &&
-							other.lane === u.lane &&
-							other.state !== 'DEAD' &&
-							Math.hypot(other.x - c.x, other.y - c.y) <= 200
-					);
-				});
-				if (corpseIdx !== -1) {
-					const corpse = this.sim.corpses.splice(corpseIdx, 1)[0];
-					if (u.maxMana && u.mana !== undefined) {
-						u.mana = Math.max(0, u.mana - ceCost);
-					}
-					u.abilityCooldownTimer = 9.0;
-					for (const enemy of this.sim.units) {
-						if (
-							enemy.team !== u.team &&
-							enemy.lane === u.lane &&
-							enemy.state !== 'DEAD' &&
-							Math.hypot(enemy.x - corpse.x, enemy.y - corpse.y) <= 200
-						) {
-							this.applyUnitDamage(enemy, 100, 'magic', u.team, false, u);
-						}
-					}
-					this.sim.addFloatingText('Вибух трупа! 💥', corpse.x, corpse.y - 20, '#ef4444');
-				}
-			}
-
-			// 15. Cannibalize (Канібалізм)
-			const hasCannibalize =
-				u.abilityType === 'cannibalize' || u.abilities?.some((a) => a.type === 'cannibalize');
-			if (
-				hasCannibalize &&
-				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
-				u.hp < u.maxHp * 0.75
-			) {
-				const corpseIdx = this.sim.corpses.findIndex(
-					(c) => c.lane === u.lane && Math.hypot(c.x - u.x, c.y - u.y) <= 150
-				);
-				if (corpseIdx !== -1) {
-					this.sim.corpses.splice(corpseIdx, 1);
-					const healAmount = Math.round(u.maxHp * 0.35);
-					u.hp = Math.min(u.maxHp, u.hp + healAmount);
-					u.abilityCooldownTimer = 8.0;
-					this.sim.addFloatingText(`+${healAmount} HP Пожирання 🍖`, u.x, u.y - 20, '#22c55e');
-				}
-			}
-
-			// 16. Polymorph (Чарівниця)
-			const hasPolymorph =
-				!isPolymorphed &&
-				(u.abilityType === 'polymorph' || u.abilities?.some((a) => a.type === 'polymorph'));
-			const polyCost = SPELL_MANA_COSTS.polymorph ?? 60;
-			if (
-				hasPolymorph &&
-				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
-				(!u.maxMana || (u.mana ?? 0) >= polyCost)
-			) {
-				const enemies = this.sim.units.filter(
-					(other) =>
-						other.team !== u.team &&
-						other.lane === u.lane &&
-						other.state !== 'DEAD' &&
-						!other.isBoss &&
-						!other.buffs?.some(
-							(b) => b.type === 'polymorph' || b.type === 'cyclone' || b.type === 'banish'
-						) &&
-						Math.hypot(other.x - u.x, other.y - u.y) <= 450
-				);
-				enemies.sort(
-					(a, b) => (b.damageMax || b.damageMin || 10) - (a.damageMax || a.damageMin || 10)
-				);
-				const enemy = enemies[0];
-				if (enemy) {
-					if (u.maxMana && u.mana !== undefined) {
-						u.mana = Math.max(0, u.mana - polyCost);
-					}
-					u.abilityCooldownTimer = 12.0;
-					enemy.buffs = enemy.buffs || [];
-					enemy.buffs.push({ type: 'polymorph', timer: 5.5, value: 0 });
-					enemy.currentTargetId = null;
-					this.sim.addFloatingText('Перетворення! 🐑', enemy.x, enemy.y - 25, '#e879f9');
-				}
-			}
-
-			// 17. Cyclone (Смерч)
-			const hasCyclone =
-				!isPolymorphed &&
-				(u.abilityType === 'cyclone' || u.abilities?.some((a) => a.type === 'cyclone'));
-			const cycCost = SPELL_MANA_COSTS.cyclone ?? 50;
-			if (
-				hasCyclone &&
-				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
-				(!u.maxMana || (u.mana ?? 0) >= cycCost)
-			) {
-				const enemies = this.sim.units.filter(
-					(other) =>
-						other.team !== u.team &&
-						other.lane === u.lane &&
-						other.state !== 'DEAD' &&
-						!other.isBoss &&
-						!other.buffs?.some(
-							(b) => b.type === 'cyclone' || b.type === 'polymorph' || b.type === 'banish'
-						) &&
-						Math.hypot(other.x - u.x, other.y - u.y) <= 500
-				);
-				enemies.sort(
-					(a, b) => (b.damageMax || b.damageMin || 10) - (a.damageMax || a.damageMin || 10)
-				);
-				const enemy = enemies[0];
-				if (enemy) {
-					if (u.maxMana && u.mana !== undefined) {
-						u.mana = Math.max(0, u.mana - cycCost);
-					}
-					u.abilityCooldownTimer = 14.0;
-					enemy.buffs = enemy.buffs || [];
-					enemy.buffs.push({ type: 'cyclone', timer: 4.5, value: 0 });
-					enemy.currentTargetId = null;
-					this.sim.addFloatingText('Смерч! 🌪️', enemy.x, enemy.y - 25, '#94a3b8');
-				}
-			}
-
-			// 18. Banish (Вигнання в астрал)
-			const hasBanish =
-				!isPolymorphed &&
-				(u.abilityType === 'banish' || u.abilities?.some((a) => a.type === 'banish'));
-			const banishCost = SPELL_MANA_COSTS.banish ?? 40;
-			if (
-				hasBanish &&
-				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
-				(!u.maxMana || (u.mana ?? 0) >= banishCost)
-			) {
-				const enemies = this.sim.units.filter(
-					(other) =>
-						other.team !== u.team &&
-						other.lane === u.lane &&
-						other.state !== 'DEAD' &&
-						!other.isBoss &&
-						!other.buffs?.some(
-							(b) => b.type === 'banish' || b.type === 'cyclone' || b.type === 'polymorph'
-						) &&
-						Math.hypot(other.x - u.x, other.y - u.y) <= 450
-				);
-				enemies.sort(
-					(a, b) => (b.damageMax || b.damageMin || 10) - (a.damageMax || a.damageMin || 10)
-				);
-				const enemy = enemies[0];
-				if (enemy) {
-					if (u.maxMana && u.mana !== undefined) {
-						u.mana = Math.max(0, u.mana - banishCost);
-					}
-					u.abilityCooldownTimer = 11.0;
-					enemy.buffs = enemy.buffs || [];
-					enemy.buffs.push({ type: 'banish', timer: 6.0, value: 0 });
-					this.sim.addFloatingText('Астрал! 👻', enemy.x, enemy.y - 25, '#2dd4bf');
-				}
-			}
-
-			// Dispel Magic / Purge
-			const hasDispel = u.abilityType === 'dispel' || u.abilities?.some((a) => a.type === 'dispel');
-			const dispelCost = SPELL_MANA_COSTS.dispel ?? 45;
-			if (
-				hasDispel &&
-				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
-				(!u.maxMana || (u.mana ?? 0) >= dispelCost)
-			) {
-				// 1. Search for debuffed ally in range 450
-				const debuffedAlly = this.sim.units.find(
-					(other) =>
-						other.team === u.team &&
-						other.lane === u.lane &&
-						other.state !== 'DEAD' &&
-						Math.hypot(other.x - u.x, other.y - u.y) <= 450 &&
-						(other.buffs?.some((b) =>
-							['slow', 'curse', 'poison', 'infect', 'weakness', 'frost', 'banish'].includes(b.type)
-						) ||
-							other.isEnsnared ||
-							other.isPolymorphed)
-				);
-
-				if (debuffedAlly) {
-					if (u.maxMana && u.mana !== undefined) {
-						u.mana = Math.max(0, u.mana - dispelCost);
-					}
-					u.abilityCooldownTimer = 8.0;
-					debuffedAlly.isEnsnared = false;
-					debuffedAlly.isPolymorphed = false;
-					if (debuffedAlly.buffs) {
-						debuffedAlly.buffs = debuffedAlly.buffs.filter(
-							(b) =>
-								!['slow', 'curse', 'poison', 'infect', 'weakness', 'frost', 'banish'].includes(
-									b.type
-								)
-						);
-					}
-					this.sim.addFloatingText(
-						'Розвіювання! ✨',
-						debuffedAlly.x,
-						debuffedAlly.y - 25,
-						'#22d3ee'
-					);
-				} else {
-					// 2. Search for buffed enemy or summoned unit in range 450
-					const buffedEnemy = this.sim.units.find(
-						(other) =>
-							other.team !== u.team &&
-							other.lane === u.lane &&
-							other.state !== 'DEAD' &&
-							Math.hypot(other.x - u.x, other.y - u.y) <= 450 &&
-							(other.isSummoned ||
-								other.buffs?.some((b) =>
-									['bloodlust', 'inner_fire', 'shield', 'armor_buff', 'dmg', 'as'].includes(b.type)
-								))
-					);
-
-					if (buffedEnemy) {
-						if (u.maxMana && u.mana !== undefined) {
-							u.mana = Math.max(0, u.mana - dispelCost);
-						}
-						u.abilityCooldownTimer = 8.0;
-						if (buffedEnemy.buffs) {
-							buffedEnemy.buffs = buffedEnemy.buffs.filter(
-								(b) =>
-									!['bloodlust', 'inner_fire', 'shield', 'armor_buff', 'dmg', 'as'].includes(b.type)
-							);
-						}
-						if (buffedEnemy.isSummoned) {
-							this.applyUnitDamage(buffedEnemy, 150, 'magic', u.team, false, u);
-						}
-						this.sim.addFloatingText('Очищення! ⚡', buffedEnemy.x, buffedEnemy.y - 25, '#38bdf8');
-					}
-				}
-			}
-
+			// Update mana, cooldowns, auras, and tactical spellcasting
+			this.spellSystem.updateUnitSpells(u, dt);
 			u.prevX = u.x;
 			u.prevY = u.y;
 			u.cooldownTimer -= dt;
@@ -972,7 +253,7 @@ export class CombatSystem {
 
 			const targetLaneY =
 				u.lane === 'top' ? TOP_LANE_Y : u.lane === 'mid' ? MID_LANE_Y : BOTTOM_LANE_Y;
-			const effectiveCrossingLane = this.getEffectiveCrossingLane(u);
+			const effectiveCrossingLane = this.navigation.getEffectiveCrossingLane(u);
 			const crossingLaneY =
 				effectiveCrossingLane === 'top'
 					? TOP_LANE_Y
@@ -1031,7 +312,7 @@ export class CombatSystem {
 
 				if (isAcrossRiver && bridgeBroken) {
 					// Cannot cross broken bridge in straight line: detour across intact bridge first!
-					const navTarget = this.getStrategicNavTarget(
+					const navTarget = this.navigation.getStrategicNavTarget(
 						u,
 						enemyTarget.x,
 						enemyTarget.y,
@@ -1039,7 +320,7 @@ export class CombatSystem {
 					);
 					u.state = 'WALKING';
 					u.currentTargetId = enemyTarget.instanceId;
-					this.moveUnitTowards(u, navTarget.x, navTarget.y, currentSpeed, dt);
+					this.navigation.moveUnitTowards(u, navTarget.x, navTarget.y, currentSpeed, dt);
 				} else {
 					const dx = enemyTarget.x - u.x;
 					const dy = enemyTarget.y - u.y;
@@ -1084,7 +365,7 @@ export class CombatSystem {
 						// Move smoothly towards enemy on the lane
 						u.state = 'WALKING';
 						u.currentTargetId = enemyTarget.instanceId;
-						this.moveUnitTowards(u, enemyTarget.x, enemyTarget.y, currentSpeed, dt);
+						this.navigation.moveUnitTowards(u, enemyTarget.x, enemyTarget.y, currentSpeed, dt);
 					}
 				}
 			} else if (u.team === 'neutral') {
@@ -1097,7 +378,7 @@ export class CombatSystem {
 				const dist = Math.hypot(dx, dy);
 				if (dist > 12) {
 					u.state = 'WALKING';
-					this.moveUnitTowards(u, patrolTargetX, targetLaneY, currentSpeed, dt);
+					this.navigation.moveUnitTowards(u, patrolTargetX, targetLaneY, currentSpeed, dt);
 				} else {
 					u.state = 'WALKING';
 				}
@@ -1166,10 +447,15 @@ export class CombatSystem {
 
 						const navTarget = hasCustomNav
 							? { x: u.targetX, y: u.targetY }
-							: this.getStrategicNavTarget(u, targetCastle.x, targetCastle.y, crossingLaneY);
+							: this.navigation.getStrategicNavTarget(
+									u,
+									targetCastle.x,
+									targetCastle.y,
+									crossingLaneY
+								);
 						const dNav = Math.hypot(navTarget.x - u.x, navTarget.y - u.y);
 						if (dNav > 5) {
-							this.moveUnitTowards(
+							this.navigation.moveUnitTowards(
 								u,
 								navTarget.x,
 								navTarget.y,
@@ -1206,11 +492,11 @@ export class CombatSystem {
 						const by = closestBld.y + CELL_SIZE / 2;
 
 						// Strategic stage-based navigation towards bridge and building
-						const navTarget = this.getStrategicNavTarget(u, bx, by, crossingLaneY);
+						const navTarget = this.navigation.getStrategicNavTarget(u, bx, by, crossingLaneY);
 
 						const d = Math.hypot(navTarget.x - u.x, navTarget.y - u.y);
 						if (d > 5) {
-							this.moveUnitTowards(
+							this.navigation.moveUnitTowards(
 								u,
 								navTarget.x,
 								navTarget.y,
@@ -1234,11 +520,16 @@ export class CombatSystem {
 
 					const navTarget = hasCustomNav
 						? { x: u.targetX, y: u.targetY }
-						: this.getStrategicNavTarget(u, targetCastle.x, targetCastle.y, crossingLaneY);
+						: this.navigation.getStrategicNavTarget(
+								u,
+								targetCastle.x,
+								targetCastle.y,
+								crossingLaneY
+							);
 
 					const d = Math.hypot(navTarget.x - u.x, navTarget.y - u.y);
 					if (d > 5) {
-						this.moveUnitTowards(
+						this.navigation.moveUnitTowards(
 							u,
 							navTarget.x,
 							navTarget.y,
@@ -1256,119 +547,19 @@ export class CombatSystem {
 		this.applyCrowdSeparation(dt);
 	}
 
-	private getEffectiveCrossingLane(u: Unit): 'top' | 'mid' | 'bottom' {
-		if (!u.flying && this.sim.brokenBridge && u.lane === this.sim.brokenBridge) {
-			return this.sim.brokenBridge === 'mid' ? 'top' : 'mid';
-		}
-		return u.lane;
+	public getEffectiveCrossingLane(u: Unit): 'top' | 'mid' | 'bottom' {
+		return this.navigation.getEffectiveCrossingLane(u);
 	}
 
-	/**
-	 * Computes intelligent advance strategic waypoints for units approaching and crossing bridges.
-	 * Units merge onto the highway and align to lane center well before reaching the bridge,
-	 * ensuring perfectly smooth transitions without any abrupt snapping or teleportation.
-	 */
 	public getStrategicNavTarget(
 		u: Unit,
 		finalTargetX: number,
 		finalTargetY: number,
 		crossingLaneY: number
 	): { x: number; y: number } {
-		if (u.flying) {
-			const laneY = u.lane === 'top' ? TOP_LANE_Y : u.lane === 'mid' ? MID_LANE_Y : BOTTOM_LANE_Y;
-			if (u.team === 'west') {
-				if (u.x < BRIDGE_SPAN_MAX_X + 20) {
-					return { x: BRIDGE_SPAN_MAX_X + 40, y: laneY };
-				}
-			} else {
-				if (u.x > BRIDGE_SPAN_MIN_X - 20) {
-					return { x: BRIDGE_SPAN_MIN_X - 40, y: laneY };
-				}
-			}
-			return { x: finalTargetX, y: finalTargetY };
-		}
-
-		const isWest = u.team === 'west';
-		if (isWest) {
-			// 0. Courtyard bypass for units behind friendly West Castle (footprint 1480..1720, 1080..1320)
-			if (u.x < 1740) {
-				const northSide = (u.y ?? MID_LANE_Y) < 1200;
-				if (crossingLaneY === TOP_LANE_Y) {
-					if (u.x < 1560) return { x: 1600, y: 920 };
-					return { x: 1800, y: TOP_LANE_Y };
-				} else if (crossingLaneY === BOTTOM_LANE_Y) {
-					if (u.x < 1560) return { x: 1600, y: 1480 };
-					return { x: 1800, y: BOTTOM_LANE_Y };
-				} else {
-					if (u.x < 1560) return { x: 1600, y: northSide ? 920 : 1480 };
-					if (u.x < 1760) return { x: 1800, y: northSide ? 960 : 1440 };
-					return { x: 1950, y: MID_LANE_Y };
-				}
-			}
-
-			// 1. Stage A: Castle courtyard to Highway merge zone
-			if (u.x < WEST_ROAD_MERGE_X + 50) {
-				return { x: WEST_ROAD_MERGE_X + 100, y: crossingLaneY };
-			}
-			// 2. Stage B: Pre-bridge approach highway (straight run into bridge mouth)
-			if (u.x < BRIDGE_SPAN_MIN_X - 10) {
-				return { x: BRIDGE_SPAN_MIN_X - 5, y: crossingLaneY };
-			}
-			// 3. Stage C: On the bridge spanning the central ocean channel
-			if (u.x <= BRIDGE_SPAN_MAX_X + 25) {
-				return { x: BRIDGE_SPAN_MAX_X + 45, y: crossingLaneY };
-			}
-			// 4. Stage D: Post-bridge East highway run towards merge point
-			const eastMergeThreshold = Math.min(finalTargetX - 40, EAST_ROAD_MERGE_X);
-			if (u.x < eastMergeThreshold - 20) {
-				return { x: eastMergeThreshold, y: crossingLaneY };
-			}
-			// 5. Stage E: Beyond merge point or abreast of target - march towards final objective
-			return { x: finalTargetX, y: finalTargetY };
-		} else {
-			// East team unit moving west towards West island
-			// 0. Courtyard bypass for units behind friendly East Castle (footprint 5480..5720, 1080..1320)
-			if (u.x > 5460) {
-				const northSide = (u.y ?? MID_LANE_Y) < 1200;
-				if (crossingLaneY === TOP_LANE_Y) {
-					if (u.x > 5640) return { x: 5600, y: 920 };
-					return { x: 5400, y: TOP_LANE_Y };
-				} else if (crossingLaneY === BOTTOM_LANE_Y) {
-					if (u.x > 5640) return { x: 5600, y: 1480 };
-					return { x: 5400, y: BOTTOM_LANE_Y };
-				} else {
-					if (u.x > 5640) return { x: 5600, y: northSide ? 920 : 1480 };
-					if (u.x > 5440) return { x: 5400, y: northSide ? 960 : 1440 };
-					return { x: 5250, y: MID_LANE_Y };
-				}
-			}
-
-			// 1. Stage A: East courtyard to Highway merge zone
-			if (u.x > EAST_ROAD_MERGE_X - 50) {
-				return { x: EAST_ROAD_MERGE_X - 100, y: crossingLaneY };
-			}
-			// 2. Stage B: Pre-bridge approach highway
-			if (u.x > BRIDGE_SPAN_MAX_X + 10) {
-				return { x: BRIDGE_SPAN_MAX_X + 5, y: crossingLaneY };
-			}
-			// 3. Stage C: On the bridge
-			if (u.x >= BRIDGE_SPAN_MIN_X - 25) {
-				return { x: BRIDGE_SPAN_MIN_X - 45, y: crossingLaneY };
-			}
-			// 4. Stage D: Post-bridge West highway run towards merge point
-			const westMergeThreshold = Math.max(finalTargetX + 40, WEST_ROAD_MERGE_X);
-			if (u.x > westMergeThreshold + 20) {
-				return { x: westMergeThreshold, y: crossingLaneY };
-			}
-			// 5. Stage E: Beyond merge point or abreast of target - march towards final objective
-			return { x: finalTargetX, y: finalTargetY };
-		}
+		return this.navigation.getStrategicNavTarget(u, finalTargetX, finalTargetY, crossingLaneY);
 	}
 
-	/**
-	 * Moves a unit towards a target coordinate with intelligent waypoint pathfinding & obstacle avoidance
-	 * for ground units, smoothly navigating around buildings, castles, walls, and decorations without teleporting.
-	 */
 	public moveUnitTowards(
 		u: Unit,
 		targetX: number,
@@ -1378,170 +569,7 @@ export class CombatSystem {
 		ignoreBuildingId?: string,
 		ignoreCastle?: boolean
 	): void {
-		const dx = targetX - u.x;
-		const dy = targetY - u.y;
-		const dist = Math.hypot(dx, dy);
-		if (dist < 1) return;
-
-		// Flying units soar unimpeded over ground obstacles
-		if (u.flying) {
-			const moveDist = Math.min(dist, speed * dt);
-			u.x += (dx / dist) * moveDist;
-			u.y += (dy / dist) * moveDist;
-			return;
-		}
-
-		// Track movement progress for ground unit stuck detection
-		const lastX = u.lastMoveX ?? u.x;
-		const lastY = u.lastMoveY ?? u.y;
-		const stepMoved = Math.hypot(u.x - lastX, u.y - lastY);
-		u.lastMoveX = u.x;
-		u.lastMoveY = u.y;
-
-		if (stepMoved < speed * dt * 0.15) {
-			const prevStuck = u.stuckTimer || 0;
-			u.stuckTimer = prevStuck + dt;
-			if (prevStuck <= 0.6 && u.stuckTimer > 0.6) {
-				const nearFriendlyCastle =
-					(u.team === 'west' && Math.hypot(1600 - u.x, 1200 - u.y) < 220) ||
-					(u.team === 'east' && Math.hypot(5600 - u.x, 1200 - u.y) < 220);
-				const reason = nearFriendlyCastle ? 'behind_friendly_castle' : 'obstacle_collision';
-				logService.collision('Unit stuck against obstacle', {
-					unit: u.name,
-					unitId: u.instanceId,
-					pos: { x: Math.round(u.x), y: Math.round(u.y) },
-					target: { x: Math.round(targetX), y: Math.round(targetY) },
-					state: u.state,
-					reason
-				});
-			}
-		} else {
-			u.stuckTimer = 0;
-		}
-
-		// Invalidate stale waypoint path if navigation target changed significantly
-		if (
-			u.path &&
-			u.pathTargetX !== undefined &&
-			u.pathTargetY !== undefined &&
-			Math.hypot(u.pathTargetX - targetX, u.pathTargetY - targetY) > 60
-		) {
-			u.path = undefined;
-		}
-
-		// 1. Follow active waypoint path if unit already has one
-		if (u.path && u.path.length > 0) {
-			let curWp = u.path[0];
-			let wpDist = Math.hypot(curWp.x - u.x, curWp.y - u.y);
-
-			while (wpDist < 14 && u.path.length > 0) {
-				u.path.shift();
-				if (u.path.length === 0) break;
-				curWp = u.path[0];
-				wpDist = Math.hypot(curWp.x - u.x, curWp.y - u.y);
-			}
-
-			if (u.path.length > 0 && wpDist > 0.001) {
-				const step = Math.min(wpDist, speed * dt);
-				u.x += ((curWp.x - u.x) / wpDist) * step;
-				u.y += ((curWp.y - u.y) / wpDist) * step;
-				return;
-			}
-			u.path = undefined;
-		}
-
-		// 2. Direct line check: if unobstructed, move straight towards target
-		const lineClear = this.sim.workerSystem.isGroundLineClear(
-			u.x,
-			u.y,
-			targetX,
-			targetY,
-			u.size,
-			ignoreBuildingId,
-			ignoreCastle
-		);
-
-		if (lineClear) {
-			u.path = undefined;
-			const step = Math.min(dist, speed * dt);
-			u.x += (dx / dist) * step;
-			u.y += (dy / dist) * step;
-			return;
-		}
-
-		// 3. Obstacle ahead: utilize A* waypoint pathfinding with cooldown throttling
-		const targetMoved =
-			u.pathTargetX === undefined ||
-			Math.hypot(u.pathTargetX - targetX, (u.pathTargetY ?? 0) - targetY) > 50;
-		const now = this.sim.gameTime;
-		const canRecalcPath = now - (u.lastPathTime ?? -10) >= 1.2;
-
-		if (
-			(!u.path || u.path.length === 0 || targetMoved || (u.stuckTimer && u.stuckTimer > 0.6)) &&
-			canRecalcPath
-		) {
-			u.lastPathTime = now;
-			u.path = this.sim.workerSystem.findGroundPath(
-				u.team as MatchTeam,
-				u.x,
-				u.y,
-				targetX,
-				targetY,
-				u.size,
-				ignoreBuildingId,
-				ignoreCastle
-			);
-			u.pathTargetX = targetX;
-			u.pathTargetY = targetY;
-			u.stuckTimer = 0;
-		}
-
-		if (u.path && u.path.length > 0) {
-			let curWp = u.path[0];
-			let wpDist = Math.hypot(curWp.x - u.x, curWp.y - u.y);
-
-			while (wpDist < 14 && u.path.length > 0) {
-				u.path.shift();
-				if (u.path.length === 0) break;
-				curWp = u.path[0];
-				wpDist = Math.hypot(curWp.x - u.x, curWp.y - u.y);
-			}
-
-			if (u.path.length > 0 && wpDist > 0.001) {
-				const step = Math.min(wpDist, speed * dt);
-				u.x += ((curWp.x - u.x) / wpDist) * step;
-				u.y += ((curWp.y - u.y) / wpDist) * step;
-				return;
-			}
-		}
-
-		// 3. Fallback smooth raycast avoidance
-		const baseAngle = Math.atan2(dy, dx);
-		const lookAhead = Math.min(dist, Math.max(28, u.size + speed * dt * 6));
-		let moveAngle = baseAngle;
-
-		const testOffsets = [0.45, -0.45, 0.85, -0.85, 1.3, -1.3, 1.75, -1.75];
-		for (const offset of testOffsets) {
-			const candAngle = baseAngle + offset;
-			const cx = u.x + Math.cos(candAngle) * lookAhead;
-			const cy = u.y + Math.sin(candAngle) * lookAhead;
-			if (
-				!this.sim.workerSystem.isPointBlockedForGround(
-					cx,
-					cy,
-					u.size,
-					ignoreBuildingId,
-					ignoreCastle
-				)
-			) {
-				moveAngle = candAngle;
-				break;
-			}
-		}
-
-		const step = Math.min(dist, speed * dt);
-		u.x += Math.cos(moveAngle) * step;
-		u.y += Math.sin(moveAngle) * step;
+		this.navigation.moveUnitTowards(u, targetX, targetY, speed, dt, ignoreBuildingId, ignoreCastle);
 	}
 
 	/**

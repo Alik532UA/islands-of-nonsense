@@ -1,12 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Simulation } from './simulation';
 import { BotAI } from './botAI';
-import {
-	TOP_LANE_Y,
-	MID_LANE_Y,
-	BRIDGE_SPAN_MIN_X,
-	BRIDGE_REPAIR_LUMBER_COST
-} from './constants';
+import { TOP_LANE_Y, MID_LANE_Y, BRIDGE_SPAN_MIN_X, BRIDGE_REPAIR_LUMBER_COST } from './constants';
 
 describe('Dynamic Bridge Repair / Rebuild Mechanic', () => {
 	let sim: Simulation;
