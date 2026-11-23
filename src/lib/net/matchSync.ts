@@ -9,12 +9,31 @@ export interface MatchSyncOptions {
 	onCommandApplied?: (move: Move) => void;
 	onGone?: (reason: string) => void;
 	onPeerStatusChange?: (status: { peerUid: string; online: boolean }) => void;
+	onPeerPing?: (ping: { peerUid: string; rtt: number }) => void;
+	onDesync?: (info: { tick: number; localChecksum: string; remoteChecksum: string }) => void;
+}
+
+export function computeSimStateChecksum(sim: Simulation): string {
+	const westHp = Math.round(sim.castles?.west?.hp ?? 0);
+	const eastHp = Math.round(sim.castles?.east?.hp ?? 0);
+	const westGold = Math.floor(sim.players?.west?.gold ?? 0);
+	const eastGold = Math.floor(sim.players?.east?.gold ?? 0);
+	const buildingsCount = sim.buildings?.length ?? 0;
+	const unitsCount = sim.units?.length ?? 0;
+
+	const raw = `${sim.tick}:${westHp},${eastHp}:${westGold},${eastGold}:${buildingsCount}:${unitsCount}`;
+	let hash = 5381;
+	for (let i = 0; i < raw.length; i++) {
+		hash = ((hash << 5) + hash + raw.charCodeAt(i)) & 0xffffffff;
+	}
+	return (hash >>> 0).toString(16);
 }
 
 /**
  * Deterministic RTS match synchronizer.
  * Ingests local player commands, serializes them as monotonic Move records over RoomTransport,
  * and executes remote and local commands deterministically on the local Simulation instance.
+ * Features state checksum validation, latency ping heartbeats, and reconnect reconciliation.
  */
 export class MatchSync {
 	public sim: Simulation;
@@ -27,7 +46,10 @@ export class MatchSync {
 	private unwatch: (() => void) | null = null;
 	private onCommandApplied?: (move: Move) => void;
 	private onPeerStatusChange?: (status: { peerUid: string; online: boolean }) => void;
+	private onPeerPing?: (ping: { peerUid: string; rtt: number }) => void;
+	private onDesync?: (info: { tick: number; localChecksum: string; remoteChecksum: string }) => void;
 	private peerSeen = new Map<string, number>();
+	private peerRtt = new Map<string, number>();
 
 	constructor(options: MatchSyncOptions) {
 		this.sim = options.sim;
@@ -36,6 +58,8 @@ export class MatchSync {
 		this.localTeam = options.localTeam;
 		this.onCommandApplied = options.onCommandApplied;
 		this.onPeerStatusChange = options.onPeerStatusChange;
+		this.onPeerPing = options.onPeerPing;
+		this.onDesync = options.onDesync;
 
 		this.unwatch = this.transport.watch(
 			(snapshot) => {
@@ -46,6 +70,32 @@ export class MatchSync {
 				options.onGone?.(reason);
 			}
 		);
+	}
+
+	getPeerLatency(peerUid: string): number | undefined {
+		return this.peerRtt.get(peerUid);
+	}
+
+	getAppliedSeq(): number {
+		return this.appliedSeq;
+	}
+
+	getSimChecksum(): string {
+		return computeSimStateChecksum(this.sim);
+	}
+
+	async sendHeartbeat(): Promise<boolean> {
+		return this.dispatch('HEARTBEAT', {
+			clientTime: Date.now(),
+			tick: this.sim.tick
+		});
+	}
+
+	async broadcastChecksum(): Promise<boolean> {
+		return this.dispatch('CHECKSUM', {
+			checksum: this.getSimChecksum(),
+			tick: this.sim.tick
+		});
 	}
 
 	private checkMembers(members: readonly { uid: string }[]) {
@@ -165,6 +215,26 @@ export class MatchSync {
 				break;
 
 			case 'HEARTBEAT':
+				if (typeof p.clientTime === 'number' && move.by !== this.localUid) {
+					const rtt = Math.max(0, Date.now() - p.clientTime);
+					this.peerRtt.set(move.by, rtt);
+					this.onPeerPing?.({ peerUid: move.by, rtt });
+				}
+				break;
+
+			case 'CHECKSUM':
+				if (typeof p.checksum === 'string' && typeof p.tick === 'number' && move.by !== this.localUid) {
+					const localChecksum = this.getSimChecksum();
+					if (localChecksum !== p.checksum && Math.abs(this.sim.tick - p.tick) <= 5) {
+						this.onDesync?.({
+							tick: p.tick,
+							localChecksum,
+							remoteChecksum: p.checksum
+						});
+					}
+				}
+				break;
+
 			case 'CHAT':
 			default:
 				// Metadata/keepalive moves that don't alter simulation physics

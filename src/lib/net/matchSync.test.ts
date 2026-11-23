@@ -191,4 +191,66 @@ describe('MatchSync', () => {
 		syncA.dispose();
 		syncB.dispose();
 	});
+
+	it('dispatches heartbeat and computes peer round-trip latency', async () => {
+		let reportedLatency: number | undefined;
+
+		const syncA = new MatchSync({
+			sim: simA,
+			transport: room.transport({ as: 'player_a' }),
+			localUid: 'player_a',
+			localTeam: 'west',
+			onPeerPing: (ping) => {
+				reportedLatency = ping.rtt;
+			}
+		});
+
+		const syncB = new MatchSync({
+			sim: simB,
+			transport: room.transport({ as: 'player_b' }),
+			localUid: 'player_b',
+			localTeam: 'east'
+		});
+
+		await syncB.sendHeartbeat();
+
+		expect(reportedLatency).toBeDefined();
+		expect(reportedLatency).toBeGreaterThanOrEqual(0);
+		expect(syncA.getPeerLatency('player_b')).toBe(reportedLatency);
+
+		syncA.dispose();
+		syncB.dispose();
+	});
+
+	it('detects simulation desynchronization through checksum verification', async () => {
+		let desyncDetected: { tick: number; localChecksum: string; remoteChecksum: string } | null = null;
+
+		const syncA = new MatchSync({
+			sim: simA,
+			transport: room.transport({ as: 'player_a' }),
+			localUid: 'player_a',
+			localTeam: 'west'
+		});
+
+		const syncB = new MatchSync({
+			sim: simB,
+			transport: room.transport({ as: 'player_b' }),
+			localUid: 'player_b',
+			localTeam: 'east',
+			onDesync: (info) => {
+				desyncDetected = info;
+			}
+		});
+
+		// Artificially alter Sim A state to simulate divergence
+		simA.castles.west.hp -= 300;
+
+		await syncA.broadcastChecksum();
+
+		expect(desyncDetected).not.toBeNull();
+		expect(desyncDetected!.remoteChecksum).not.toEqual(syncB.getSimChecksum());
+
+		syncA.dispose();
+		syncB.dispose();
+	});
 });
