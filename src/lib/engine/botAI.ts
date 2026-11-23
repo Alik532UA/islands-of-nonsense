@@ -49,6 +49,9 @@ export class BotAI {
 		this.sim = sim;
 		this.team = team;
 		this.player = player;
+		// Stagger initial decision timer (0.4s - 1.8s) so multiple bots on a team don't act in synchronous lockstep
+		const slotOffset = player?.slot ? (player.slot * 0.35) % 1.2 : Math.random() * 0.8;
+		this.decisionTimer = 0.5 + slotOffset;
 	}
 
 	public getTeam(): MatchTeam {
@@ -63,7 +66,7 @@ export class BotAI {
 		if (this.sim.winner) return;
 		this.decisionTimer -= dt;
 		if (this.decisionTimer <= 0) {
-			this.decisionTimer = 1.5 + Math.random() * 0.5;
+			this.decisionTimer = 1.2 + Math.random() * 0.8;
 			this.makeDecision();
 		}
 	}
@@ -218,7 +221,8 @@ export class BotAI {
 		// 00a. Complete any unfinished buildings under construction first!
 		if (botWorker && !botWorker.isBuilding && !botWorker.isRepairing) {
 			const unfinished = this.sim.buildings.find(
-				(b) => b.team === this.team && b.isUnderConstruction
+				(b) =>
+					b.team === this.team && (!b.playerId || b.playerId === player.id) && b.isUnderConstruction
 			);
 			if (unfinished && botWorker.targetBuildingId !== unfinished.instanceId) {
 				const resumed = this.sim.continueConstruction(this.team, unfinished.instanceId, player);
@@ -249,22 +253,40 @@ export class BotAI {
 			}
 		}
 
-		// 0a. Idle worker coin pickup on team base (only if worker is not busy)
+		// 0a. Idle worker coin pickup on team base (cooperative / independent without swarming)
 		if (botWorker && enemiesInCourtyard.length === 0 && !isWorkerBusy) {
-			const nearbyCoin = this.sim.goldCoins.find(
-				(c) =>
-					(this.team === 'west' ? c.x <= 1500 : c.x >= ARENA_WIDTH - 1500) &&
-					Math.hypot(c.x - botWorker.x, c.y - botWorker.y) <= 800
-			);
-			if (nearbyCoin) {
-				this.sim.orderWorkerMove(this.team, nearbyCoin.x, nearbyCoin.y, player);
+			const allyWorkers = (this.sim.teamMembers[this.team] || [])
+				.map((tm) => tm.worker)
+				.filter((aw): aw is NonNullable<typeof aw> => !!aw && aw !== botWorker);
+
+			const availableCoins = this.sim.goldCoins.filter((c) => {
+				const onOurBase = this.team === 'west' ? c.x <= 1500 : c.x >= ARENA_WIDTH - 1500;
+				if (!onOurBase) return false;
+				// Avoid coins already targeted by an ally worker in close proximity
+				return !allyWorkers.some((aw) => Math.hypot(aw.targetX - c.x, aw.targetY - c.y) < 35);
+			});
+
+			if (availableCoins.length > 0) {
+				availableCoins.sort(
+					(a, b) =>
+						Math.hypot(a.x - botWorker.x, a.y - botWorker.y) -
+						Math.hypot(b.x - botWorker.x, b.y - botWorker.y)
+				);
+				const nearestCoin = availableCoins[0];
+				if (Math.hypot(nearestCoin.x - botWorker.x, nearestCoin.y - botWorker.y) <= 800) {
+					this.sim.orderWorkerMove(this.team, nearestCoin.x, nearestCoin.y, player);
+				}
 			}
 		}
 
 		// 0c. Idle worker repairing damaged friendly buildings and towers (only if not busy)
 		if (botWorker && enemiesInCourtyard.length === 0 && !isWorkerBusy && player.gold >= 30) {
 			const damagedBld = this.sim.buildings.find(
-				(b) => b.team === this.team && !b.isUnderConstruction && b.hp < b.maxHp * 0.85
+				(b) =>
+					b.team === this.team &&
+					(!b.playerId || b.playerId === player.id || b.specialType === 'tower') &&
+					!b.isUnderConstruction &&
+					b.hp < b.maxHp * 0.85
 			);
 			if (damagedBld) {
 				this.sim.repairBuilding(this.team, damagedBld.instanceId, player);
@@ -697,24 +719,45 @@ export class BotAI {
 		const maxDist = pool[0].distToEnemy;
 		const furthestTier = pool.filter((s) => s.distToEnemy >= maxDist - 250);
 
+		// 3b. In team games (2v2, 3v3), assign natural courtyard sectors per player slot
+		// so teammates don't crowd each other and maintain separate territory:
+		// Slots 3, 4: Top sector (tileY <= 30)
+		// Slots 5, 6: Bottom sector (tileY >= 40)
+		// Slots 1, 2: Mid sector (20 <= tileY <= 50)
+		let candidateTier = furthestTier;
+		const player = this.getPlayer();
+		if (this.sim.teamSize >= 2 && player?.slot) {
+			const slot = player.slot;
+			if (slot === 3 || slot === 4) {
+				const topSector = candidateTier.filter((s) => s.y <= 30);
+				if (topSector.length > 0) candidateTier = topSector;
+			} else if (slot === 5 || slot === 6) {
+				const botSector = candidateTier.filter((s) => s.y >= 40);
+				if (botSector.length > 0) candidateTier = botSector;
+			} else if (slot === 1 || slot === 2) {
+				const midSector = candidateTier.filter((s) => s.y >= 20 && s.y <= 50);
+				if (midSector.length > 0) candidateTier = midSector;
+			}
+		}
+
 		// 4. Tactical lane pressure consideration on the chosen tier
 		const midTileY = 35;
 		let laneFiltered: CandidateSlot[] = [];
 		if (scan.topPressure > scan.bottomPressure + 300) {
-			laneFiltered = furthestTier.filter((s) => s.y < midTileY);
+			laneFiltered = candidateTier.filter((s) => s.y < midTileY);
 		} else if (scan.bottomPressure > scan.topPressure + 300) {
-			laneFiltered = furthestTier.filter((s) => s.y >= midTileY);
-		} else {
+			laneFiltered = candidateTier.filter((s) => s.y >= midTileY);
+		} else if (this.sim.teamSize === 1) {
 			const topCount = teamBuildings.filter((b) => b.tileY < midTileY).length;
 			const bottomCount = teamBuildings.filter((b) => b.tileY >= midTileY).length;
 			if (topCount < bottomCount) {
-				laneFiltered = furthestTier.filter((s) => s.y < midTileY);
+				laneFiltered = candidateTier.filter((s) => s.y < midTileY);
 			} else if (bottomCount < topCount) {
-				laneFiltered = furthestTier.filter((s) => s.y >= midTileY);
+				laneFiltered = candidateTier.filter((s) => s.y >= midTileY);
 			}
 		}
 
-		const finalSelection = laneFiltered.length > 0 ? laneFiltered : furthestTier;
+		const finalSelection = laneFiltered.length > 0 ? laneFiltered : candidateTier;
 		const chosen = finalSelection[Math.floor(Math.random() * finalSelection.length)];
 		return chosen ? { x: chosen.x, y: chosen.y } : null;
 	}

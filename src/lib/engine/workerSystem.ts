@@ -1344,7 +1344,13 @@ export class WorkerSystem {
 		);
 		if (!targetBld || !targetBld.isUnderConstruction) return false;
 
-		const w = (playerInput || this.sim.players[team])?.worker;
+		const player = playerInput || this.sim.players[team];
+		// Security / Ownership invariant: in team games, a worker only completes construction on their own player's building
+		if (targetBld.playerId && player?.id && targetBld.playerId !== player.id) {
+			return false;
+		}
+
+		const w = player?.worker;
 		if (w) {
 			const spot = this.getBestConstructionSpot(team, w.x, w.y, targetBld.x, targetBld.y);
 			w.targetX = spot.x;
@@ -1468,9 +1474,13 @@ export class WorkerSystem {
 					continue;
 				}
 
-				// Auto-resume any abandoned uncompleted construction on team buildings
+				// Auto-resume any abandoned uncompleted construction on player's own buildings
 				const unfinished = this.sim.buildings.find(
-					(b) => b.team === team && b.isUnderConstruction && b.instanceId !== w.targetBuildingId
+					(b) =>
+						b.team === team &&
+						(!b.playerId || b.playerId === p.id) &&
+						b.isUnderConstruction &&
+						b.instanceId !== w.targetBuildingId
 				);
 				if (unfinished && !w.targetRepairBuildingId) {
 					if (this.continueConstruction(team, unfinished.instanceId, p)) {
