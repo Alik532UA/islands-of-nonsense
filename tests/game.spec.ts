@@ -89,4 +89,29 @@ test.describe('Castle Fight Web — Smoke and Interaction E2E', () => {
 			await expect(dialog).not.toBeVisible();
 		}
 	});
+
+	test('navigates through Online hub and opens action windows', async ({ page }) => {
+		await page.goto(`${BASE}/`);
+
+		// Click Play Online
+		await page.getByTestId('menu-online-link').click();
+		await expect(page).toHaveURL(new RegExp(`${BASE}/online`));
+
+		// Verify main action buttons
+		await expect(page.getByTestId('online-quick-search-btn')).toBeVisible();
+		await expect(page.getByTestId('online-create-room-btn')).toBeVisible();
+		await expect(page.getByTestId('online-join-code-btn')).toBeVisible();
+
+		// Open Create Room window
+		await page.getByTestId('online-create-room-btn').click();
+		await expect(page.locator('#create-modal-title')).toBeVisible();
+		await page.getByTestId('window-back-btn').click();
+		await expect(page.getByTestId('online-create-room-btn')).toBeVisible();
+
+		// Open Join by Code window
+		await page.getByTestId('online-join-code-btn').click();
+		await expect(page.locator('#join-modal-title')).toBeVisible();
+		await page.getByTestId('window-back-btn').click();
+		await expect(page.getByTestId('online-join-code-btn')).toBeVisible();
+	});
 });
