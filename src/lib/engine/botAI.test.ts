@@ -374,4 +374,180 @@ describe('Point 8: Tactical Counter-Pick Bot AI', () => {
 
 		expect(gapCount / trials).toBeGreaterThanOrEqual(0.8);
 	});
+
+	describe('High-Rank Priority & Diversity Quota Building Selection', () => {
+		const emptyScan = {
+			flyingCount: 0,
+			heavyCount: 0,
+			lightCount: 0,
+			fortCount: 0,
+			mediumCount: 0,
+			totalCount: 0,
+			topPressure: 0,
+			bottomPressure: 0
+		};
+
+		it('builds affordable starter spawner (rank <= 3) on the first decision of the match', () => {
+			const player = sim.players.east;
+			player.gold = 500;
+			player.race = 'Люди';
+
+			const chosen = botAI.chooseBuildingCandidate(player, [], emptyScan, 10, 1.0);
+			expect(chosen).toBeDefined();
+			expect(chosen).not.toBeNull();
+			if (!chosen) return;
+
+			const ranks = botAI.getArmyBuildingRanks('Люди');
+			const match = ranks.find((r) => r.building.id === chosen.id);
+			expect(match).toBeDefined();
+			expect(match!.rank).toBeLessThanOrEqual(3);
+			expect(chosen.gold_cost || 0).toBeLessThanOrEqual(player.gold);
+		});
+
+		it('prioritizes high-rank buildings (Rank 6 > 5 > 4...) when ample gold is available', () => {
+			const player = sim.players.east;
+			player.gold = 1200;
+			player.race = 'Люди';
+
+			const ranks = botAI.getArmyBuildingRanks('Люди');
+			const rank1Building = ranks.find((r) => r.rank === 1)!.building;
+
+			// Existing 1 starter building
+			const mockBuildings = [
+				{
+					instanceId: 'bld_1',
+					defId: rank1Building.id,
+					name: rank1Building.name,
+					team: 'east',
+					race: 'Люди',
+					goldCost: rank1Building.gold_cost || 160
+				}
+			] as unknown as import('./types').Building[];
+
+			const chosen = botAI.chooseBuildingCandidate(player, mockBuildings, emptyScan, 20, 1.0);
+			expect(chosen).toBeDefined();
+			expect(chosen).not.toBeNull();
+			if (!chosen) return;
+
+			const chosenRank = ranks.find((r) => r.building.id === chosen.id)!.rank;
+			// Ample gold (1200g): should pick the highest available rank (Rank 6)
+			expect(chosenRank).toBe(6);
+		});
+
+		it('enforces Diversity Quota: prevents building a 3rd copy of Rank 6 while other ranks have 0', () => {
+			const player = sim.players.east;
+			player.gold = 1500;
+			player.race = 'Люди';
+
+			const ranks = botAI.getArmyBuildingRanks('Люди');
+			const rank6Building = ranks.find((r) => r.rank === 6)!.building;
+			const rank1Building = ranks.find((r) => r.rank === 1)!.building;
+
+			// Bot already has 2 Rank 6 buildings and 1 Rank 1 building (others have 0)
+			const mockBuildings = [
+				{
+					instanceId: 'bld_r1',
+					defId: rank1Building.id,
+					name: rank1Building.name,
+					team: 'east',
+					race: 'Люди',
+					goldCost: rank1Building.gold_cost || 160
+				},
+				{
+					instanceId: 'bld_r6_1',
+					defId: rank6Building.id,
+					name: rank6Building.name,
+					team: 'east',
+					race: 'Люди',
+					goldCost: rank6Building.gold_cost || 550
+				},
+				{
+					instanceId: 'bld_r6_2',
+					defId: rank6Building.id,
+					name: rank6Building.name,
+					team: 'east',
+					race: 'Люди',
+					goldCost: rank6Building.gold_cost || 550
+				}
+			] as unknown as import('./types').Building[];
+
+			// minCount = 0 (Ranks 2, 3, 4, 5 have 0)
+			// Allowed max = minCount + 2 = 2.
+			// Rank 6 already has 2, so building another is forbidden!
+			const chosen = botAI.chooseBuildingCandidate(player, mockBuildings, emptyScan, 40, 1.0);
+			expect(chosen).toBeDefined();
+			expect(chosen).not.toBeNull();
+			if (!chosen) return;
+
+			const chosenRank = ranks.find((r) => r.building.id === chosen.id)!.rank;
+			expect(chosenRank).not.toBe(6);
+			// Should choose the highest eligible rank that is not at limit: Rank 5
+			expect(chosenRank).toBe(5);
+		});
+
+		it('saves gold instead of buying cheap spawner when shortfall to high-rank building is <= 60g', () => {
+			const player = sim.players.east;
+			player.race = 'Люди';
+
+			const ranks = botAI.getArmyBuildingRanks('Люди');
+			const rank6Building = ranks.find((r) => r.rank === 6)!.building;
+			const rank1Building = ranks.find((r) => r.rank === 1)!.building;
+
+			const mockBuildings = [
+				{
+					instanceId: 'bld_r1',
+					defId: rank1Building.id,
+					name: rank1Building.name,
+					team: 'east',
+					race: 'Люди',
+					goldCost: rank1Building.gold_cost || 160
+				}
+			] as unknown as import('./types').Building[];
+
+			// Rank 6 cost: e.g. 520g.
+			// Set gold to cost - 30g (shortfall = 30g <= 60g).
+			player.gold = (rank6Building.gold_cost || 520) - 30;
+
+			// Healthy castle (1.0 ratio): bot should save gold and wait (return null), NOT squander on Rank 1
+			const chosen = botAI.chooseBuildingCandidate(player, mockBuildings, emptyScan, 20, 1.0);
+			expect(chosen).toBeNull();
+		});
+
+		it('prioritizes anti-air counter-pick when enemy army has flyers', () => {
+			const player = sim.players.east;
+			player.gold = 600;
+			player.race = 'Люди';
+
+			const scanFlyers = {
+				...emptyScan,
+				flyingCount: 3,
+				totalCount: 5
+			};
+
+			const ranks = botAI.getArmyBuildingRanks('Люди');
+			const rank1Building = ranks.find((r) => r.rank === 1)!.building;
+
+			const mockBuildings = [
+				{
+					instanceId: 'bld_r1',
+					defId: rank1Building.id,
+					name: rank1Building.name,
+					team: 'east',
+					race: 'Люди',
+					goldCost: rank1Building.gold_cost || 160
+				}
+			] as unknown as import('./types').Building[];
+
+			const chosen = botAI.chooseBuildingCandidate(player, mockBuildings, scanFlyers, 20, 1.0);
+			expect(chosen).toBeDefined();
+			expect(chosen).not.toBeNull();
+			if (!chosen) return;
+
+			// Chosen building must produce an anti-air capable unit
+			const uDef = chosen.unit ? UNITS_MAP.get(chosen.unit) : null;
+			expect(uDef).toBeDefined();
+			const canHitAir = uDef && (uDef.flying || (uDef.range !== null && uDef.range > 120));
+			expect(canHitAir).toBe(true);
+		});
+	});
 });

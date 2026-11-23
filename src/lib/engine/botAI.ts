@@ -15,6 +15,7 @@ import {
 	getBaseBuildingsForRace,
 	getUpgradesForBuilding,
 	isLegendaryBuilding,
+	getBuildingVisualRank,
 	UNITS_MAP,
 	SPECIAL_BUILDINGS
 } from './gameData';
@@ -384,58 +385,15 @@ export class BotAI {
 			return;
 		}
 
-		// 6. Building candidate selection
-		const baseBuildings = getBaseBuildingsForRace(player.race);
-		let candidateList: BuildingDefinition[] = [...baseBuildings];
-
-		// Filter out legendary buildings if food cap is full, and structures lacking lumber
-		candidateList = candidateList.filter(
-			(b) =>
-				(!isLegendaryBuilding(b) || player.food < player.maxFood) &&
-				(b.lumber_cost || 0) <= (player.lumber ?? 0)
+		// 6. Building candidate selection using Diversity Quota and High-Rank Priority
+		const chosenBuilding = this.chooseBuildingCandidate(
+			player,
+			myBuildings,
+			scan,
+			estimatedIncome,
+			castleHpRatio
 		);
-
-		// Check special buildings
-		const treasureCount = myBuildings.filter((b) => b.specialType === 'treasure').length;
-		const repairCount = myBuildings.filter((b) => b.specialType === 'repair').length;
-
-		if (player.gold >= 300 && estimatedIncome < 50 && treasureCount < 1) {
-			const chest = SPECIAL_BUILDINGS.find((b) => b.specialType === 'treasure');
-			if (chest) candidateList.push(chest);
-		}
-		if (castleHpRatio < 0.7 && repairCount < 1 && player.gold >= 180) {
-			const repair = SPECIAL_BUILDINGS.find((b) => b.specialType === 'repair');
-			if (repair) candidateList.push(repair);
-		}
-
-		// Existing building counts for repetition penalty
-		const existingCounts = new Map<string, number>();
-		for (const b of myBuildings) {
-			existingCounts.set(b.defId, (existingCounts.get(b.defId) || 0) + 1);
-		}
-
-		// Filter candidates by tier range
-		const tierLimits = BOT_TIER_LIMITS[tier] || BOT_TIER_LIMITS[0];
-		let filtered = candidateList.filter((b) => {
-			const cost = b.gold_cost || 200;
-			return cost >= tierLimits.minPrice && cost <= tierLimits.maxPrice && cost <= player.gold;
-		});
-
-		// Fallback to any affordable building if tier limits produced 0 matches
-		if (filtered.length === 0) {
-			filtered = candidateList.filter((b) => (b.gold_cost || 200) <= player.gold);
-		}
-
-		if (filtered.length === 0) return;
-
-		// Score and sort candidates
-		const scoredCandidates = filtered.map((b) => ({
-			building: b,
-			score: this.scoreBuilding(b, tier, scan, existingCounts.get(b.id) || 0) + Math.random() * 50
-		}));
-
-		scoredCandidates.sort((a, b) => b.score - a.score);
-		const chosenBuilding = scoredCandidates[0].building;
+		if (!chosenBuilding) return;
 
 		// 7. Optimal building placement slot selection
 		// Consider all buildings on the team (both own and allies) for spacing and clearance
@@ -445,6 +403,179 @@ export class BotAI {
 
 		const lane: Lane = chosenSlot.y < 35 ? 'top' : 'bottom';
 		this.sim.build(this.team, chosenBuilding.id, chosenSlot.x, chosenSlot.y, lane, player);
+	}
+
+	/**
+	 * Returns base army buildings mapped to their visual rank (1..6) for the given race.
+	 */
+	public getArmyBuildingRanks(race: string): { building: BuildingDefinition; rank: number }[] {
+		const baseBuildings = getBaseBuildingsForRace(race);
+		const armySpawners = baseBuildings.filter((b) => !b.specialType && !b.upgrade_from);
+		return armySpawners.map((b) => ({
+			building: b,
+			rank: getBuildingVisualRank(b.id, race).rank
+		}));
+	}
+
+	/**
+	 * Computes counts of existing buildings per rank (1..6) for the bot player.
+	 */
+	public getRankCounts(myBuildings: Building[], race: string): Map<number, number> {
+		const counts = new Map<number, number>();
+		for (let r = 1; r <= 6; r++) counts.set(r, 0);
+
+		for (const b of myBuildings) {
+			if (!b.specialType) {
+				const rank = getBuildingVisualRank(b.defId, b.race || race).rank;
+				if (counts.has(rank)) {
+					counts.set(rank, (counts.get(rank) || 0) + 1);
+				}
+			}
+		}
+		return counts;
+	}
+
+	/**
+	 * Selects the optimal building candidate complying with:
+	 * 1. Start of match: build affordable starter building (rank 1..3) immediately.
+	 * 2. Diversity Quota: no rank can exceed minCount by 2 or more (count < minCount + 2).
+	 * 3. High-rank priority (6 -> 5 -> 4...) with tactical counter-pick bonuses.
+	 * 4. Shortfall saving: if close (<= 60 gold) to high-rank priority, save gold.
+	 */
+	public chooseBuildingCandidate(
+		player: PlayerState,
+		myBuildings: Building[],
+		scan: EnemyArmyScan,
+		estimatedIncome: number,
+		castleHpRatio: number
+	): BuildingDefinition | null {
+		const armyRanks = this.getArmyBuildingRanks(player.race);
+		if (armyRanks.length === 0) return null;
+
+		const rankCounts = this.getRankCounts(myBuildings, player.race);
+		const availableRanks = armyRanks.map((ar) => ar.rank);
+		const minCount = Math.min(...availableRanks.map((r) => rankCounts.get(r) || 0));
+
+		// 1. First building of the match: build affordable starter (rank 1..3) immediately so units spawn to line
+		if (myBuildings.length === 0) {
+			const starterCandidates = armyRanks
+				.filter(
+					(ar) =>
+						ar.rank <= 3 &&
+						(!isLegendaryBuilding(ar.building) || player.food < player.maxFood) &&
+						(ar.building.lumber_cost || 0) <= (player.lumber ?? 0) &&
+						(ar.building.gold_cost || 200) <= player.gold
+				)
+				.sort((a, b) => b.rank - a.rank);
+
+			if (starterCandidates.length > 0) {
+				return starterCandidates[0].building;
+			}
+			const cheapest = armyRanks
+				.filter((ar) => (ar.building.gold_cost || 200) <= player.gold)
+				.sort((a, b) => (a.building.gold_cost || 200) - (b.building.gold_cost || 200));
+			if (cheapest.length > 0) return cheapest[0].building;
+			return null;
+		}
+
+		// 2. Diversity Quota: candidate rank must not exceed minCount by 2 or more
+		// i.e. current count < minCount + 2
+		const eligibleArmy = armyRanks.filter((ar) => {
+			const currentCount = rankCounts.get(ar.rank) || 0;
+			const isDiverse = currentCount < minCount + 2;
+			const foodOk = !isLegendaryBuilding(ar.building) || player.food < player.maxFood;
+			const lumberOk = (ar.building.lumber_cost || 0) <= (player.lumber ?? 0);
+			return isDiverse && foodOk && lumberOk;
+		});
+
+		// 3. Special Buildings (Treasure Chest, Repair Center)
+		const specialCandidates: { building: BuildingDefinition; priority: number; cost: number }[] =
+			[];
+		const treasureCount = myBuildings.filter((b) => b.specialType === 'treasure').length;
+		const repairCount = myBuildings.filter((b) => b.specialType === 'repair').length;
+
+		if (player.gold >= 300 && estimatedIncome < 50 && treasureCount < 1) {
+			const chest = SPECIAL_BUILDINGS.find((b) => b.specialType === 'treasure');
+			if (chest && (chest.lumber_cost || 0) <= (player.lumber ?? 0)) {
+				specialCandidates.push({ building: chest, priority: 4500, cost: chest.gold_cost || 300 });
+			}
+		}
+		if (castleHpRatio < 0.7 && repairCount < 1 && player.gold >= 180) {
+			const repair = SPECIAL_BUILDINGS.find((b) => b.specialType === 'repair');
+			if (repair && (repair.lumber_cost || 0) <= (player.lumber ?? 0)) {
+				specialCandidates.push({
+					building: repair,
+					priority: castleHpRatio < 0.4 ? 6500 : 3500,
+					cost: repair.gold_cost || 180
+				});
+			}
+		}
+
+		// 4. Tactical Counter-Pick and High-Rank Priority (Question 3 Option A - Hybrid)
+		const scoredArmy = eligibleArmy.map((ar) => {
+			const b = ar.building;
+			const rank = ar.rank;
+			let priority = rank * 1000; // Rank 6 = 6000, Rank 5 = 5000, Rank 4 = 4000...
+
+			// Counter-pick bonuses:
+			const unitDef = b.unit ? UNITS_MAP.get(b.unit) : null;
+			if (unitDef) {
+				const canHitAir = unitDef.flying || (unitDef.range !== null && unitDef.range > 120);
+				if (scan.flyingCount > 0 && canHitAir) {
+					priority += 3500; // Urgent anti-air response
+				}
+				const attack = unitDef.attack_type?.toLowerCase() || 'normal';
+				if (scan.totalCount > 0) {
+					if (attack === 'magic' && scan.heavyCount / scan.totalCount >= 0.3) {
+						priority += 2000;
+					}
+					if (
+						(attack === 'pierce' || attack === 'siege') &&
+						scan.lightCount / scan.totalCount >= 0.35
+					) {
+						priority += 1800;
+					}
+					if (attack === 'siege' && scan.fortCount > 0) {
+						priority += 2200;
+					}
+				}
+			}
+
+			// Slight preference for ranks that have fewer copies built
+			const currentCount = rankCounts.get(rank) || 0;
+			priority -= currentCount * 150;
+
+			return { building: b, priority, cost: b.gold_cost || 200 };
+		});
+
+		const allCandidates = [...scoredArmy, ...specialCandidates];
+		allCandidates.sort((a, b) => b.priority - a.priority);
+
+		if (allCandidates.length === 0) return null;
+
+		// 5. Select target by priority:
+		const topTarget = allCandidates[0];
+
+		// If bot can afford top priority candidate, build it!
+		if (topTarget.cost <= player.gold) {
+			return topTarget.building;
+		}
+
+		// If shortfall to top priority candidate is small (<= 60 gold) and castle is not in emergency:
+		// Save gold for it!
+		const shortfall = topTarget.cost - player.gold;
+		if (shortfall <= 60 && castleHpRatio >= 0.45) {
+			return null; // Save gold!
+		}
+
+		// Otherwise: find the highest priority candidate that IS affordable right now
+		for (const candidate of allCandidates) {
+			if (candidate.cost <= player.gold) {
+				return candidate.building;
+			}
+		}
+
+		return null;
 	}
 
 	/**
