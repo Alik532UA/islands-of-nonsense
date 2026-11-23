@@ -279,6 +279,39 @@ describe('Point 10: Authentic WC3 Ambient Audio Cues and Voice Alerts', () => {
 			expect(count3).toBe(count1 + 1);
 		});
 
+		it('should trigger errorResource cue when human player lacks gold or food for building', () => {
+			sim.players.west.gold = 20; // Not enough gold for h003 (cost 160)
+			soundEvents.length = 0;
+
+			const built = sim.build('west', 'h003', 25, 20);
+			expect(built).toBe(false);
+			expect(soundEvents).toContain('errorResource');
+
+			// Not enough food for legendary building
+			sim.players.west.gold = 5000;
+			sim.players.west.food = 0;
+			sim.players.west.maxFood = 0;
+			soundEvents.length = 0;
+
+			const builtLeg = sim.build('west', 'h05F', 25, 20);
+			expect(builtLeg).toBe(false);
+			expect(soundEvents).toContain('errorResource');
+		});
+
+		it('should trigger upgrade cue when building upgrade completes successfully', () => {
+			sim.players.west.gold = 2000;
+			sim.players.west.lumber = 500;
+			soundEvents.length = 0;
+
+			sim.build('west', 'h003', 25, 20);
+			const bld = sim.buildings[0];
+			soundEvents.length = 0;
+
+			const upgraded = sim.upgradeBuilding('west', bld.instanceId, 'h05D');
+			expect(upgraded).toBe(true);
+			expect(soundEvents).toContain('upgrade');
+		});
+
 		it('singleton sound instance should be defined and exported', () => {
 			expect(sound).toBeDefined();
 			expect(typeof sound.playBuild).toBe('function');

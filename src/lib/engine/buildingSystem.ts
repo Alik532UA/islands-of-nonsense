@@ -265,7 +265,10 @@ export class BuildingSystem {
 		const player = playerInput || this.sim.players[team];
 		const cost = bDef.gold_cost || 200;
 
-		if (player.gold < cost) return false;
+		if (player.gold < cost) {
+			if (!player.isBot) this.sim.onSoundEffect?.('errorResource');
+			return false;
+		}
 
 		// Check food requirement for legendary structures
 		if (isLegendaryBuilding(bDef)) {
@@ -280,6 +283,7 @@ export class BuildingSystem {
 					worldY - 20,
 					'#ef4444'
 				);
+				if (!player.isBot) this.sim.onSoundEffect?.('errorResource');
 				return false;
 			}
 		}
@@ -489,6 +493,7 @@ export class BuildingSystem {
 					building.y - 20,
 					'#ef4444'
 				);
+				if (!player.isBot) this.sim.onSoundEffect?.('errorResource');
 				return false;
 			}
 		}
@@ -505,6 +510,7 @@ export class BuildingSystem {
 					building.y - 20,
 					'#ef4444'
 				);
+				if (!player.isBot) this.sim.onSoundEffect?.('errorResource');
 				return false;
 			}
 		}
@@ -522,6 +528,7 @@ export class BuildingSystem {
 					building.y - 20,
 					'#ef4444'
 				);
+				if (!player.isBot) this.sim.onSoundEffect?.('errorResource');
 				return false;
 			}
 		}
@@ -533,6 +540,7 @@ export class BuildingSystem {
 				building.y - 20,
 				'#ef4444'
 			);
+			if (!player.isBot) this.sim.onSoundEffect?.('errorResource');
 			return false;
 		}
 
@@ -544,6 +552,7 @@ export class BuildingSystem {
 				building.y - 20,
 				'#10b981'
 			);
+			if (!player.isBot) this.sim.onSoundEffect?.('errorResource');
 			return false;
 		}
 
@@ -551,7 +560,10 @@ export class BuildingSystem {
 			? (targetDef.gold_cost ?? 200)
 			: Math.max(50, (targetDef.gold_cost || 200) - building.goldCost);
 
-		if (player.gold < upgradeCost) return false;
+		if (player.gold < upgradeCost) {
+			if (!player.isBot) this.sim.onSoundEffect?.('errorResource');
+			return false;
+		}
 
 		player.gold -= upgradeCost;
 		player.stats.goldSpent += upgradeCost;
@@ -562,6 +574,7 @@ export class BuildingSystem {
 		if (targetIsLeg && !currentIsLeg) {
 			player.food++;
 		}
+		this.sim.onSoundEffect?.('upgrade');
 
 		building.defId = targetDef.id;
 		building.name = targetDef.name;
