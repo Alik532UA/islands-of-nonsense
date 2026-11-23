@@ -33,7 +33,7 @@ export class WorkerSystem {
 	private astarClosed: Uint8Array = new Uint8Array(35000);
 	private astarBlocked: Int8Array = new Int8Array(35000);
 
-	constructor(private sim: Simulation) {}
+	constructor(private sim: Simulation) { }
 
 	/**
 	 * Resolves solid obstacles (2x2 buildings, stone walls, castles, terrain perimeter) for ground entities.
@@ -1442,11 +1442,14 @@ export class WorkerSystem {
 		}
 
 		p.lumber = (p.lumber ?? 0) - cost;
-		p.stats.lumberSpent = (p.stats.lumberSpent || 0) + cost;
 		const bridgeLane = this.sim.brokenBridge;
 		const bx = team === 'west' ? BRIDGE_SPAN_MIN_X - 40 : BRIDGE_SPAN_MAX_X + 40;
 		const by =
-			bridgeLane === 'top' ? TOP_LANE_Y : bridgeLane === 'mid' ? MID_LANE_Y : BOTTOM_LANE_Y;
+			bridgeLane === 'top'
+				? TOP_LANE_Y
+				: bridgeLane === 'mid'
+					? MID_LANE_Y
+					: BOTTOM_LANE_Y;
 
 		w.isBuilding = false;
 		w.targetBuildingId = null;
@@ -1502,7 +1505,6 @@ export class WorkerSystem {
 						w.isBuilding = false;
 						w.targetBuildingId = null;
 						p.lumber += 25;
-						p.stats.lumberEarned = (p.stats.lumberEarned || 0) + 25;
 						this.sim.addFloatingText(
 							'+Готово! (+25🪵)',
 							targetBld.x + CELL_SIZE / 2,
@@ -1555,7 +1557,11 @@ export class WorkerSystem {
 						const bridgeLane = this.sim.brokenBridge;
 						const bx = team === 'west' ? BRIDGE_SPAN_MIN_X - 40 : BRIDGE_SPAN_MAX_X + 40;
 						const by =
-							bridgeLane === 'top' ? TOP_LANE_Y : bridgeLane === 'mid' ? MID_LANE_Y : BOTTOM_LANE_Y;
+							bridgeLane === 'top'
+								? TOP_LANE_Y
+								: bridgeLane === 'mid'
+									? MID_LANE_Y
+									: BOTTOM_LANE_Y;
 						const dist = Math.hypot(bx - w.x, by - w.y);
 						if (dist <= 50) {
 							w.isBuilding = true;
