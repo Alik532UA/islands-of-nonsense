@@ -711,9 +711,7 @@ export class EntityRenderer {
 				: (unitPlayer?.color?.num ?? (isWest ? westPlayerColor : eastPlayerColor));
 			let dir = isNeutral ? 1 : isWest ? 1 : -1;
 			if (u.currentTargetId) {
-				const enemy = this.sim.units.find(
-					(candidate) => candidate.instanceId === u.currentTargetId
-				);
+				const enemy = this.sim.units.find((candidate) => candidate.instanceId === u.currentTargetId);
 				if (enemy && Math.abs(enemy.x - u.x) > 6) {
 					dir = enemy.x > u.x ? 1 : -1;
 				}
@@ -1133,14 +1131,7 @@ export class EntityRenderer {
 		// 1. Battlefield scrap debris (metallic gears, bolts, scrap metal from Scavengers & fallen units)
 		if (this.sim.debris) {
 			for (const deb of this.sim.debris) {
-				if (
-					bounds &&
-					(deb.x + 20 < bounds.minX ||
-						deb.x - 20 > bounds.maxX ||
-						deb.y + 20 < bounds.minY ||
-						deb.y - 20 > bounds.maxY)
-				)
-					continue;
+				if (bounds && (deb.x + 20 < bounds.minX || deb.x - 20 > bounds.maxX || deb.y + 20 < bounds.minY || deb.y - 20 > bounds.maxY)) continue;
 				if (enableFog && !this.sim.isPointRevealed('west', deb.x, deb.y)) continue;
 				const alpha = Math.min(1.0, deb.lifeTime / 4.0);
 				// Cogwheel scrap
