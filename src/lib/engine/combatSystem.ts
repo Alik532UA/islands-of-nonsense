@@ -1447,7 +1447,14 @@ export class CombatSystem {
 				this.sim.bossSpawnTimer = 180.0;
 				if (attackerTeam === 'west' || attackerTeam === 'east') {
 					const bounty = Math.min(110, 10 + 20 * (this.sim.bossIndex - 1));
-					this.sim.players[attackerTeam].gold += bounty;
+					const teamPlayers =
+						this.sim.teamMembers[attackerTeam] && this.sim.teamMembers[attackerTeam].length > 0
+							? this.sim.teamMembers[attackerTeam]
+							: [this.sim.players[attackerTeam]];
+					for (const p of teamPlayers) {
+						p.gold += bounty;
+						p.stats.unitsKilled++;
+					}
 					this.sim.addFloatingText(`+${bounty}g за Боса!`, target.x, target.y - 30, '#fbbf24');
 				}
 			} else if (attackerTeam === 'west' || attackerTeam === 'east') {

@@ -1108,7 +1108,8 @@ export class Simulation {
 	}
 
 	public spawnBoss(): Unit {
-		const lane: Lane = this.lastBossLane === 'bottom' ? 'top' : 'bottom';
+		const lane: Lane =
+			this.gameModeConfig?.singleLane ?? (this.lastBossLane === 'bottom' ? 'top' : 'bottom');
 		this.lastBossLane = lane;
 		this.bossIndex++;
 
