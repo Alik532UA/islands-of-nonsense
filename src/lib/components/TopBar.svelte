@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import type { Simulation } from '../engine/simulation';
 	import { getCommander } from '../engine/commanders';
 	import { getRaceAbility } from '../engine/raceAbilities';
@@ -104,6 +105,8 @@
 	let dayPhase = $derived(uiTick >= 0 ? sim.dayNightPhase : 'day');
 	let sunAngle = $derived(uiTick >= 0 ? sim.dayNightProgress * 360 : 0);
 
+	onMount(() => fullscreen.watch());
+
 	function formatTime(sec: number): string {
 		const totalSec = Math.floor(sec + 0.001);
 		const m = Math.floor(totalSec / 60);
@@ -160,7 +163,7 @@
 			title="Довідник гри та командир: {commander.name} ({commander.nickname})"
 		>
 			<BookOpen class="w-3.5 h-3.5 text-amber-400 shrink-0" />
-			<span>Довідник</span>
+			<span class="hidden md:inline">Довідник</span>
 			<span class="hidden 2xl:inline text-[10px] text-amber-400/80 font-mono">(F9)</span>
 		</button>
 
@@ -171,7 +174,7 @@
 			title="Меню налаштувань матчу"
 		>
 			<Sliders class="w-3.5 h-3.5 text-amber-400 shrink-0" />
-			<span>Меню</span>
+			<span class="hidden sm:inline">Меню</span>
 		</button>
 
 		<!-- War Forge (F) -->
@@ -181,7 +184,7 @@
 			title="Військова Кузня (Гаряча клавіша: F)"
 		>
 			<Hammer class="w-3.5 h-3.5 text-amber-400 shrink-0" />
-			<span>Кузня</span>
+			<span class="hidden md:inline">Кузня</span>
 			{#if player.forge.attack + player.forge.armor + player.forge.econ > 0}
 				<span class="bg-amber-500 text-slate-950 text-[10px] px-1 rounded-full font-bold">
 					{player.forge.attack + player.forge.armor + player.forge.econ}
@@ -196,7 +199,7 @@
 			title="Магазин замку: припаси та захист (Гаряча клавіша: B)"
 		>
 			<ShoppingBag class="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-			<span>Магазин</span>
+			<span class="hidden md:inline">Магазин</span>
 			<span
 				class="text-[9px] bg-emerald-950 border border-emerald-500/60 px-1 rounded text-emerald-300 font-mono font-bold"
 			>
@@ -481,7 +484,7 @@
 				title="Західний Замок (Гравець): {westHp} / {westMaxHp}"
 			>
 				<div
-					class="flex justify-between items-center text-[10px] font-bold mb-0.5 whitespace-nowrap"
+					class="flex justify-between items-center text-[10px] font-bold mb-0.5 whitespace-nowrap gap-1"
 				>
 					<span class="text-blue-400 flex items-center gap-0.5">
 						<Shield class="w-3 h-3 text-blue-400 shrink-0" />
@@ -503,7 +506,7 @@
 				title="Східний Замок ({sim.players.east.race} Бот): {eastHp} / {eastMaxHp}"
 			>
 				<div
-					class="flex justify-between items-center text-[10px] font-bold mb-0.5 whitespace-nowrap"
+					class="flex justify-between items-center text-[10px] font-bold mb-0.5 whitespace-nowrap gap-1"
 				>
 					<span class="text-slate-300 font-mono text-[9px]">{eastHp}</span>
 					<span class="text-rose-400 flex items-center gap-0.5">

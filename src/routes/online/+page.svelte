@@ -68,7 +68,9 @@
 				searchController.signal
 			);
 
-			await goto(`${resolve('/play/battle')}?room=${encodeURIComponent(result.code)}${result.isHost ? '&host=1' : ''}`);
+			await goto(
+				`${resolve('/play/battle')}?room=${encodeURIComponent(result.code)}${result.isHost ? '&host=1' : ''}`
+			);
 		} catch {
 			openWindow = 'hub';
 		} finally {

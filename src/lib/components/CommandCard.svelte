@@ -247,7 +247,7 @@
 						<div class="flex justify-between">
 							<span class="text-slate-400">Здоров'я / КД:</span>
 							<span class="font-mono text-emerald-300">
-								{placedUnit.hp} HP / {placedBuilding.spawnCooldown}с
+								{Math.round(placedUnit.hp)} HP / {placedBuilding.spawnCooldown}с
 							</span>
 						</div>
 					{/if}
@@ -594,7 +594,7 @@
 					</div>
 					<div class="flex justify-between">
 						<span class="text-slate-400">Здоров'я:</span>
-						<span class="text-green-400 font-mono font-bold">{hoveredUnit.hp} HP</span>
+						<span class="text-green-400 font-mono font-bold">{Math.round(hoveredUnit.hp)} HP</span>
 					</div>
 				</div>
 			{:else if hoveredBuilding.specialType === 'tower'}
