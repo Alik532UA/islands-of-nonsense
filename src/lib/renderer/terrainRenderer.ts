@@ -17,6 +17,9 @@ import {
 	WEST_CASTLE_Y,
 	EAST_CASTLE_X,
 	EAST_CASTLE_Y,
+	ROAD_WIDTH,
+	WEST_ROAD_MERGE_X,
+	EAST_ROAD_MERGE_X,
 	type DecorationObstacle
 } from '../engine/constants';
 
@@ -423,7 +426,7 @@ export class TerrainRenderer {
 	 * towards the Top, Mid, and Bottom bridges, with procedural pavers, gravel edges, and worn ruts.
 	 */
 	public drawNaturalRoadNetwork(g: Graphics): void {
-		const roadHeight = 150;
+		const roadHeight = ROAD_WIDTH;
 
 		// 1. West Cobblestone Highways (drawn underneath the castle plaza rim)
 		this.drawIslandRoadFanned(g, WEST_CASTLE_X, WEST_CASTLE_Y, BRIDGE_SPAN_MIN_X, roadHeight, true);
@@ -491,7 +494,7 @@ export class TerrainRenderer {
 	): void {
 		const dir = isWest ? 1 : -1;
 		const plazaStartDist = 160; // Start inside plaza circle so edges hide smoothly under rim
-		const mergeX = isWest ? 2300 : 4900;
+		const mergeX = isWest ? WEST_ROAD_MERGE_X : EAST_ROAD_MERGE_X;
 
 		// 1. Middle Highway (Direct horizontal connection to Mid Bridge)
 		const midStartX = cx + dir * plazaStartDist;

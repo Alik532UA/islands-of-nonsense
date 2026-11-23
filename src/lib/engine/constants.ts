@@ -24,6 +24,33 @@ export const WEST_CASTLE_Y = 1200;
 export const EAST_CASTLE_X = 5600;
 export const EAST_CASTLE_Y = 1200;
 
+export const ROAD_WIDTH = 150;
+export const ROAD_HALF_WIDTH = ROAD_WIDTH / 2; // 75
+export const WEST_ROAD_MERGE_X = 2300;
+export const EAST_ROAD_MERGE_X = 4900;
+
+export interface RoadSegment {
+	x1: number;
+	y1: number;
+	x2: number;
+	y2: number;
+}
+
+export const HIGHWAY_SEGMENTS: RoadSegment[] = [
+	// Top lane: West angled -> Horizontal bridge spanning -> East angled
+	{ x1: WEST_CASTLE_X, y1: WEST_CASTLE_Y, x2: WEST_ROAD_MERGE_X, y2: TOP_LANE_Y },
+	{ x1: WEST_ROAD_MERGE_X, y1: TOP_LANE_Y, x2: EAST_ROAD_MERGE_X, y2: TOP_LANE_Y },
+	{ x1: EAST_ROAD_MERGE_X, y1: TOP_LANE_Y, x2: EAST_CASTLE_X, y2: EAST_CASTLE_Y },
+
+	// Mid lane: West Castle straight to East Castle across Mid Bridge
+	{ x1: WEST_CASTLE_X, y1: MID_LANE_Y, x2: EAST_CASTLE_X, y2: MID_LANE_Y },
+
+	// Bottom lane: West angled -> Horizontal bridge spanning -> East angled
+	{ x1: WEST_CASTLE_X, y1: WEST_CASTLE_Y, x2: WEST_ROAD_MERGE_X, y2: BOTTOM_LANE_Y },
+	{ x1: WEST_ROAD_MERGE_X, y1: BOTTOM_LANE_Y, x2: EAST_ROAD_MERGE_X, y2: BOTTOM_LANE_Y },
+	{ x1: EAST_ROAD_MERGE_X, y1: BOTTOM_LANE_Y, x2: EAST_CASTLE_X, y2: EAST_CASTLE_Y }
+];
+
 export const WEST_GRID_START_X = 64;
 export const WEST_GRID_START_Y = 64;
 

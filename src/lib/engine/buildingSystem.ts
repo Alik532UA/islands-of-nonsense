@@ -18,7 +18,10 @@ import {
 	EAST_GRID_START_X,
 	EAST_GRID_START_Y,
 	GRID_STEP,
-	CELL_SIZE
+	CELL_SIZE,
+	ROAD_WIDTH,
+	ROAD_HALF_WIDTH,
+	HIGHWAY_SEGMENTS
 } from './constants';
 import type { MatchTeam, Lane, Building, Unit, ArmorType, AttackType, PlayerState } from './types';
 import {
@@ -29,6 +32,40 @@ import {
 	getUnitAbilities,
 	isLegendaryBuilding
 } from './gameData';
+
+/**
+ * Calculates Euclidean distance from a point (px, py) to a 2D line segment (x1, y1)-(x2, y2).
+ */
+export function distToSegment(
+	px: number,
+	py: number,
+	x1: number,
+	y1: number,
+	x2: number,
+	y2: number
+): number {
+	const dx = x2 - x1;
+	const dy = y2 - y1;
+	const lenSq = dx * dx + dy * dy;
+	if (lenSq === 0) return Math.hypot(px - x1, py - y1);
+	const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / lenSq));
+	return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+}
+
+/**
+ * Calculates the minimum distance from a point (px, py) to the centerline of the entire road network.
+ */
+export function distToRoadNetwork(px: number, py: number): number {
+	let minDist = Infinity;
+	for (let i = 0; i < HIGHWAY_SEGMENTS.length; i++) {
+		const seg = HIGHWAY_SEGMENTS[i];
+		const d = distToSegment(px, py, seg.x1, seg.y1, seg.x2, seg.y2);
+		if (d < minDist) {
+			minDist = d;
+		}
+	}
+	return minDist;
+}
 
 /**
  * BuildingSystem handles building placement validation, construction,
@@ -100,6 +137,7 @@ export class BuildingSystem {
 
 	/**
 	 * Checks if a point is on a road or within a given clearance from roads.
+	 * Default clearance is 145px: 75px (road half-width) + 32px (1 grid cell clearance) + 38px buffer.
 	 */
 	public isPointNearRoad(x: number, y: number, clearance = 145): boolean {
 		// Central strait / river / bridges
@@ -107,14 +145,9 @@ export class BuildingSystem {
 			return true;
 		}
 
-		// West Island roads fanning out from castle (1600, 1200) to bridges at 3240
-		if (x >= 1500 && x <= BRIDGE_SPAN_MIN_X + 20) {
-			const prog = (x - 1500) / (BRIDGE_SPAN_MIN_X - 1500);
-			const topY = 1200 + prog * (TOP_LANE_Y - 1200);
-			if (Math.abs(y - topY) < clearance) return true;
-			if (Math.abs(y - MID_LANE_Y) < clearance) return true;
-			const botY = 1200 + prog * (BOTTOM_LANE_Y - 1200);
-			if (Math.abs(y - botY) < clearance) return true;
+		// Distance to all active highway segments (angled ramps and horizontal pre-bridge highways)
+		if (distToRoadNetwork(x, y) < clearance) {
+			return true;
 		}
 
 		// West Courtyard & Rear Lanes (x < 1500): keep lane corridors clear for army march
@@ -122,16 +155,6 @@ export class BuildingSystem {
 			if (Math.abs(y - TOP_LANE_Y) < clearance) return true;
 			if (Math.abs(y - MID_LANE_Y) < clearance) return true;
 			if (Math.abs(y - BOTTOM_LANE_Y) < clearance) return true;
-		}
-
-		// East Island roads fanning out from castle (5600, 1200) to bridges at 3960
-		if (x >= BRIDGE_SPAN_MAX_X - 20 && x <= 5700) {
-			const prog = (5700 - x) / (5700 - BRIDGE_SPAN_MAX_X);
-			const topY = 1200 + prog * (TOP_LANE_Y - 1200);
-			if (Math.abs(y - topY) < clearance) return true;
-			if (Math.abs(y - MID_LANE_Y) < clearance) return true;
-			const botY = 1200 + prog * (BOTTOM_LANE_Y - 1200);
-			if (Math.abs(y - botY) < clearance) return true;
 		}
 
 		// East Courtyard & Rear Lanes (x > 5700): keep lane corridors clear for army march
@@ -207,7 +230,6 @@ export class BuildingSystem {
 	}
 
 	public isBoxOnRoad(rx: number, ry: number, rw: number, rh: number): boolean {
-		const roadHeight = 150;
 		const rMaxX = rx + rw;
 		const rMidX = rx + rw / 2;
 		const rMidY = ry + rh / 2;
@@ -217,30 +239,12 @@ export class BuildingSystem {
 			return true;
 		}
 
-		// West Island roads fanning out from Castle (1600, 1200) to bridges at BRIDGE_SPAN_MIN_X
-		if (rMidX >= 1550 && rMidX <= BRIDGE_SPAN_MIN_X) {
-			const prog = (rMidX - 1550) / (BRIDGE_SPAN_MIN_X - 1550);
-			// Top road: 1200 -> 660
-			const topY = 1200 + prog * (TOP_LANE_Y - 1200);
-			if (Math.abs(rMidY - topY) < roadHeight / 2 + 10) return true;
-			// Mid road: 1200 -> 1200
-			if (Math.abs(rMidY - MID_LANE_Y) < roadHeight / 2 + 10) return true;
-			// Bottom road: 1200 -> 1740
-			const botY = 1200 + prog * (BOTTOM_LANE_Y - 1200);
-			if (Math.abs(rMidY - botY) < roadHeight / 2 + 10) return true;
-		}
-
-		// East Island roads fanning out from Castle (5600, 1200) to bridges at BRIDGE_SPAN_MAX_X
-		if (rMidX >= BRIDGE_SPAN_MAX_X && rMidX <= 5650) {
-			const prog = (5650 - rMidX) / (5650 - BRIDGE_SPAN_MAX_X);
-			// Top road: 1200 -> 660
-			const topY = 1200 + prog * (TOP_LANE_Y - 1200);
-			if (Math.abs(rMidY - topY) < roadHeight / 2 + 10) return true;
-			// Mid road: 1200 -> 1200
-			if (Math.abs(rMidY - MID_LANE_Y) < roadHeight / 2 + 10) return true;
-			// Bottom road: 1200 -> 1740
-			const botY = 1200 + prog * (BOTTOM_LANE_Y - 1200);
-			if (Math.abs(rMidY - botY) < roadHeight / 2 + 10) return true;
+		// Check overlap with the highway network
+		// Road half-width is ROAD_HALF_WIDTH (75px).
+		// Box radius is Math.min(rw, rh) / 2 (e.g. 32px for 64x64 building).
+		const boxRadius = Math.min(rw, rh) / 2;
+		if (distToRoadNetwork(rMidX, rMidY) < ROAD_HALF_WIDTH + boxRadius - 2) {
+			return true;
 		}
 
 		return false;

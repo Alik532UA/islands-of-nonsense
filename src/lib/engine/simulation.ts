@@ -1451,7 +1451,9 @@ export class Simulation {
 				// 2. Must not be on castle plaza
 				if (Math.hypot(x - cx, y - cy) < 260) continue;
 
-				// 3. Must not be on road or within 1 cell (64px) margin from road
+				// 3. Must not be on road or within 1 cell (32px) margin from road
+				// Road half-width = 75px, 1 grid step margin = 32px, max decoration radius = 22px
+				// Clearance 145px guarantees: dist to road surface >= 145 - 75 - 22 = 48px (> 1 cell)
 				if (this.buildingSystem.isPointNearRoad(x, y, 145)) continue;
 
 				// 4. Must not overlap existing decorations
