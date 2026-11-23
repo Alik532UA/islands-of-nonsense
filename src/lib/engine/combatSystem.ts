@@ -1437,6 +1437,11 @@ export class CombatSystem {
 		}
 
 		if (attacker.range > 150) {
+			const isArtillery = !!(
+				attacker.isArtillery ||
+				attacker.attackType === 'siege' ||
+				['cg1a', 'hmtm', 'e002', 'cg18', 'n01E', 'n01F'].includes(attacker.defId)
+			);
 			const dist = Math.hypot(target.x - attacker.x, target.y - attacker.y);
 			this.sim.projectiles.push({
 				id: `proj_${this.sim.nextProjectileId++}`,
@@ -1449,14 +1454,15 @@ export class CombatSystem {
 				originX: attacker.x,
 				originY: attacker.y,
 				totalDist: dist,
-				arcHeight: attacker.attackType === 'siege' ? 75 : attacker.attackType === 'pierce' ? 35 : 0,
-				speed: 650,
+				arcHeight: isArtillery ? 85 : attacker.attackType === 'pierce' ? 35 : 0,
+				speed: isArtillery ? 550 : 650,
 				damage: rawDmg,
 				attackType: attacker.attackType,
 				isCrit,
 				team: attacker.team,
-				splashRadius: attacker.splashRadius,
-				hasFrost: !!(attacker.frostOnHit || attacker.abilities?.some((a) => a.type === 'frost'))
+				splashRadius: attacker.splashRadius || (isArtillery ? 120 : undefined),
+				hasFrost: !!(attacker.frostOnHit || attacker.abilities?.some((a) => a.type === 'frost')),
+				isArtillery
 			});
 		} else {
 			this.applyUnitDamage(target, rawDmg, attacker.attackType, attacker.team, isCrit, attacker);

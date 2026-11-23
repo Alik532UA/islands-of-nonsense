@@ -405,6 +405,11 @@ export class BuildingSystem {
 			building.damageMin = bDef.damage_base ?? 50;
 			building.damageMax = (bDef.damage_base ?? 50) + 10;
 			building.attackType = (bDef.attack_type as AttackType) || 'pierce';
+			building.isArtillery = !!(
+				bDef.isArtillery ||
+				bDef.attack_type === 'siege' ||
+				['h001', 'h073', 'cg0a', 'h048', 'h01E', 'u008', 'h04P'].includes(bDef.id)
+			);
 		}
 
 		this.sim.buildings.push(building);
@@ -818,6 +823,11 @@ export class BuildingSystem {
 			evadeChance: unitEvadeChance,
 			splashRadius: hasCleave ? 120 : unitDef.splashRadius,
 			reflectDamagePct: hasThorns ? 0.25 : unitDef.reflectDamagePct,
+			isArtillery: !!(
+				unitDef.isArtillery ||
+				unitDef.attack_type === 'siege' ||
+				['cg1a', 'hmtm', 'e002', 'cg18', 'n01E', 'n01F'].includes(unitDef.id)
+			),
 			isScavenger: !!(
 				unitDef.isScavenger ||
 				unitDef.id?.startsWith('cg1') ||

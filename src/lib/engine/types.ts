@@ -157,6 +157,7 @@ export interface UnitDefinition {
 	splashRadius?: number;
 	reflectDamagePct?: number;
 	isScavenger?: boolean;
+	isArtillery?: boolean;
 	abilities?: UnitAbilityDef[];
 }
 
@@ -175,6 +176,7 @@ export interface BuildingDefinition {
 	race?: string | null;
 	specialType?: 'treasure' | 'repair' | 'recycler' | 'tower' | 'special';
 	initialSpawnDelay?: number;
+	isArtillery?: boolean;
 	cooldown?: number | null;
 	range?: number | null;
 	damage_base?: number | null;
@@ -315,6 +317,7 @@ export interface Unit {
 	splashRadius?: number;
 	reflectDamagePct?: number;
 	isScavenger?: boolean;
+	isArtillery?: boolean;
 	abilityType?: UnitAbilityType;
 	abilities?: UnitAbilityDef[];
 	abilityCooldownTimer?: number;
@@ -388,6 +391,7 @@ export interface Building {
 	damageMin?: number;
 	damageMax?: number;
 	attackType?: AttackType;
+	isArtillery?: boolean;
 	width?: number;
 	height?: number;
 	playerId?: string;
@@ -413,6 +417,7 @@ export interface Projectile {
 	team: Team;
 	splashRadius?: number;
 	hasFrost?: boolean;
+	isArtillery?: boolean;
 }
 
 export interface LightningEffect {

@@ -77,6 +77,11 @@ export class DefenseSystem {
 		}
 
 		if (attacker.range > 150) {
+			const isArtillery = !!(
+				attacker.isArtillery ||
+				attacker.attackType === 'siege' ||
+				['cg1a', 'hmtm', 'e002', 'cg18', 'n01E', 'n01F'].includes(attacker.defId)
+			);
 			const dist = Math.hypot(
 				target.x + CELL_SIZE / 2 - attacker.x,
 				target.y + CELL_SIZE / 2 - attacker.y
@@ -92,13 +97,14 @@ export class DefenseSystem {
 				originX: attacker.x,
 				originY: attacker.y,
 				totalDist: dist,
-				arcHeight: attacker.attackType === 'pierce' ? 35 : attacker.attackType === 'siege' ? 65 : 0,
-				speed: 650,
+				arcHeight: isArtillery ? 85 : attacker.attackType === 'pierce' ? 35 : 0,
+				speed: isArtillery ? 550 : 650,
 				damage: rawDmg,
 				attackType: attacker.attackType,
 				isCrit: false,
 				team: attacker.team,
-				splashRadius: attacker.splashRadius
+				splashRadius: attacker.splashRadius || (isArtillery ? 120 : undefined),
+				isArtillery
 			});
 			if (attacker.attackType === 'magic') {
 				this.sim.onSoundEffect?.('magic');
@@ -214,7 +220,12 @@ export class DefenseSystem {
 				if (enemy) {
 					b.attackTimer = b.attackCooldown || 1.0;
 					const dmg = b.damageMin || 50;
-					const isSplash = b.defId === 'h073' || b.defId === 'cg0a';
+					const isArtillery = !!(
+						b.isArtillery ||
+						b.attackType === 'siege' ||
+						['h001', 'h073', 'cg0a', 'h048', 'h01E', 'u008', 'h04P'].includes(b.defId)
+					);
+					const isSplash = isArtillery || b.defId === 'h073' || b.defId === 'cg0a';
 					const tDist = Math.hypot(enemy.x - b.x, enemy.y - b.y);
 					this.sim.projectiles.push({
 						id: `tower_shot_${this.sim.nextProjectileId++}`,
@@ -227,13 +238,15 @@ export class DefenseSystem {
 						originX: b.x,
 						originY: b.y,
 						totalDist: tDist,
-						arcHeight: 30,
-						speed: 650,
+						arcHeight: isArtillery ? 90 : 30,
+						speed: isArtillery ? 520 : 650,
 						damage: dmg,
 						attackType: b.attackType || 'pierce',
 						isCrit: false,
 						team: b.team,
-						splashRadius: isSplash ? 65 : undefined
+						splashRadius: isArtillery ? 120 : isSplash ? 65 : undefined,
+						hasFrost: b.defId === 'h03Q',
+						isArtillery
 					});
 				}
 			}
@@ -247,12 +260,17 @@ export class DefenseSystem {
 				? this.sim.buildings.find((b) => b.instanceId === p.targetUnitId)
 				: null;
 
-			if (target && target.state !== 'DEAD') {
-				p.targetX = target.x;
-				p.targetY = target.y;
-			} else if (targetBuilding) {
-				p.targetX = targetBuilding.x + CELL_SIZE / 2;
-				p.targetY = targetBuilding.y + CELL_SIZE / 2;
+			// Homing vs Artillery:
+			// Non-artillery projectiles track target coordinates continuously.
+			// Artillery projectiles fly toward fixed ground coordinates established at launch.
+			if (!p.isArtillery) {
+				if (target && target.state !== 'DEAD') {
+					p.targetX = target.x;
+					p.targetY = target.y;
+				} else if (targetBuilding) {
+					p.targetX = targetBuilding.x + CELL_SIZE / 2;
+					p.targetY = targetBuilding.y + CELL_SIZE / 2;
+				}
 			}
 
 			const dx = p.targetX - p.x;
@@ -261,58 +279,93 @@ export class DefenseSystem {
 
 			const step = p.speed * dt;
 			if (dist <= step) {
-				if (target && target.state !== 'DEAD') {
-					const attackerUnit = this.sim.units.find((u) => u.instanceId === p.sourceUnitId);
-					this.combat.applyUnitDamage(
-						target,
-						p.damage,
-						p.attackType,
-						p.team,
-						p.isCrit,
-						attackerUnit
-					);
-
-					// Tower special on-hit effects & stats
-					if (p.sourceUnitId.startsWith('bld_')) {
-						if (!target.buffs) target.buffs = [];
-						const tower = this.sim.buildings.find((b) => b.instanceId === p.sourceUnitId);
-						if (tower) {
-							this.sim.recordBuildingDamage(tower.defId, tower.name, tower.team, p.damage);
-							if (target.hp <= 0) {
-								this.sim.recordBuildingKill(tower.defId, tower.name, tower.team);
-							}
-						}
-						if (tower?.defId === 'h03Q') {
-							// Frost tower chill slow
-							const slowBuff = target.buffs.find((b) => b.type === 'slow');
-							if (slowBuff) {
-								slowBuff.timer = Math.max(slowBuff.timer, 2.0);
-							} else {
-								target.buffs.push({ type: 'slow', timer: 2.0, value: 0.3 });
-							}
-						} else if (tower?.defId === 'n01J') {
-							// Plague tower poison
-							const poisonBuff = target.buffs.find((b) => b.type === 'poison');
-							if (poisonBuff) {
-								poisonBuff.timer = Math.max(poisonBuff.timer, 3.0);
-							} else {
-								target.buffs.push({ type: 'poison', timer: 3.0, value: 12 });
-							}
-						}
-					}
-				} else if (targetBuilding && targetBuilding.hp > 0) {
-					this.damageBuilding(targetBuilding, p.damage, p.attackType, p.team as MatchTeam);
-				}
-				if (p.splashRadius) {
+				const attackerUnit = this.sim.units.find((u) => u.instanceId === p.sourceUnitId);
+				if (p.isArtillery) {
+					// Ground-impact detonation: AoE splash at ground target point
+					const radius = p.splashRadius || 120;
 					this.combat.triggerSplashDamage(
 						p.targetX,
 						p.targetY,
-						p.splashRadius,
-						p.damage * 0.5,
+						radius,
+						p.damage,
 						p.attackType,
 						p.team,
-						p.targetUnitId
+						undefined // Hits any enemy currently in impact zone; units that dodged take 0
 					);
+
+					// Building damage if ground impact point is within radius of target building
+					if (targetBuilding && targetBuilding.hp > 0) {
+						const bDist = Math.hypot(
+							targetBuilding.x + CELL_SIZE / 2 - p.targetX,
+							targetBuilding.y + CELL_SIZE / 2 - p.targetY
+						);
+						if (bDist <= radius) {
+							this.damageBuilding(targetBuilding, p.damage, p.attackType, p.team as MatchTeam);
+						}
+					}
+
+					// Tower stats for artillery tower
+					if (p.sourceUnitId.startsWith('bld_')) {
+						const tower = this.sim.buildings.find((b) => b.instanceId === p.sourceUnitId);
+						if (tower) {
+							this.sim.recordBuildingDamage(tower.defId, tower.name, tower.team, p.damage);
+						}
+					}
+				} else {
+					// Homing projectile: direct hit to tracking target
+					if (target && target.state !== 'DEAD') {
+						this.combat.applyUnitDamage(
+							target,
+							p.damage,
+							p.attackType,
+							p.team,
+							p.isCrit,
+							attackerUnit
+						);
+
+						// Tower special on-hit effects & stats
+						if (p.sourceUnitId.startsWith('bld_')) {
+							if (!target.buffs) target.buffs = [];
+							const tower = this.sim.buildings.find((b) => b.instanceId === p.sourceUnitId);
+							if (tower) {
+								this.sim.recordBuildingDamage(tower.defId, tower.name, tower.team, p.damage);
+								if (target.hp <= 0) {
+									this.sim.recordBuildingKill(tower.defId, tower.name, tower.team);
+								}
+							}
+							if (tower?.defId === 'h03Q') {
+								// Frost tower chill slow
+								const slowBuff = target.buffs.find((b) => b.type === 'slow');
+								if (slowBuff) {
+									slowBuff.timer = Math.max(slowBuff.timer, 2.0);
+								} else {
+									target.buffs.push({ type: 'slow', timer: 2.0, value: 0.3 });
+								}
+							} else if (tower?.defId === 'n01J') {
+								// Plague tower poison
+								const poisonBuff = target.buffs.find((b) => b.type === 'poison');
+								if (poisonBuff) {
+									poisonBuff.timer = Math.max(poisonBuff.timer, 3.0);
+								} else {
+									target.buffs.push({ type: 'poison', timer: 3.0, value: 12 });
+								}
+							}
+						}
+					} else if (targetBuilding && targetBuilding.hp > 0) {
+						this.damageBuilding(targetBuilding, p.damage, p.attackType, p.team as MatchTeam);
+					}
+
+					if (p.splashRadius) {
+						this.combat.triggerSplashDamage(
+							p.targetX,
+							p.targetY,
+							p.splashRadius,
+							p.damage * 0.5,
+							p.attackType,
+							p.team,
+							p.targetUnitId
+						);
+					}
 				}
 				p.damage = 0;
 			} else {
