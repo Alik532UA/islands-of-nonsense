@@ -71,7 +71,7 @@
 	let hoveredBuilding = $state<BuildingDefinition | null>(null);
 	let hoveredUnit = $derived(hoveredBuilding ? getUnit(hoveredBuilding.unit) : null);
 
-	const HOTKEYS = ['Q', 'W', 'E', 'R', 'A', 'S', 'D', 'F', 'Z', 'X', 'V', 'Esc'];
+	const HOTKEYS = ['Q', 'W', 'E', 'R', 'A', 'S', 'D', 'F', 'Z', 'X', 'C', 'Esc'];
 
 	function shortenName(name: string): string {
 		if (name.includes('Скриня')) return 'Скриня';
@@ -109,7 +109,7 @@
 	}
 
 	function getHotkeyForBuilding(bld: BuildingDefinition, index: number): string {
-		if (bld.id === 'h008') return 'V';
+		if (bld.id === 'h008') return 'D';
 		return HOTKEYS[index] || '';
 	}
 </script>
@@ -408,7 +408,9 @@
 							: isAffordable
 								? 'bg-[#1b2230] hover:bg-[#28354d] border-[#544738] hover:border-[#8c7456]'
 								: 'bg-[#12161f] border-[#2d3748] opacity-50 grayscale cursor-not-allowed'}"
-					title="{bld.name} ({bld.gold_cost}g{bldLumber > 0 ? `, ${bldLumber}w` : ''}) [{hotkey}]"
+					aria-label="{bld.name} ({bld.gold_cost}g{bldLumber > 0
+						? `, ${bldLumber}w`
+						: ''}) [{hotkey}]"
 				>
 					<!-- Hotkey in top-right corner -->
 					<span
@@ -497,16 +499,17 @@
 
 	<!-- Floating Authentic Warcraft III Tooltip on Hover (Matches Reference Image 2) -->
 	{#if hoveredBuilding}
+		{@const bld = hoveredBuilding}
+		{@const bIndex = availableBuildings.findIndex((b) => b.id === bld.id)}
+		{@const bHotkey = getHotkeyForBuilding(bld, bIndex >= 0 ? bIndex : 0)}
 		<div
 			class="absolute bottom-full right-0 mb-3 w-80 bg-[#0e121a]/95 border-2 border-[#b89758] rounded-md p-3 text-xs shadow-2xl backdrop-blur-md pointer-events-none z-50 text-slate-200"
 			style="box-shadow: 0 10px 30px rgba(0,0,0,0.95);"
 		>
 			<!-- Gold Title + Hotkey -->
 			<div class="text-[#fef08a] font-bold text-sm leading-tight">
-				Збудувати {hoveredBuilding.name} [{getHotkeyForBuilding(
-					hoveredBuilding,
-					availableBuildings.indexOf(hoveredBuilding)
-				)}]
+				Збудувати {bld.name}
+				{bHotkey ? `[${bHotkey}]` : ''}
 			</div>
 
 			<!-- Resource Cost Line -->

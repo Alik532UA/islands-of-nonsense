@@ -316,11 +316,11 @@
 </script>
 
 <div
-	class="relative flex items-center bg-[#131722] p-1.5 rounded-lg border-2 border-[#544738] shadow-2xl select-none"
+	class="relative flex items-center justify-between bg-[#131722] px-2.5 py-2 rounded-lg border-2 border-[#544738] shadow-2xl select-none h-[142px] shrink-0"
 	style="box-shadow: inset 0 0 10px rgba(0,0,0,0.8), 0 4px 12px rgba(0,0,0,0.7);"
 >
 	<!-- Minimap Canvas with Ornate WC3 Stone Trim -->
-	<div class="relative overflow-hidden rounded border border-[#3b3226] bg-[#0c1017]">
+	<div class="relative overflow-hidden rounded border border-[#3b3226] bg-[#0c1017] my-auto">
 		<canvas
 			bind:this={canvasEl}
 			width={MAP_WIDTH}
@@ -341,7 +341,7 @@
 	</div>
 
 	<!-- Authentic Warcraft III Minimap Side Control Buttons -->
-	<div class="flex flex-col gap-1 ml-1.5 justify-between">
+	<div class="flex flex-col gap-1.5 ml-2.5 justify-center h-full">
 		<!-- Ping / Signal button -->
 		<button
 			onclick={() => triggerPing(cameraX, cameraY)}

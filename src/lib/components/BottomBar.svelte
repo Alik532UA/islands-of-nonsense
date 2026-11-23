@@ -124,7 +124,7 @@
 		label: string;
 	} | null>(null);
 
-	const HOTKEYS = ['Q', 'W', 'E', 'R', 'A', 'S', 'D', 'F', 'Z', 'X', 'V'];
+	const HOTKEYS = ['Q', 'W', 'E', 'R', 'A', 'S', 'D', 'F', 'Z', 'X', 'C'];
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (isEditableTarget(e.target)) return;
@@ -150,11 +150,8 @@
 			}
 		}
 
-		// Hotkey 'V' or 'C' for slot 10 (Скриня зі Скарбами h008)
-		if (
-			(letter === 'V' || letter === 'C') &&
-			(activeEntityType === 'worker' || activeEntityType === 'none')
-		) {
+		// Hotkey 'V' fallback for slot 10 or 'C'
+		if (letter === 'V' && (activeEntityType === 'worker' || activeEntityType === 'none')) {
 			if (availableBuildings.length >= 11) {
 				const bld = availableBuildings[10];
 				onSelectBuilding(selectedBuildingId === bld.id ? null : bld.id);
@@ -162,7 +159,7 @@
 			}
 		}
 
-		// Hotkeys Q..X for command card in worker or unselected mode
+		// Hotkeys Q..C for command card in worker or unselected mode
 		if (letter) {
 			const idx = HOTKEYS.indexOf(letter);
 			if (
@@ -181,7 +178,7 @@
 
 <!-- Authentic Warcraft III Bottom Stone Console -->
 <div
-	class="relative w-full bg-[#11141c] border-t-2 border-[#544738] px-3 py-2 shadow-2xl flex items-center justify-between text-white select-none backdrop-blur z-20 h-44 overflow-visible"
+	class="relative w-full bg-[#11141c] border-t-2 border-[#544738] px-3 py-2 shadow-2xl flex items-center justify-center gap-2.5 text-white select-none backdrop-blur z-20 h-44 overflow-visible"
 	style="background: linear-gradient(180deg, #181d28 0%, #0d1017 100%); box-shadow: 0 -8px 24px rgba(0,0,0,0.85);"
 >
 	<!-- 1. LEFT: Interactive Real-time Minimap with authentic WC3 buttons -->
@@ -191,7 +188,7 @@
 
 	<!-- 2. CENTER-LEFT: Entity Portrait & Health / Mana Vital Bars -->
 	<div
-		class="flex flex-col items-center justify-center px-3 py-1 bg-[#131722] rounded-lg border-2 border-[#544738] shadow-inner shrink-0 w-36 h-[142px]"
+		class="flex flex-col items-center justify-between px-3 py-2 bg-[#131722] rounded-lg border-2 border-[#544738] shadow-inner shrink-0 w-36 h-[142px]"
 		style="box-shadow: inset 0 0 10px rgba(0,0,0,0.8);"
 	>
 		<!-- Stone Arch Portrait Frame -->
@@ -391,7 +388,7 @@
 
 	<!-- 3. CENTER: Entity Stats & Characteristics Panel -->
 	<div
-		class="relative flex-1 flex flex-col justify-between px-4 py-2 mx-2 bg-[#131722] rounded-lg border-2 border-[#544738] shadow-inner h-[142px] overflow-hidden"
+		class="relative flex-1 min-w-[280px] max-w-[500px] flex flex-col justify-between px-4 py-2 bg-[#131722] rounded-lg border-2 border-[#544738] shadow-inner h-[142px] overflow-hidden"
 		style="box-shadow: inset 0 0 10px rgba(0,0,0,0.8);"
 	>
 		<!-- Header: Entity Name -->
@@ -717,25 +714,27 @@
 
 	<!-- 4. CENTER-RIGHT: Authentic Warcraft III 6-Slot Inventory ("Предмети") -->
 	<div
-		class="flex flex-col items-center justify-between px-2 py-1.5 bg-[#131722] rounded-lg border-2 border-[#544738] shadow-inner shrink-0 w-28 h-[142px]"
+		class="flex flex-col items-center justify-between px-2.5 py-2 bg-[#131722] rounded-lg border-2 border-[#544738] shadow-inner shrink-0 w-28 h-[142px]"
 		style="box-shadow: inset 0 0 10px rgba(0,0,0,0.85);"
 	>
-		<span class="text-[10px] font-bold uppercase tracking-wider text-[#b89758]">Предмети</span>
+		<span class="text-[10px] font-bold uppercase tracking-wider text-[#b89758] leading-none">
+			Предмети
+		</span>
 
 		<!-- 2 columns x 3 rows grid of authentic Warcraft III leather inventory pouches -->
-		<div class="grid grid-cols-2 gap-1.5">
+		<div class="grid grid-cols-2 gap-1 my-auto">
 			{#each [0, 1, 2, 3, 4, 5] as slotIdx}
 				<div
-					class="relative w-9 h-9 rounded bg-gradient-to-b from-[#18130d] to-[#0d0a07] border border-[#5c4934] flex items-center justify-center text-xs shadow-inner cursor-pointer hover:border-[#8c7456] transition"
+					class="relative w-8 h-8 rounded bg-gradient-to-b from-[#18130d] to-[#0d0a07] border border-[#5c4934] flex items-center justify-center text-xs shadow-inner cursor-pointer hover:border-[#8c7456] transition"
 					title={slotIdx === 0 && player.maxFood > 0
 						? 'Золотий Сир (+1 Ліміт їжі)'
 						: 'Порожній слот торби'}
 				>
 					{#if slotIdx === 0 && player.maxFood > 0}
-						<span class="text-base drop-shadow">🧀</span>
+						<span class="text-sm drop-shadow">🧀</span>
 					{:else}
 						<!-- Authentic leather satchel / pouch silhouette -->
-						<svg class="w-5 h-5 text-[#4a3a28] opacity-70" viewBox="0 0 24 24" fill="currentColor">
+						<svg class="w-4 h-4 text-[#4a3a28] opacity-70" viewBox="0 0 24 24" fill="currentColor">
 							<path
 								d="M19 8h-1V5c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v3H5c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM8 5h8v3H8V5zm11 15H5V10h14v10z"
 							/>
