@@ -185,7 +185,7 @@ export class BotAI {
 		return score;
 	}
 
-	private makeDecision(): void {
+	public makeDecision(): void {
 		const player = this.getPlayer();
 		if (!player || !player.isBot) return;
 
@@ -208,6 +208,24 @@ export class BotAI {
 		// 0. Base Breach Defense & Evacuation: if enemies breached courtyard
 		const enemyTeam = this.team === 'west' ? 'east' : 'west';
 		const botWorker = player.worker;
+		const isWorkerBusy =
+			!botWorker ||
+			botWorker.isBuilding ||
+			!!botWorker.targetBuildingId ||
+			(botWorker.buildQueue && botWorker.buildQueue.length > 0) ||
+			botWorker.isRepairing;
+
+		// 00a. Complete any unfinished buildings under construction first!
+		if (botWorker && !botWorker.isBuilding && !botWorker.isRepairing) {
+			const unfinished = this.sim.buildings.find(
+				(b) => b.team === this.team && b.isUnderConstruction
+			);
+			if (unfinished && botWorker.targetBuildingId !== unfinished.instanceId) {
+				const resumed = this.sim.continueConstruction(this.team, unfinished.instanceId, player);
+				if (resumed) return;
+			}
+		}
+
 		const enemiesInCourtyard = this.sim.units.filter(
 			(u) =>
 				u.team === enemyTeam &&
@@ -231,14 +249,8 @@ export class BotAI {
 			}
 		}
 
-		// 0a. Idle worker coin pickup on team base
-		if (
-			botWorker &&
-			enemiesInCourtyard.length === 0 &&
-			!botWorker.isBuilding &&
-			!botWorker.isRepairing &&
-			!botWorker.targetBuildingId
-		) {
+		// 0a. Idle worker coin pickup on team base (only if worker is not busy)
+		if (botWorker && enemiesInCourtyard.length === 0 && !isWorkerBusy) {
 			const nearbyCoin = this.sim.goldCoins.find(
 				(c) =>
 					(this.team === 'west' ? c.x <= 1500 : c.x >= ARENA_WIDTH - 1500) &&
@@ -249,15 +261,8 @@ export class BotAI {
 			}
 		}
 
-		// 0c. Idle worker repairing damaged friendly buildings and towers
-		if (
-			botWorker &&
-			enemiesInCourtyard.length === 0 &&
-			!botWorker.isBuilding &&
-			!botWorker.isRepairing &&
-			!botWorker.targetBuildingId &&
-			player.gold >= 30
-		) {
+		// 0c. Idle worker repairing damaged friendly buildings and towers (only if not busy)
+		if (botWorker && enemiesInCourtyard.length === 0 && !isWorkerBusy && player.gold >= 30) {
 			const damagedBld = this.sim.buildings.find(
 				(b) => b.team === this.team && !b.isUnderConstruction && b.hp < b.maxHp * 0.85
 			);
@@ -386,6 +391,11 @@ export class BotAI {
 			return;
 		}
 
+		// Avoid spamming build orders if worker already has pending queue
+		if (botWorker?.buildQueue && botWorker.buildQueue.length >= 1) {
+			return;
+		}
+
 		// 6. Building candidate selection using Diversity Quota and High-Rank Priority
 		const chosenBuilding = this.chooseBuildingCandidate(
 			player,
@@ -403,7 +413,21 @@ export class BotAI {
 		if (!chosenSlot) return;
 
 		const lane: Lane = chosenSlot.y < 35 ? 'top' : 'bottom';
-		this.sim.build(this.team, chosenBuilding.id, chosenSlot.x, chosenSlot.y, lane, player);
+		const shiftKey = !!(
+			botWorker &&
+			(botWorker.isBuilding ||
+				botWorker.targetBuildingId ||
+				(botWorker.buildQueue && botWorker.buildQueue.length > 0))
+		);
+		this.sim.build(
+			this.team,
+			chosenBuilding.id,
+			chosenSlot.x,
+			chosenSlot.y,
+			lane,
+			player,
+			shiftKey
+		);
 	}
 
 	/**

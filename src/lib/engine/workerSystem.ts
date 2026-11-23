@@ -1468,6 +1468,16 @@ export class WorkerSystem {
 					continue;
 				}
 
+				// Auto-resume any abandoned uncompleted construction on team buildings
+				const unfinished = this.sim.buildings.find(
+					(b) => b.team === team && b.isUnderConstruction && b.instanceId !== w.targetBuildingId
+				);
+				if (unfinished && !w.targetRepairBuildingId) {
+					if (this.continueConstruction(team, unfinished.instanceId, p)) {
+						continue;
+					}
+				}
+
 				if (w.targetRepairBuildingId) {
 					const repTarget =
 						this.sim.buildings.find((b) => b.instanceId === w.targetRepairBuildingId) ||

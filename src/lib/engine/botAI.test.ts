@@ -549,5 +549,95 @@ describe('Point 8: Tactical Counter-Pick Bot AI', () => {
 			const canHitAir = uDef && (uDef.flying || (uDef.range !== null && uDef.range > 120));
 			expect(canHitAir).toBe(true);
 		});
+
+		it('automatically resumes unfinished construction if a building was left incomplete', () => {
+			const player = sim.players.east;
+			player.gold = 500;
+			const worker = player.worker!;
+
+			// Add an unfinished building
+			sim.buildings.push({
+				instanceId: 'bld_unfinished_1',
+				defId: 'h004',
+				name: 'Облогова майстерня',
+				team: 'east',
+				tileX: 170,
+				tileY: 37,
+				x: 5500,
+				y: 1200,
+				hp: 195,
+				maxHp: 1300,
+				armor: 5,
+				armorType: 'fort',
+				goldCost: 210,
+				spawnUnitId: 'hmtm',
+				spawnCooldown: 25,
+				spawnTimer: 25,
+				lane: 'bottom',
+				upgradeFrom: null,
+				race: 'Люди',
+				isUnderConstruction: true,
+				buildProgress: 0.1,
+				maxBuildProgress: 2.5
+			});
+
+			// Worker is idle somewhere else
+			worker.isBuilding = false;
+			worker.isRepairing = false;
+			worker.targetBuildingId = null;
+			worker.buildQueue = [];
+
+			botAI.makeDecision();
+
+			// Bot should immediately set worker to resume construction on unfinished building
+			expect(worker.targetBuildingId).toBe('bld_unfinished_1');
+		});
+
+		it('queues building construction instead of interrupting worker while busy', () => {
+			const player = sim.players.east;
+			player.gold = 400;
+			player.forge = { econ: 2, attack: 5, armor: 4 };
+			player.race = 'Люди';
+			const worker = player.worker!;
+
+			// Active building being built
+			const activeBld: import('./types').Building = {
+				instanceId: 'bld_active',
+				defId: 'h000',
+				name: 'Казарми',
+				team: 'east',
+				tileX: 170,
+				tileY: 37,
+				x: 5500,
+				y: 1200,
+				hp: 100,
+				maxHp: 1000,
+				armor: 5,
+				armorType: 'fort',
+				goldCost: 160,
+				spawnUnitId: 'hfoo',
+				spawnCooldown: 20,
+				spawnTimer: 20,
+				lane: 'bottom',
+				upgradeFrom: null,
+				race: 'Люди',
+				isUnderConstruction: true,
+				buildProgress: 0.5,
+				maxBuildProgress: 2.5
+			};
+			sim.buildings.push(activeBld);
+
+			// Worker is currently busy building
+			worker.isBuilding = true;
+			worker.targetBuildingId = 'bld_active';
+			worker.buildQueue = [];
+
+			botAI.makeDecision();
+
+			// A new building should be queued in buildQueue, not interrupting current isBuilding
+			expect(worker.isBuilding).toBe(true);
+			expect(worker.targetBuildingId).toBe('bld_active');
+			expect(worker.buildQueue.length).toBeGreaterThanOrEqual(1);
+		});
 	});
 });

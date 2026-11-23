@@ -73,10 +73,11 @@ export class EntityRenderer {
 			g.lineTo(px + CELL_SIZE - 2, py + half - 2);
 			g.stroke({ color: 0x334155, width: 1.5, alpha: 0.6 });
 
-			// 3. Steep-Pitched 2.5D Shingled Roof with Player Color
-			const playerSlotColor = b.playerSlot ? WC3_PLAYER_COLORS[b.playerSlot - 1]?.num : null;
-			const playerColor =
-				playerSlotColor ?? this.sim.players[b.team]?.color?.num ?? (isWest ? 0x0042ff : 0xff0303);
+			// 3. Steep-Pitched 2.5D Shingled Roof with Real Player/Bot Color
+			const player = b.playerSlot
+				? this.sim.allPlayers.find((p) => p.slot === b.playerSlot)
+				: this.sim.players[b.team];
+			const playerColor = player?.color?.num ?? (isWest ? 0x0042ff : 0xff0303);
 
 			g.roundRect(px + 6, py + 5, CELL_SIZE - 12, CELL_SIZE - 14, 5);
 			g.fill({ color: playerColor });
@@ -335,7 +336,10 @@ export class EntityRenderer {
 	): void {
 		const cx = castle.x;
 		const cy = castle.y;
-		const teamColor = this.sim.players[castle.team]?.color?.num || (isWest ? 0x0042ff : 0xff0303);
+		const teamColor =
+			castle.color?.num ||
+			this.sim.players[castle.team]?.color?.num ||
+			(isWest ? 0x0042ff : 0xff0303);
 
 		// 1. 2.5D Drop Shadow on stone plaza
 		g.beginPath();
@@ -654,10 +658,14 @@ export class EntityRenderer {
 
 			const isWest = u.team === 'west';
 			const isNeutral = u.team === 'neutral';
-			const playerSlotColor = u.playerSlot ? WC3_PLAYER_COLORS[u.playerSlot - 1]?.num : null;
+			const unitPlayer = u.playerSlot
+				? this.sim.allPlayers.find((p) => p.slot === u.playerSlot)
+				: u.team !== 'neutral'
+					? this.sim.players[u.team]
+					: null;
 			const unitColor = isNeutral
 				? 0x7e22ce
-				: (playerSlotColor ?? (isWest ? westPlayerColor : eastPlayerColor));
+				: (unitPlayer?.color?.num ?? (isWest ? westPlayerColor : eastPlayerColor));
 			const dir = isNeutral ? 1 : isWest ? 1 : -1;
 
 			const isSelected =

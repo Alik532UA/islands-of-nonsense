@@ -9,7 +9,8 @@ describe('Point 9: Authentic WC3 Team Battle (2v2 and 3v3)', () => {
 			startGold: 500,
 			teamSize: 2,
 			westRace: 'Люди',
-			eastRace: 'Орки'
+			eastRace: 'Орки',
+			randomColors: false
 		});
 
 		expect(sim.teamSize).toBe(2);
@@ -71,7 +72,8 @@ describe('Point 9: Authentic WC3 Team Battle (2v2 and 3v3)', () => {
 			startGold: 500,
 			teamSize: 3,
 			westRace: 'Люди',
-			eastRace: 'Орки'
+			eastRace: 'Орки',
+			randomColors: false
 		});
 
 		expect(sim.teamSize).toBe(3);
@@ -242,5 +244,31 @@ describe('Point 9: Authentic WC3 Team Battle (2v2 and 3v3)', () => {
 		expect(p3.lumber).toBe(125);
 		expect(p3.worker?.x).toBe(sim.castles.west.x + 160);
 		expect(p3.worker?.y).toBe(700);
+	});
+
+	it('assigns random WC3 colors to all players and bots by default, and random team color to castles', () => {
+		const sim = new Simulation({
+			botDifficulty: 15,
+			startGold: 500,
+			teamSize: 2
+		});
+
+		// 1. All players have valid distinct WC3 colors
+		const colors = sim.allPlayers.map((p) => p.color);
+		expect(colors.length).toBe(4);
+		for (const c of colors) {
+			expect(WC3_PLAYER_COLORS.some((wc3) => wc3.num === c.num)).toBe(true);
+		}
+		// Colors across active players are unique
+		const colorNums = new Set(colors.map((c) => c.num));
+		expect(colorNums.size).toBe(4);
+
+		// 2. Castles receive a color from one of their team members
+		const westMemberColors = sim.teamMembers.west.map((p) => p.color.num);
+		const eastMemberColors = sim.teamMembers.east.map((p) => p.color.num);
+		expect(sim.castles.west.color).toBeDefined();
+		expect(sim.castles.east.color).toBeDefined();
+		expect(westMemberColors).toContain(sim.castles.west.color!.num);
+		expect(eastMemberColors).toContain(sim.castles.east.color!.num);
 	});
 });

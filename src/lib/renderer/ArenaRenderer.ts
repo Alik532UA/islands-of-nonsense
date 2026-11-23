@@ -919,10 +919,11 @@ export class ArenaRenderer {
 		const hpPct = Math.max(0, Math.min(1, castle.hp / castle.maxHp));
 
 		// Heavy dark border panel
+		const castleBorderColor = castle.color?.num ?? (isWest ? 0x2563eb : 0xdc2626);
 		this.castlesOverlayLayer.beginPath();
 		this.castlesOverlayLayer.roundRect(barX - 2, barY - 2, barW + 4, barH + 4, 3);
 		this.castlesOverlayLayer.fill({ color: 0x090d16, alpha: 0.92 });
-		this.castlesOverlayLayer.stroke({ color: isWest ? 0x2563eb : 0xdc2626, width: 1.5 });
+		this.castlesOverlayLayer.stroke({ color: castleBorderColor, width: 2 });
 
 		// Progress fill
 		if (hpPct > 0) {

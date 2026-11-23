@@ -70,6 +70,7 @@ export interface SimulationConfig {
 	coinMode?: CoinMode;
 	teamSize?: 1 | 2 | 3;
 	botVsBot?: boolean; // Spectator mode: bots play against each other without human player
+	randomColors?: boolean; // Default true: randomizes player and bot colors across match
 	isRunning?: boolean;
 }
 
@@ -619,6 +620,8 @@ export class Simulation {
 		}
 
 		this.allPlayers = [...this.teamMembers.west, ...this.teamMembers.east];
+		this.randomizePlayerColors(config.randomColors === false);
+		this.assignCastleColors();
 		this.bots = [];
 		for (const p of this.allPlayers) {
 			if (p.isBot) {
@@ -634,6 +637,45 @@ export class Simulation {
 
 		// Initialize procedural decorations across both islands
 		this.initDecorations(1337);
+	}
+
+	public randomizePlayerColors(fixed = false): void {
+		if (fixed) {
+			this.allPlayers.forEach((p, index) => {
+				const slotIdx = (p.slot !== undefined ? p.slot - 1 : index) % WC3_PLAYER_COLORS.length;
+				p.color = WC3_PLAYER_COLORS[slotIdx >= 0 ? slotIdx : 0];
+			});
+			return;
+		}
+
+		// Shuffle WC3 12 player colors so all active players and bots receive distinct random colors
+		const pool = [...WC3_PLAYER_COLORS];
+		for (let i = pool.length - 1; i > 0; i--) {
+			const j = Math.floor(Math.random() * (i + 1));
+			[pool[i], pool[j]] = [pool[j], pool[i]];
+		}
+
+		for (let i = 0; i < this.allPlayers.length; i++) {
+			this.allPlayers[i].color = pool[i % pool.length];
+		}
+	}
+
+	public assignCastleColors(): void {
+		const westMembers = this.teamMembers.west;
+		if (westMembers.length > 0) {
+			const pickedWest = westMembers[Math.floor(Math.random() * westMembers.length)];
+			this.castles.west.color = pickedWest.color;
+		} else if (this.players.west) {
+			this.castles.west.color = this.players.west.color;
+		}
+
+		const eastMembers = this.teamMembers.east;
+		if (eastMembers.length > 0) {
+			const pickedEast = eastMembers[Math.floor(Math.random() * eastMembers.length)];
+			this.castles.east.color = pickedEast.color;
+		} else if (this.players.east) {
+			this.castles.east.color = this.players.east.color;
+		}
 	}
 
 	public updateBots(dt: number): void {
@@ -785,6 +827,11 @@ export class Simulation {
 		this.buildingStats = {};
 		this.lastCastleAttackAlert = { west: -99, east: -99 };
 		this.lastLowCastleHpAlert = { west: -99, east: -99 };
+
+		if (this.config.randomColors !== false) {
+			this.randomizePlayerColors(false);
+		}
+		this.assignCastleColors();
 
 		for (const p of this.allPlayers) {
 			p.forge = { attack: 0, armor: 0, econ: 0 };

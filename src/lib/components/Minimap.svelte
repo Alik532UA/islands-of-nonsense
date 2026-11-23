@@ -79,8 +79,8 @@
 		const scaleX = MAP_WIDTH / ARENA_WIDTH;
 		const scaleY = MAP_HEIGHT / ARENA_HEIGHT;
 
-		const westColor = sim.players.west.color?.hex || '#0042ff';
-		const eastColor = sim.players.east.color?.hex || '#ff0303';
+		const westColor = sim.castles.west.color?.hex || sim.players.west.color?.hex || '#0042ff';
+		const eastColor = sim.castles.east.color?.hex || sim.players.east.color?.hex || '#ff0303';
 
 		// 1. Terrain Ground (Natural Lordaeron Grass without Base Tinting!)
 		if (simpleTerrainMode) {
@@ -213,16 +213,17 @@
 		ctx.lineWidth = 1;
 		ctx.strokeRect(eCastX - 4, eCastY - 8, 8, 16);
 
-		// 3. Placed Buildings (2x2 footprint)
+		// 3. Placed Buildings (2x2 footprint) with real player/bot colors
 		for (const b of sim.buildings) {
 			if (b.team === 'east' && !sim.isPointRevealed('west', b.x, b.y)) continue;
 			const bx = b.x * scaleX;
 			const by = b.y * scaleY;
-			ctx.fillStyle = b.team === 'west' ? westColor : eastColor;
+			const owner = sim.allPlayers.find((p) => p.slot === b.playerSlot) || sim.players[b.team];
+			ctx.fillStyle = owner?.color?.hex || (b.team === 'west' ? westColor : eastColor);
 			ctx.fillRect(bx, by, 4, 4);
 		}
 
-		// 4. Units
+		// 4. Units with real player/bot colors
 		for (const u of sim.units) {
 			if (u.state === 'DEAD') continue;
 			if (u.team !== 'west' && !sim.isPointRevealed('west', u.x, u.y)) continue;
@@ -236,11 +237,13 @@
 				ctx.beginPath();
 				ctx.arc(ux, uy, 3.5, 0, Math.PI * 2);
 				ctx.fill();
-			} else if (u.team === 'west') {
-				ctx.fillStyle = allyColorsMode ? '#22c55e' : westColor;
-				ctx.fillRect(ux - 1.5, uy - 1.5, 3, 3);
 			} else {
-				ctx.fillStyle = allyColorsMode ? '#ef4444' : eastColor;
+				const owner = sim.allPlayers.find((p) => p.slot === u.playerSlot) || sim.players[u.team];
+				ctx.fillStyle = allyColorsMode
+					? u.team === 'west'
+						? '#22c55e'
+						: '#ef4444'
+					: owner?.color?.hex || (u.team === 'west' ? westColor : eastColor);
 				ctx.fillRect(ux - 1.5, uy - 1.5, 3, 3);
 			}
 		}

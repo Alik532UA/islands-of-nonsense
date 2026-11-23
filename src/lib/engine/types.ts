@@ -392,6 +392,7 @@ export interface Castle {
 	y: number;
 	hp: number;
 	maxHp: number;
+	color?: PlayerColorDef;
 }
 
 export interface ForgeLevels {
