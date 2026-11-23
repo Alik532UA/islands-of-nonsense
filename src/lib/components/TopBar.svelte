@@ -79,38 +79,39 @@
 
 <!-- Authentic Warcraft III Top Bar -->
 <header
-	class="bg-[#11141c] border-b-2 border-[#544738] px-4 py-2 shadow-2xl flex items-center justify-between text-white select-none backdrop-blur z-20 h-14"
+	class="bg-[#11141c] border-b-2 border-[#544738] px-2.5 sm:px-4 py-1.5 shadow-2xl flex items-center justify-between text-white select-none backdrop-blur z-20 h-14 min-w-0 overflow-x-auto overflow-y-hidden"
 	style="background: linear-gradient(180deg, #1b202c 0%, #0d1017 100%); box-shadow: 0 4px 16px rgba(0,0,0,0.8);"
 >
 	<!-- 1. LEFT: Menu Buttons (Довідник F9, Меню, Кузня, Магазин, Здібності) -->
-	<div class="flex items-center gap-2">
+	<div class="flex items-center gap-1.5 shrink-0">
 		<!-- Guide / Manual (F9) -->
 		<button
 			onclick={onOpenCommander}
-			class="flex items-center gap-1.5 bg-[#251e16] hover:bg-[#382d21] border border-[#8c7456] px-2.5 py-1 rounded text-xs font-semibold text-[#fef08a] transition cursor-pointer active:scale-95 shadow"
+			class="flex items-center gap-1 bg-[#251e16] hover:bg-[#382d21] border border-[#8c7456] px-2 py-1 rounded text-xs font-semibold text-[#fef08a] transition cursor-pointer active:scale-95 shadow shrink-0"
 			title="Довідник гри та командир: {commander.name} ({commander.nickname})"
 		>
-			<BookOpen class="w-3.5 h-3.5 text-amber-400" />
-			<span>Довідник (F9)</span>
+			<BookOpen class="w-3.5 h-3.5 text-amber-400 shrink-0" />
+			<span>Довідник</span>
+			<span class="hidden 2xl:inline text-[10px] text-amber-400/80 font-mono">(F9)</span>
 		</button>
 
 		<!-- Game Settings Menu -->
 		<button
 			onclick={onOpenSettings}
-			class="flex items-center gap-1.5 bg-[#251e16] hover:bg-[#382d21] border border-[#8c7456] px-2.5 py-1 rounded text-xs font-semibold text-[#fef08a] transition cursor-pointer active:scale-95 shadow"
+			class="flex items-center gap-1 bg-[#251e16] hover:bg-[#382d21] border border-[#8c7456] px-2 py-1 rounded text-xs font-semibold text-[#fef08a] transition cursor-pointer active:scale-95 shadow shrink-0"
 			title="Меню налаштувань матчу"
 		>
-			<Sliders class="w-3.5 h-3.5 text-amber-400" />
+			<Sliders class="w-3.5 h-3.5 text-amber-400 shrink-0" />
 			<span>Меню</span>
 		</button>
 
 		<!-- War Forge (F) -->
 		<button
 			onclick={onOpenForge}
-			class="flex items-center gap-1.5 bg-[#2a241b] hover:bg-[#3d3427] border border-[#8c7456] px-2.5 py-1 rounded text-xs font-semibold text-amber-200 transition cursor-pointer active:scale-95 shadow"
+			class="flex items-center gap-1 bg-[#2a241b] hover:bg-[#3d3427] border border-[#8c7456] px-2 py-1 rounded text-xs font-semibold text-amber-200 transition cursor-pointer active:scale-95 shadow shrink-0"
 			title="Військова Кузня (Гаряча клавіша: F)"
 		>
-			<Hammer class="w-3.5 h-3.5 text-amber-400" />
+			<Hammer class="w-3.5 h-3.5 text-amber-400 shrink-0" />
 			<span>Кузня</span>
 			{#if player.forge.attack + player.forge.armor + player.forge.econ > 0}
 				<span class="bg-amber-500 text-slate-950 text-[10px] px-1 rounded-full font-bold">
@@ -122,10 +123,10 @@
 		<!-- Castle Shop (B) -->
 		<button
 			onclick={onOpenShop}
-			class="flex items-center gap-1.5 bg-[#172e21] hover:bg-[#1e3d2c] border border-emerald-600/70 px-2.5 py-1 rounded text-xs font-semibold text-emerald-200 transition cursor-pointer active:scale-95 shadow"
+			class="flex items-center gap-1 bg-[#172e21] hover:bg-[#1e3d2c] border border-emerald-600/70 px-2 py-1 rounded text-xs font-semibold text-emerald-200 transition cursor-pointer active:scale-95 shadow shrink-0"
 			title="Магазин замку: припаси та захист (Гаряча клавіша: B)"
 		>
-			<ShoppingBag class="w-3.5 h-3.5 text-emerald-400" />
+			<ShoppingBag class="w-3.5 h-3.5 text-emerald-400 shrink-0" />
 			<span>Магазин</span>
 			<span
 				class="text-[9px] bg-emerald-950 border border-emerald-500/60 px-1 rounded text-emerald-300 font-mono font-bold"
@@ -134,7 +135,7 @@
 			</span>
 		</button>
 
-		<div class="h-6 w-[1px] bg-[#3b3226] mx-1"></div>
+		<div class="h-5 w-[1px] bg-[#3b3226] mx-0.5 shrink-0"></div>
 
 		<!-- Race Ability Quick Button (R) -->
 		<button
@@ -142,12 +143,14 @@
 				if (canCastRaceSkill) sim.useRaceSkill('west');
 			}}
 			disabled={!canCastRaceSkill}
-			class="flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition cursor-pointer {canCastRaceSkill
+			class="flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition cursor-pointer shrink-0 {canCastRaceSkill
 				? 'bg-purple-900/90 hover:bg-purple-800 border border-purple-400 text-purple-100 ring-2 ring-purple-400/50 animate-pulse'
 				: 'bg-[#181d28] border border-slate-700 text-slate-500 cursor-not-allowed opacity-60'}"
 			title="{raceAbility.nameUk}: {raceAbility.descriptionUk} (Гаряча клавіша: R)"
 		>
-			<Sparkles class="w-3.5 h-3.5 {canCastRaceSkill ? 'text-purple-300' : 'text-slate-500'}" />
+			<Sparkles
+				class="w-3.5 h-3.5 shrink-0 {canCastRaceSkill ? 'text-purple-300' : 'text-slate-500'}"
+			/>
 			<span class="truncate max-w-[75px]">{raceAbility.nameUk}</span>
 			{#if raceSkillUnlockLeft > 0}
 				<span class="text-[9px] font-mono text-slate-500">({raceSkillUnlockLeft}с)</span>
@@ -168,13 +171,15 @@
 				if (canUseRescue) sim.triggerRescueStrike('west');
 			}}
 			disabled={!canUseRescue}
-			class="flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition cursor-pointer {canUseRescue
+			class="flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition cursor-pointer shrink-0 {canUseRescue
 				? 'bg-rose-950/90 hover:bg-rose-900 border border-rose-500 text-rose-100 ring-2 ring-rose-500/50'
 				: 'bg-[#181d28] border border-slate-700 text-slate-500 cursor-not-allowed opacity-60'}"
 			title="Рятівний Удар навколо замку (-950 шкоди, Гаряча клавіша: E)"
 		>
 			<Flame
-				class="w-3.5 h-3.5 {canUseRescue ? 'text-rose-400 animate-pulse' : 'text-slate-500'}"
+				class="w-3.5 h-3.5 shrink-0 {canUseRescue
+					? 'text-rose-400 animate-pulse'
+					: 'text-slate-500'}"
 			/>
 			<span class="truncate max-w-[80px]">Рятівний удар</span>
 			{#if rescueCd > 0}
@@ -190,7 +195,7 @@
 	</div>
 
 	<!-- 2. CENTER: Warcraft III Day/Night Dial & Round Banner -->
-	<div class="flex items-center gap-4">
+	<div class="flex items-center gap-2.5 shrink-0 select-none">
 		<!-- Authentic Warcraft III Circular Day/Night Clock Dial -->
 		<div
 			class="relative w-10 h-10 rounded-full border-2 border-[#8c7456] bg-[#0c1017] flex items-center justify-center shadow-lg overflow-hidden shrink-0 transition-colors duration-700 {isDay
@@ -220,40 +225,59 @@
 			</div>
 		</div>
 
-		<!-- Match Banner & Timer -->
-		<div class="text-center">
+		<!-- Match Banner & Timer (Resistant to text wrapping or collapsing) -->
+		<div
+			class="flex flex-col items-center justify-center shrink-0 whitespace-nowrap min-w-[136px] text-center select-none"
+			data-testid="match-status-banner"
+		>
 			<div
-				class="text-[10px] uppercase tracking-wider text-[#d4af37] font-bold flex items-center justify-center gap-1.5"
+				class="text-[10px] uppercase tracking-wider text-[#d4af37] font-bold flex items-center justify-center gap-1.5 whitespace-nowrap"
 			>
-				<span>Раунд {sim.round} • {sim.score.west} : {sim.score.east}</span>
-				<span class="text-[9px] text-[#9ca3af] font-mono">(до {sim.targetWins})</span>
+				<span class="whitespace-nowrap">
+					Раунд {sim.round} • {sim.score.west} : {sim.score.east}
+				</span>
+				<span class="text-[9px] text-[#9ca3af] font-mono whitespace-nowrap">
+					(до {sim.targetWins})
+				</span>
 				<span
-					class="px-1 py-0.2 rounded text-[9px] font-mono font-bold bg-cyan-950/80 text-cyan-300 border border-cyan-700/50"
+					class="px-1 py-0.2 rounded text-[9px] font-mono font-bold bg-cyan-950/80 text-cyan-300 border border-cyan-700/50 whitespace-nowrap"
 					title="Формат: {sim.teamSize} на {sim.teamSize} ({sim.teamSize * 2} гравців)"
 				>
 					{sim.teamSize}v{sim.teamSize}
 				</span>
 			</div>
-			<div class="text-xs font-mono font-bold text-slate-200">
+			<div
+				class="text-xs font-mono font-bold text-slate-200 tracking-wider whitespace-nowrap leading-tight mt-0.5"
+			>
 				{formatTime(sim.gameTime)}
 			</div>
 			{#if sim.activeBossInstanceId}
-				<div class="text-[9px] font-bold text-amber-400 animate-pulse">👑 БОС НА АРЕНІ!</div>
+				<div
+					class="text-[9px] font-bold text-amber-400 animate-pulse whitespace-nowrap leading-tight"
+				>
+					👑 БОС НА АРЕНІ!
+				</div>
 			{:else}
-				<div class="text-[9px] text-slate-500 font-mono">
+				<div class="text-[9px] text-slate-400 font-mono whitespace-nowrap leading-tight">
 					Бос: {Math.max(0, Math.ceil(sim.bossSpawnTimer))}с
 				</div>
 			{/if}
 		</div>
+	</div>
 
+	<!-- 3. RIGHT: Controls, Resources Bar & Castle HP Meters -->
+	<div class="flex items-center gap-2.5 2xl:gap-3.5 shrink-0">
 		<!-- Play / Pause / Speed -->
-		<div class="flex items-center bg-[#0c1017] p-0.5 rounded border border-[#544738] gap-1">
+		<div
+			class="flex items-center bg-[#0c1017] p-0.5 rounded border border-[#544738] gap-1 shrink-0"
+			data-testid="speed-controls"
+		>
 			<button
 				onclick={() => {
 					sim.isRunning = !sim.isRunning;
 					sim.notifyStateChanged();
 				}}
-				class="p-1 rounded hover:bg-[#2a241b] text-slate-300 transition cursor-pointer"
+				class="p-1 rounded hover:bg-[#2a241b] text-slate-300 transition cursor-pointer shrink-0"
 				title={sim.isRunning ? 'Пауза (Пробіл)' : 'Продовжити (Пробіл)'}
 			>
 				{#if sim.isRunning}
@@ -266,7 +290,7 @@
 			<div class="h-3.5 w-px bg-[#544738]/70"></div>
 
 			<!-- Ergonomic Segmented Speed Selector -->
-			<div class="flex items-center gap-0.5">
+			<div class="flex items-center gap-0.5 shrink-0">
 				{#each availableSpeeds as sp}
 					<button
 						onclick={() => {
@@ -277,7 +301,7 @@
 						sp
 							? 'bg-amber-500/25 text-amber-300 border border-amber-500/60 shadow-sm shadow-amber-500/20'
 							: sp >= 10
-								? 'text-cyan-400/80 hover:text-cyan-200 hover:bg-[#2a241b]'
+								? 'text-cyan-400/80 hover:text-cyan-200 hover:bg-[#2a241b] text-[9px] px-1'
 								: 'text-slate-400 hover:text-slate-200 hover:bg-[#2a241b]'}"
 						title={sp >= 10 ? `DEV турбо швидкість x${sp}` : `Швидкість гри x${sp}`}
 					>
@@ -286,28 +310,28 @@
 				{/each}
 			</div>
 		</div>
-	</div>
 
-	<!-- 3. RIGHT: Resources Bar (Gold, Wood/Income, Food, Castle HP) -->
-	<div class="flex items-center gap-5">
 		<!-- Authentic WC3 Resource Boxes -->
 		<div
-			class="flex items-center gap-3.5 bg-[#0c1017] px-3 py-1 rounded-md border border-[#544738] shadow-inner"
+			class="flex items-center gap-2.5 2xl:gap-3 bg-[#0c1017] px-2.5 2xl:px-3 py-1 rounded-md border border-[#544738] shadow-inner shrink-0"
+			data-testid="resource-boxes"
 		>
 			<!-- 🪙 Gold -->
-			<div class="flex items-center gap-1 font-bold text-amber-400" title="Золото гравця">
-				<Coins class="w-4 h-4 text-amber-400" />
+			<div class="flex items-center gap-1 font-bold text-amber-400 shrink-0" title="Золото гравця">
+				<Coins class="w-4 h-4 text-amber-400 shrink-0" />
 				<span class="text-sm font-mono tracking-tight">{playerGold}</span>
 			</div>
 
 			<!-- 💰 Gold Income -->
 			<div
-				class="flex items-center gap-1.5 text-xs text-amber-300 border-l border-[#3b3226] pl-2.5"
+				class="flex items-center gap-1 text-xs text-amber-300 border-l border-[#3b3226] pl-2 shrink-0"
 				title="Періодичний дохід золота: +{westIncome} кожні {sim.incomeInterval}с"
 			>
 				<span class="font-mono font-bold text-amber-400">+{westIncome}</span>
 				<!-- Income progress bar -->
-				<div class="w-12 h-1.5 bg-[#1e2433] rounded-full overflow-hidden border border-[#3b3226]">
+				<div
+					class="w-10 xl:w-12 h-1.5 bg-[#1e2433] rounded-full overflow-hidden border border-[#3b3226]"
+				>
 					<div
 						class="h-full bg-amber-400 transition-all duration-75"
 						style="width: {incomePct}%"
@@ -320,34 +344,44 @@
 			<div
 				class="flex items-center gap-1 text-xs {sim.players.west.lumber > 0
 					? 'text-emerald-300'
-					: 'text-slate-500'} border-l border-[#3b3226] pl-2.5"
+					: 'text-slate-500'} border-l border-[#3b3226] pl-2 shrink-0"
 				title="Запас деревини для вдосконалення технологій та будівель вищого тиру"
 			>
 				<TreePine
-					class="w-3.5 h-3.5 {sim.players.west.lumber > 0 ? 'text-emerald-400' : 'text-slate-500'}"
+					class="w-3.5 h-3.5 shrink-0 {sim.players.west.lumber > 0
+						? 'text-emerald-400'
+						: 'text-slate-500'}"
 				/>
 				<span class="font-mono font-bold">{sim.players.west.lumber}</span>
 			</div>
 
 			<!-- 🥩 Food Cap (Legendary Building Limit) -->
 			<div
-				class="flex items-center gap-1 text-xs border-l border-[#3b3226] pl-2.5 {player.maxFood > 0
+				class="flex items-center gap-1 text-xs border-l border-[#3b3226] pl-2 shrink-0 {player.maxFood >
+				0
 					? 'text-amber-300'
 					: 'text-slate-500'}"
 				title="Ліміт легендарних будівель (Їжа): {player.food}/{player.maxFood}. Збільшуйте ліміт у магазині замку (B)!"
 			>
-				<Crown class="w-3.5 h-3.5 {player.maxFood > 0 ? 'text-amber-400' : 'text-slate-500'}" />
+				<Crown
+					class="w-3.5 h-3.5 shrink-0 {player.maxFood > 0 ? 'text-amber-400' : 'text-slate-500'}"
+				/>
 				<span class="font-mono font-bold">{player.food}/{player.maxFood}</span>
 			</div>
 		</div>
 
 		<!-- Castles HP Meters -->
-		<div class="flex items-center gap-3">
+		<div class="flex items-center gap-2 2xl:gap-3 shrink-0" data-testid="castle-hp-meters">
 			<!-- West Castle HP (Player) -->
-			<div class="w-32" title="Західний Замок (Гравець): {westCastle.hp} / {westCastle.maxHp}">
-				<div class="flex justify-between items-center text-[10px] font-bold mb-0.5">
+			<div
+				class="w-24 xl:w-28 2xl:w-32 shrink-0"
+				title="Західний Замок (Гравець): {westCastle.hp} / {westCastle.maxHp}"
+			>
+				<div
+					class="flex justify-between items-center text-[10px] font-bold mb-0.5 whitespace-nowrap"
+				>
 					<span class="text-blue-400 flex items-center gap-0.5">
-						<Shield class="w-3 h-3 text-blue-400" />
+						<Shield class="w-3 h-3 text-blue-400 shrink-0" />
 						Ваш Замок
 					</span>
 					<span class="text-slate-300 font-mono text-[9px]">{westCastle.hp}</span>
@@ -362,14 +396,16 @@
 
 			<!-- East Castle HP (Enemy Bot) -->
 			<div
-				class="w-32"
+				class="w-24 xl:w-28 2xl:w-32 shrink-0"
 				title="Східний Замок ({sim.players.east.race} Бот): {eastCastle.hp} / {eastCastle.maxHp}"
 			>
-				<div class="flex justify-between items-center text-[10px] font-bold mb-0.5">
+				<div
+					class="flex justify-between items-center text-[10px] font-bold mb-0.5 whitespace-nowrap"
+				>
 					<span class="text-slate-300 font-mono text-[9px]">{eastCastle.hp}</span>
 					<span class="text-rose-400 flex items-center gap-0.5">
 						Замок Ворога
-						<Shield class="w-3 h-3 text-rose-400" />
+						<Shield class="w-3 h-3 text-rose-400 shrink-0" />
 					</span>
 				</div>
 				<div class="h-2 w-full bg-[#0c1017] rounded-full overflow-hidden border border-[#3b3226]">

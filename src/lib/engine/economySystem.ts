@@ -85,7 +85,7 @@ export class EconomySystem {
 					this.sim.addFloatingText(
 						`+${payout}g +${lumberPayout}🪵`,
 						myCastle.x,
-						myCastle.y - 50,
+						myCastle.y - 130,
 						'#fbbf24'
 					);
 				} else if (player.worker) {
