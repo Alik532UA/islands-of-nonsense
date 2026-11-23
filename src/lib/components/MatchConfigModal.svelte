@@ -56,6 +56,91 @@
 		}
 	}
 
+	let activePreset = $derived.by<'classic' | 'sandbox' | 'botVsBot' | 'custom'>(() => {
+		if (
+			botDifficulty === 15 &&
+			startGold === 500 &&
+			teamSize === 1 &&
+			targetWins === 2 &&
+			fogOfWar === true &&
+			coinMode === 'normal' &&
+			!botVsBot &&
+			(westRace === 'in_game' || westRace === 'Люди') &&
+			eastRace === 'random' &&
+			selectedMode === 'standard' &&
+			bannedRaces.length === 0
+		) {
+			return 'classic';
+		}
+		if (
+			botDifficulty === 0 &&
+			startGold === 99999 &&
+			teamSize === 1 &&
+			targetWins === 2 &&
+			!fogOfWar &&
+			coinMode === 'crazy' &&
+			!botVsBot &&
+			selectedMode === 'sandbox' &&
+			bannedRaces.length === 0
+		) {
+			return 'sandbox';
+		}
+		if (
+			botDifficulty === 15 &&
+			startGold === 500 &&
+			teamSize === 1 &&
+			targetWins === 2 &&
+			!fogOfWar &&
+			coinMode === 'normal' &&
+			botVsBot &&
+			selectedMode === 'botVsBot' &&
+			bannedRaces.length === 0
+		) {
+			return 'botVsBot';
+		}
+		return 'custom';
+	});
+
+	function applyPreset(presetId: 'classic' | 'sandbox' | 'botVsBot') {
+		if (presetId === 'classic') {
+			botDifficulty = 15;
+			startGold = 500;
+			teamSize = 1;
+			targetWins = 2;
+			fogOfWar = true;
+			coinMode = 'normal';
+			botVsBot = false;
+			westRace = 'in_game';
+			eastRace = 'random';
+			selectedMode = 'standard';
+			bannedRaces = [];
+		} else if (presetId === 'sandbox') {
+			botDifficulty = 0;
+			startGold = 99999;
+			teamSize = 1;
+			targetWins = 2;
+			fogOfWar = false;
+			coinMode = 'crazy';
+			botVsBot = false;
+			westRace = 'in_game';
+			eastRace = 'random';
+			selectedMode = 'sandbox';
+			bannedRaces = [];
+		} else if (presetId === 'botVsBot') {
+			botDifficulty = 15;
+			startGold = 500;
+			teamSize = 1;
+			targetWins = 2;
+			fogOfWar = false;
+			coinMode = 'normal';
+			botVsBot = true;
+			westRace = 'random';
+			eastRace = 'random';
+			selectedMode = 'botVsBot';
+			bannedRaces = [];
+		}
+	}
+
 	// Synchronize when opened with currentConfig / saved storage
 	$effect(() => {
 		if (isOpen) {
@@ -168,8 +253,76 @@
 
 			<!-- Scrollable Body -->
 			<div
-				class="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 text-xs space-y-6 modal-scrollable-body"
+				class="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 text-xs space-y-5 modal-scrollable-body"
 			>
+				<!-- Top Preset Selector -->
+				<div class="bg-[#121622] border border-slate-800 rounded-2xl p-3">
+					<div class="text-[11px] font-bold text-slate-400 mb-2 flex items-center justify-between">
+						<span>Шаблони конфігурації (Пресети):</span>
+						<span
+							class="text-[10px] font-mono {activePreset === 'custom'
+								? 'text-amber-400 font-bold'
+								: 'text-cyan-400'}"
+						>
+							{activePreset === 'custom' ? '⚙️ Користувацькі правила' : '✓ Стандартний пресет'}
+						</span>
+					</div>
+					<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+						<button
+							type="button"
+							onclick={() => applyPreset('classic')}
+							class="py-2 px-2 rounded-xl border text-center transition cursor-pointer flex items-center justify-center gap-1.5 text-xs font-bold {activePreset ===
+							'classic'
+								? 'bg-amber-500/20 border-amber-500 text-amber-200 ring-1 ring-amber-500/40 shadow-sm'
+								: 'bg-[#181d28] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
+							data-testid="preset-btn-classic"
+						>
+							<span>⚔️</span>
+							<span>Класичний бій</span>
+						</button>
+
+						<button
+							type="button"
+							onclick={() => applyPreset('sandbox')}
+							class="py-2 px-2 rounded-xl border text-center transition cursor-pointer flex items-center justify-center gap-1.5 text-xs font-bold {activePreset ===
+							'sandbox'
+								? 'bg-cyan-500/20 border-cyan-500 text-cyan-200 ring-1 ring-cyan-500/40 shadow-sm'
+								: 'bg-[#181d28] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
+							data-testid="preset-btn-sandbox"
+						>
+							<span>🧪</span>
+							<span>Пісочниця</span>
+						</button>
+
+						<button
+							type="button"
+							onclick={() => applyPreset('botVsBot')}
+							class="py-2 px-2 rounded-xl border text-center transition cursor-pointer flex items-center justify-center gap-1.5 text-xs font-bold {activePreset ===
+							'botVsBot'
+								? 'bg-emerald-500/20 border-emerald-500 text-emerald-200 ring-1 ring-emerald-500/40 shadow-sm'
+								: 'bg-[#181d28] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
+							data-testid="preset-btn-botVsBot"
+						>
+							<span>👁️</span>
+							<span>ШІ проти ШІ</span>
+						</button>
+
+						<!-- Custom Preset: automatically active when params differ! -->
+						<div
+							class="py-2 px-2 rounded-xl border text-center flex items-center justify-center gap-1.5 text-xs font-bold select-none {activePreset ===
+							'custom'
+								? 'bg-purple-500/20 border-purple-500 text-purple-200 ring-1 ring-purple-500/40 shadow-sm'
+								: 'bg-[#131620] border-slate-800/60 text-slate-600'}"
+							data-testid="preset-btn-custom"
+						>
+							<span>⚙️</span>
+							<span>Власний</span>
+							{#if activePreset === 'custom'}
+								<span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse ml-0.5"></span>
+							{/if}
+						</div>
+					</div>
+				</div>
 				<!-- 1. Player & Opponent Race Setup -->
 				<div class="bg-[#121622] border border-slate-800 rounded-2xl p-4 space-y-4">
 					<div class="flex items-center justify-between">

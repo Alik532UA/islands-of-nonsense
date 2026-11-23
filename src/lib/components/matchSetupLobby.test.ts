@@ -2,29 +2,44 @@ import { describe, it, expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-describe('Match Setup Lobby (/play/setup) & MatchConfigModal Invariants', () => {
+describe('Play Modes (/play) & MatchConfigModal Presets Architecture', () => {
+	const playPagePath = path.resolve(process.cwd(), 'src/routes/play/+page.svelte');
 	const setupPagePath = path.resolve(process.cwd(), 'src/routes/play/setup/+page.svelte');
 	const configModalPath = path.resolve(process.cwd(), 'src/lib/components/MatchConfigModal.svelte');
 
+	const playContent = fs.readFileSync(playPagePath, 'utf-8');
 	const setupContent = fs.readFileSync(setupPagePath, 'utf-8');
 	const modalContent = fs.readFileSync(configModalPath, 'utf-8');
 
-	it('contains a single canonical back navigation to play modes without bottom duplicates', () => {
-		expect(setupContent).toContain('data-testid="setup-back-btn"');
-		expect(setupContent).toContain("href={resolve('/play')}");
-		expect(setupContent).not.toContain('Скасувати і вийти');
+	it('Play page displays 4 game modes in a row with responsive layout', () => {
+		expect(playContent).toContain('lg:grid-cols-4');
+		expect(playContent).toContain('data-testid="play-battle-card"');
+		expect(playContent).toContain('data-testid="play-sandbox-card"');
+		expect(playContent).toContain('data-testid="play-spectator-card"');
+		expect(playContent).toContain('data-testid="play-custom-card"');
 	});
 
-	it('provides Progressive Disclosure summary card with interactive pills and configuration button', () => {
-		expect(setupContent).toContain('data-testid="match-lobby-card"');
-		expect(setupContent).toContain('data-testid="setup-config-btn"');
-		expect(setupContent).toContain('data-testid="setup-start-match-btn"');
-		expect(setupContent).toContain('data-testid="summary-pill-difficulty"');
-		expect(setupContent).toContain('data-testid="summary-pill-gold"');
-		expect(setupContent).toContain('data-testid="summary-pill-team"');
-		expect(setupContent).toContain('data-testid="summary-pill-wins"');
-		expect(setupContent).toContain('data-testid="summary-pill-fog"');
-		expect(setupContent).toContain('data-testid="summary-pill-coins"');
+	it('Play page provides quick start actions and quick customize buttons for presets', () => {
+		expect(playContent).toContain('data-testid="play-battle-link"');
+		expect(playContent).toContain('data-testid="play-sandbox-link"');
+		expect(playContent).toContain('data-testid="play-spectator-link"');
+		expect(playContent).toContain('data-testid="customize-btn-vsBot"');
+		expect(playContent).toContain('data-testid="customize-btn-sandbox"');
+		expect(playContent).toContain('data-testid="customize-btn-botVsBot"');
+		expect(playContent).toContain('data-testid="open-custom-config-btn"');
+	});
+
+	it('/play/setup cleanly redirects to canonical /play route', () => {
+		expect(setupContent).toContain("goto(resolve('/play')");
+	});
+
+	it('MatchConfigModal provides top preset switcher with dynamic Custom indicator', () => {
+		expect(modalContent).toContain('data-testid="preset-btn-classic"');
+		expect(modalContent).toContain('data-testid="preset-btn-sandbox"');
+		expect(modalContent).toContain('data-testid="preset-btn-botVsBot"');
+		expect(modalContent).toContain('data-testid="preset-btn-custom"');
+		expect(modalContent).toContain('applyPreset');
+		expect(modalContent).toContain('activePreset');
 	});
 
 	it('MatchConfigModal provides in-game choice as default alongside full race selection without redundant kingdom titles', () => {
@@ -47,11 +62,5 @@ describe('Match Setup Lobby (/play/setup) & MatchConfigModal Invariants', () => 
 		expect(modalContent).toContain('data-testid="gold-btn-');
 		expect(modalContent).toContain('data-testid="teamsize-btn-');
 		expect(modalContent).toContain('data-testid="targetwins-btn-');
-	});
-
-	it('stores match settings and navigates cleanly to battle', () => {
-		expect(setupContent).toContain('data-testid="setup-start-match-btn"');
-		expect(setupContent).toContain("storage.setJSON('match_settings', config)");
-		expect(setupContent).toContain('goto(targetUrl)');
 	});
 });
