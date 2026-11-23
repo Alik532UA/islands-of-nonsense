@@ -2,7 +2,7 @@
   "rules": {
     "__rulesVersion": {
       "$v": {
-        ".read": "auth != null"
+        ".read": "auth != null && $v === '8b882014ed50'"
       }
     },
     "rooms": {
@@ -226,7 +226,9 @@
     },
     "leaders": {
       ".read": "auth != null",
-      ".indexOn": ["score"],
+      ".indexOn": [
+        "score"
+      ],
       "$uid": {
         ".write": "auth != null && $uid === auth.uid",
         ".validate": "newData.hasChildren(['name', 'handle', 'score'])",
