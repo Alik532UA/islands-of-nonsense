@@ -82,7 +82,7 @@ describe('Point 5: Fog of War System & Vision Masking', () => {
 		expect(sim.isPointRevealed('west', 4000 + 800, 1000)).toBe(false);
 	});
 
-	it('Flying units provide extended aerial vision (650px radius vs ground 480px)', () => {
+	it('Flying units provide extended aerial vision (1250px radius vs ground 1100px) and adapt to unit range', () => {
 		// Spawn ground unit in the middle of map (far from base)
 		const groundUnit = sim.spawnUnitDirectly({
 			team: 'west',
@@ -93,10 +93,10 @@ describe('Point 5: Fog of War System & Vision Masking', () => {
 			flying: false
 		});
 
-		// 450px is within ground vision (480px)
-		expect(sim.isPointRevealed('west', groundUnit.x + 450, groundUnit.y)).toBe(true);
-		// 550px away from ground unit is not revealed
-		expect(sim.isPointRevealed('west', groundUnit.x + 550, groundUnit.y)).toBe(false);
+		// 1000px is within ground vision (1100px)
+		expect(sim.isPointRevealed('west', groundUnit.x + 1000, groundUnit.y)).toBe(true);
+		// 1200px away from ground unit is not revealed
+		expect(sim.isPointRevealed('west', groundUnit.x + 1200, groundUnit.y)).toBe(false);
 
 		// Spawn flying unit
 		const flyingUnit = sim.spawnUnitDirectly({
@@ -108,10 +108,24 @@ describe('Point 5: Fog of War System & Vision Masking', () => {
 			flying: true
 		});
 
-		// 550px away from flying unit IS revealed by 650px aerial vision
-		expect(sim.isPointRevealed('west', flyingUnit.x + 550, flyingUnit.y)).toBe(true);
-		// 700px away is beyond 650px
-		expect(sim.isPointRevealed('west', flyingUnit.x + 700, flyingUnit.y)).toBe(false);
+		// 1200px away from flying unit IS revealed by 1250px aerial vision
+		expect(sim.isPointRevealed('west', flyingUnit.x + 1200, flyingUnit.y)).toBe(true);
+		// 1350px away is beyond 1250px
+		expect(sim.isPointRevealed('west', flyingUnit.x + 1350, flyingUnit.y)).toBe(false);
+
+		// Long-range siege unit with range 1300 dynamically reveals (range + 100 = 1400px)
+		const siegeUnit = sim.spawnUnitDirectly({
+			team: 'west',
+			lane: 'mid',
+			x: 3500,
+			y: sim.midLaneY,
+			hp: 400,
+			range: 1300
+		});
+		// 1350px is revealed (within 1400px dynamic vision)
+		expect(sim.isPointRevealed('west', siegeUnit.x + 1350, siegeUnit.y)).toBe(true);
+		// 1450px is beyond 1400px
+		expect(sim.isPointRevealed('west', siegeUnit.x + 1450, siegeUnit.y)).toBe(false);
 	});
 
 	it('Enemy units and structures in fog are masked from team vision', () => {

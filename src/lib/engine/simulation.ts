@@ -1531,9 +1531,11 @@ export class Simulation {
 			}
 		}
 
-		// 4. Team Units / Mobs (480px radius, flying units have 650px aerial vision)
+		// 4. Team Units / Mobs (1100px base ground vision, 1250px flying aerial vision,
+		// dynamically extended to range + 100px so ranged/siege units always see their target)
 		for (const u of this.units) {
-			const radius = u.flying ? 650 : 480;
+			const baseVision = u.flying ? 1250 : 1100;
+			const radius = Math.max(baseVision, (u.range ?? 0) + 100);
 			if (u.team === team && u.state !== 'DEAD' && Math.hypot(u.x - x, u.y - y) <= radius) {
 				return true;
 			}

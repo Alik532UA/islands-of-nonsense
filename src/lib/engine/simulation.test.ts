@@ -198,7 +198,7 @@ describe('Castle Fight Simulation - Lane Separation', () => {
 		// 2. Far away in enemy territory with no units is hidden
 		expect(sim.isPointRevealed('west', sim.castles.east.x, sim.castles.east.y)).toBe(false);
 
-		// 3. Alive West unit reveals area around itself
+		// 3. Alive West unit reveals area around itself (1100px base vision)
 		const unit = sim.spawnUnitDirectly({
 			team: 'west',
 			lane: 'mid',
@@ -207,8 +207,8 @@ describe('Castle Fight Simulation - Lane Separation', () => {
 			hp: 400
 		});
 		expect(sim.isPointRevealed('west', 3600, sim.midLaneY)).toBe(true);
-		expect(sim.isPointRevealed('west', 3800, sim.midLaneY)).toBe(true);
-		expect(sim.isPointRevealed('west', 4400, sim.midLaneY)).toBe(false);
+		expect(sim.isPointRevealed('west', 4400, sim.midLaneY)).toBe(true);
+		expect(sim.isPointRevealed('west', 4900, sim.midLaneY)).toBe(false);
 
 		// 4. Dead unit stops revealing
 		unit.state = 'DEAD';

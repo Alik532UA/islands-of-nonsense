@@ -200,10 +200,11 @@ export class OverlayRenderer {
 			}
 		}
 
-		// D. West Units (Living Mobs advancing across arena, aerial vision for flyers)
+		// D. West Units (1100px base vision, 1250px flying aerial vision, dynamically extended to range + 100px)
 		for (const u of this.sim.units) {
 			if (u.team === 'west' && u.state !== 'DEAD') {
-				const radius = u.flying ? 650 : 480;
+				const baseVision = u.flying ? 1250 : 1100;
+				const radius = Math.max(baseVision, (u.range ?? 0) + 100);
 				addVision(u.x, u.y, radius);
 			}
 		}
