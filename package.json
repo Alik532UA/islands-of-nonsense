@@ -1,6 +1,6 @@
 {
 	"name": "islands-of-nonsense",
-	"version": "0.0.85",
+	"version": "0.0.86",
 	"private": true,
 	"type": "module",
 	"imports": {
@@ -25,6 +25,8 @@
 		"check:build": "npm run check:rules && node scripts/check-build.mjs",
 		"check:bundle": "node scripts/check-bundle.mjs",
 		"test:balance": "vitest run src/lib/engine/balanceRunner.test.ts",
+		"verify": "node scripts/verify-ci.mjs",
+		"check:ci": "node scripts/verify-ci.mjs",
 		"audit:ci": "node scripts/check-audit.mjs",
 		"lint": "npm run lint:format && npm run lint:code",
 		"lint:format": "prettier --check .",
