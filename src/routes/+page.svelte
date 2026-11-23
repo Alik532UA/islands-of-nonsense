@@ -683,7 +683,14 @@
 	<ForgeModal {sim} bind:isOpen={isForgeOpen} />
 	<CommanderModal {sim} bind:isOpen={isCommanderOpen} />
 	<ShopModal {sim} bind:isOpen={isShopOpen} />
-	<VictoryModal {sim} {uiTick} onNextRound={handleNextRound} />
+	<VictoryModal
+		{sim}
+		{uiTick}
+		onNextRound={handleNextRound}
+		onReselectCommander={() => {
+			isCommanderOpen = true;
+		}}
+	/>
 	<StartMatchModal
 		isOpen={isSettingsOpen}
 		currentConfig={sim.config}

@@ -135,4 +135,71 @@ describe('Point 6: Multi-Round Match System (Best of 3 / Best of 5)', () => {
 		expect(sim.winner).toBeNull();
 		expect(sim.stateVersion).toBeGreaterThan(preResetVersion);
 	});
+
+	it('supports commander and race re-selection on round reset', () => {
+		expect(sim.players.west.race).toBe('Люди');
+		expect(sim.players.west.commander).toBe(2); // Alik
+
+		let startedRound: number | null = null;
+		sim.onRoundStart = (r) => {
+			startedRound = r;
+		};
+
+		// Advance to Round 2 with new Race 'Наги' and new Commander 4 (Dan)
+		sim.round++;
+		sim.resetRound({ west: 'Наги' }, { west: 4 });
+
+		expect(sim.round).toBe(2);
+		expect(startedRound).toBe(2);
+		expect(sim.players.west.race).toBe('Наги');
+		expect(sim.players.west.commander).toBe(4);
+		expect(sim.players.west.worker?.name).toBe('Будівельник Наг');
+	});
+
+	it('cleanses all battlefield clutter (corpses, debris, projectiles) on resetRound', () => {
+		// Populate battlefield with entities
+		sim.corpses.push({
+			id: 'corpse_1',
+			x: 1000,
+			y: 500,
+			decayTimer: 15,
+			team: 'west',
+			lane: 'mid',
+			unitDefId: 'h000',
+			name: 'Піхотинець',
+			isFlyer: false
+		});
+		sim.debris.push({
+			id: 'debris_1',
+			x: 1200,
+			y: 500,
+			team: 'west',
+			value: 15,
+			lifeTime: 15
+		});
+		sim.projectiles.push({
+			id: 'proj_1',
+			sourceUnitId: 'src_1',
+			targetUnitId: 'dummy',
+			x: 1100,
+			y: 500,
+			targetX: 1300,
+			targetY: 500,
+			speed: 600,
+			damage: 50,
+			attackType: 'pierce',
+			isCrit: false,
+			team: 'west'
+		});
+
+		expect(sim.corpses.length).toBe(1);
+		expect(sim.debris.length).toBe(1);
+		expect(sim.projectiles.length).toBe(1);
+
+		sim.resetRound();
+
+		expect(sim.corpses.length).toBe(0);
+		expect(sim.debris.length).toBe(0);
+		expect(sim.projectiles.length).toBe(0);
+	});
 });

@@ -5,11 +5,13 @@
 	let {
 		sim,
 		uiTick = 0,
-		onNextRound
+		onNextRound,
+		onReselectCommander
 	}: {
 		sim: Simulation;
 		uiTick?: number;
 		onNextRound: () => void;
+		onReselectCommander?: () => void;
 	} = $props();
 
 	// Explicitly derive from uiTick so Svelte 5 reacts to simulation round/match completion
@@ -248,24 +250,37 @@
 				</div>
 			</div>
 
-			<!-- Action Button -->
-			<button
-				onclick={onNextRound}
-				class="w-full py-3.5 px-6 rounded-xl font-bold text-sm tracking-wide transition flex items-center justify-center gap-2 cursor-pointer shadow-lg {isMatchOver
-					? isWestWin
-						? 'bg-amber-600 hover:bg-amber-500 text-slate-950 shadow-amber-600/30 font-black'
-						: 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/30'
-					: isWestWin
-						? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30'
-						: 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/30'}"
-			>
-				<RotateCcw class="w-4 h-4" />
-				{#if isMatchOver}
-					Розпочати новий матч {!isPaused ? `(${countdown}с)` : ''}
-				{:else}
-					Розпочати раунд {sim.round + 1} {!isPaused ? `(${countdown}с)` : ''}
+			<!-- Action Buttons -->
+			<div class="flex gap-2">
+				{#if !isMatchOver && onReselectCommander}
+					<button
+						type="button"
+						onclick={onReselectCommander}
+						class="py-3 px-4 rounded-xl font-bold text-xs tracking-wide transition flex items-center justify-center gap-1.5 cursor-pointer bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 shadow-lg hover:border-amber-400"
+					>
+						<Crown class="w-4 h-4 text-amber-400" />
+						Командир
+					</button>
 				{/if}
-			</button>
+				<button
+					type="button"
+					onclick={onNextRound}
+					class="flex-1 py-3.5 px-6 rounded-xl font-bold text-sm tracking-wide transition flex items-center justify-center gap-2 cursor-pointer shadow-lg {isMatchOver
+						? isWestWin
+							? 'bg-amber-600 hover:bg-amber-500 text-slate-950 shadow-amber-600/30 font-black'
+							: 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/30'
+						: isWestWin
+							? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30'
+							: 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/30'}"
+				>
+					<RotateCcw class="w-4 h-4" />
+					{#if isMatchOver}
+						Розпочати новий матч {!isPaused ? `(${countdown}с)` : ''}
+					{:else}
+						Розпочати раунд {sim.round + 1} {!isPaused ? `(${countdown}с)` : ''}
+					{/if}
+				</button>
+			</div>
 		</div>
 	</div>
 {/if}

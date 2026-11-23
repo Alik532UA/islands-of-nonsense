@@ -185,6 +185,7 @@ export class Simulation {
 	// Callbacks
 	public onFloatingText?: (text: FloatingText) => void;
 	public onRoundEnd?: (winner: MatchTeam) => void;
+	public onRoundStart?: (roundNumber: number) => void;
 	public onSoundEffect?: (sound: SoundEffectType) => void;
 	public onCastleUnderAttack?: (team: MatchTeam, hpPercent: number) => void;
 	public onBuildingComplete?: (building: Building) => void;
@@ -794,7 +795,10 @@ export class Simulation {
 		return list[0] || null;
 	}
 
-	public resetRound(newRaces?: { west?: string; east?: string }): void {
+	public resetRound(
+		newRaces?: { west?: string; east?: string },
+		newCommanders?: { west?: number; east?: number }
+	): void {
 		this.units = [];
 		this.buildings = [];
 		this.projectiles = [];
@@ -858,6 +862,9 @@ export class Simulation {
 			if (newRaces?.[p.team] && p === this.players[p.team]) {
 				p.race = newRaces[p.team]!;
 			}
+			if (newCommanders?.[p.team] && p === this.players[p.team]) {
+				p.commander = newCommanders[p.team]!;
+			}
 			if (p.worker) {
 				p.worker.name = getBuilderNameForRace(p.race);
 				const isWest = p.team === 'west';
@@ -878,6 +885,7 @@ export class Simulation {
 		}
 
 		this.notifyStateChanged();
+		this.onRoundStart?.(this.round);
 	}
 
 	/**
