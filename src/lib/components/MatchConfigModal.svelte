@@ -6,6 +6,8 @@
 	import {
 		Swords,
 		Bot,
+		Sparkles,
+		Eye,
 		Coins,
 		Trophy,
 		X,
@@ -14,17 +16,20 @@
 		Users,
 		Ban,
 		Shield,
-		Check
+		Check,
+		ArrowLeft
 	} from 'lucide-svelte';
 
 	let {
 		isOpen = false,
+		inline = false,
 		currentConfig,
 		onClose,
 		onSave,
 		onStartMatch
 	}: {
 		isOpen: boolean;
+		inline?: boolean;
 		currentConfig?: Partial<SimulationConfig>;
 		onClose: () => void;
 		onSave?: (config: SimulationConfig) => void;
@@ -206,123 +211,119 @@
 
 <svelte:window onkeydown={handleKeyDown} />
 
-{#if isOpen}
+{#snippet configInner()}
+	<!-- Header (fixed at top) -->
 	<div
-		class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[10000] p-2 sm:p-4 select-none animate-in fade-in duration-150"
-		role="dialog"
-		aria-modal="true"
-		aria-label="Конфігурація матчу"
-		data-testid="match-config-modal"
+		class="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-[#3b3226] bg-[#121622]/90 shrink-0 {inline
+			? 'rounded-t-3xl'
+			: ''}"
 	>
-		<div
-			class="bg-gradient-to-b from-[#181d28] to-[#0d1017] border-2 border-[#8c7456] rounded-3xl w-full max-w-5xl max-h-[92vh] shadow-2xl flex flex-col overflow-hidden text-white"
-			style="box-shadow: 0 0 40px rgba(0,0,0,0.9), inset 0 0 20px rgba(140,116,86,0.15);"
-		>
-			<!-- Header (fixed at top) -->
+		<div class="flex items-center gap-3">
 			<div
-				class="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-[#3b3226] bg-[#121622]/90 shrink-0"
+				class="p-2 bg-amber-500/20 text-amber-400 rounded-xl border border-amber-500/30 shrink-0"
 			>
-				<div class="flex items-center gap-3">
-					<div
-						class="p-2 bg-amber-500/20 text-amber-400 rounded-xl border border-amber-500/30 shrink-0"
-					>
-						<Sliders class="w-5 h-5" />
-					</div>
-					<div>
-						<h2
-							class="text-base sm:text-lg font-black tracking-wide text-amber-300 uppercase"
-							data-testid="config-modal-title"
-						>
-							Конфігурація матчу
-						</h2>
-						<p class="text-xs text-slate-400">
-							Тонкі налаштування рас, правил, складності та балансу гри
-						</p>
-					</div>
-				</div>
-				<button
-					onclick={onClose}
-					class="p-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition cursor-pointer"
-					title="Закрити (Esc)"
-					aria-label="Закрити (Esc)"
-					data-testid="config-modal-close-btn"
-				>
-					<X class="w-5 h-5" />
-				</button>
+				<Sliders class="w-5 h-5" />
 			</div>
+			<div>
+				<h2
+					class="text-base sm:text-lg font-black tracking-wide text-amber-300 uppercase"
+					data-testid="config-modal-title"
+				>
+					Конфігурація матчу
+				</h2>
+				<p class="text-xs text-slate-400">
+					Тонкі налаштування рас, правил, складності та балансу гри
+				</p>
+			</div>
+		</div>
+		<button
+			onclick={onClose}
+			class="py-1.5 px-3 rounded-xl text-xs font-bold text-amber-300 hover:text-white bg-[#1a2336] hover:bg-[#25324d] border border-amber-500/30 transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+			title={inline ? 'Згорнути до вибору режимів' : 'Закрити (Esc)'}
+			aria-label={inline ? 'Згорнути до вибору режимів' : 'Закрити (Esc)'}
+			data-testid="config-modal-close-btn"
+		>
+			{#if inline}
+				<ArrowLeft class="w-4 h-4" />
+				<span>Згорнути до вибору режимів</span>
+			{:else}
+				<X class="w-5 h-5" />
+			{/if}
+		</button>
+	</div>
 
-			<!-- Scrollable Body -->
-			<div
-				class="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 text-xs space-y-5 modal-scrollable-body"
-			>
-				<!-- Top Preset Selector -->
-				<div class="bg-[#121622] border border-slate-800 rounded-2xl p-3">
-					<div class="text-[11px] font-bold text-slate-400 mb-2 flex items-center justify-between">
-						<span>Шаблони конфігурації (Пресети):</span>
-						<span
-							class="text-[10px] font-mono {activePreset === 'custom'
-								? 'text-amber-400 font-bold'
-								: 'text-cyan-400'}"
-						>
-							{activePreset === 'custom' ? '⚙️ Користувацькі правила' : '✓ Стандартний пресет'}
-						</span>
-					</div>
-					<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-						<button
-							type="button"
-							onclick={() => applyPreset('classic')}
-							class="py-2 px-2 rounded-xl border text-center transition cursor-pointer flex items-center justify-center gap-1.5 text-xs font-bold {activePreset ===
-							'classic'
-								? 'bg-amber-500/20 border-amber-500 text-amber-200 ring-1 ring-amber-500/40 shadow-sm'
-								: 'bg-[#181d28] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
-							data-testid="preset-btn-classic"
-						>
-							<span>⚔️</span>
-							<span>Класичний бій</span>
-						</button>
+	<!-- Scrollable Body -->
+	<div
+		class="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 text-xs space-y-5 modal-scrollable-body"
+	>
+		<!-- Top Preset Selector -->
+		<div class="bg-[#121622] border border-slate-800 rounded-2xl p-3">
+			<div class="text-[11px] font-bold text-slate-400 mb-2 flex items-center justify-between">
+				<span>Шаблони конфігурації (Пресети):</span>
+				<span
+					class="text-[10px] font-mono {activePreset === 'custom'
+						? 'text-amber-400 font-bold'
+						: 'text-cyan-400'}"
+				>
+					{activePreset === 'custom' ? '⚙️ Користувацькі правила' : '✓ Стандартний пресет'}
+				</span>
+			</div>
+			<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+				<button
+					type="button"
+					onclick={() => applyPreset('classic')}
+					class="py-2 px-2 rounded-xl border text-center transition cursor-pointer flex items-center justify-center gap-1.5 text-xs font-bold {activePreset ===
+					'classic'
+						? 'bg-amber-500/20 border-amber-500 text-amber-200 ring-1 ring-amber-500/40 shadow-sm'
+						: 'bg-[#181d28] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
+					data-testid="preset-btn-classic"
+				>
+					<Bot class="w-4 h-4 text-amber-400" />
+					<span>Бій проти компʼютера</span>
+				</button>
 
-						<button
-							type="button"
-							onclick={() => applyPreset('sandbox')}
-							class="py-2 px-2 rounded-xl border text-center transition cursor-pointer flex items-center justify-center gap-1.5 text-xs font-bold {activePreset ===
-							'sandbox'
-								? 'bg-cyan-500/20 border-cyan-500 text-cyan-200 ring-1 ring-cyan-500/40 shadow-sm'
-								: 'bg-[#181d28] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
-							data-testid="preset-btn-sandbox"
-						>
-							<span>🧪</span>
-							<span>Пісочниця</span>
-						</button>
+				<button
+					type="button"
+					onclick={() => applyPreset('sandbox')}
+					class="py-2 px-2 rounded-xl border text-center transition cursor-pointer flex items-center justify-center gap-1.5 text-xs font-bold {activePreset ===
+					'sandbox'
+						? 'bg-cyan-500/20 border-cyan-500 text-cyan-200 ring-1 ring-cyan-500/40 shadow-sm'
+						: 'bg-[#181d28] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
+					data-testid="preset-btn-sandbox"
+				>
+					<Sparkles class="w-4 h-4 text-cyan-400" />
+					<span>Пісочниця</span>
+				</button>
 
-						<button
-							type="button"
-							onclick={() => applyPreset('botVsBot')}
-							class="py-2 px-2 rounded-xl border text-center transition cursor-pointer flex items-center justify-center gap-1.5 text-xs font-bold {activePreset ===
-							'botVsBot'
-								? 'bg-emerald-500/20 border-emerald-500 text-emerald-200 ring-1 ring-emerald-500/40 shadow-sm'
-								: 'bg-[#181d28] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
-							data-testid="preset-btn-botVsBot"
-						>
-							<span>👁️</span>
-							<span>ШІ проти ШІ</span>
-						</button>
+				<button
+					type="button"
+					onclick={() => applyPreset('botVsBot')}
+					class="py-2 px-2 rounded-xl border text-center transition cursor-pointer flex items-center justify-center gap-1.5 text-xs font-bold {activePreset ===
+					'botVsBot'
+						? 'bg-emerald-500/20 border-emerald-500 text-emerald-200 ring-1 ring-emerald-500/40 shadow-sm'
+						: 'bg-[#181d28] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
+					data-testid="preset-btn-botVsBot"
+				>
+					<Eye class="w-4 h-4 text-emerald-400" />
+					<span>Битва компʼютерів</span>
+				</button>
 
-						<!-- Custom Preset: automatically active when params differ! -->
-						<div
-							class="py-2 px-2 rounded-xl border text-center flex items-center justify-center gap-1.5 text-xs font-bold select-none {activePreset ===
-							'custom'
-								? 'bg-purple-500/20 border-purple-500 text-purple-200 ring-1 ring-purple-500/40 shadow-sm'
-								: 'bg-[#131620] border-slate-800/60 text-slate-600'}"
-							data-testid="preset-btn-custom"
-						>
-							<span>⚙️</span>
-							<span>Власний</span>
-							{#if activePreset === 'custom'}
-								<span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse ml-0.5"></span>
-							{/if}
-						</div>
-					</div>
+				<!-- Custom Preset: automatically active when params differ! -->
+				<div
+					class="py-2 px-2 rounded-xl border text-center flex items-center justify-center gap-1.5 text-xs font-bold select-none {activePreset ===
+					'custom'
+						? 'bg-purple-500/20 border-purple-500 text-purple-200 ring-1 ring-purple-500/40 shadow-sm'
+						: 'bg-[#131620] border-slate-800/60 text-slate-600'}"
+					data-testid="preset-btn-custom"
+				>
+					<Sliders class="w-4 h-4 text-purple-400" />
+					<span>Власний бій</span>
+					{#if activePreset === 'custom'}
+						<span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse ml-0.5"></span>
+					{/if}
 				</div>
+			</div>
+		</div>
 				<!-- 1. Player & Opponent Race Setup -->
 				<div class="bg-[#121622] border border-slate-800 rounded-2xl p-4 space-y-4">
 					<div class="flex items-center justify-between">
@@ -673,31 +674,65 @@
 				</div>
 			</div>
 
-			<!-- Footer (fixed at bottom) -->
-			<div
-				class="px-5 sm:px-6 py-3.5 border-t border-[#3b3226] bg-[#121622]/90 shrink-0 flex items-center justify-between gap-3"
-			>
-				<button
-					type="button"
-					onclick={onClose}
-					class="py-2.5 px-4 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold transition cursor-pointer text-xs"
-					data-testid="config-modal-cancel-btn"
-				>
-					Скасувати
-				</button>
+	<!-- Footer (fixed at bottom) -->
+	<div
+		class="px-5 sm:px-6 py-3.5 border-t border-[#3b3226] bg-[#121622]/90 shrink-0 flex items-center justify-between gap-3 {inline
+			? 'rounded-b-3xl'
+			: ''}"
+	>
+		<button
+			type="button"
+			onclick={onClose}
+			class="py-2.5 px-4 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold transition cursor-pointer text-xs flex items-center gap-1.5"
+			data-testid="config-modal-cancel-btn"
+		>
+			{#if inline}
+				<ArrowLeft class="w-4 h-4" />
+				<span>Згорнути до карток</span>
+			{:else}
+				Скасувати
+			{/if}
+		</button>
 
-				<button
-					type="button"
-					onclick={handleApply}
-					class="py-2.5 px-6 rounded-xl font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition cursor-pointer shadow-lg shadow-amber-500/20 text-xs flex items-center gap-2"
-					data-testid="config-modal-apply-btn"
-				>
-					<Play class="w-4 h-4 fill-current" />
-					<span>{onStartMatch ? 'Застосувати та розпочати бій' : 'Зберегти конфігурацію'}</span>
-				</button>
+		<button
+			type="button"
+			onclick={handleApply}
+			class="py-2.5 px-6 rounded-xl font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition cursor-pointer shadow-lg shadow-amber-500/20 text-xs flex items-center gap-2"
+			data-testid="config-modal-apply-btn"
+		>
+			<Play class="w-4 h-4 fill-current" />
+			<span>{onStartMatch ? 'Розпочати бій' : 'Зберегти конфігурацію'}</span>
+		</button>
+	</div>
+{/snippet}
+
+{#if isOpen}
+	{#if inline}
+		<!-- INLINE EXPANDED VIEW ON PAGE (no fixed backdrop) -->
+		<div
+			class="w-full max-w-5xl bg-gradient-to-b from-[#181d28] to-[#0d1017] border-2 border-[#8c7456] rounded-3xl shadow-2xl flex flex-col overflow-hidden text-white animate-in fade-in slide-in-from-top-4 duration-300"
+			style="box-shadow: 0 0 40px rgba(0,0,0,0.8), inset 0 0 20px rgba(140,116,86,0.15);"
+			data-testid="match-config-modal"
+		>
+			{@render configInner()}
+		</div>
+	{:else}
+		<!-- MODAL DIALOG POPUP (used during battle pause) -->
+		<div
+			class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[10000] p-2 sm:p-4 select-none animate-in fade-in duration-150"
+			role="dialog"
+			aria-modal="true"
+			aria-label="Конфігурація матчу"
+			data-testid="match-config-modal"
+		>
+			<div
+				class="bg-gradient-to-b from-[#181d28] to-[#0d1017] border-2 border-[#8c7456] rounded-3xl w-full max-w-5xl max-h-[92vh] shadow-2xl flex flex-col overflow-hidden text-white"
+				style="box-shadow: 0 0 40px rgba(0,0,0,0.9), inset 0 0 20px rgba(140,116,86,0.15);"
+			>
+				{@render configInner()}
 			</div>
 		</div>
-	</div>
+	{/if}
 {/if}
 
 <style>
