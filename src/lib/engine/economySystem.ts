@@ -1,8 +1,44 @@
 import type { Simulation } from './simulation';
 import { ARENA_WIDTH, TOP_LANE_Y, BOTTOM_LANE_Y } from './constants';
-import type { MatchTeam, Lane, GoldCoin, PlayerState } from './types';
+import type { MatchTeam, Lane, GoldCoin, PlayerState, Building } from './types';
 import { getRaceAbility } from './raceAbilities';
 import { CASTLE_ITEMS } from './items';
+import { getBuilding, getUnit } from './gameData';
+
+/**
+ * Calculates weighted building value for the WC3 economy formula:
+ * - Regular military spawners: Dx = 0.20 (relative weight 1.0)
+ * - Siege / artillery spawners: ea = 0.18 (relative weight 0.9)
+ * - Special buildings / towers / treasure: To = 0.08 (relative weight 0.4)
+ */
+export function calculateBuildingWeightedValue(b: Building): number {
+	if (b.specialType) {
+		return b.goldCost * 0.4;
+	}
+	const bDef = getBuilding(b.defId);
+	const unitDef = b.spawnUnitId ? getUnit(b.spawnUnitId) : undefined;
+	const isSiege =
+		b.attackType === 'siege' || bDef?.attack_type === 'siege' || unitDef?.attack_type === 'siege';
+	if (isSiege) {
+		return b.goldCost * 0.9;
+	}
+	return b.goldCost * 1.0;
+}
+
+/**
+ * Diminishing returns function from WC3 Castle Fight (pr = 25, 6 tiers with 15% reduction per tier).
+ */
+export function calculateDiminishingReturns(rawVal: number, step = 25, maxSteps = 6): number {
+	let i = rawVal;
+	let j = 0;
+	let k = 0;
+	while (i >= step && k < maxSteps) {
+		i -= step;
+		j += step * (1 - k * 0.15);
+		k += 1;
+	}
+	return j + i * Math.max(0.1, 1 - k * 0.15);
+}
 
 /**
  * EconomySystem manages periodic income formulas, battlefield gold coin drops,
@@ -23,11 +59,13 @@ export class EconomySystem {
 		const player = playerInput || this.sim.players[team];
 		if (!player) return 15;
 
-		const bldValue = this.sim.buildings
-			.filter((b) => b.team === team && (!b.playerId || b.playerId === player.id))
-			.reduce((sum, b) => sum + b.goldCost, 0);
+		const activeBuildings = this.sim.buildings.filter(
+			(b) => b.team === team && (!b.playerId || b.playerId === player.id)
+		);
+		const bldValue = activeBuildings.reduce((sum, b) => sum + calculateBuildingWeightedValue(b), 0);
 
-		const baseIncome = 10 * (0.5 + 0.002 * bldValue);
+		const rawBase = 10 * (0.5 + 0.002 * bldValue);
+		const baseIncome = calculateDiminishingReturns(rawBase);
 		let multiplier = cfM * (1 + 0.1 * player.forge.econ);
 
 		if (player.commander === 1) {
@@ -39,18 +77,14 @@ export class EconomySystem {
 			multiplier *= 1.15;
 		}
 
-		const treasureBoxes = this.sim.buildings.filter(
-			(b) =>
-				b.team === team &&
-				(!b.playerId || b.playerId === player.id) &&
-				b.specialType === 'treasure' &&
-				!b.isUnderConstruction
+		const treasureBoxes = activeBuildings.filter(
+			(b) => b.specialType === 'treasure' && !b.isUnderConstruction
 		).length;
 		if (treasureBoxes > 0) {
 			multiplier *= 1 + 0.2 * treasureBoxes;
 		}
 
-		return Math.max(5, Math.round(baseIncome * multiplier));
+		return Math.max(3, Math.round(baseIncome * multiplier));
 	}
 
 	public updateEconomy(dt: number): void {

@@ -1,6 +1,6 @@
 {
-	"name": "castle-fight-web-pack",
-	"version": "0.0.11",
+	"name": "islands-of-nonsense",
+	"version": "0.0.12",
 	"private": true,
 	"type": "module",
 	"imports": {
