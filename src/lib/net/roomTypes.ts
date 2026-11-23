@@ -104,7 +104,10 @@ export type GoneReason = 'closed' | 'lost';
 export interface RoomTransport {
 	code: string;
 	now(): number;
-	watch(onSnapshot: (snapshot: RoomSnapshot) => void, onGone?: (why: GoneReason) => void): () => void;
+	watch(
+		onSnapshot: (snapshot: RoomSnapshot) => void,
+		onGone?: (why: GoneReason) => void
+	): () => void;
 	append(move: Move): Promise<boolean>;
 	setStatus(status: RoomStatus, roster?: RosterEntry[], config?: RoomConfig): Promise<void>;
 	touch(): Promise<void>;

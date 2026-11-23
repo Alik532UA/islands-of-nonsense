@@ -13,20 +13,12 @@
 
 <div class="menu-page fill min-h-screen">
 	<!-- Game Title & Hero Header -->
-	<header class="w-full max-w-2xl text-center mb-6">
-		<div
-			class="inline-block px-3 py-1 bg-amber-500/10 border border-amber-500/30 rounded-full text-amber-400 text-xs font-semibold uppercase tracking-widest mb-3"
-		>
-			Warcraft III Tactical Auto-Battler
-		</div>
+	<header class="w-full max-w-2xl text-center mb-8">
 		<h1
 			class="text-4xl md:text-5xl font-black text-amber-300 tracking-wider uppercase drop-shadow-md"
 		>
 			{t('menu.title')}
 		</h1>
-		<p class="text-sm md:text-base text-slate-300 mt-2 font-medium">
-			{t('menu.subtitle')}
-		</p>
 	</header>
 
 	<!-- Main Action Tiles: Play & Play Online -->

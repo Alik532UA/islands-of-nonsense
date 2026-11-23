@@ -3,16 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import {
-		ArrowLeft,
-		Swords,
-		Bot,
-		Shield,
-		Coins,
-		Users,
-		Trophy,
-		Check
-	} from 'lucide-svelte';
+	import { ArrowLeft, Swords, Bot, Shield, Coins, Users, Trophy, Check } from 'lucide-svelte';
 	import { RACES_LIST } from '$lib/engine/gameData';
 	import { storage } from '$lib/services/storage';
 	import { settings } from '$lib/services/settings.svelte';
@@ -219,7 +210,9 @@
 		</div>
 
 		<!-- 3. Match Parameters (No dropdowns - interactive buttons/pills) -->
-		<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-3 border-t border-[#3b3226]">
+		<div
+			class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-3 border-t border-[#3b3226]"
+		>
 			<!-- Bot Difficulty -->
 			<div class="space-y-1.5" data-testid="setup-bot-difficulty">
 				<label class="text-xs font-bold text-slate-300 flex items-center gap-1">
@@ -227,16 +220,12 @@
 					Складність бота:
 				</label>
 				<div class="grid grid-cols-2 gap-1.5">
-					{#each [
-						{ val: 0, label: 'Легкий (0)', icon: '🌱' },
-						{ val: 15, label: 'Звичайний (15)', icon: '⚔️' },
-						{ val: 30, label: 'Складний (30)', icon: '🛡️' },
-						{ val: 80, label: 'Божевільний (80)', icon: '🔥' }
-					] as diff}
+					{#each [{ val: 0, label: 'Легкий (0)', icon: '🌱' }, { val: 15, label: 'Звичайний (15)', icon: '⚔️' }, { val: 30, label: 'Складний (30)', icon: '🛡️' }, { val: 80, label: 'Божевільний (80)', icon: '🔥' }] as diff}
 						<button
 							type="button"
 							onclick={() => (botDifficulty = diff.val)}
-							class="py-2 px-1.5 rounded-lg border text-center transition cursor-pointer flex items-center justify-center gap-1 text-[11px] {botDifficulty === diff.val
+							class="py-2 px-1.5 rounded-lg border text-center transition cursor-pointer flex items-center justify-center gap-1 text-[11px] {botDifficulty ===
+							diff.val
 								? 'bg-amber-500/20 border-amber-500 text-amber-200 font-bold ring-1 ring-amber-500/40 shadow-sm'
 								: 'bg-[#181d28] border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
 							data-testid="difficulty-btn-{diff.val}"
@@ -255,23 +244,12 @@
 					Стартове золото:
 				</label>
 				<div class="grid grid-cols-2 gap-1.5">
-					{#each (modeParam === 'sandbox'
-						? [
-							{ val: 500, label: '500 🪙' },
-							{ val: 1000, label: '1000 🪙' },
-							{ val: 2000, label: '2000 🪙' },
-							{ val: 99999, label: '99999 🪙' }
-						]
-						: [
-							{ val: 500, label: '500 🪙' },
-							{ val: 750, label: '750 🪙' },
-							{ val: 1000, label: '1000 🪙' },
-							{ val: 2000, label: '2000 🪙' }
-						]) as gold}
+					{#each modeParam === 'sandbox' ? [{ val: 500, label: '500 🪙' }, { val: 1000, label: '1000 🪙' }, { val: 2000, label: '2000 🪙' }, { val: 99999, label: '99999 🪙' }] : [{ val: 500, label: '500 🪙' }, { val: 750, label: '750 🪙' }, { val: 1000, label: '1000 🪙' }, { val: 2000, label: '2000 🪙' }] as gold}
 						<button
 							type="button"
 							onclick={() => (startGold = gold.val)}
-							class="py-2 px-1.5 rounded-lg border text-center transition cursor-pointer flex items-center justify-center text-[11px] {startGold === gold.val
+							class="py-2 px-1.5 rounded-lg border text-center transition cursor-pointer flex items-center justify-center text-[11px] {startGold ===
+							gold.val
 								? 'bg-amber-500/20 border-amber-500 text-amber-200 font-bold ring-1 ring-amber-500/40 shadow-sm'
 								: 'bg-[#181d28] border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
 							data-testid="gold-btn-{gold.val}"
@@ -289,15 +267,12 @@
 					Формат гри:
 				</label>
 				<div class="grid grid-cols-3 gap-1.5">
-					{#each [
-						{ val: 1 as const, label: '1 на 1', sub: 'Соло' },
-						{ val: 2 as const, label: '2 на 2', sub: 'Командна' },
-						{ val: 3 as const, label: '3 на 3', sub: 'Масова' }
-					] as fmt}
+					{#each [{ val: 1 as const, label: '1 на 1', sub: 'Соло' }, { val: 2 as const, label: '2 на 2', sub: 'Командна' }, { val: 3 as const, label: '3 на 3', sub: 'Масова' }] as fmt}
 						<button
 							type="button"
 							onclick={() => (teamSize = fmt.val)}
-							class="py-2 px-1 rounded-lg border text-center transition cursor-pointer flex flex-col items-center justify-center {teamSize === fmt.val
+							class="py-2 px-1 rounded-lg border text-center transition cursor-pointer flex flex-col items-center justify-center {teamSize ===
+							fmt.val
 								? 'bg-cyan-500/20 border-cyan-500 text-cyan-200 font-bold ring-1 ring-cyan-500/40 shadow-sm'
 								: 'bg-[#181d28] border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
 							data-testid="teamsize-btn-{fmt.val}"
@@ -316,15 +291,12 @@
 					Перемог у матчі:
 				</label>
 				<div class="grid grid-cols-3 gap-1.5">
-					{#each [
-						{ val: 1, label: 'До 1', sub: 'Бліц' },
-						{ val: 2, label: 'До 2', sub: 'Bo3' },
-						{ val: 3, label: 'До 3', sub: 'Bo5' }
-					] as wins}
+					{#each [{ val: 1, label: 'До 1', sub: 'Бліц' }, { val: 2, label: 'До 2', sub: 'Bo3' }, { val: 3, label: 'До 3', sub: 'Bo5' }] as wins}
 						<button
 							type="button"
 							onclick={() => (targetWins = wins.val)}
-							class="py-2 px-1 rounded-lg border text-center transition cursor-pointer flex flex-col items-center justify-center {targetWins === wins.val
+							class="py-2 px-1 rounded-lg border text-center transition cursor-pointer flex flex-col items-center justify-center {targetWins ===
+							wins.val
 								? 'bg-emerald-500/20 border-emerald-500 text-emerald-200 font-bold ring-1 ring-emerald-500/40 shadow-sm'
 								: 'bg-[#181d28] border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
 							data-testid="targetwins-btn-{wins.val}"

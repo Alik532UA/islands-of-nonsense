@@ -78,7 +78,9 @@
 		await controller.signOut();
 	}
 
-	const gameRecord = $derived(controller.playData.games.castlefight ?? { best: 0, plays: 0, wins: 0 });
+	const gameRecord = $derived(
+		controller.playData.games.castlefight ?? { best: 0, plays: 0, wins: 0 }
+	);
 	const winRate = $derived(
 		gameRecord.plays > 0 ? Math.round((gameRecord.wins / gameRecord.plays) * 100) : 0
 	);
@@ -89,7 +91,9 @@
 </svelte:head>
 
 <div class="menu-page fill min-h-[calc(100vh-56px)] py-8 px-4 flex justify-center">
-	<div class="w-full max-w-2xl bg-slate-900/90 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl backdrop-blur-md flex flex-col">
+	<div
+		class="w-full max-w-2xl bg-slate-900/90 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl backdrop-blur-md flex flex-col"
+	>
 		<!-- Header -->
 		<div class="flex items-center justify-between border-b border-slate-800 pb-5 mb-6">
 			<div class="flex items-center gap-4">
@@ -109,7 +113,10 @@
 				type="button"
 				data-testid="tab-profile"
 				onclick={() => (activeTab = 'profile')}
-				class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition {activeTab === 'profile' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-slate-400 hover:text-slate-200'}"
+				class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition {activeTab ===
+				'profile'
+					? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+					: 'text-slate-400 hover:text-slate-200'}"
 			>
 				<User class="w-4 h-4" />
 				<span>{t('account.tab.profile')}</span>
@@ -119,7 +126,10 @@
 				type="button"
 				data-testid="tab-stats"
 				onclick={() => (activeTab = 'stats')}
-				class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition {activeTab === 'stats' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-slate-400 hover:text-slate-200'}"
+				class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition {activeTab ===
+				'stats'
+					? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+					: 'text-slate-400 hover:text-slate-200'}"
 			>
 				<BarChart3 class="w-4 h-4" />
 				<span>{t('account.tab.stats')}</span>
@@ -132,7 +142,10 @@
 					activeTab = 'leaders';
 					void controller.loadLeaders();
 				}}
-				class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition {activeTab === 'leaders' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-slate-400 hover:text-slate-200'}"
+				class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition {activeTab ===
+				'leaders'
+					? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+					: 'text-slate-400 hover:text-slate-200'}"
 			>
 				<Trophy class="w-4 h-4" />
 				<span>{t('account.tab.leaders')}</span>
@@ -140,7 +153,9 @@
 		</div>
 
 		{#if controller.error}
-			<div class="mb-6 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs text-rose-300 flex items-center gap-2">
+			<div
+				class="mb-6 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs text-rose-300 flex items-center gap-2"
+			>
 				<ShieldAlert class="w-4 h-4 text-rose-400 shrink-0" />
 				<span>{controller.error}</span>
 			</div>
@@ -150,7 +165,9 @@
 		{#if activeTab === 'profile'}
 			<div class="space-y-6">
 				<!-- Profile Card -->
-				<div class="flex items-center gap-4 p-4 bg-slate-950/60 border border-slate-800 rounded-2xl">
+				<div
+					class="flex items-center gap-4 p-4 bg-slate-950/60 border border-slate-800 rounded-2xl"
+				>
 					<Avatar avatar={formAvatar} size={40} />
 					<div class="flex-1 min-w-0">
 						<div class="flex items-center gap-2">
@@ -166,7 +183,12 @@
 						</div>
 					</div>
 					<div class="text-right">
-						<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold {controller.state === 'linked' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-800 text-slate-400'}">
+						<span
+							class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold {controller.state ===
+							'linked'
+								? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+								: 'bg-slate-800 text-slate-400'}"
+						>
 							{#if controller.state === 'linked'}
 								<CheckCircle class="w-3 h-3 text-emerald-400" />
 								{t('account.auth.linked')}
@@ -259,7 +281,9 @@
 				<!-- Auth / Cloud Linking Section -->
 				<div class="mt-8 pt-6 border-t border-slate-800">
 					{#if controller.state === 'linked'}
-						<div class="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl flex items-center justify-between">
+						<div
+							class="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl flex items-center justify-between"
+						>
 							<div>
 								<div class="text-xs text-slate-400 font-medium">{t('account.auth.linked')}</div>
 								<div class="text-sm font-bold text-slate-200">{controller.email}</div>
@@ -370,7 +394,9 @@
 						{t('account.leaders.empty')}
 					</div>
 				{:else}
-					<div class="divide-y divide-slate-800/60 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/40">
+					<div
+						class="divide-y divide-slate-800/60 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/40"
+					>
 						{#each controller.leaders as leader, i}
 							<div class="flex items-center gap-3 p-3.5 hover:bg-slate-900/40 transition">
 								<div class="w-7 text-center font-black text-xs text-slate-400">

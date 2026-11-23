@@ -1,4 +1,12 @@
-import type { MatchTeamId, Member, Move, RoomConfig, RoomInfo, RoomSnapshot, RosterEntry } from './roomTypes';
+import type {
+	MatchTeamId,
+	Member,
+	Move,
+	RoomConfig,
+	RoomInfo,
+	RoomSnapshot,
+	RosterEntry
+} from './roomTypes';
 
 export type RawInfo = Omit<RoomInfo, 'roster'> & { roster?: unknown };
 export type RosterRecord = Record<string, { name: string; seat: number; team?: string }>;
@@ -11,7 +19,9 @@ export function rosterToRecord(roster: readonly RosterEntry[]): RosterRecord {
 
 export function rosterFromRecord(record: unknown): RosterEntry[] | undefined {
 	if (typeof record !== 'object' || record === null) return undefined;
-	const entries = Object.entries(record as Record<string, { name?: unknown; seat?: unknown; team?: unknown }>)
+	const entries = Object.entries(
+		record as Record<string, { name?: unknown; seat?: unknown; team?: unknown }>
+	)
 		.filter(([, value]) => typeof value?.name === 'string' && typeof value?.seat === 'number')
 		.sort(
 			([uidA, a], [uidB, b]) =>

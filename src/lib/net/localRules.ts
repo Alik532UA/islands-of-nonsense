@@ -32,7 +32,12 @@ export function moveAllowed(state: RoomState, move: Move, caller?: string): bool
 	const { info, members, moves } = state;
 	if (caller !== undefined && move.by !== caller) return false;
 	if (!members.some((member) => member.uid === move.by)) return false;
-	if (info.status !== 'playing' && move.type !== 'lead' && move.type !== 'CHAT' && move.type !== 'HEARTBEAT') {
+	if (
+		info.status !== 'playing' &&
+		move.type !== 'lead' &&
+		move.type !== 'CHAT' &&
+		move.type !== 'HEARTBEAT'
+	) {
 		return false;
 	}
 	if (!validSeq(move.seq)) return false;

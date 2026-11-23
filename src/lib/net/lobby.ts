@@ -34,10 +34,7 @@ export async function removeFromLobby(db: Database, code: string): Promise<void>
 /**
  * Real-time listener for open public lobby rooms.
  */
-export function subscribeLobby(
-	db: Database,
-	onRooms: (rooms: LobbyRoom[]) => void
-): () => void {
+export function subscribeLobby(db: Database, onRooms: (rooms: LobbyRoom[]) => void): () => void {
 	let cancelled = false;
 	let unsubscribe = () => {};
 

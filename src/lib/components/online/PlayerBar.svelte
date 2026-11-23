@@ -19,7 +19,10 @@
 	<div class="flex items-center gap-3">
 		<Avatar {avatar} size={36} showDefault />
 		<div class="flex flex-col">
-			<label for="player-name-input" class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+			<label
+				for="player-name-input"
+				class="text-[10px] uppercase font-bold text-slate-400 tracking-wider"
+			>
 				{t('online.yourName')}
 			</label>
 			<input
@@ -44,7 +47,9 @@
 			<Dices class="w-5 h-5 text-amber-400" />
 		</button>
 		{#if country}
-			<span class="px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs font-bold text-slate-300 uppercase">
+			<span
+				class="px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs font-bold text-slate-300 uppercase"
+			>
 				{country}
 			</span>
 		{/if}

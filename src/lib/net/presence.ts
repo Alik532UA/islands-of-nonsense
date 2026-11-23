@@ -4,11 +4,7 @@ import { connect } from './firebase';
 /**
  * Manages player presence in a match room.
  */
-export function keepPresence(
-	db: Database,
-	roomCode: string,
-	uid: string
-): () => void {
+export function keepPresence(db: Database, roomCode: string, uid: string): () => void {
 	let cancelled = false;
 	let unsubscribe = () => {};
 

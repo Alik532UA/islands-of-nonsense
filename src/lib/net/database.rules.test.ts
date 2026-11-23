@@ -110,6 +110,43 @@ describe('database.rules.json security invariants & Firebase architecture', () =
 		expect(gameRules.score['.validate']).toContain('newData.val() >= 0');
 	});
 
+	it('protects chat messages with length bounds and sender validation', () => {
+		const raw = readFileSync(rulesPath, 'utf8');
+		const json = JSON.parse(raw);
+		const chat = json.rules.rooms.$code.chat.$msgId;
+
+		expect(chat['.write']).toContain("newData.child('senderUid').val() === auth.uid");
+		expect(chat['.write']).toContain('!data.exists() && newData.exists()');
+		expect(chat.text['.validate']).toContain('newData.val().length <= 200');
+		expect(chat.senderUid['.validate']).toContain('newData.val() === auth.uid');
+	});
+
+	it('enforces strict $other: false schema locking across critical nodes', () => {
+		const raw = readFileSync(rulesPath, 'utf8');
+		const json = JSON.parse(raw);
+
+		expect(json.rules.rooms.$code.info.$other['.validate']).toBe(false);
+		expect(json.rules.rooms.$code.members.$uid.$other['.validate']).toBe(false);
+		expect(json.rules.rooms.$code.moves.$seq.$other['.validate']).toBe(false);
+		expect(json.rules.rooms.$code.moves.$seq.payload.$other['.validate']).toBe(false);
+		expect(json.rules.rooms.$code.presence.$uid.$other['.validate']).toBe(false);
+		expect(json.rules.rooms.$code.chat.$msgId.$other['.validate']).toBe(false);
+		expect(json.rules.lobby.$gameId.$code.$other['.validate']).toBe(false);
+		expect(json.rules.seek.$gameId.$uid.$other['.validate']).toBe(false);
+		expect(json.rules.users.$uid.profile.$other['.validate']).toBe(false);
+		expect(json.rules.users.$uid.play.$other['.validate']).toBe(false);
+		expect(json.rules.leaders.$uid.$other['.validate']).toBe(false);
+	});
+
+	it('protects handle uniqueness and regex requirements', () => {
+		const raw = readFileSync(rulesPath, 'utf8');
+		const json = JSON.parse(raw);
+		const handle = json.rules.handles.$handle;
+
+		expect(handle['.write']).toContain('$handle.matches(/^[a-z0-9_]{3,20}$/)');
+		expect(handle['.validate']).toContain('newData.val() === auth.uid');
+	});
+
 	it('plans database room sweep for stale rooms older than 24 hours', () => {
 		const now = Date.now();
 		const staleTime = now - (SWEEP_MAX_AGE_MS + 1000);

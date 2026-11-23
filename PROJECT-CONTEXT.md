@@ -20,6 +20,7 @@
 | **Маршрутизація та i18n** | 2 мови (`uk` типова, `en`), сувора заборона `ru`                             | `src/lib/i18n/index.ts`                                         |
 | **Захист CSP**            | `mode: 'hash'`, повна політика у `vite.config.ts`                            | `vite.config.ts`, `src/csp-hash.test.ts`                        |
 | **Безпека XSS & Storage** | Заборона сирого `{@html}` та неізольованого `localStorage`                   | `src/security.test.ts`                                          |
+| **Хмарна синхронізація**  | Firebase RTDB (кімнати, лобі, пошук `seek`, присутність, чат) + Auth         | [database.rules.json](database.rules.json), суворий `$other: false`, гейт інваріантів |
 | **Error Boundary**        | `<svelte:boundary>` + `ErrorFallback.svelte`                                 | `src/routes/+layout.svelte`, `src/routes/+error.svelte`         |
 | **Тестування та гейти**   | 52 Vitest сьютів (300+ тестів) + Playwright E2E + Axe a11y                   | `npm test`, `npm run test:e2e`, `check:build`, `audit:ci`       |
 | **CI/CD Автоматизація**   | Deploy + Lighthouse CI + Bundle Budgets                                      | `.github/workflows/deploy.yml`, `lighthouse.yml`, `budgets.yml` |
@@ -33,6 +34,7 @@
 - **Детерміновані реплеї**: Серіалізатор дій матчу `ReplaySerializer` (`src/lib/engine/replaySerializer.ts`) з верифікацією контрольних сум для зберігання та шерінгу боїв.
 - **Headless-турніри та баланс**: Автоматизований рушій `HeadlessBalanceRunner` (`src/lib/engine/balanceRunner.ts`) для симуляції сотень тіків між ботами без DOM за мілісекунди (`npm run test:balance`).
 - **Тактичний бот-супротивник**: Автономний штучний інтелект `BotAI.ts` із динамічними ярусами цін (Tier 0..4), контр-піками типів броні, пріоритетом ППО проти літаючих юнітів та штрафом за дублікати будівель (-60 очок).
+- **Безпека Firebase RTDB**: Повна фіксація схеми через `$other: false` на 11 критичних вузлах, валідація часових вікон серверного часу `now - 60000`, захист чату і присутності, 37 інваріантів у гейті `check:rules` та семантичний штамп `rules:stamp`.
 - **Контроль розміру бандлу**: Скрипт `scripts/check-bundle.mjs` у воркфлоу `budgets.yml` (ліміт: 280 KB gzip JS з PixiJS).
 
 ---

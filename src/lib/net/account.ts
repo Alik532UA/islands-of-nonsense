@@ -17,7 +17,11 @@ export async function accountState(): Promise<AccountState> {
 	return user && !user.isAnonymous ? 'linked' : 'anonymous';
 }
 
-export async function currentUserInfo(): Promise<{ uid: string; email?: string | null; isAnonymous: boolean }> {
+export async function currentUserInfo(): Promise<{
+	uid: string;
+	email?: string | null;
+	isAnonymous: boolean;
+}> {
 	const { auth, uid } = await connect();
 	return {
 		uid,

@@ -1,4 +1,10 @@
-import { AVATAR_KEY, AVATAR_RANDOM_KEY, isAvatar, normaliseAvatar, randomAvatar } from '$lib/config/avatars';
+import {
+	AVATAR_KEY,
+	AVATAR_RANDOM_KEY,
+	isAvatar,
+	normaliseAvatar,
+	randomAvatar
+} from '$lib/config/avatars';
 import { storage } from './storage';
 
 export interface AvatarSnapshot {

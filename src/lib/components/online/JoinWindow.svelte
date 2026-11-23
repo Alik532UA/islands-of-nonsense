@@ -46,9 +46,7 @@
 		</button>
 	</div>
 
-	<p class="text-xs text-slate-400 mb-4">
-		Введіть 4-значний код кімнати, наданий вашим другом:
-	</p>
+	<p class="text-xs text-slate-400 mb-4">Введіть 4-значний код кімнати, наданий вашим другом:</p>
 
 	<div class="mb-6">
 		<input

@@ -60,8 +60,12 @@ export function normaliseAvatar(raw: string | null): string {
 	const parts = raw.split(':');
 	if (parts.length === 2) {
 		const [rawIcon, rawColor] = parts;
-		const icon = KNOWN_ICONS.has(rawIcon) ? rawIcon : AVATAR_ICONS[fnv1a(rawIcon) % AVATAR_ICONS.length];
-		const color = KNOWN_COLORS.has(rawColor) ? rawColor : AVATAR_COLORS[fnv1a(rawColor) % AVATAR_COLORS.length];
+		const icon = KNOWN_ICONS.has(rawIcon)
+			? rawIcon
+			: AVATAR_ICONS[fnv1a(rawIcon) % AVATAR_ICONS.length];
+		const color = KNOWN_COLORS.has(rawColor)
+			? rawColor
+			: AVATAR_COLORS[fnv1a(rawColor) % AVATAR_COLORS.length];
 		return `${icon}:${color}`;
 	}
 	return randomAvatar();

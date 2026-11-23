@@ -28,7 +28,8 @@ const rawRules = readFileSync(RULES_PATH, 'utf8');
 const rulesJson = JSON.parse(rawRules);
 const stamp = computeSemanticHash(rulesJson);
 
-const currentRuleStampMatch = rulesJson.rules?.__rulesVersion?.$v?.['.read']?.match(/\$v === '([a-f0-9]+)'/);
+const currentRuleStampMatch =
+	rulesJson.rules?.__rulesVersion?.$v?.['.read']?.match(/\$v === '([a-f0-9]+)'/);
 const currentRuleStamp = currentRuleStampMatch ? currentRuleStampMatch[1] : null;
 
 let currentTsStamp = null;
@@ -40,7 +41,9 @@ if (existsSync(VERSION_TS_PATH)) {
 
 if (isCheckOnly) {
 	if (currentRuleStamp !== stamp || currentTsStamp !== stamp) {
-		console.error(`❌ Rules stamp mismatch! Computed: ${stamp}, database.rules.json: ${currentRuleStamp}, rulesVersion.ts: ${currentTsStamp}`);
+		console.error(
+			`❌ Rules stamp mismatch! Computed: ${stamp}, database.rules.json: ${currentRuleStamp}, rulesVersion.ts: ${currentTsStamp}`
+		);
 		console.error('Run "npm run rules:stamp" to synchronize.');
 		process.exit(1);
 	}

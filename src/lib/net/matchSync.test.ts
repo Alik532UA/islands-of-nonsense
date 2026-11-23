@@ -223,7 +223,8 @@ describe('MatchSync', () => {
 	});
 
 	it('detects simulation desynchronization through checksum verification', async () => {
-		let desyncDetected: { tick: number; localChecksum: string; remoteChecksum: string } | null = null;
+		let desyncDetected: { tick: number; localChecksum: string; remoteChecksum: string } | null =
+			null;
 
 		const syncA = new MatchSync({
 			sim: simA,

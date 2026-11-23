@@ -55,7 +55,9 @@ describe('«замовити сайт / гру» веде в DigitalWorkshop м�
 
 describe('посилання на VetCrewGames', () => {
 	it('будує правильні адреси для VetCrewGames', () => {
-		expect(siblingUrl('vetcrewgames', 'uk')).toBe('https://alik532ua.github.io/VetCrewGames/?lang=uk');
+		expect(siblingUrl('vetcrewgames', 'uk')).toBe(
+			'https://alik532ua.github.io/VetCrewGames/?lang=uk'
+		);
 		expect(siblingUrl('vetcrewgames', 'en')).toBe('https://alik532ua.github.io/VetCrewGames/en/');
 	});
 });

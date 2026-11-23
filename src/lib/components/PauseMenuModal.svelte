@@ -67,9 +67,7 @@
 				<div class="text-[10px] uppercase tracking-widest text-[#d4af37] font-bold">
 					Castle Fight Web
 				</div>
-				<h2 class="text-xl font-black text-amber-300 uppercase tracking-wide">
-					Пауза / Меню гри
-				</h2>
+				<h2 class="text-xl font-black text-amber-300 uppercase tracking-wide">Пауза / Меню гри</h2>
 			</div>
 
 			<!-- Action Menu Buttons -->

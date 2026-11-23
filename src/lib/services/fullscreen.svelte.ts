@@ -19,7 +19,9 @@ export function canFullscreen(): boolean {
 export function isStandalone(): boolean {
 	if (!browser) return false;
 	const nav = navigator as Navigator & { standalone?: boolean };
-	return nav.standalone === true || window.matchMedia?.('(display-mode: standalone)').matches === true;
+	return (
+		nav.standalone === true || window.matchMedia?.('(display-mode: standalone)').matches === true
+	);
 }
 
 class FullscreenState {
@@ -33,16 +35,16 @@ class FullscreenState {
 
 		if (doc.fullscreenElement || doc.webkitFullscreenElement) {
 			const exit = doc.exitFullscreen ?? doc.webkitExitFullscreen;
-			void exit?.call(doc)?.catch(() => { });
+			void exit?.call(doc)?.catch(() => {});
 			return;
 		}
 
 		const request = root.requestFullscreen ?? root.webkitRequestFullscreen;
-		void request?.call(root)?.catch(() => { });
+		void request?.call(root)?.catch(() => {});
 	}
 
 	watch(): () => void {
-		if (!browser) return () => { };
+		if (!browser) return () => {};
 
 		const sync = () => {
 			const doc = document as FullscreenDocument;

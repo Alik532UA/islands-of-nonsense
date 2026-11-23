@@ -13,18 +13,24 @@
 </script>
 
 <div class="w-full max-w-xl mx-auto mt-6">
-	<h3 class="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+	<h3
+		class="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2"
+	>
 		<Users class="w-4 h-4 text-sky-400" />
 		<span>{t('online.openRooms')}</span>
 		{#if rooms.length > 0}
-			<span class="text-xs px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30 font-semibold">
+			<span
+				class="text-xs px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30 font-semibold"
+			>
 				{rooms.length}
 			</span>
 		{/if}
 	</h3>
 
 	{#if rooms.length === 0}
-		<div class="p-6 bg-slate-800/50 border border-dashed border-slate-700 rounded-xl text-center text-slate-400 text-sm">
+		<div
+			class="p-6 bg-slate-800/50 border border-dashed border-slate-700 rounded-xl text-center text-slate-400 text-sm"
+		>
 			{t('online.noRooms')}
 		</div>
 	{:else}
@@ -39,13 +45,16 @@
 							<div class="flex items-center gap-2">
 								<span class="font-bold text-slate-200 text-sm">{room.hostName}</span>
 								{#if room.hostCountry}
-									<span class="text-[10px] px-1 bg-slate-900 border border-slate-700 rounded text-slate-400 font-mono">
+									<span
+										class="text-[10px] px-1 bg-slate-900 border border-slate-700 rounded text-slate-400 font-mono"
+									>
 										{room.hostCountry}
 									</span>
 								{/if}
 							</div>
 							<div class="text-xs text-slate-400">
-								{room.modeId === 'allRandom' ? 'All Random' : 'Класичний'} · {room.players}/{room.maxPlayers} гравців
+								{room.modeId === 'allRandom' ? 'All Random' : 'Класичний'} · {room.players}/{room.maxPlayers}
+								гравців
 							</div>
 						</div>
 					</div>

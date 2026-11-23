@@ -42,9 +42,7 @@ describe('roomShape', () => {
 		const members = membersFromDb({
 			u1: { name: 'Alice', role: 'player', order: 1 }
 		});
-		expect(members).toEqual([
-			{ uid: 'u1', name: 'Alice', role: 'player', order: 1 }
-		]);
+		expect(members).toEqual([{ uid: 'u1', name: 'Alice', role: 'player', order: 1 }]);
 	});
 
 	it('parses snapshot from db and orders moves numerically', () => {
