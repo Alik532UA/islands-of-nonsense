@@ -393,6 +393,7 @@ export class BuildingSystem {
 			width: 2,
 			height: 2,
 			specialType: bDef.specialType,
+			aura: bDef.aura ? { ...bDef.aura } : undefined,
 			isUnderConstruction: true,
 			buildProgress: 0,
 			maxBuildProgress: buildTime
@@ -597,6 +598,8 @@ export class BuildingSystem {
 		building.initialSpawnDelay = newInitialDelay;
 		building.spawnTimer = Math.min(building.spawnTimer, newInitialDelay);
 		building.upgradeFrom = targetDef.upgrade_from;
+		building.specialType = targetDef.specialType;
+		building.aura = targetDef.aura ? { ...targetDef.aura } : undefined;
 		if (targetDef.race) {
 			building.race = targetDef.race;
 		}
@@ -674,6 +677,51 @@ export class BuildingSystem {
 					castleHealAmount[b.team] += 25;
 				}
 				continue;
+			}
+			if (b.aura) {
+				const auraRadiusSq = b.aura.radius * b.aura.radius;
+				for (const u of this.sim.units) {
+					if (u.team === b.team && u.state !== 'DEAD') {
+						const dx = u.x - b.x;
+						const dy = u.y - b.y;
+						if (dx * dx + dy * dy <= auraRadiusSq) {
+							switch (b.aura.type) {
+								case 'armor': {
+									u.buffs = u.buffs || [];
+									const existing = u.buffs.find(
+										(buf) => buf.type === 'shield' && buf.value === b.aura!.value
+									);
+									if (existing) {
+										existing.timer = 1.5;
+									} else {
+										u.buffs.push({ type: 'shield', timer: 1.5, value: b.aura.value });
+									}
+									break;
+								}
+								case 'heal':
+									u.hp = Math.min(u.maxHp, u.hp + b.aura.value * dt);
+									break;
+								case 'mana':
+									if (u.maxMana && u.mana !== undefined) {
+										u.mana = Math.min(u.maxMana, u.mana + b.aura.value * dt);
+									}
+									break;
+								case 'speed': {
+									u.buffs = u.buffs || [];
+									const existing = u.buffs.find(
+										(buf) => buf.type === 'as' && buf.value === b.aura!.value
+									);
+									if (existing) {
+										existing.timer = 1.5;
+									} else {
+										u.buffs.push({ type: 'as', timer: 1.5, value: b.aura.value });
+									}
+									break;
+								}
+							}
+						}
+					}
+				}
 			}
 			if (b.specialType) {
 				continue;

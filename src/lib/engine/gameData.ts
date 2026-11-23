@@ -57,6 +57,63 @@ export const SPECIAL_BUILDINGS: BuildingDefinition[] = [
 		upgrade_extra_cost: 0,
 		race: null,
 		specialType: 'recycler'
+	},
+	{
+		id: 'h045_altar',
+		name: 'Вівтар Захисту',
+		hp: 1000,
+		armor: 5,
+		armor_type: 'fort',
+		attack_type: 'normal',
+		gold_cost: 220,
+		unit: '',
+		upgrade_from: null,
+		upgrade_extra_cost: 0,
+		race: null,
+		specialType: 'special',
+		aura: {
+			type: 'armor',
+			value: 3,
+			radius: 600
+		}
+	},
+	{
+		id: 'h046_fountain',
+		name: 'Джерело Зцілення',
+		hp: 1000,
+		armor: 5,
+		armor_type: 'fort',
+		attack_type: 'normal',
+		gold_cost: 240,
+		unit: '',
+		upgrade_from: null,
+		upgrade_extra_cost: 0,
+		race: null,
+		specialType: 'special',
+		aura: {
+			type: 'heal',
+			value: 25,
+			radius: 600
+		}
+	},
+	{
+		id: 'h047_obelisk',
+		name: 'Обеліск Мани',
+		hp: 900,
+		armor: 5,
+		armor_type: 'fort',
+		attack_type: 'normal',
+		gold_cost: 200,
+		unit: '',
+		upgrade_from: null,
+		upgrade_extra_cost: 0,
+		race: null,
+		specialType: 'special',
+		aura: {
+			type: 'mana',
+			value: 10,
+			radius: 600
+		}
 	}
 ];
 

@@ -161,6 +161,12 @@ export interface UnitDefinition {
 	abilities?: UnitAbilityDef[];
 }
 
+export interface BuildingAuraDef {
+	type: 'armor' | 'heal' | 'mana' | 'speed';
+	value: number;
+	radius: number;
+}
+
 export interface BuildingDefinition {
 	id: string;
 	name: string;
@@ -175,6 +181,7 @@ export interface BuildingDefinition {
 	upgrade_extra_cost: number;
 	race?: string | null;
 	specialType?: 'treasure' | 'repair' | 'recycler' | 'tower' | 'special';
+	aura?: BuildingAuraDef;
 	initialSpawnDelay?: number;
 	isArtillery?: boolean;
 	cooldown?: number | null;
@@ -386,6 +393,7 @@ export interface Building {
 	buildProgress?: number;
 	maxBuildProgress?: number;
 	specialType?: 'treasure' | 'repair' | 'recycler' | 'tower' | 'special';
+	aura?: BuildingAuraDef;
 	attackCooldown?: number;
 	attackTimer?: number;
 	attackRange?: number;

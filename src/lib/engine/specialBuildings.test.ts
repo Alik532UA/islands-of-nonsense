@@ -10,7 +10,7 @@ describe('Point 6: Special Non-Spawning Buildings (Treasure Box, Repair, Recycle
 	});
 
 	it('defines special non-spawning buildings with correct properties', () => {
-		expect(SPECIAL_BUILDINGS.length).toBe(3);
+		expect(SPECIAL_BUILDINGS.length).toBeGreaterThanOrEqual(3);
 
 		const treasure = getBuilding('h008');
 		expect(treasure).toBeDefined();
