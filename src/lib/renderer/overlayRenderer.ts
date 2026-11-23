@@ -192,17 +192,19 @@ export class OverlayRenderer {
 			}
 		}
 
-		// C. West Buildings
+		// C. West Buildings & Towers
 		for (const b of this.sim.buildings) {
 			if (b.team === 'west') {
-				addVision(b.x + CELL_SIZE / 2, b.y + CELL_SIZE / 2, 500);
+				const radius = b.specialType === 'tower' ? 750 : 500;
+				addVision(b.x + CELL_SIZE / 2, b.y + CELL_SIZE / 2, radius);
 			}
 		}
 
-		// D. West Units (Living Mobs advancing across arena)
+		// D. West Units (Living Mobs advancing across arena, aerial vision for flyers)
 		for (const u of this.sim.units) {
 			if (u.team === 'west' && u.state !== 'DEAD') {
-				addVision(u.x, u.y, 480);
+				const radius = u.flying ? 650 : 480;
+				addVision(u.x, u.y, radius);
 			}
 		}
 

@@ -1469,16 +1469,21 @@ export class Simulation {
 			}
 		}
 
-		// 3. Team Buildings (500px radius)
+		// 3. Team Buildings (500px radius, Towers have extended 750px vision)
 		for (const b of this.buildings) {
-			if (b.team === team && Math.hypot(b.x + CELL_SIZE / 2 - x, b.y + CELL_SIZE / 2 - y) <= 500) {
+			const radius = b.specialType === 'tower' ? 750 : 500;
+			if (
+				b.team === team &&
+				Math.hypot(b.x + CELL_SIZE / 2 - x, b.y + CELL_SIZE / 2 - y) <= radius
+			) {
 				return true;
 			}
 		}
 
-		// 4. Team Units / Mobs (480px radius)
+		// 4. Team Units / Mobs (480px radius, flying units have 650px aerial vision)
 		for (const u of this.units) {
-			if (u.team === team && u.state !== 'DEAD' && Math.hypot(u.x - x, u.y - y) <= 480) {
+			const radius = u.flying ? 650 : 480;
+			if (u.team === team && u.state !== 'DEAD' && Math.hypot(u.x - x, u.y - y) <= radius) {
 				return true;
 			}
 		}

@@ -1079,13 +1079,34 @@ export class EntityRenderer {
 			g.circle(coin.x, coin.y, radius * 0.4);
 			g.fill({ color: 0xfef08a });
 		}
+
+		// 3. Battlefield corpses (skeletons / decaying remains for Necromancy)
+		if (this.sim.corpses) {
+			for (const corpse of this.sim.corpses) {
+				if (enableFog && !this.sim.isPointRevealed('west', corpse.x, corpse.y)) continue;
+				const decayRatio = Math.max(0, Math.min(1, corpse.decayTimer / 20.0));
+				const alpha = 0.2 + 0.6 * decayRatio;
+				// Skeleton bones cross
+				g.beginPath();
+				g.rect(corpse.x - 5, corpse.y - 1.5, 10, 3);
+				g.fill({ color: 0x94a3b8, alpha });
+				g.beginPath();
+				g.rect(corpse.x - 1.5, corpse.y - 5, 3, 10);
+				g.fill({ color: 0x94a3b8, alpha });
+				// Skull indicator
+				g.beginPath();
+				g.circle(corpse.x, corpse.y - 2, 2.5);
+				g.fill({ color: 0xe2e8f0, alpha });
+			}
+		}
 	}
 
-	public drawProjectilesLayer(g: Graphics): void {
+	public drawProjectilesLayer(g: Graphics, enableFog = false): void {
 		g.clear();
 
 		for (const p of this.sim.projectiles) {
 			if (p.damage <= 0) continue;
+			if (enableFog && !this.sim.isPointRevealed('west', p.x, p.y)) continue;
 
 			let z = 0;
 			if (p.originX !== undefined && p.originY !== undefined && p.totalDist && p.arcHeight) {

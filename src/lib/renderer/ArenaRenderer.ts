@@ -741,7 +741,7 @@ export class ArenaRenderer {
 		this.entityRenderer.drawUnitsLayer(this.unitsLayer, selectedEntity, this.enableFog);
 		this.entityRenderer.drawCoinsLayer(this.coinsLayer, this.enableFog);
 		this.renderCastles(selectedEntity);
-		this.entityRenderer.drawProjectilesLayer(this.projectilesLayer);
+		this.entityRenderer.drawProjectilesLayer(this.projectilesLayer, this.enableFog);
 		this.entityRenderer.drawRescueStrikeEffects(this.projectilesLayer);
 		this.entityRenderer.drawLightningEffects(this.projectilesLayer);
 		this.overlayRenderer.drawDayNight(this.dayNightLayer, this.sim.dayNightCycle);
