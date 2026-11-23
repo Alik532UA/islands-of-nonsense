@@ -148,6 +148,7 @@ export class Simulation {
 		radius: number;
 		timer: number;
 		maxTimer: number;
+		kind?: 'rescue' | 'nuke';
 	}[] = [];
 
 	// AoE Splash Effects
@@ -196,6 +197,13 @@ export class Simulation {
 	public onCastleUnderAttack?: (team: MatchTeam, hpPercent: number) => void;
 	public onBuildingComplete?: (building: Building) => void;
 	public onBossSpawn?: (unit: Unit) => void;
+	public onRescueStrikeWarning?: (strike: {
+		team: MatchTeam;
+		x: number;
+		y: number;
+		radius: number;
+		kind: 'rescue' | 'nuke';
+	}) => void;
 
 	// Three Bridges state: 'top' | 'mid' | 'bottom'. One randomly chosen as broken.
 	public brokenBridge: 'top' | 'mid' | 'bottom' | null = 'mid';

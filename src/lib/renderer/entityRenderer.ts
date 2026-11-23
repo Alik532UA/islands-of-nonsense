@@ -1341,11 +1341,53 @@ export class EntityRenderer {
 			const progress = 1 - eff.timer / eff.maxTimer;
 			const currentRadius = eff.radius * Math.min(1, progress * 1.3);
 			const alpha = Math.max(0, 1 - progress);
+			const isNuke = eff.kind === 'nuke';
 
+			// 1. Concentric shockwave explosion ring
 			g.beginPath();
 			g.circle(eff.x, eff.y, currentRadius);
-			g.fill({ color: 0xf97316, alpha: alpha * 0.2 });
-			g.stroke({ color: 0xef4444, width: 4 * (1 - progress) + 1, alpha });
+			g.fill({ color: isNuke ? 0xef4444 : 0xf97316, alpha: alpha * 0.25 });
+			g.stroke({
+				color: isNuke ? 0xff2222 : 0xf59e0b,
+				width: 5 * (1 - progress) + 1.5,
+				alpha
+			});
+
+			// 2. Tactical targeting reticle & crosshair perimeter
+			const reticleColor = isNuke ? 0xff4444 : 0xfbbf24;
+			g.beginPath();
+			g.circle(eff.x, eff.y, eff.radius);
+			g.stroke({ color: reticleColor, width: 2, alpha: alpha * 0.8 });
+
+			// Inner secondary reticle ring
+			g.beginPath();
+			g.circle(eff.x, eff.y, eff.radius * 0.5);
+			g.stroke({ color: reticleColor, width: 1.5, alpha: alpha * 0.5 });
+
+			// Crosshair ticks at cardinal compass points
+			const tickLen = 25;
+			g.beginPath();
+			// Top tick
+			g.moveTo(eff.x, eff.y - eff.radius - tickLen);
+			g.lineTo(eff.x, eff.y - eff.radius + tickLen);
+			// Bottom tick
+			g.moveTo(eff.x, eff.y + eff.radius - tickLen);
+			g.lineTo(eff.x, eff.y + eff.radius + tickLen);
+			// Left tick
+			g.moveTo(eff.x - eff.radius - tickLen, eff.y);
+			g.lineTo(eff.x - eff.radius + tickLen, eff.y);
+			// Right tick
+			g.moveTo(eff.x + eff.radius - tickLen, eff.y);
+			g.lineTo(eff.x + eff.radius + tickLen, eff.y);
+			g.stroke({ color: reticleColor, width: 2.5, alpha: alpha * 0.9 });
+
+			// 3. Epicenter flash
+			if (progress < 0.4) {
+				const flashAlpha = (1 - progress / 0.4) * 0.75;
+				g.beginPath();
+				g.circle(eff.x, eff.y, eff.radius * 0.25);
+				g.fill({ color: 0xffffff, alpha: flashAlpha });
+			}
 		}
 	}
 }

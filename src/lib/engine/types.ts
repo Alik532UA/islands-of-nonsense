@@ -559,4 +559,5 @@ export type SoundEffectType =
 	| 'defeat'
 	| 'errorResource'
 	| 'lowCastleHp'
-	| 'horn';
+	| 'horn'
+	| 'rescueStrike';

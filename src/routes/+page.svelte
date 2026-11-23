@@ -240,6 +240,9 @@
 				case 'horn':
 					sound.playHorn();
 					break;
+				case 'rescueStrike':
+					sound.playRescueStrike();
+					break;
 			}
 		};
 	}

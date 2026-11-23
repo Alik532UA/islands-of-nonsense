@@ -777,7 +777,8 @@ export class EconomySystem {
 					y: enemyCastle.y,
 					radius: 900,
 					timer: 1.5,
-					maxTimer: 1.5
+					maxTimer: 1.5,
+					kind: 'nuke'
 				});
 				for (const u of this.sim.units) {
 					if (u.team === enemyTeam && u.state !== 'DEAD') {
@@ -788,8 +789,20 @@ export class EconomySystem {
 					}
 				}
 				enemyCastle.hp = Math.max(0, enemyCastle.hp - 800);
-				this.sim.addFloatingText('Ядерний Удар!', enemyCastle.x, enemyCastle.y - 70, '#ef4444');
-				this.sim.onSoundEffect?.('hit');
+				this.sim.addFloatingText(
+					'⚠️ ТАКТИЧНИЙ ЯДЕРНИЙ УДАР!',
+					enemyCastle.x,
+					enemyCastle.y - 70,
+					'#ef4444'
+				);
+				this.sim.onSoundEffect?.('rescueStrike');
+				this.sim.onRescueStrikeWarning?.({
+					team,
+					x: enemyCastle.x,
+					y: enemyCastle.y,
+					radius: 900,
+					kind: 'nuke'
+				});
 				break;
 			}
 		}
@@ -819,7 +832,8 @@ export class EconomySystem {
 			y: castle.y,
 			radius,
 			timer: 1.2,
-			maxTimer: 1.2
+			maxTimer: 1.2,
+			kind: 'rescue'
 		});
 
 		let hitCount = 0;
@@ -839,11 +853,19 @@ export class EconomySystem {
 		}
 
 		this.sim.addFloatingText(
-			`РЯТІВНИЙ УДАР! (-${strikeDamage})`,
+			`⚠️ РЯТІВНИЙ УДАР! (-${strikeDamage})`,
 			castle.x,
 			castle.y - 75,
 			'#f97316'
 		);
+		this.sim.onSoundEffect?.('rescueStrike');
+		this.sim.onRescueStrikeWarning?.({
+			team,
+			x: castle.x,
+			y: castle.y,
+			radius,
+			kind: 'rescue'
+		});
 
 		this.sim.notifyStateChanged();
 		return { hitCount, damageDealt };
