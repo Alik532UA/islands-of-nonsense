@@ -227,7 +227,8 @@ export type UnitAbilityType =
 	| 'polymorph'
 	| 'cyclone'
 	| 'banish'
-	| 'mana_shield';
+	| 'mana_shield'
+	| 'dispel';
 
 export interface UnitAbilityDef {
 	id: string;

@@ -31,7 +31,8 @@ export const SPELL_MANA_COSTS: Record<string, number> = {
 	corpse_explosion: 35,
 	polymorph: 60,
 	cyclone: 50,
-	banish: 40
+	banish: 40,
+	dispel: 45
 };
 
 /**
@@ -830,6 +831,82 @@ export class CombatSystem {
 					enemy.buffs = enemy.buffs || [];
 					enemy.buffs.push({ type: 'banish', timer: 6.0, value: 0 });
 					this.sim.addFloatingText('Астрал! 👻', enemy.x, enemy.y - 25, '#2dd4bf');
+				}
+			}
+
+			// Dispel Magic / Purge
+			const hasDispel = u.abilityType === 'dispel' || u.abilities?.some((a) => a.type === 'dispel');
+			const dispelCost = SPELL_MANA_COSTS.dispel ?? 45;
+			if (
+				hasDispel &&
+				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
+				(!u.maxMana || (u.mana ?? 0) >= dispelCost)
+			) {
+				// 1. Search for debuffed ally in range 450
+				const debuffedAlly = this.sim.units.find(
+					(other) =>
+						other.team === u.team &&
+						other.lane === u.lane &&
+						other.state !== 'DEAD' &&
+						Math.hypot(other.x - u.x, other.y - u.y) <= 450 &&
+						(other.buffs?.some((b) =>
+							['slow', 'curse', 'poison', 'infect', 'weakness', 'frost', 'banish'].includes(b.type)
+						) ||
+							other.isEnsnared ||
+							other.isPolymorphed)
+				);
+
+				if (debuffedAlly) {
+					if (u.maxMana && u.mana !== undefined) {
+						u.mana = Math.max(0, u.mana - dispelCost);
+					}
+					u.abilityCooldownTimer = 8.0;
+					debuffedAlly.isEnsnared = false;
+					debuffedAlly.isPolymorphed = false;
+					if (debuffedAlly.buffs) {
+						debuffedAlly.buffs = debuffedAlly.buffs.filter(
+							(b) =>
+								!['slow', 'curse', 'poison', 'infect', 'weakness', 'frost', 'banish'].includes(
+									b.type
+								)
+						);
+					}
+					this.sim.addFloatingText(
+						'Розвіювання! ✨',
+						debuffedAlly.x,
+						debuffedAlly.y - 25,
+						'#22d3ee'
+					);
+				} else {
+					// 2. Search for buffed enemy or summoned unit in range 450
+					const buffedEnemy = this.sim.units.find(
+						(other) =>
+							other.team !== u.team &&
+							other.lane === u.lane &&
+							other.state !== 'DEAD' &&
+							Math.hypot(other.x - u.x, other.y - u.y) <= 450 &&
+							(other.isSummoned ||
+								other.buffs?.some((b) =>
+									['bloodlust', 'inner_fire', 'shield', 'armor_buff', 'dmg', 'as'].includes(b.type)
+								))
+					);
+
+					if (buffedEnemy) {
+						if (u.maxMana && u.mana !== undefined) {
+							u.mana = Math.max(0, u.mana - dispelCost);
+						}
+						u.abilityCooldownTimer = 8.0;
+						if (buffedEnemy.buffs) {
+							buffedEnemy.buffs = buffedEnemy.buffs.filter(
+								(b) =>
+									!['bloodlust', 'inner_fire', 'shield', 'armor_buff', 'dmg', 'as'].includes(b.type)
+							);
+						}
+						if (buffedEnemy.isSummoned) {
+							this.applyUnitDamage(buffedEnemy, 150, 'magic', u.team, false, u);
+						}
+						this.sim.addFloatingText('Очищення! ⚡', buffedEnemy.x, buffedEnemy.y - 25, '#38bdf8');
+					}
 				}
 			}
 

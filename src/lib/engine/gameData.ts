@@ -744,6 +744,19 @@ export const UNIT_ABILITY_CATALOG: Record<UnitAbilityType, Omit<UnitAbilityDef, 
 			'Використовує ману кастера для поглинання 50% отриманої шкоди (1 шкода = 0.5 мани).',
 		descriptionEn: 'Absorbs 50% of incoming damage using caster mana pool (1 dmg = 0.5 mana).',
 		icon: 'ShieldCheck'
+	},
+	dispel: {
+		nameUk: 'Розвіювання магії',
+		nameEn: 'Dispel Magic',
+		type: 'dispel',
+		isPassive: false,
+		cooldown: 8.0,
+		manaCost: 45,
+		descriptionUk:
+			'Знімає негативні ефекти з союзників або позитивні баффи з ворогів. Завдає 150 магічної шкоди закликаним істотам.',
+		descriptionEn:
+			'Dispels negative debuffs from allies or positive buffs from enemies. Deals 150 magic damage to summoned units.',
+		icon: 'Sparkles'
 	}
 };
 
@@ -1054,6 +1067,22 @@ export function getUnitAbilities(def?: UnitDefinition): UnitAbilityDef[] {
 		matchedTypes.add('mana_shield');
 	}
 
+	// 30. Dispel Magic / Purge
+	if (
+		codes.some((c) => ['Adid', 'Adis', 'Acmg', 'A0A9', 'A07R', 'A049'].includes(c)) ||
+		name.includes('диспел') ||
+		name.includes('розвіюван') ||
+		name.includes('очищен') ||
+		name.includes('заклинателька') ||
+		name.includes('троль-чаклун') ||
+		name.includes('чарівний дракончик') ||
+		id === 'h07B' ||
+		id === 'n015' ||
+		id === 'e000'
+	) {
+		matchedTypes.add('dispel');
+	}
+
 	return Array.from(matchedTypes).map((type) => ({
 		id: `abil_${type}`,
 		...UNIT_ABILITY_CATALOG[type]
@@ -1075,6 +1104,14 @@ export function resolveUnitAbility(def?: UnitDefinition): UnitAbilityType {
 
 	if (name.includes('чарівниця') || name.includes('волшебница') || name.includes('чародійка')) {
 		return 'polymorph';
+	}
+	if (
+		name.includes('заклинателька') ||
+		name.includes('троль-чаклун') ||
+		def.id === 'h07B' ||
+		def.id === 'n015'
+	) {
+		return 'dispel';
 	}
 	if (name.includes('прикликач вітру') || name.includes('смерч')) {
 		return 'cyclone';

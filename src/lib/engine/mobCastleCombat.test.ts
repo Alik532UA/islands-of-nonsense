@@ -926,7 +926,11 @@ describe('Mob Castle Assault & Obstacle Navigation without Teleportation', () =>
 		expect(report).toContain('--- COMBAT STATUS & ATTACK ACTIVITY ---');
 		expect(report).toContain('STATE: ATTACKING');
 		expect(report).toContain('RANGE: 1000px');
-		expect(report).toContain('Actively attacking target from range (1000px). Unit is standing still to attack, NOT stuck!');
-		expect(report).toContain('RANGED SIEGE ENGAGEMENT: Unit is bombarding enemy castle from distance');
+		expect(report).toContain(
+			'Actively attacking target from range (1000px). Unit is standing still to attack, NOT stuck!'
+		);
+		expect(report).toContain(
+			'RANGED SIEGE ENGAGEMENT: Unit is bombarding enemy castle from distance'
+		);
 	});
 });
