@@ -30,6 +30,44 @@ export class DefenseSystem {
 		}
 	) {}
 
+	public applyCastleDamageDirect(
+		castle: Castle,
+		finalDamage: number,
+		attacker?: Unit,
+		team?: MatchTeam
+	): void {
+		if (this.sim.castleInvulnerableTimer[castle.team] > 0) {
+			this.sim.addFloatingText('Невразливий!', castle.x, castle.y - 30, '#38bdf8');
+			return;
+		}
+
+		castle.hp = Math.max(0, castle.hp - finalDamage);
+		this.sim.onSoundEffect?.('hit');
+
+		if (this.sim.gameTime - this.sim.lastCastleAttackAlert[castle.team] >= 10.0) {
+			this.sim.lastCastleAttackAlert[castle.team] = this.sim.gameTime;
+			this.sim.onSoundEffect?.('castleUnderAttack');
+			this.sim.onCastleUnderAttack?.(castle.team, castle.hp / castle.maxHp);
+		}
+
+		const attackerTeam = attacker?.team || team;
+		if (attackerTeam === 'west' || attackerTeam === 'east') {
+			this.sim.players[attackerTeam].stats.damageToCastle += finalDamage;
+			this.sim.players[attackerTeam].stats.totalDamageDealt += finalDamage;
+			if (attacker?.buildingDefId) {
+				this.sim.recordBuildingDamage(
+					attacker.buildingDefId,
+					attacker.buildingName || attacker.name,
+					attackerTeam,
+					finalDamage
+				);
+			}
+		}
+
+		this.sim.addFloatingText(`-${finalDamage}`, castle.x, castle.y - 30, '#ef4444');
+		this.sim.notifyStateChanged();
+	}
+
 	public attackCastle(attacker: Unit, castle: Castle): void {
 		if (this.sim.castleInvulnerableTimer[castle.team] > 0) {
 			this.sim.addFloatingText('Невразливий!', castle.x, castle.y - 30, '#38bdf8');
@@ -41,30 +79,44 @@ export class DefenseSystem {
 			attacker.damageMin +
 			Math.floor(Math.random() * (attacker.damageMax - attacker.damageMin + 1));
 		const finalDamage = calculateDamage(attacker.attackType, 'fort', rawDmg, 5);
-		castle.hp = Math.max(0, castle.hp - finalDamage);
-		this.sim.onSoundEffect?.('hit');
 
-		if (this.sim.gameTime - this.sim.lastCastleAttackAlert[castle.team] >= 10.0) {
-			this.sim.lastCastleAttackAlert[castle.team] = this.sim.gameTime;
-			this.sim.onSoundEffect?.('castleUnderAttack');
-			this.sim.onCastleUnderAttack?.(castle.team, castle.hp / castle.maxHp);
-		}
-
-		if (attacker.team === 'west' || attacker.team === 'east') {
-			this.sim.players[attacker.team].stats.damageToCastle += finalDamage;
-			this.sim.players[attacker.team].stats.totalDamageDealt += finalDamage;
-			if (attacker.buildingDefId) {
-				this.sim.recordBuildingDamage(
-					attacker.buildingDefId,
-					attacker.buildingName || attacker.name,
-					attacker.team,
-					finalDamage
-				);
+		if (attacker.range > 150) {
+			const isArtillery = !!(
+				attacker.isArtillery ||
+				attacker.attackType === 'siege' ||
+				['cg1a', 'hmtm', 'e002', 'cg18', 'n01E', 'n01F'].includes(attacker.defId)
+			);
+			const dist = Math.hypot(castle.x - attacker.x, castle.y - attacker.y);
+			this.sim.projectiles.push({
+				id: `proj_${this.sim.nextProjectileId++}`,
+				sourceUnitId: attacker.instanceId,
+				targetUnitId: castle.team === 'west' ? 'castle_west' : 'castle_east',
+				x: attacker.x,
+				y: attacker.y,
+				targetX: castle.x,
+				targetY: castle.y,
+				originX: attacker.x,
+				originY: attacker.y,
+				totalDist: dist,
+				arcHeight: isArtillery ? 95 : attacker.attackType === 'pierce' ? 40 : 15,
+				speed: isArtillery ? 550 : 650,
+				damage: finalDamage,
+				attackType: attacker.attackType,
+				isCrit: false,
+				team: attacker.team,
+				splashRadius: attacker.splashRadius || (isArtillery ? 120 : undefined),
+				isArtillery
+			});
+			if (attacker.attackType === 'magic') {
+				this.sim.onSoundEffect?.('magic');
+			} else if (isArtillery) {
+				this.sim.onSoundEffect?.('attack_siege');
+			} else {
+				this.sim.onSoundEffect?.('bow');
 			}
+		} else {
+			this.applyCastleDamageDirect(castle, finalDamage, attacker);
 		}
-
-		this.sim.addFloatingText(`-${finalDamage}`, castle.x, castle.y - 30, '#ef4444');
-		this.sim.notifyStateChanged();
 	}
 
 	public performAttackBuilding(attacker: Unit, target: Building): void {
@@ -259,6 +311,14 @@ export class DefenseSystem {
 			const targetBuilding = !target
 				? this.sim.buildings.find((b) => b.instanceId === p.targetUnitId)
 				: null;
+			const targetCastle =
+				!target && !targetBuilding && p.targetUnitId?.startsWith('castle')
+					? p.targetUnitId === 'castle_west'
+						? this.sim.castles.west
+						: p.targetUnitId === 'castle_east'
+							? this.sim.castles.east
+							: null
+					: null;
 
 			// Homing vs Artillery:
 			// Non-artillery projectiles track target coordinates continuously.
@@ -301,6 +361,19 @@ export class DefenseSystem {
 						);
 						if (bDist <= radius) {
 							this.damageBuilding(targetBuilding, p.damage, p.attackType, p.team as MatchTeam);
+						}
+					}
+
+					// Castle damage if ground impact point is within radius of target castle
+					if (targetCastle && targetCastle.hp > 0) {
+						const cDist = Math.hypot(targetCastle.x - p.targetX, targetCastle.y - p.targetY) - 110;
+						if (cDist <= radius) {
+							this.applyCastleDamageDirect(
+								targetCastle,
+								p.damage,
+								attackerUnit,
+								p.team as MatchTeam
+							);
 						}
 					}
 
@@ -353,6 +426,8 @@ export class DefenseSystem {
 						}
 					} else if (targetBuilding && targetBuilding.hp > 0) {
 						this.damageBuilding(targetBuilding, p.damage, p.attackType, p.team as MatchTeam);
+					} else if (targetCastle && targetCastle.hp > 0) {
+						this.applyCastleDamageDirect(targetCastle, p.damage, attackerUnit, p.team as MatchTeam);
 					}
 
 					if (p.splashRadius) {

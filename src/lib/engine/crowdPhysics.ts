@@ -6,7 +6,9 @@ import {
 	MID_LANE_Y,
 	BOTTOM_LANE_Y,
 	BRIDGE_SPAN_MIN_X,
-	BRIDGE_SPAN_MAX_X
+	BRIDGE_SPAN_MAX_X,
+	WEST_ROAD_MERGE_X,
+	EAST_ROAD_MERGE_X
 } from './constants';
 
 /**
@@ -161,14 +163,19 @@ export function applyCrowdSeparation(sim: Simulation, dt: number): void {
 						u.y = laneCenterY - maxBridgeOffset;
 					}
 				}
-			} else if (u.x >= 2400 && u.x <= 4800) {
-				// On highway approach: only constrain if already merged onto this lane corridor
-				const maxCorridorOffset = 72;
-				if (Math.abs(u.y - laneCenterY) <= maxCorridorOffset + 20) {
-					if (u.y > laneCenterY + maxCorridorOffset) {
-						u.y = laneCenterY + maxCorridorOffset;
-					} else if (u.y < laneCenterY - maxCorridorOffset) {
-						u.y = laneCenterY - maxCorridorOffset;
+			} else if (u.x >= WEST_ROAD_MERGE_X + 50 && u.x <= EAST_ROAD_MERGE_X - 50) {
+				// On highway approach: only constrain if marching along the corridor (not fighting off-lane targets)
+				const isFightingOffLane =
+					u.currentTargetId !== null ||
+					Boolean(u.targetBuildingId && !u.targetBuildingId.startsWith('castle'));
+				if (!isFightingOffLane) {
+					const maxCorridorOffset = 72;
+					if (Math.abs(u.y - laneCenterY) <= maxCorridorOffset + 20) {
+						if (u.y > laneCenterY + maxCorridorOffset) {
+							u.y = laneCenterY + maxCorridorOffset;
+						} else if (u.y < laneCenterY - maxCorridorOffset) {
+							u.y = laneCenterY - maxCorridorOffset;
+						}
 					}
 				}
 			} else {

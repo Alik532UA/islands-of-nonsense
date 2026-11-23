@@ -1,7 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { Simulation } from './simulation';
 import type { Unit, ArmorType } from './types';
-import { TOP_LANE_Y, MID_LANE_Y, BRIDGE_SPAN_MIN_X } from './constants';
+import {
+	TOP_LANE_Y,
+	MID_LANE_Y,
+	BOTTOM_LANE_Y,
+	BRIDGE_SPAN_MIN_X,
+	BRIDGE_SPAN_MAX_X,
+	WEST_ROAD_MERGE_X,
+	EAST_ROAD_MERGE_X
+} from './constants';
 
 describe('Mob Castle Assault & Obstacle Navigation without Teleportation', () => {
 	it('units on enemy island navigate directly towards enemy castle (not just horizontal lane line) and attack castle', () => {
@@ -580,5 +588,349 @@ describe('Mob Castle Assault & Obstacle Navigation without Teleportation', () =>
 
 		const exitedCount = sim.units.filter((u) => u.x > 600).length;
 		expect(exitedCount).toBe(15);
+	});
+
+	it('units exiting bottom bridge on East island (x=4160, y=1740) march continuously along highway past x=4900 and reach East Castle without deadlock at y=1668', () => {
+		const sim = new Simulation({ botDifficulty: 0, startGold: 500 });
+
+		// Footman spawned right at bridge exit on East Island (Bottom Lane)
+		const unit: Unit = {
+			defId: 'hfoo',
+			instanceId: 'unit_exit_bottom',
+			team: 'west',
+			name: 'Піхотинець',
+			x: BRIDGE_SPAN_MAX_X + 25, // 4165
+			y: BOTTOM_LANE_Y, // 1740
+			prevX: BRIDGE_SPAN_MAX_X + 25,
+			prevY: BOTTOM_LANE_Y,
+			hp: 420,
+			maxHp: 420,
+			size: 16,
+			speed: 270,
+			attackCooldown: 1.0,
+			cooldownTimer: 0,
+			damageMin: 20,
+			damageMax: 25,
+			damageBonusPct: 0,
+			armorBonus: 0,
+			attackType: 'normal',
+			range: 90,
+			armor: 2,
+			armorType: 'medium' as ArmorType,
+			state: 'WALKING',
+			lane: 'bottom',
+			flying: false,
+			currentTargetId: null,
+			targetX: 7000,
+			targetY: BOTTOM_LANE_Y
+		};
+		sim.units.push(unit);
+
+		// Step simulation for 8 seconds (160 ticks of 0.05s)
+		for (let s = 0; s < 160; s++) {
+			sim.step(0.05);
+		}
+
+		// Unit must NOT be stuck between bridge exit and merge point (x=4500..4700 at y=1668)
+		expect(unit.x).toBeGreaterThan(EAST_ROAD_MERGE_X);
+		// Unit should have transitioned from BOTTOM_LANE_Y (1740) towards Castle center (y=1200)
+		expect(unit.y).toBeLessThan(BOTTOM_LANE_Y - 50);
+		// Unit must never trigger stuckTimer >= 0.6s
+		expect(unit.stuckTimer || 0).toBeLessThan(0.6);
+	});
+
+	it('units exiting top bridge on East island (x=4160, y=660) march continuously along highway past x=4900 and reach East Castle without deadlock at y=732', () => {
+		const sim = new Simulation({ botDifficulty: 0, startGold: 500 });
+
+		// Sorceress spawned at bridge exit on East Island (Top Lane)
+		const unit: Unit = {
+			defId: 'h07B',
+			instanceId: 'unit_exit_top',
+			team: 'west',
+			name: 'Заклинателька',
+			x: BRIDGE_SPAN_MAX_X + 25, // 4165
+			y: TOP_LANE_Y, // 660
+			prevX: BRIDGE_SPAN_MAX_X + 25,
+			prevY: TOP_LANE_Y,
+			hp: 625,
+			maxHp: 625,
+			size: 16,
+			speed: 300,
+			attackCooldown: 1.2,
+			cooldownTimer: 0,
+			damageMin: 25,
+			damageMax: 30,
+			damageBonusPct: 0,
+			armorBonus: 0,
+			attackType: 'magic',
+			range: 500,
+			armor: 0,
+			armorType: 'unarmored' as ArmorType,
+			state: 'WALKING',
+			lane: 'top',
+			flying: false,
+			currentTargetId: null,
+			targetX: 7000,
+			targetY: TOP_LANE_Y
+		};
+		sim.units.push(unit);
+
+		for (let s = 0; s < 160; s++) {
+			sim.step(0.05);
+		}
+
+		// Unit must successfully advance past EAST_ROAD_MERGE_X (4900)
+		expect(unit.x).toBeGreaterThan(EAST_ROAD_MERGE_X);
+		// Unit must have turned towards Castle (y=1200), moving beyond TOP_LANE_Y (660)
+		expect(unit.y).toBeGreaterThan(TOP_LANE_Y + 50);
+		// Unit must never trigger stuckTimer >= 0.6s
+		expect(unit.stuckTimer || 0).toBeLessThan(0.6);
+	});
+
+	it('East units exiting bridge on West island march continuously past merge point (x=2300) and reach West Castle', () => {
+		const sim = new Simulation({ botDifficulty: 0, startGold: 500 });
+
+		const unit: Unit = {
+			defId: 'hfoo',
+			instanceId: 'east_unit_exit_bottom',
+			team: 'east',
+			name: 'Піхотинець',
+			x: BRIDGE_SPAN_MIN_X - 25, // 3035
+			y: BOTTOM_LANE_Y, // 1740
+			prevX: BRIDGE_SPAN_MIN_X - 25,
+			prevY: BOTTOM_LANE_Y,
+			hp: 420,
+			maxHp: 420,
+			size: 16,
+			speed: 270,
+			attackCooldown: 1.0,
+			cooldownTimer: 0,
+			damageMin: 20,
+			damageMax: 25,
+			damageBonusPct: 0,
+			armorBonus: 0,
+			attackType: 'normal',
+			range: 90,
+			armor: 2,
+			armorType: 'medium' as ArmorType,
+			state: 'WALKING',
+			lane: 'bottom',
+			flying: false,
+			currentTargetId: null,
+			targetX: 200,
+			targetY: BOTTOM_LANE_Y
+		};
+		sim.units.push(unit);
+
+		for (let s = 0; s < 160; s++) {
+			sim.step(0.05);
+		}
+
+		// Unit must advance west past WEST_ROAD_MERGE_X (2300)
+		expect(unit.x).toBeLessThan(WEST_ROAD_MERGE_X);
+		// Unit must turn towards West Castle (y=1200), moving upwards from 1740
+		expect(unit.y).toBeLessThan(BOTTOM_LANE_Y - 50);
+		// Unit must never trigger stuckTimer >= 0.6s
+		expect(unit.stuckTimer || 0).toBeLessThan(0.6);
+	});
+
+	it('a squad of 5 units crossing from bridge into enemy island marches smoothly without piling up or locking into stuck deadlocks', () => {
+		const sim = new Simulation({ botDifficulty: 0, startGold: 500 });
+
+		for (let i = 0; i < 5; i++) {
+			const unit: Unit = {
+				defId: 'hfoo',
+				instanceId: `squad_unit_${i}`,
+				team: 'west',
+				name: 'Піхотинець',
+				x: BRIDGE_SPAN_MAX_X - 100 - i * 30,
+				y: BOTTOM_LANE_Y + (i % 2 === 0 ? -15 : 15),
+				prevX: BRIDGE_SPAN_MAX_X - 100 - i * 30,
+				prevY: BOTTOM_LANE_Y + (i % 2 === 0 ? -15 : 15),
+				hp: 420,
+				maxHp: 420,
+				size: 16,
+				speed: 270,
+				attackCooldown: 1.0,
+				cooldownTimer: 0,
+				damageMin: 20,
+				damageMax: 25,
+				damageBonusPct: 0,
+				armorBonus: 0,
+				attackType: 'normal',
+				range: 90,
+				armor: 2,
+				armorType: 'medium' as ArmorType,
+				state: 'WALKING',
+				lane: 'bottom',
+				flying: false,
+				currentTargetId: null,
+				targetX: 7000,
+				targetY: BOTTOM_LANE_Y
+			};
+			sim.units.push(unit);
+		}
+
+		// Step for 10 seconds
+		for (let s = 0; s < 200; s++) {
+			sim.step(0.05);
+		}
+
+		// All 5 units must have crossed past EAST_ROAD_MERGE_X and none should be stuck
+		for (const u of sim.units) {
+			expect(u.x).toBeGreaterThan(EAST_ROAD_MERGE_X - 50);
+			expect(u.stuckTimer || 0).toBeLessThan(0.6);
+		}
+	});
+
+	it('ranged siege units (like Mortar [hmtm]) launch visible ballistic projectiles towards enemy castle and damage it on impact', () => {
+		const sim = new Simulation({ botDifficulty: 0, startGold: 500 });
+		const eastCastle = sim.castles.east;
+		const initCastleHp = eastCastle.hp;
+
+		// Spawn Mortar within attack range of East Castle (range 1000)
+		const mortar: Unit = {
+			defId: 'hmtm',
+			instanceId: 'mortar_siege_1',
+			team: 'west',
+			name: 'Мортира',
+			x: 4650,
+			y: TOP_LANE_Y,
+			prevX: 4650,
+			prevY: TOP_LANE_Y,
+			hp: 405,
+			maxHp: 405,
+			size: 16,
+			speed: 270,
+			attackCooldown: 1.0,
+			cooldownTimer: 0,
+			damageMin: 80,
+			damageMax: 93,
+			damageBonusPct: 0,
+			armorBonus: 0,
+			attackType: 'siege',
+			range: 1000,
+			armor: 0,
+			armorType: 'small' as ArmorType,
+			state: 'WALKING',
+			lane: 'top',
+			flying: false,
+			currentTargetId: null,
+			targetX: 7000,
+			targetY: TOP_LANE_Y
+		};
+		sim.units.push(mortar);
+
+		// Step 1: Mortar detects castle in range (dist ≈ 1000) and enters ATTACKING state, launching a projectile
+		sim.step(0.05);
+		expect(mortar.state).toBe('ATTACKING');
+		expect(sim.projectiles.length).toBeGreaterThan(0);
+		const proj = sim.projectiles[0];
+		expect(proj.isArtillery).toBe(true);
+		expect(proj.targetUnitId).toBe('castle_east');
+		expect(proj.targetX).toBe(eastCastle.x);
+		expect(proj.targetY).toBe(eastCastle.y);
+
+		// Step 2: Let projectile travel and hit the castle
+		for (let s = 0; s < 50; s++) {
+			sim.step(0.05);
+		}
+		expect(eastCastle.hp).toBeLessThan(initCastleHp);
+	});
+
+	it('units spawned behind friendly castle on Mid Lane (at x=1464, y=1250) navigate around the castle without getting stuck', () => {
+		const sim = new Simulation({ botDifficulty: 0, startGold: 500 });
+		sim.brokenBridge = null;
+
+		const unit: Unit = {
+			defId: 'hfoo',
+			instanceId: 'unit_rear_spawn',
+			team: 'west',
+			name: 'Піхотинець',
+			x: 1464,
+			y: 1250,
+			prevX: 1464,
+			prevY: 1250,
+			hp: 420,
+			maxHp: 420,
+			size: 16,
+			speed: 270,
+			attackCooldown: 1.0,
+			cooldownTimer: 0,
+			damageMin: 20,
+			damageMax: 25,
+			damageBonusPct: 0,
+			armorBonus: 0,
+			attackType: 'normal',
+			range: 90,
+			armor: 2,
+			armorType: 'medium' as ArmorType,
+			state: 'WALKING',
+			lane: 'mid',
+			flying: false,
+			currentTargetId: null,
+			targetX: 7000,
+			targetY: MID_LANE_Y
+		};
+		sim.units.push(unit);
+
+		// Step for 8 seconds (160 ticks)
+		for (let s = 0; s < 160; s++) {
+			sim.step(0.05);
+		}
+
+		// Unit must NOT be stuck against west castle wall at x=1464
+		expect(unit.x).toBeGreaterThan(1800);
+		expect(unit.stuckTimer || 0).toBeLessThan(0.6);
+	});
+
+	it('diagnostic report clarifies combat status and confirms ranged attacking unit is not stuck', async () => {
+		const sim = new Simulation({ botDifficulty: 0, startGold: 500 });
+		const mortar: Unit = {
+			defId: 'hmtm',
+			instanceId: 'mortar_diag',
+			team: 'west',
+			name: 'Мортира',
+			x: 4627,
+			y: 652,
+			prevX: 4627,
+			prevY: 652,
+			hp: 405,
+			maxHp: 405,
+			size: 16,
+			speed: 270,
+			attackCooldown: 3.5,
+			cooldownTimer: 1.2,
+			damageMin: 80,
+			damageMax: 93,
+			damageBonusPct: 0,
+			armorBonus: 0,
+			attackType: 'siege',
+			range: 1000,
+			armor: 0,
+			armorType: 'small' as ArmorType,
+			state: 'ATTACKING',
+			lane: 'top',
+			flying: false,
+			currentTargetId: null,
+			targetBuildingId: 'castle_east',
+			targetX: 7000,
+			targetY: 660,
+			stuckTimer: 0
+		};
+		sim.units.push(mortar);
+
+		const { logService } = await import('../services/logService.svelte');
+		const report = logService.getUnitReport(mortar, sim);
+
+		expect(report).toContain('--- COMBAT STATUS & ATTACK ACTIVITY ---');
+		expect(report).toContain('STATE: ATTACKING');
+		expect(report).toContain('RANGE: 1000px');
+		expect(report).toContain(
+			'Actively attacking target from range (1000px). Unit is standing still to attack, NOT stuck!'
+		);
+		expect(report).toContain(
+			'RANGED SIEGE ENGAGEMENT: Unit is bombarding enemy castle from distance'
+		);
 	});
 });

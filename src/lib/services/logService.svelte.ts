@@ -239,6 +239,32 @@ class LogService {
 			: { x: u.x, y: u.y };
 		const isPenetrating = Math.hypot(resolved.x - u.x, resolved.y - u.y) > 0.5;
 
+		const targetCastle = u.team === 'west' ? sim.castles.east : sim.castles.west;
+		const castleDist = targetCastle
+			? Math.hypot(targetCastle.x - u.x, targetCastle.y - u.y) - 110
+			: 9999;
+		const unitRange = u.range ?? 90;
+		const inCastleRange = castleDist <= unitRange + 35;
+		const attackTypeStr = (u.attackType || 'normal').toUpperCase();
+		const cdStr = (u.attackCooldown ?? 1.0).toFixed(2);
+		const cdRemStr = (u.cooldownTimer ?? 0).toFixed(2);
+
+		const combatStatus = [
+			'--- COMBAT STATUS & ATTACK ACTIVITY ---',
+			`STATE: ${u.state || 'WALKING'} | ATTACK TYPE: ${attackTypeStr} | RANGE: ${unitRange}px`,
+			`ATTACK COOLDOWN: ${cdStr}s | COOLDOWN REMAINING: ${cdRemStr}s`,
+			`TARGET: ${u.targetBuildingId ? `Structure '${u.targetBuildingId}'` : u.currentTargetId ? `Enemy unit '${u.currentTargetId}'` : 'None (marching along lane)'}`,
+			u.state === 'ATTACKING'
+				? `ACTION: Actively attacking target from range (${unitRange}px). Unit is standing still to attack, NOT stuck! (stuckTimer: ${(u.stuckTimer || 0).toFixed(2)}s)`
+				: (u.stuckTimer || 0) > 0.5
+					? `ACTION: STUCK - Unit cannot make forward progress (stuckTimer: ${(u.stuckTimer || 0).toFixed(2)}s)`
+					: `ACTION: Advancing smoothly along path (stuckTimer: ${(u.stuckTimer || 0).toFixed(2)}s)`,
+			inCastleRange && u.targetBuildingId?.startsWith('castle')
+				? `RANGED SIEGE ENGAGEMENT: Unit is bombarding enemy castle from distance (${castleDist.toFixed(1)}px <= range ${unitRange}px)`
+				: '',
+			''
+		].filter((l) => l !== '');
+
 		const obstacles = [
 			'--- PROXIMITY OBSTACLES & COLLISION ---',
 			`DIRECT LINE TO TARGET CLEAR: ${lineClear}`,
@@ -270,7 +296,7 @@ class LogService {
 			'=== END OF REPORT ==='
 		];
 
-		return [...header, ...waypoints, ...obstacles, ...logs].join('\n');
+		return [...header, ...combatStatus, ...waypoints, ...obstacles, ...logs].join('\n');
 	}
 
 	getBuildingReport(b: Building, sim: Simulation): string {

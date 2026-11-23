@@ -6,7 +6,9 @@ import {
 	BOTTOM_LANE_Y,
 	CELL_SIZE,
 	BRIDGE_SPAN_MIN_X,
-	BRIDGE_SPAN_MAX_X
+	BRIDGE_SPAN_MAX_X,
+	WEST_ROAD_MERGE_X,
+	EAST_ROAD_MERGE_X
 } from './constants';
 import type { Unit, Building, Castle, MatchTeam, Team, Lane, AttackType } from './types';
 import { calculateDamage, getDamageMultiplier } from './damageMatrix';
@@ -1054,7 +1056,15 @@ export class CombatSystem {
 							: this.getStrategicNavTarget(u, targetCastle.x, targetCastle.y, crossingLaneY);
 						const dNav = Math.hypot(navTarget.x - u.x, navTarget.y - u.y);
 						if (dNav > 5) {
-							this.moveUnitTowards(u, navTarget.x, navTarget.y, currentSpeed, dt);
+							this.moveUnitTowards(
+								u,
+								navTarget.x,
+								navTarget.y,
+								currentSpeed,
+								dt,
+								undefined,
+								isNearEnemyBase
+							);
 						}
 					}
 				} else if (closestBld) {
@@ -1115,7 +1125,15 @@ export class CombatSystem {
 
 					const d = Math.hypot(navTarget.x - u.x, navTarget.y - u.y);
 					if (d > 5) {
-						this.moveUnitTowards(u, navTarget.x, navTarget.y, currentSpeed, dt);
+						this.moveUnitTowards(
+							u,
+							navTarget.x,
+							navTarget.y,
+							currentSpeed,
+							dt,
+							undefined,
+							isNearEnemyBase
+						);
 					}
 				}
 			}
@@ -1159,9 +1177,25 @@ export class CombatSystem {
 
 		const isWest = u.team === 'west';
 		if (isWest) {
+			// 0. Courtyard bypass for units behind friendly West Castle (footprint 1480..1720, 1080..1320)
+			if (u.x < 1740) {
+				const northSide = (u.y ?? MID_LANE_Y) < 1200;
+				if (crossingLaneY === TOP_LANE_Y) {
+					if (u.x < 1560) return { x: 1600, y: 920 };
+					return { x: 1800, y: TOP_LANE_Y };
+				} else if (crossingLaneY === BOTTOM_LANE_Y) {
+					if (u.x < 1560) return { x: 1600, y: 1480 };
+					return { x: 1800, y: BOTTOM_LANE_Y };
+				} else {
+					if (u.x < 1560) return { x: 1600, y: northSide ? 920 : 1480 };
+					if (u.x < 1760) return { x: 1800, y: northSide ? 960 : 1440 };
+					return { x: 1950, y: MID_LANE_Y };
+				}
+			}
+
 			// 1. Stage A: Castle courtyard to Highway merge zone
-			if (u.x < 2400) {
-				return { x: 2500, y: crossingLaneY };
+			if (u.x < WEST_ROAD_MERGE_X + 50) {
+				return { x: WEST_ROAD_MERGE_X + 100, y: crossingLaneY };
 			}
 			// 2. Stage B: Pre-bridge approach highway (straight run into bridge mouth)
 			if (u.x < BRIDGE_SPAN_MIN_X - 10) {
@@ -1171,13 +1205,34 @@ export class CombatSystem {
 			if (u.x <= BRIDGE_SPAN_MAX_X + 25) {
 				return { x: BRIDGE_SPAN_MAX_X + 45, y: crossingLaneY };
 			}
-			// 4. Stage D: Across bridge on East island - march towards final objective
+			// 4. Stage D: Post-bridge East highway run towards merge point
+			const eastMergeThreshold = Math.min(finalTargetX - 40, EAST_ROAD_MERGE_X);
+			if (u.x < eastMergeThreshold - 20) {
+				return { x: eastMergeThreshold, y: crossingLaneY };
+			}
+			// 5. Stage E: Beyond merge point or abreast of target - march towards final objective
 			return { x: finalTargetX, y: finalTargetY };
 		} else {
 			// East team unit moving west towards West island
+			// 0. Courtyard bypass for units behind friendly East Castle (footprint 5480..5720, 1080..1320)
+			if (u.x > 5460) {
+				const northSide = (u.y ?? MID_LANE_Y) < 1200;
+				if (crossingLaneY === TOP_LANE_Y) {
+					if (u.x > 5640) return { x: 5600, y: 920 };
+					return { x: 5400, y: TOP_LANE_Y };
+				} else if (crossingLaneY === BOTTOM_LANE_Y) {
+					if (u.x > 5640) return { x: 5600, y: 1480 };
+					return { x: 5400, y: BOTTOM_LANE_Y };
+				} else {
+					if (u.x > 5640) return { x: 5600, y: northSide ? 920 : 1480 };
+					if (u.x > 5440) return { x: 5400, y: northSide ? 960 : 1440 };
+					return { x: 5250, y: MID_LANE_Y };
+				}
+			}
+
 			// 1. Stage A: East courtyard to Highway merge zone
-			if (u.x > 4800) {
-				return { x: 4700, y: crossingLaneY };
+			if (u.x > EAST_ROAD_MERGE_X - 50) {
+				return { x: EAST_ROAD_MERGE_X - 100, y: crossingLaneY };
 			}
 			// 2. Stage B: Pre-bridge approach highway
 			if (u.x > BRIDGE_SPAN_MAX_X + 10) {
@@ -1187,7 +1242,12 @@ export class CombatSystem {
 			if (u.x >= BRIDGE_SPAN_MIN_X - 25) {
 				return { x: BRIDGE_SPAN_MIN_X - 45, y: crossingLaneY };
 			}
-			// 4. Stage D: Across bridge on West island
+			// 4. Stage D: Post-bridge West highway run towards merge point
+			const westMergeThreshold = Math.max(finalTargetX + 40, WEST_ROAD_MERGE_X);
+			if (u.x > westMergeThreshold + 20) {
+				return { x: westMergeThreshold, y: crossingLaneY };
+			}
+			// 5. Stage E: Beyond merge point or abreast of target - march towards final objective
 			return { x: finalTargetX, y: finalTargetY };
 		}
 	}
@@ -1229,15 +1289,31 @@ export class CombatSystem {
 			const prevStuck = u.stuckTimer || 0;
 			u.stuckTimer = prevStuck + dt;
 			if (prevStuck <= 0.6 && u.stuckTimer > 0.6) {
+				const nearFriendlyCastle =
+					(u.team === 'west' && Math.hypot(1600 - u.x, 1200 - u.y) < 220) ||
+					(u.team === 'east' && Math.hypot(5600 - u.x, 1200 - u.y) < 220);
+				const reason = nearFriendlyCastle ? 'behind_friendly_castle' : 'obstacle_collision';
 				logService.collision('Unit stuck against obstacle', {
 					unit: u.name,
 					unitId: u.instanceId,
 					pos: { x: Math.round(u.x), y: Math.round(u.y) },
-					target: { x: Math.round(targetX), y: Math.round(targetY) }
+					target: { x: Math.round(targetX), y: Math.round(targetY) },
+					state: u.state,
+					reason
 				});
 			}
 		} else {
 			u.stuckTimer = 0;
+		}
+
+		// Invalidate stale waypoint path if navigation target changed significantly
+		if (
+			u.path &&
+			u.pathTargetX !== undefined &&
+			u.pathTargetY !== undefined &&
+			Math.hypot(u.pathTargetX - targetX, u.pathTargetY - targetY) > 60
+		) {
+			u.path = undefined;
 		}
 
 		// 1. Follow active waypoint path if unit already has one

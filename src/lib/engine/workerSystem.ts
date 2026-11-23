@@ -498,7 +498,12 @@ export class WorkerSystem {
 			}
 
 			for (const wall of SOLID_MAP_OBSTACLES) {
-				if (ignoreCastle && (wall.minX === 1480 || wall.minX === 5480)) continue;
+				if (ignoreCastle) {
+					const isTargetWestCastle = Math.hypot(x2 - 1600, y2 - 1200) < 350;
+					const isTargetEastCastle = Math.hypot(x2 - 5600, y2 - 1200) < 350;
+					if (isTargetWestCastle && wall.minX === 1480) continue;
+					if (isTargetEastCastle && wall.minX === 5480) continue;
+				}
 				if (
 					px >= wall.minX - radius &&
 					px <= wall.maxX + radius &&
@@ -758,7 +763,7 @@ export class WorkerSystem {
 		let iterations = 0;
 		let foundEnd = false;
 
-		while (heapNodes.length > 0 && iterations < 1200) {
+		while (heapNodes.length > 0 && iterations < 3000) {
 			iterations++;
 			const current = popHeap();
 			if (closed[current]) continue;
