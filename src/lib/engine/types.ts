@@ -148,6 +148,9 @@ export interface UnitDefinition {
 	move_type: string | null;
 	flying: boolean;
 	canHitAir?: boolean;
+	mana?: number;
+	maxMana?: number;
+	manaRegen?: number;
 	gold_cost: number;
 	raw_fields?: Record<string, unknown>;
 	splashRadius?: number;
@@ -200,7 +203,8 @@ export type UnitAbilityType =
 	| 'inner_fire'
 	| 'thunderbolt'
 	| 'chain_lightning'
-	| 'stomp';
+	| 'stomp'
+	| 'mana_burn';
 
 export interface UnitAbilityDef {
 	id: string;
@@ -209,6 +213,7 @@ export interface UnitAbilityDef {
 	type: UnitAbilityType;
 	isPassive: boolean;
 	cooldown?: number;
+	manaCost?: number;
 	descriptionUk: string;
 	descriptionEn: string;
 	icon?: string;
@@ -305,6 +310,7 @@ export interface Unit {
 	attackAnimTimer?: number;
 	mana?: number;
 	maxMana?: number;
+	manaRegen?: number;
 	lastAttackerId?: string | null;
 	lastAttackedTime?: number;
 	playerId?: string;

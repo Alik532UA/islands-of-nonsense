@@ -14,6 +14,19 @@ import { DefenseSystem } from './defenseSystem';
 import { applyCrowdSeparation } from './crowdPhysics';
 import { logService } from '../services/logService.svelte';
 
+export const SPELL_MANA_COSTS: Record<string, number> = {
+	heal: 25,
+	bloodlust: 40,
+	slow: 50,
+	curse: 40,
+	inner_fire: 35,
+	thunderbolt: 75,
+	chain_lightning: 100,
+	stomp: 65,
+	ensnare: 50,
+	mana_burn: 35
+};
+
 /**
  * CombatSystem handles unit state machines, targeting, pathing towards objectives,
  * melee & ranged attacks, projectiles, AoE splash, tower defense, castle attacks, and damage calculations.
@@ -174,13 +187,23 @@ export class CombatSystem {
 				u.flying = false;
 			}
 
+			// Mana regeneration tick
+			if (u.maxMana && u.maxMana > 0 && u.mana !== undefined) {
+				u.mana = Math.min(u.maxMana, u.mana + (u.manaRegen || 0) * dt);
+			}
+
 			// Tactical abilities cooldown tick
 			if (u.abilityCooldownTimer && u.abilityCooldownTimer > 0) {
 				u.abilityCooldownTimer = Math.max(0, u.abilityCooldownTimer - dt);
 			}
 
 			// 1. Ensnare ability (Web down flying enemies)
-			if (u.abilityType === 'ensnare' && (!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0)) {
+			const ensnareCost = SPELL_MANA_COSTS.ensnare;
+			if (
+				u.abilityType === 'ensnare' &&
+				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
+				(!u.maxMana || (u.mana ?? 0) >= ensnareCost)
+			) {
 				const enemyFlying = this.sim.units.find(
 					(other) =>
 						other.team !== u.team &&
@@ -190,6 +213,9 @@ export class CombatSystem {
 						Math.hypot(other.x - u.x, other.y - u.y) <= 450
 				);
 				if (enemyFlying) {
+					if (u.maxMana && u.mana !== undefined) {
+						u.mana = Math.max(0, u.mana - ensnareCost);
+					}
 					enemyFlying.buffs = enemyFlying.buffs || [];
 					enemyFlying.buffs.push({ type: 'ensnare', timer: 6.0, value: 0 });
 					enemyFlying.flying = false;
@@ -200,7 +226,12 @@ export class CombatSystem {
 			}
 
 			// 2. Heal ability (Support wounded allies)
-			if (u.abilityType === 'heal' && (!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0)) {
+			const healCost = SPELL_MANA_COSTS.heal;
+			if (
+				u.abilityType === 'heal' &&
+				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
+				(!u.maxMana || (u.mana ?? 0) >= healCost)
+			) {
 				const injuredAlly = this.sim.units.find(
 					(other) =>
 						other.team === u.team &&
@@ -210,6 +241,9 @@ export class CombatSystem {
 						Math.hypot(other.x - u.x, other.y - u.y) <= 350
 				);
 				if (injuredAlly) {
+					if (u.maxMana && u.mana !== undefined) {
+						u.mana = Math.max(0, u.mana - healCost);
+					}
 					injuredAlly.hp = Math.min(injuredAlly.maxHp, injuredAlly.hp + 65);
 					u.abilityCooldownTimer = 3.5;
 					this.sim.addFloatingText('+65 HP', injuredAlly.x, injuredAlly.y - 20, '#10b981');
@@ -237,7 +271,12 @@ export class CombatSystem {
 			// 4. Bloodlust ability
 			const hasBloodlust =
 				u.abilityType === 'bloodlust' || u.abilities?.some((a) => a.type === 'bloodlust');
-			if (hasBloodlust && (!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0)) {
+			const bloodlustCost = SPELL_MANA_COSTS.bloodlust;
+			if (
+				hasBloodlust &&
+				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
+				(!u.maxMana || (u.mana ?? 0) >= bloodlustCost)
+			) {
 				const unbuffedAlly = this.sim.units.find(
 					(other) =>
 						other.team === u.team &&
@@ -248,6 +287,9 @@ export class CombatSystem {
 						Math.hypot(other.x - u.x, other.y - u.y) <= 400
 				);
 				if (unbuffedAlly) {
+					if (u.maxMana && u.mana !== undefined) {
+						u.mana = Math.max(0, u.mana - bloodlustCost);
+					}
 					unbuffedAlly.buffs = unbuffedAlly.buffs || [];
 					unbuffedAlly.buffs.push({ type: 'bloodlust', timer: 10.0, value: 0.4 });
 					u.abilityCooldownTimer = 10.0;
@@ -262,7 +304,12 @@ export class CombatSystem {
 
 			// 5. Slow ability
 			const hasSlow = u.abilityType === 'slow' || u.abilities?.some((a) => a.type === 'slow');
-			if (hasSlow && (!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0)) {
+			const slowCost = SPELL_MANA_COSTS.slow;
+			if (
+				hasSlow &&
+				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
+				(!u.maxMana || (u.mana ?? 0) >= slowCost)
+			) {
 				const enemyTarget = this.sim.units.find(
 					(other) =>
 						other.team !== u.team &&
@@ -272,6 +319,9 @@ export class CombatSystem {
 						Math.hypot(other.x - u.x, other.y - u.y) <= 450
 				);
 				if (enemyTarget) {
+					if (u.maxMana && u.mana !== undefined) {
+						u.mana = Math.max(0, u.mana - slowCost);
+					}
 					enemyTarget.buffs = enemyTarget.buffs || [];
 					enemyTarget.buffs.push({ type: 'slow', timer: 6.0, value: 0.35 });
 					u.abilityCooldownTimer = 8.0;
@@ -281,7 +331,12 @@ export class CombatSystem {
 
 			// 6. Curse ability
 			const hasCurse = u.abilityType === 'curse' || u.abilities?.some((a) => a.type === 'curse');
-			if (hasCurse && (!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0)) {
+			const curseCost = SPELL_MANA_COSTS.curse;
+			if (
+				hasCurse &&
+				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
+				(!u.maxMana || (u.mana ?? 0) >= curseCost)
+			) {
 				const enemyTarget = this.sim.units.find(
 					(other) =>
 						other.team !== u.team &&
@@ -291,6 +346,9 @@ export class CombatSystem {
 						Math.hypot(other.x - u.x, other.y - u.y) <= 450
 				);
 				if (enemyTarget) {
+					if (u.maxMana && u.mana !== undefined) {
+						u.mana = Math.max(0, u.mana - curseCost);
+					}
 					enemyTarget.buffs = enemyTarget.buffs || [];
 					enemyTarget.buffs.push({ type: 'curse', timer: 8.0, value: 0.33 });
 					u.abilityCooldownTimer = 9.0;
@@ -301,7 +359,12 @@ export class CombatSystem {
 			// 7. Inner Fire ability
 			const hasInnerFire =
 				u.abilityType === 'inner_fire' || u.abilities?.some((a) => a.type === 'inner_fire');
-			if (hasInnerFire && (!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0)) {
+			const innerFireCost = SPELL_MANA_COSTS.inner_fire;
+			if (
+				hasInnerFire &&
+				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
+				(!u.maxMana || (u.mana ?? 0) >= innerFireCost)
+			) {
 				const unbuffedAlly = this.sim.units.find(
 					(other) =>
 						other.team === u.team &&
@@ -312,6 +375,9 @@ export class CombatSystem {
 						Math.hypot(other.x - u.x, other.y - u.y) <= 400
 				);
 				if (unbuffedAlly) {
+					if (u.maxMana && u.mana !== undefined) {
+						u.mana = Math.max(0, u.mana - innerFireCost);
+					}
 					unbuffedAlly.buffs = unbuffedAlly.buffs || [];
 					unbuffedAlly.buffs.push({ type: 'inner_fire', timer: 12.0, value: 0.25 });
 					u.abilityCooldownTimer = 12.0;
@@ -322,7 +388,12 @@ export class CombatSystem {
 			// 8. Thunderbolt (Storm Bolt)
 			const hasThunderbolt =
 				u.abilityType === 'thunderbolt' || u.abilities?.some((a) => a.type === 'thunderbolt');
-			if (hasThunderbolt && (!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0)) {
+			const tbCost = SPELL_MANA_COSTS.thunderbolt;
+			if (
+				hasThunderbolt &&
+				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
+				(!u.maxMana || (u.mana ?? 0) >= tbCost)
+			) {
 				const enemyTarget = this.sim.units.find(
 					(other) =>
 						other.team !== u.team &&
@@ -331,6 +402,9 @@ export class CombatSystem {
 						Math.hypot(other.x - u.x, other.y - u.y) <= 450
 				);
 				if (enemyTarget) {
+					if (u.maxMana && u.mana !== undefined) {
+						u.mana = Math.max(0, u.mana - tbCost);
+					}
 					enemyTarget.buffs = enemyTarget.buffs || [];
 					enemyTarget.buffs.push({ type: 'stun', timer: 2.0, value: 0 });
 					enemyTarget.isStunned = true;
@@ -358,7 +432,12 @@ export class CombatSystem {
 			const hasChainLightning =
 				u.abilityType === 'chain_lightning' ||
 				u.abilities?.some((a) => a.type === 'chain_lightning');
-			if (hasChainLightning && (!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0)) {
+			const clCost = SPELL_MANA_COSTS.chain_lightning;
+			if (
+				hasChainLightning &&
+				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
+				(!u.maxMana || (u.mana ?? 0) >= clCost)
+			) {
 				const enemies = this.sim.units.filter(
 					(other) =>
 						other.team !== u.team &&
@@ -367,6 +446,9 @@ export class CombatSystem {
 						Math.hypot(other.x - u.x, other.y - u.y) <= 500
 				);
 				if (enemies.length > 0) {
+					if (u.maxMana && u.mana !== undefined) {
+						u.mana = Math.max(0, u.mana - clCost);
+					}
 					enemies.sort(
 						(a, b) => Math.hypot(a.x - u.x, a.y - u.y) - Math.hypot(b.x - u.x, b.y - u.y)
 					);
@@ -395,7 +477,12 @@ export class CombatSystem {
 
 			// 10. War Stomp
 			const hasStomp = u.abilityType === 'stomp' || u.abilities?.some((a) => a.type === 'stomp');
-			if (hasStomp && (!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0)) {
+			const stompCost = SPELL_MANA_COSTS.stomp;
+			if (
+				hasStomp &&
+				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
+				(!u.maxMana || (u.mana ?? 0) >= stompCost)
+			) {
 				const nearbyEnemies = this.sim.units.filter(
 					(other) =>
 						other.team !== u.team &&
@@ -405,6 +492,9 @@ export class CombatSystem {
 						Math.hypot(other.x - u.x, other.y - u.y) <= 180
 				);
 				if (nearbyEnemies.length >= 1) {
+					if (u.maxMana && u.mana !== undefined) {
+						u.mana = Math.max(0, u.mana - stompCost);
+					}
 					for (const enemy of nearbyEnemies) {
 						enemy.buffs = enemy.buffs || [];
 						enemy.buffs.push({ type: 'stun', timer: 1.5, value: 0 });
@@ -413,6 +503,42 @@ export class CombatSystem {
 					}
 					u.abilityCooldownTimer = 10.0;
 					this.sim.addFloatingText('Громовий тупіт!', u.x, u.y - 25, '#d97706');
+				}
+			}
+
+			// 11. Mana Burn
+			const hasManaBurn =
+				u.abilityType === 'mana_burn' || u.abilities?.some((a) => a.type === 'mana_burn');
+			const mbCost = SPELL_MANA_COSTS.mana_burn;
+			if (
+				hasManaBurn &&
+				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
+				(!u.maxMana || (u.mana ?? 0) >= mbCost)
+			) {
+				const enemyWithMana = this.sim.units.find(
+					(other) =>
+						other.team !== u.team &&
+						other.lane === u.lane &&
+						other.state !== 'DEAD' &&
+						other.maxMana &&
+						other.maxMana > 0 &&
+						(other.mana || 0) > 0 &&
+						Math.hypot(other.x - u.x, other.y - u.y) <= 400
+				);
+				if (enemyWithMana) {
+					const burned = Math.min(50, enemyWithMana.mana || 0);
+					enemyWithMana.mana = Math.max(0, (enemyWithMana.mana || 0) - burned);
+					this.applyUnitDamage(enemyWithMana, burned, 'magic', u.team, false, u);
+					if (u.maxMana && u.mana !== undefined) {
+						u.mana = Math.max(0, u.mana - mbCost);
+					}
+					u.abilityCooldownTimer = 10.0;
+					this.sim.addFloatingText(
+						`Спалення мани (-${burned})`,
+						enemyWithMana.x,
+						enemyWithMana.y - 20,
+						'#38bdf8'
+					);
 				}
 			}
 

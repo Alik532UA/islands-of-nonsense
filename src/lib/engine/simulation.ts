@@ -1028,6 +1028,9 @@ export class Simulation {
 		pulverizeChance?: number;
 		immolationDps?: number;
 		hasReincarnated?: boolean;
+		mana?: number;
+		maxMana?: number;
+		manaRegen?: number;
 	}): Unit {
 		const targetLane: Lane = this.gameModeConfig?.singleLane ?? options.lane;
 		const targetY = this.gameModeConfig?.singleLane
@@ -1093,7 +1096,10 @@ export class Simulation {
 			frostOnHit: options.frostOnHit,
 			pulverizeChance: options.pulverizeChance,
 			immolationDps: options.immolationDps,
-			hasReincarnated: options.hasReincarnated
+			hasReincarnated: options.hasReincarnated,
+			mana: options.mana ?? (options.maxMana !== undefined ? options.maxMana : undefined),
+			maxMana: options.maxMana,
+			manaRegen: options.manaRegen
 		};
 		this.units.push(unit);
 		return unit;

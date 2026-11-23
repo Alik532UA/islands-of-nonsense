@@ -755,6 +755,12 @@ export class BuildingSystem {
 		let unitEvadeChance = player.commander === 6 ? 0.2 : 0;
 		if (hasEvasion) unitEvadeChance = Math.min(0.75, unitEvadeChance + 0.2);
 
+		const maxMana = unitDef.maxMana ?? Number(unitDef.raw_fields?.umpm || 0);
+		const initialMana =
+			unitDef.mana ??
+			(unitDef.raw_fields?.umpi !== undefined ? Number(unitDef.raw_fields.umpi) : maxMana);
+		const manaRegen = unitDef.manaRegen ?? Number(unitDef.raw_fields?.umpr || 0);
+
 		const unit: Unit = {
 			instanceId: `unit_${this.sim.nextUnitId++}`,
 			defId: unitDef.id,
@@ -805,6 +811,9 @@ export class BuildingSystem {
 			hasReincarnated: !hasReincarnation,
 			pulverizeChance: hasPulverize ? 0.2 : 0,
 			immolationDps: hasImmolation ? 18 : 0,
+			mana: maxMana > 0 ? initialMana : undefined,
+			maxMana: maxMana > 0 ? maxMana : undefined,
+			manaRegen: maxMana > 0 ? manaRegen : undefined,
 			buildingDefId: building.defId,
 			buildingName: building.name,
 			playerId: player.id,

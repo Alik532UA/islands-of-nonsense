@@ -271,6 +271,14 @@ for (const t of GUARD_TOWERS) {
 }
 
 for (const u of rawUnits as UnitDefinition[]) {
+	if (u.raw_fields) {
+		const maxM = Number(u.raw_fields.umpm || 0);
+		if (maxM > 0) {
+			u.maxMana = maxM;
+			u.mana = u.raw_fields.umpi !== undefined ? Number(u.raw_fields.umpi) : maxM;
+			u.manaRegen = Number(u.raw_fields.umpr || 0);
+		}
+	}
 	UNITS_MAP.set(u.id, u);
 }
 
@@ -629,6 +637,17 @@ export const UNIT_ABILITY_CATALOG: Record<UnitAbilityType, Omit<UnitAbilityDef, 
 		descriptionUk: 'Струшує землю: 75 шкоди та 1.5 с оглушення ворогам навколо.',
 		descriptionEn: 'Slams ground: 75 damage and 1.5s stun to nearby foes.',
 		icon: 'Activity'
+	},
+	mana_burn: {
+		nameUk: 'Спалення мани',
+		nameEn: 'Mana Burn',
+		type: 'mana_burn',
+		isPassive: false,
+		cooldown: 10.0,
+		manaCost: 35,
+		descriptionUk: 'Спалює до 50 мани у ворожого кастера і завдає еквівалентної магічної шкоди.',
+		descriptionEn: 'Burns up to 50 mana from an enemy caster and deals equivalent magic damage.',
+		icon: 'Flame'
 	}
 };
 
