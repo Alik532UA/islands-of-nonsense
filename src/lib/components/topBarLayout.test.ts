@@ -68,6 +68,13 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 	it('left navigation buttons have uniform gap-1.5, shrink-0 and compact padding', () => {
 		expect(topBarContent).toContain('class="flex items-center gap-1.5 shrink-0"');
 		expect(topBarContent).toContain('px-2 py-1 rounded text-xs font-semibold');
+		expect(topBarContent).toContain('data-testid="topbar-back-link"');
+		expect(topBarContent).toContain('data-testid="topbar-home-link"');
+	});
+
+	it('includes quick in-game sound and fullscreen controls', () => {
+		expect(topBarContent).toContain('data-testid="topbar-sound-toggle"');
+		expect(topBarContent).toContain('data-testid="topbar-fullscreen-toggle"');
 	});
 
 	it('formatTime formats seconds into mm:ss without throwing or improper padding', () => {

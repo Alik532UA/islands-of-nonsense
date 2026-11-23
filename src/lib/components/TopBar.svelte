@@ -2,7 +2,16 @@
 	import type { Simulation } from '../engine/simulation';
 	import { getCommander } from '../engine/commanders';
 	import { getRaceAbility } from '../engine/raceAbilities';
+	import { resolve } from '$app/paths';
+	import { settings } from '$lib/services/settings.svelte';
+	import { fullscreen, canFullscreen } from '$lib/services/fullscreen.svelte';
 	import {
+		ArrowLeft,
+		House,
+		Volume2,
+		VolumeX,
+		Maximize2,
+		Minimize2,
 		Coins,
 		Shield,
 		BookOpen,
@@ -106,8 +115,32 @@
 	class="bg-[#11141c] border-b-2 border-[#544738] px-2.5 sm:px-4 py-1.5 shadow-2xl flex items-center justify-between text-white select-none backdrop-blur z-20 h-14 min-w-0 overflow-x-auto overflow-y-hidden"
 	style="background: linear-gradient(180deg, #1b202c 0%, #0d1017 100%); box-shadow: 0 4px 16px rgba(0,0,0,0.8);"
 >
-	<!-- 1. LEFT: Menu Buttons (Довідник F9, Меню, Кузня, Магазин, Здібності) -->
+	<!-- 1. LEFT: Nav & Menu Buttons (Назад, Додому, Довідник F9, Меню, Кузня, Магазин, Здібності) -->
 	<div class="flex items-center gap-1.5 shrink-0">
+		<!-- Back to Modes -->
+		<a
+			href={resolve('/play')}
+			class="flex items-center justify-center p-1.5 bg-[#181d28] hover:bg-[#252d3d] border border-slate-700 hover:border-amber-500/60 rounded text-slate-300 hover:text-amber-300 transition cursor-pointer active:scale-95 shadow shrink-0"
+			title="Назад до вибору режимів"
+			aria-label="Назад до вибору режимів"
+			data-testid="topbar-back-link"
+		>
+			<ArrowLeft class="w-3.5 h-3.5" />
+		</a>
+
+		<!-- Main Menu (Home) -->
+		<a
+			href={resolve('/')}
+			class="flex items-center justify-center p-1.5 bg-[#181d28] hover:bg-[#252d3d] border border-slate-700 hover:border-amber-500/60 rounded text-slate-300 hover:text-amber-300 transition cursor-pointer active:scale-95 shadow shrink-0"
+			title="Головне меню"
+			aria-label="Головне меню"
+			data-testid="topbar-home-link"
+		>
+			<House class="w-3.5 h-3.5" />
+		</a>
+
+		<div class="h-4 w-px bg-[#544738]/70 mx-0.5"></div>
+
 		<!-- Guide / Manual (F9) -->
 		<button
 			onclick={onOpenCommander}
@@ -333,6 +366,42 @@
 					</button>
 				{/each}
 			</div>
+		</div>
+
+		<!-- Sound & Fullscreen controls -->
+		<div class="flex items-center gap-0.5 shrink-0 bg-[#0c1017] p-0.5 rounded border border-[#544738]">
+			<!-- Sound toggle -->
+			<button
+				type="button"
+				onclick={() => settings.setSound(!settings.sound)}
+				class="p-1 rounded hover:bg-[#2a241b] text-slate-300 transition cursor-pointer shrink-0"
+				title={settings.sound ? 'Звук: Увімкнено' : 'Звук: Вимкнено'}
+				aria-label={settings.sound ? 'Звук: Увімкнено' : 'Звук: Вимкнено'}
+				data-testid="topbar-sound-toggle"
+			>
+				{#if settings.sound}
+					<Volume2 class="w-3.5 h-3.5 text-emerald-400" />
+				{:else}
+					<VolumeX class="w-3.5 h-3.5 text-slate-500" />
+				{/if}
+			</button>
+
+			{#if canFullscreen()}
+				<button
+					type="button"
+					onclick={() => fullscreen.toggle()}
+					class="p-1 rounded hover:bg-[#2a241b] text-slate-300 transition cursor-pointer shrink-0"
+					title="Повноекранний режим"
+					aria-label="Повноекранний режим"
+					data-testid="topbar-fullscreen-toggle"
+				>
+					{#if fullscreen.active}
+						<Minimize2 class="w-3.5 h-3.5 text-amber-400" />
+					{:else}
+						<Maximize2 class="w-3.5 h-3.5 text-slate-400" />
+					{/if}
+				</button>
+			{/if}
 		</div>
 
 		<!-- Authentic WC3 Resource Boxes -->
