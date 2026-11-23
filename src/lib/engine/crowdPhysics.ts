@@ -137,7 +137,7 @@ export function applyCrowdSeparation(sim: Simulation, dt: number): void {
 			u.y = resolved.y;
 		}
 
-		// Keep ground units on their respective bridge railing boundary or highway approach
+		// Keep ground units on their respective bridge railing boundary ONLY when crossing the central ocean channel or aligned on highway
 		if (!u.flying && u.team !== 'neutral') {
 			const effectiveCrossingLane: 'top' | 'mid' | 'bottom' =
 				sim.brokenBridge && u.lane === sim.brokenBridge
@@ -152,12 +152,24 @@ export function applyCrowdSeparation(sim: Simulation, dt: number): void {
 						? MID_LANE_Y
 						: BOTTOM_LANE_Y;
 
-			if (u.x >= 2300 && u.x <= 4900) {
-				const maxCorridorOffset = u.x >= BRIDGE_SPAN_MIN_X && u.x <= BRIDGE_SPAN_MAX_X ? 56 : 72;
-				if (u.y > laneCenterY + maxCorridorOffset) {
-					u.y = laneCenterY + maxCorridorOffset;
-				} else if (u.y < laneCenterY - maxCorridorOffset) {
-					u.y = laneCenterY - maxCorridorOffset;
+			if (u.x >= BRIDGE_SPAN_MIN_X && u.x <= BRIDGE_SPAN_MAX_X) {
+				const maxBridgeOffset = 56;
+				if (Math.abs(u.y - laneCenterY) <= 100) {
+					if (u.y > laneCenterY + maxBridgeOffset) {
+						u.y = laneCenterY + maxBridgeOffset;
+					} else if (u.y < laneCenterY - maxBridgeOffset) {
+						u.y = laneCenterY - maxBridgeOffset;
+					}
+				}
+			} else if (u.x >= 2400 && u.x <= 4800) {
+				// On highway approach: only constrain if already merged onto this lane corridor
+				const maxCorridorOffset = 72;
+				if (Math.abs(u.y - laneCenterY) <= maxCorridorOffset + 20) {
+					if (u.y > laneCenterY + maxCorridorOffset) {
+						u.y = laneCenterY + maxCorridorOffset;
+					} else if (u.y < laneCenterY - maxCorridorOffset) {
+						u.y = laneCenterY - maxCorridorOffset;
+					}
 				}
 			} else {
 				// On the islands & courtyard, units spread out and navigate towards targets & castle

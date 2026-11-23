@@ -6,7 +6,7 @@
 		getUnit,
 		formatRaceName
 	} from '../engine/gameData';
-	import { Shield, Swords, Footprints, Hammer, Layers, Users, Castle } from 'lucide-svelte';
+	import { Shield, Swords, Footprints, Hammer, Layers, Users } from 'lucide-svelte';
 	import Minimap from './Minimap.svelte';
 	import CommandCard from './CommandCard.svelte';
 	import CombatMatrixTooltip, {
@@ -16,6 +16,11 @@
 		normalizeAttackKey
 	} from './CombatMatrixTooltip.svelte';
 	import type { SelectedEntity } from '../renderer/entityRenderer';
+	import {
+		getCastleStageIndex,
+		WEST_CASTLE_STAGE_URLS,
+		EAST_CASTLE_STAGE_URLS
+	} from '../renderer/castleAssets';
 
 	let {
 		sim,
@@ -189,15 +194,23 @@
 			class="relative w-20 h-20 rounded-md border-2 border-[#8c7456] bg-[#0c1017] flex items-center justify-center overflow-hidden shadow-md"
 		>
 			{#if activeEntityType === 'castle' && selectedCastle}
-				<!-- Castle Keep Portrait -->
+				<!-- Castle Keep Portrait with Actual WebP Sprite -->
 				{@const isFriendly = selectedCastle.team === 'west'}
-				<div
-					class="flex flex-col items-center justify-center {isFriendly
-						? 'text-amber-300'
-						: 'text-rose-400'}"
-				>
-					<Castle class="w-9 h-9 {isFriendly ? 'text-amber-400' : 'text-rose-400'}" />
-					<span class="text-[9px] font-bold uppercase truncate max-w-[70px]">
+				{@const cStage = getCastleStageIndex(selectedCastle.hp, selectedCastle.maxHp)}
+				{@const castleUrl = isFriendly
+					? WEST_CASTLE_STAGE_URLS[cStage]
+					: EAST_CASTLE_STAGE_URLS[cStage]}
+				<div class="relative w-full h-full flex flex-col items-center justify-center p-0.5">
+					<img
+						src={castleUrl}
+						alt={isFriendly ? 'Ваш Замок' : 'Замок Ворога'}
+						class="w-12 h-11 object-contain drop-shadow"
+					/>
+					<span
+						class="text-[8px] font-bold uppercase truncate max-w-[70px] mt-0.5 {isFriendly
+							? 'text-amber-300'
+							: 'text-rose-400'}"
+					>
 						{isFriendly ? 'Ваш Замок' : 'Замок Ворога'}
 					</span>
 				</div>

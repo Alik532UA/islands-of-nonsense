@@ -323,11 +323,8 @@ export class EntityRenderer {
 	// =========================================================================
 	// 2. 2.5D GRAND ALLIANCE / FANTASY CASTLE (Matching reference art)
 	// =========================================================================
-	public drawCastles(g: Graphics, selectedEntity?: SelectedEntity, _enableFog = false): void {
-		const westSelected = selectedEntity?.type === 'castle' && selectedEntity.team === 'west';
-		const eastSelected = selectedEntity?.type === 'castle' && selectedEntity.team === 'east';
-		this.renderAuthenticCastle(g, this.sim.castles.west, true, westSelected);
-		this.renderAuthenticCastle(g, this.sim.castles.east, false, eastSelected);
+	public drawCastles(_g: Graphics, _selectedEntity?: SelectedEntity, _enableFog = false): void {
+		// Castle visuals with 8-stage progressive destruction are rendered in castlesLayer using high-res WebP sprites
 	}
 
 	public renderAuthenticCastle(

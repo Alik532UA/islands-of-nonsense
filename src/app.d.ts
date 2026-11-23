@@ -23,4 +23,9 @@ declare module '$app/paths' {
 	export const assets: string;
 }
 
+declare module '*.webp' {
+	const content: string;
+	export default content;
+}
+
 export {};
