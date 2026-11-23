@@ -399,27 +399,39 @@ export class BotAI {
 			}
 		}
 
-		// 3. Forge decision: buy forge upgrades if surplus gold
+		// 3. Forge decision: Team BotSmith vs standard bots (WC3 CF_BotForge)
+		const isSmith = this.isBotSmith(player);
+		const maxAttack = isSmith ? 5 : 2;
+		const maxArmor = isSmith ? 5 : 1;
+		const maxEcon = isSmith ? 2 : 1;
+
 		if (player.gold > 350) {
-			if (this.sim.gameTime < 300 && player.forge.econ < 2) {
+			// Economy upgrade: first 5 minutes (gameTime < 300)
+			if (this.sim.gameTime < 300 && player.forge.econ < maxEcon) {
 				const cost = this.sim.getForgePrice(this.team, 'econ', player);
-				if (player.gold >= cost + 150) {
+				if (player.gold >= cost + 250) {
 					this.sim.upgradeForge(this.team, 'econ', player);
 					return;
 				}
 			}
 
-			if (player.forge.attack < 5) {
+			// Attack upgrade: gameTime >= 60s, attack <= armor or armor >= maxArmor
+			if (
+				this.sim.gameTime >= 60 &&
+				player.forge.attack < maxAttack &&
+				(player.forge.attack <= player.forge.armor || player.forge.armor >= maxArmor)
+			) {
 				const cost = this.sim.getForgePrice(this.team, 'attack', player);
-				if (player.gold >= cost + 150) {
+				if (player.gold >= cost + 250) {
 					this.sim.upgradeForge(this.team, 'attack', player);
 					return;
 				}
 			}
 
-			if (player.forge.armor < 4) {
+			// Armor upgrade: gameTime >= 60s
+			if (this.sim.gameTime >= 60 && player.forge.armor < maxArmor) {
 				const cost = this.sim.getForgePrice(this.team, 'armor', player);
-				if (player.gold >= cost + 150) {
+				if (player.gold >= cost + 250) {
 					this.sim.upgradeForge(this.team, 'armor', player);
 					return;
 				}
@@ -867,5 +879,18 @@ export class BotAI {
 		const finalSelection = laneFiltered.length > 0 ? laneFiltered : candidateTier;
 		const chosen = finalSelection[Math.floor(Math.random() * finalSelection.length)];
 		return chosen ? { x: chosen.x, y: chosen.y } : null;
+	}
+
+	/**
+	 * Identifies whether a bot is the designated 'Smith' (кузнец) for its team (WC3 CF_BotSmith).
+	 * The bot with the lowest slot number on the team serves as the Smith,
+	 * prioritizing Forge upgrades up to tier 5 to provide team-wide combat buffs.
+	 */
+	public isBotSmith(player: PlayerState): boolean {
+		const teammates = this.sim.allPlayers.filter((p) => p.team === player.team && p.isBot);
+		if (teammates.length <= 1) return true;
+		const slots = teammates.map((p) => p.slot ?? 1);
+		const minSlot = Math.min(...slots);
+		return (player.slot ?? 1) === minSlot;
 	}
 }

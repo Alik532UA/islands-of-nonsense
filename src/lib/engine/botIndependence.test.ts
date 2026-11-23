@@ -225,4 +225,54 @@ describe('Bot Independence & Courtyard Isolation (2v2 and 3v3)', () => {
 		// P4 must NOT auto-resume P2's building
 		expect(p4.worker?.targetBuildingId).toBeNull();
 	});
+
+	it('designates the lowest slot bot as CF_BotSmith and limits non-smith forge investment', () => {
+		const sim = new Simulation({
+			botDifficulty: 15,
+			startGold: 5000,
+			teamSize: 2,
+			westRace: 'Люди',
+			eastRace: 'Орки'
+		});
+
+		const p2 = sim.players.east; // Slot 2
+		const p4 = sim.teamMembers.east[1]; // Slot 4
+		expect(p2.slot).toBe(2);
+		expect(p4.slot).toBe(4);
+
+		const botP2 = sim.bots.find((b) => b.getPlayer().id === 'p2')!;
+		const botP4 = sim.bots.find((b) => b.getPlayer().id === 'p4')!;
+
+		// P2 is the Smith for East team; P4 is secondary bot
+		expect(botP2.isBotSmith(p2)).toBe(true);
+		expect(botP4.isBotSmith(p4)).toBe(false);
+
+		// Single bot on west team is also Smith
+		const p1 = sim.players.west;
+		const botP1 = new BotAI(sim, 'west', p1);
+		expect(botP1.isBotSmith(p1)).toBe(true);
+
+		// Advance gameTime past 60s
+		sim.gameTime = 120;
+
+		// Set P4 forge to non-smith limits (attack 2, armor 1, econ 1)
+		p4.forge.attack = 2;
+		p4.forge.armor = 1;
+		p4.forge.econ = 1;
+		p4.gold = 3000;
+
+		// P4 decision should NOT purchase tier 3 attack
+		botP4.makeDecision();
+		expect(p4.forge.attack).toBe(2);
+		expect(p4.forge.armor).toBe(1);
+
+		// P2 (Smith) can upgrade attack/armor past level 2/1 up to level 5
+		p2.forge.attack = 2;
+		p2.forge.armor = 2;
+		p2.forge.econ = 2;
+		p2.gold = 3000;
+
+		botP2.makeDecision();
+		expect(p2.forge.attack).toBe(3);
+	});
 });
