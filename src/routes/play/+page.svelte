@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
+	import { goto } from '$app/navigation';
 	import { Bot, Sparkles, ArrowLeft, Eye, Dices } from 'lucide-svelte';
 	import { t } from '$lib/i18n';
 	import { settings } from '$lib/services/settings.svelte';
 
-	onMount(() => settings.claimHeader(t('menu.singleplayer')));
+	onMount(() => settings.claimHeader(t('menu.singleplayer'), () => goto(resolve('/'))));
 </script>
 
 <svelte:head>

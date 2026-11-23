@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import {
 		CircleUser,
@@ -34,7 +35,7 @@
 	let savedSuccess = $state(false);
 
 	onMount(() => {
-		const release = settings.claimHeader(t('account.title'));
+		const release = settings.claimHeader(t('account.title'), () => goto(resolve('/')));
 		void controller.load().then(() => {
 			if (controller.profile) {
 				formName = controller.profile.name;

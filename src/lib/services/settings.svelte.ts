@@ -19,12 +19,17 @@ function detectInitialLocale(): Locale {
 
 class SettingsService {
 	#headerTitle = $state<string | null>(null);
+	#headerBack = $state<(() => void) | null>(null);
 	#sound = $state(storage.getJSON<boolean>('settings_sound_fx', true));
 	#volume = $state(storage.getJSON<number>('settings_volume', 0.8));
 	#locale = $state<Locale>(detectInitialLocale());
 
 	get headerTitle(): string | null {
 		return this.#headerTitle;
+	}
+
+	get headerBack(): (() => void) | null {
+		return this.#headerBack;
 	}
 
 	get sound(): boolean {
@@ -55,11 +60,14 @@ class SettingsService {
 		storage.setJSON('settings_lang', loc);
 	}
 
-	claimHeader(title: string): () => void {
-		const prev = this.#headerTitle;
+	claimHeader(title: string, back: (() => void) | null = null): () => void {
+		const prevTitle = this.#headerTitle;
+		const prevBack = this.#headerBack;
 		this.#headerTitle = title;
+		this.#headerBack = back;
 		return () => {
-			this.#headerTitle = prev;
+			this.#headerTitle = prevTitle;
+			this.#headerBack = prevBack;
 		};
 	}
 }

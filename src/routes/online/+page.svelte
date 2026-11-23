@@ -26,7 +26,7 @@
 	let searchController: AbortController | null = null;
 
 	onMount(() => {
-		const release = settings.claimHeader(t('online.title'));
+		const release = settings.claimHeader(t('online.title'), () => goto(resolve('/')));
 		void player.load(settings.locale);
 		void player.loadCountry();
 

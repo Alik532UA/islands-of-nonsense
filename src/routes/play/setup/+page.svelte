@@ -34,7 +34,7 @@
 	let coinMode = $state<'none' | 'normal' | 'crazy'>('normal');
 
 	onMount(() => {
-		settings.claimHeader('Налаштування матчу');
+		const release = settings.claimHeader('Налаштування матчу', () => goto(resolve('/play')));
 		const saved = storage.getJSON<Partial<SimulationConfig>>('match_settings', {});
 		if (saved.botDifficulty !== undefined) botDifficulty = saved.botDifficulty;
 		if (saved.startGold !== undefined) startGold = saved.startGold;
