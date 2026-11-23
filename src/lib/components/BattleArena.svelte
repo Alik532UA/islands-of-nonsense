@@ -12,7 +12,7 @@
 	import CommanderModal from '$lib/components/CommanderModal.svelte';
 	import VictoryModal from '$lib/components/VictoryModal.svelte';
 	import ShopModal from '$lib/components/ShopModal.svelte';
-	import StartMatchModal from '$lib/components/StartMatchModal.svelte';
+	import MatchConfigModal from '$lib/components/MatchConfigModal.svelte';
 	import PauseMenuModal from '$lib/components/PauseMenuModal.svelte';
 	import HotkeysHelpModal from '$lib/components/HotkeysHelpModal.svelte';
 	import A11yAnnouncer from '$lib/components/ui/A11yAnnouncer.svelte';
@@ -299,7 +299,6 @@
 			typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
 		const urlMode = searchParams?.get('mode');
 		const urlRoom = searchParams?.get('room');
-		const skipStartModal = storage.getJSON<boolean>('skip_start_modal', false);
 
 		if (urlRoom) {
 			isSettingsOpen = false;
@@ -371,7 +370,7 @@
 				fogOfWar: true,
 				botVsBot: false
 			});
-		} else if (skipStartModal) {
+		} else {
 			isSettingsOpen = false;
 			const saved = storage.getJSON<Partial<SimulationConfig>>('match_settings', {});
 			handleStartNewMatch({
@@ -386,9 +385,6 @@
 				westRace: saved.westRace,
 				eastRace: saved.eastRace
 			});
-		} else {
-			isSettingsOpen = true;
-			sim.isRunning = false;
 		}
 
 		renderer = new ArenaRenderer({
@@ -660,17 +656,18 @@
 			matchPhase = 'BATTLE';
 			sim.isRunning = true;
 			sound.playHorn();
+		} else if (newConfig.westRace && newConfig.westRace !== 'in_game') {
+			if (newConfig.westRace === 'random') {
+				sim.setPlayerRace('west', 'random');
+			} else {
+				sim.setPlayerRace('west', newConfig.westRace);
+			}
+			matchPhase = 'BATTLE';
+			sim.isRunning = true;
+			sound.playHorn();
 		} else {
 			matchPhase = 'COUNTDOWN';
-			chosenWestRace =
-				newConfig.westRace && newConfig.westRace !== 'random'
-					? newConfig.westRace
-					: sim.players.west.isRandomRace
-						? 'random'
-						: sim.players.west.race;
-			if (chosenWestRace !== 'random' && sim.isRaceBanned(chosenWestRace)) {
-				chosenWestRace = sim.getAvailableRaces()[0] || 'Орки';
-			}
+			chosenWestRace = sim.players.west.race;
 			countdownSeconds = 15;
 			if (countdownTimer) clearInterval(countdownTimer);
 			countdownTimer = setInterval(() => {
@@ -951,7 +948,7 @@
 			isCommanderOpen = true;
 		}}
 	/>
-	<StartMatchModal
+	<MatchConfigModal
 		isOpen={isSettingsOpen}
 		currentConfig={sim.config}
 		onClose={() => {
