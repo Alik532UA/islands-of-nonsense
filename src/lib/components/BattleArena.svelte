@@ -70,14 +70,20 @@
 
 	function handleSurrender() {
 		isPauseMenuOpen = false;
-		sim.castles.west.hp = 0;
-		sim.isRunning = false;
+		if (matchSync) {
+			void matchSync.dispatch('SURRENDER');
+		} else {
+			sim.castles.west.hp = 0;
+			sim.isRunning = false;
+		}
 		uiTick = sim.stateVersion;
 	}
 
 	let animFrameId: number;
 	let unlistenSequences: (() => void) | null = null;
 	let unlistenAudio: (() => void) | null = null;
+	let peerOnline = $state(false);
+	let networkNotice = $state<string | null>(null);
 
 	function handleKeyDown(e: KeyboardEvent) {
 		if (isEditableTarget(e.target)) return;
@@ -162,14 +168,25 @@
 					}
 				}
 				if (!isWorkerGridActive || e.altKey) {
-					if (sim.canUseRaceSkill('west')) {
-						const success = sim.useRaceSkill('west');
-						if (success) {
+					const activeTeam = matchSync?.localTeam ?? 'west';
+					if (matchSync) {
+						if (sim.canUseRaceSkill(activeTeam)) {
+							void matchSync.dispatch('USE_ABILITY');
 							sound.playUpgrade();
 							uiTick = sim.stateVersion;
+						} else {
+							sound.playErrorResource();
 						}
 					} else {
-						sound.playErrorResource();
+						if (sim.canUseRaceSkill('west')) {
+							const success = sim.useRaceSkill('west');
+							if (success) {
+								sound.playUpgrade();
+								uiTick = sim.stateVersion;
+							}
+						} else {
+							sound.playErrorResource();
+						}
 					}
 				}
 			} else if (
@@ -180,11 +197,20 @@
 				!isShopOpen &&
 				(!isWorkerGridActive || e.altKey)
 			) {
-				if (sim.canUseRescueStrike('west')) {
-					const res = sim.triggerRescueStrike('west');
-					if (res) {
+				const activeTeam = matchSync?.localTeam ?? 'west';
+				if (matchSync) {
+					if (sim.canUseRescueStrike(activeTeam)) {
+						void matchSync.dispatch('RESCUE_STRIKE');
 						sound.playRescueStrike();
 						uiTick = sim.stateVersion;
+					}
+				} else {
+					if (sim.canUseRescueStrike('west')) {
+						const res = sim.triggerRescueStrike('west');
+						if (res) {
+							sound.playRescueStrike();
+							uiTick = sim.stateVersion;
+						}
 					}
 				}
 			} else if (e.key === 'ArrowLeft') {
@@ -263,12 +289,25 @@
 				const { liveNet } = await import('$lib/net/roomNet');
 				const { MatchSync: MS } = await import('$lib/net/matchSync');
 				const uid = await liveNet.me();
+				const isHost = searchParams?.get('host') === '1';
+				const localTeam: 'west' | 'east' = isHost ? 'west' : 'east';
+				if (!isHost) {
+					cameraX = 6400;
+					cameraY = 1200;
+				}
 				const transport = await liveNet.roomTransport(urlRoom);
 				matchSync = new MS({
 					sim,
 					transport,
 					localUid: uid,
-					localTeam: 'west',
+					localTeam,
+					onPeerStatusChange: (status) => {
+						peerOnline = status.online;
+						networkNotice = status.online ? null : 'Суперник тимчасово офлайн';
+					},
+					onGone: (reason) => {
+						networkNotice = `Мережева сесія завершена: ${reason}`;
+					},
 					onCommandApplied: () => {
 						uiTick = sim.stateVersion;
 					}
@@ -433,10 +472,12 @@
 
 				if (stepsCount > 0 && !sim.winner) {
 					const botDt = stepsCount * subDt;
-					if (sim.bots && sim.bots.length > 0) {
-						sim.updateBots(botDt);
-					} else {
-						botAI?.update(botDt);
+					if (!matchSync) {
+						if (sim.bots && sim.bots.length > 0) {
+							sim.updateBots(botDt);
+						} else {
+							botAI?.update(botDt);
+						}
 					}
 				}
 				if (stepsCount > 0) {
@@ -681,6 +722,25 @@
 		class="flex-1 w-full h-full bg-[#090d16] flex items-center justify-center relative overflow-hidden"
 	>
 		<canvas bind:this={canvasEl} class="w-full h-full block cursor-crosshair select-none"></canvas>
+
+		{#if matchSync}
+			<div
+				class="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-md shadow-md border pointer-events-none {peerOnline
+					? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-300'
+					: 'bg-amber-950/80 border-amber-500/40 text-amber-300'}"
+			>
+				<span
+					class="inline-block w-2 h-2 rounded-full {peerOnline
+						? 'bg-emerald-400 animate-pulse'
+						: 'bg-amber-400'}"
+				></span>
+				<span
+					>{peerOnline
+						? `Онлайн PvP: ${matchSync.localTeam === 'west' ? 'Захід (Ви)' : 'Схід (Ви)'} vs Суперник`
+						: (networkNotice ?? 'Очікування суперника...')}</span
+				>
+			</div>
+		{/if}
 
 		<!-- Pre-Match 10s Countdown & Race Selection Overlay -->
 		{#if matchPhase === 'COUNTDOWN'}

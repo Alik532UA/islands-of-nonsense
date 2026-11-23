@@ -8,6 +8,7 @@ export interface MatchSyncOptions {
 	localTeam: 'west' | 'east';
 	onCommandApplied?: (move: Move) => void;
 	onGone?: (reason: string) => void;
+	onPeerStatusChange?: (status: { peerUid: string; online: boolean }) => void;
 }
 
 /**
@@ -25,6 +26,8 @@ export class MatchSync {
 	private appliedSeq = 0;
 	private unwatch: (() => void) | null = null;
 	private onCommandApplied?: (move: Move) => void;
+	private onPeerStatusChange?: (status: { peerUid: string; online: boolean }) => void;
+	private peerSeen = new Map<string, number>();
 
 	constructor(options: MatchSyncOptions) {
 		this.sim = options.sim;
@@ -32,15 +35,27 @@ export class MatchSync {
 		this.localUid = options.localUid;
 		this.localTeam = options.localTeam;
 		this.onCommandApplied = options.onCommandApplied;
+		this.onPeerStatusChange = options.onPeerStatusChange;
 
 		this.unwatch = this.transport.watch(
 			(snapshot) => {
 				this.processMoves(snapshot.moves);
+				this.checkMembers(snapshot.members);
 			},
 			(reason) => {
 				options.onGone?.(reason);
 			}
 		);
+	}
+
+	private checkMembers(members: readonly { uid: string }[]) {
+		if (!this.onPeerStatusChange) return;
+		for (const m of members) {
+			if (m.uid !== this.localUid) {
+				this.peerSeen.set(m.uid, Date.now());
+				this.onPeerStatusChange({ peerUid: m.uid, online: true });
+			}
+		}
 	}
 
 	/**
@@ -130,6 +145,23 @@ export class MatchSync {
 
 			case 'BRIDGE_REPAIR':
 				this.sim.orderBridgeRepair(team);
+				break;
+
+			case 'RESCUE_STRIKE':
+				this.sim.triggerRescueStrike(team);
+				break;
+
+			case 'SURRENDER':
+				this.sim.castles[team].hp = 0;
+				this.sim.isRunning = false;
+				break;
+
+			case 'PAUSE':
+				this.sim.isRunning = false;
+				break;
+
+			case 'RESUME':
+				this.sim.isRunning = true;
 				break;
 
 			case 'HEARTBEAT':

@@ -9,6 +9,7 @@
 		Maximize2,
 		Minimize2,
 		Sliders,
+		Languages,
 		Flag,
 		ArrowLeft,
 		House,
@@ -105,20 +106,21 @@
 					</button>
 				{/if}
 
-				<!-- Quick Audio & Screen Row -->
-				<div class="grid grid-cols-2 gap-2 pt-1">
+				<!-- Quick Audio, Fullscreen & Language Row -->
+				<div class="grid grid-cols-3 gap-2 pt-1">
 					<button
 						type="button"
 						onclick={() => settings.setSound(!settings.sound)}
-						class="py-2 px-3 bg-[#131722] hover:bg-[#1e2433] border border-slate-700 text-xs text-slate-300 font-semibold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
+						class="py-2 px-2 bg-[#131722] hover:bg-[#1e2433] border border-slate-700 text-xs text-slate-300 font-semibold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
 						data-testid="pause-sound-toggle"
+						title={settings.sound ? 'Звук: Увімкнено' : 'Звук: Вимкнено'}
 					>
 						{#if settings.sound}
-							<Volume2 class="w-4 h-4 text-emerald-400" />
-							<span>Звук: Увімк</span>
+							<Volume2 class="w-4 h-4 text-emerald-400 shrink-0" />
+							<span>Звук</span>
 						{:else}
-							<VolumeX class="w-4 h-4 text-slate-500" />
-							<span>Звук: Вимк</span>
+							<VolumeX class="w-4 h-4 text-slate-500 shrink-0" />
+							<span class="text-slate-500">Вимк</span>
 						{/if}
 					</button>
 
@@ -126,24 +128,36 @@
 						<button
 							type="button"
 							onclick={() => fullscreen.toggle()}
-							class="py-2 px-3 bg-[#131722] hover:bg-[#1e2433] border border-slate-700 text-xs text-slate-300 font-semibold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
+							class="py-2 px-2 bg-[#131722] hover:bg-[#1e2433] border border-slate-700 text-xs text-slate-300 font-semibold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
 							data-testid="pause-fullscreen-toggle"
+							title={fullscreen.active ? 'Згорнути до вікна' : 'Розгорнути на весь екран'}
 						>
 							{#if fullscreen.active}
-								<Minimize2 class="w-4 h-4 text-amber-400" />
-								<span>Віконний</span>
+								<Minimize2 class="w-4 h-4 text-amber-400 shrink-0" />
+								<span>Вікно</span>
 							{:else}
-								<Maximize2 class="w-4 h-4 text-slate-400" />
-								<span>Повний екран</span>
+								<Maximize2 class="w-4 h-4 text-slate-400 shrink-0" />
+								<span>Екран</span>
 							{/if}
 						</button>
 					{:else}
 						<div
-							class="py-2 px-3 bg-[#131722] border border-slate-800 text-[11px] text-slate-500 rounded-xl flex items-center justify-center"
+							class="py-2 px-2 bg-[#131722] border border-slate-800 text-[11px] text-slate-500 rounded-xl flex items-center justify-center"
 						>
-							Стандартний вигляд
+							Вікно
 						</div>
 					{/if}
+
+					<button
+						type="button"
+						onclick={() => settings.setLocale(settings.locale === 'uk' ? 'en' : 'uk')}
+						class="py-2 px-2 bg-[#131722] hover:bg-[#1e2433] border border-slate-700 text-xs text-slate-300 font-semibold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
+						data-testid="pause-locale-toggle"
+						title={settings.locale === 'uk' ? 'Switch to English' : 'Перемкнути на українську'}
+					>
+						<Languages class="w-4 h-4 text-cyan-400 shrink-0" />
+						<span class="font-bold font-mono">{settings.locale === 'uk' ? 'UA' : 'EN'}</span>
+					</button>
 				</div>
 
 				<!-- Surrender Button -->

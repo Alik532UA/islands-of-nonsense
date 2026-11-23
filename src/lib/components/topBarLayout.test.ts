@@ -72,9 +72,10 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 		expect(topBarContent).toContain('data-testid="topbar-home-link"');
 	});
 
-	it('includes quick in-game sound and fullscreen controls', () => {
+	it('includes quick in-game sound, fullscreen and language controls', () => {
 		expect(topBarContent).toContain('data-testid="topbar-sound-toggle"');
 		expect(topBarContent).toContain('data-testid="topbar-fullscreen-toggle"');
+		expect(topBarContent).toContain('data-testid="topbar-locale-toggle"');
 	});
 
 	it('supports onBeforeLeave hook to protect against accidental exits', () => {

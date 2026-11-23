@@ -13,6 +13,7 @@
 		VolumeX,
 		Maximize2,
 		Minimize2,
+		Languages,
 		Coins,
 		Shield,
 		BookOpen,
@@ -417,6 +418,18 @@
 					{/if}
 				</button>
 			{/if}
+
+			<!-- Locale toggle -->
+			<button
+				type="button"
+				onclick={() => settings.setLocale(settings.locale === 'uk' ? 'en' : 'uk')}
+				class="px-1.5 py-0.5 rounded hover:bg-[#2a241b] transition cursor-pointer shrink-0 text-[10px] font-bold font-mono text-cyan-300"
+				title={settings.locale === 'uk' ? 'Switch to English' : 'Перемкнути на українську'}
+				aria-label={settings.locale === 'uk' ? 'Switch to English' : 'Перемкнути на українську'}
+				data-testid="topbar-locale-toggle"
+			>
+				{settings.locale === 'uk' ? 'UA' : 'EN'}
+			</button>
 		</div>
 
 		<!-- Authentic WC3 Resource Boxes -->

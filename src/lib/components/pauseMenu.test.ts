@@ -16,9 +16,10 @@ describe('PauseMenuModal Invariants & Action Buttons', () => {
 		expect(content).toContain('data-testid="pause-surrender-btn"');
 	});
 
-	it('contains quick sound and fullscreen controls', () => {
+	it('contains quick sound, fullscreen and language controls', () => {
 		expect(content).toContain('data-testid="pause-sound-toggle"');
 		expect(content).toContain('data-testid="pause-fullscreen-toggle"');
+		expect(content).toContain('data-testid="pause-locale-toggle"');
 	});
 
 	it('provides clean exit routes to play modes and main menu', () => {

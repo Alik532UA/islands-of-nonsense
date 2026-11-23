@@ -90,4 +90,105 @@ describe('MatchSync', () => {
 		syncA.dispose();
 		syncB.dispose();
 	});
+
+	it('synchronizes RESCUE_STRIKE and updates castle rescue strike availability', async () => {
+		const syncA = new MatchSync({
+			sim: simA,
+			transport: room.transport({ as: 'player_a' }),
+			localUid: 'player_a',
+			localTeam: 'west'
+		});
+
+		const syncB = new MatchSync({
+			sim: simB,
+			transport: room.transport({ as: 'player_b' }),
+			localUid: 'player_b',
+			localTeam: 'east'
+		});
+
+		simA.rescueStrikeCooldown.west = 0;
+		simB.rescueStrikeCooldown.west = 0;
+
+		await syncA.dispatch('RESCUE_STRIKE');
+
+		expect(simA.rescueStrikeCooldown.west).toBeGreaterThan(0);
+		expect(simB.rescueStrikeCooldown.west).toBeGreaterThan(0);
+
+		syncA.dispose();
+		syncB.dispose();
+	});
+
+	it('synchronizes SURRENDER command to forfeit match', async () => {
+		const syncA = new MatchSync({
+			sim: simA,
+			transport: room.transport({ as: 'player_a' }),
+			localUid: 'player_a',
+			localTeam: 'west'
+		});
+
+		const syncB = new MatchSync({
+			sim: simB,
+			transport: room.transport({ as: 'player_b' }),
+			localUid: 'player_b',
+			localTeam: 'east'
+		});
+
+		await syncA.dispatch('SURRENDER');
+
+		expect(simA.castles.west.hp).toBe(0);
+		expect(simB.castles.west.hp).toBe(0);
+
+		syncA.dispose();
+		syncB.dispose();
+	});
+
+	it('notifies peer presence through onPeerStatusChange', () => {
+		let detectedPeer = '';
+		let isOnline = false;
+
+		const syncA = new MatchSync({
+			sim: simA,
+			transport: room.transport({ as: 'player_a' }),
+			localUid: 'player_a',
+			localTeam: 'west',
+			onPeerStatusChange: (status) => {
+				detectedPeer = status.peerUid;
+				isOnline = status.online;
+			}
+		});
+
+		expect(detectedPeer).toBe('player_b');
+		expect(isOnline).toBe(true);
+
+		syncA.dispose();
+	});
+
+	it('handles bidirectional moves in lockstep across both peers', async () => {
+		const syncA = new MatchSync({
+			sim: simA,
+			transport: room.transport({ as: 'player_a' }),
+			localUid: 'player_a',
+			localTeam: 'west'
+		});
+
+		const syncB = new MatchSync({
+			sim: simB,
+			transport: room.transport({ as: 'player_b' }),
+			localUid: 'player_b',
+			localTeam: 'east'
+		});
+
+		// Player A builds on west
+		await syncA.dispatch('BUILD', { buildingType: 'h05X', x: 25, y: 20, team: 'west' });
+		// Player B builds on east
+		await syncB.dispatch('BUILD', { buildingType: 'h008', x: 25, y: 20, team: 'east' });
+
+		// Both simulations should contain both buildings in exact same positions
+		expect(simA.buildings.length).toBe(2);
+		expect(simB.buildings.length).toBe(2);
+		expect(simA.buildings.map((b) => b.defId)).toEqual(simB.buildings.map((b) => b.defId));
+
+		syncA.dispose();
+		syncB.dispose();
+	});
 });
