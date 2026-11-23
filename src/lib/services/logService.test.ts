@@ -189,4 +189,167 @@ describe('журнал (DEBUGGING § 1)', () => {
 		expect(unitReport).toContain('--- LOG HISTORY FOR THIS UNIT');
 		expect(unitReport).toContain('[COLLISION] Unit path calculated');
 	});
+
+	it('генерація діагностичного звіту для будь-якого об’єкта (будівля, робітник, замок, група)', async () => {
+		const logService = await load();
+
+		const mockSim = {
+			castles: {
+				west: { x: 1600, y: 1200, hp: 4500, maxHp: 5000, team: 'west' },
+				east: { x: 5600, y: 1200, hp: 5000, maxHp: 5000, team: 'east' }
+			},
+			players: {
+				west: {
+					name: 'Player 1',
+					race: 'human',
+					gold: 750,
+					lumber: 40,
+					food: 12,
+					maxFood: 20,
+					commander: 1,
+					forge: { attack: 1, armor: 1, econ: 0 },
+					worker: {
+						name: 'Селянин',
+						x: 1750,
+						y: 1200,
+						targetX: 1800,
+						targetY: 1200,
+						hp: 250,
+						maxHp: 250,
+						armor: 'Unarmored',
+						speed: 250,
+						isBuilding: true,
+						buildTimer: 2.5,
+						targetBuildingId: 'bld_farm_1',
+						path: [{ x: 1800, y: 1200 }]
+					}
+				}
+			},
+			buildings: [
+				{
+					instanceId: 'bld_barracks_1',
+					defId: 'h000',
+					name: 'Казарми',
+					team: 'west',
+					lane: 'mid',
+					tileX: 1,
+					tileY: 2,
+					x: 1800,
+					y: 1200,
+					hp: 1200,
+					maxHp: 1200,
+					armor: 5,
+					armorType: 'fortified',
+					goldCost: 165,
+					spawnUnitId: 'u_footman',
+					spawnCooldown: 18,
+					spawnTimer: 12,
+					race: 'human'
+				}
+			],
+			units: [
+				{
+					instanceId: 'unit_grunt_1',
+					defId: 'u_grunt',
+					name: 'Бугай',
+					team: 'east',
+					lane: 'mid',
+					hp: 700,
+					maxHp: 700,
+					x: 2100,
+					y: 1200,
+					state: 'ATTACKING'
+				}
+			],
+			goldCoins: [
+				{
+					id: 'coin_1',
+					lane: 'mid',
+					x: 1760,
+					y: 1210,
+					value: 5,
+					lifeTime: 10,
+					maxLifeTime: 20
+				}
+			]
+		} as unknown as import('../engine/simulation').Simulation;
+
+		// 1. Building Report
+		const bld = mockSim.buildings[0];
+		const bldReport = logService.getBuildingReport(bld, mockSim);
+		expect(bldReport).toContain('=== BUILDING DIAGNOSTIC REPORT ===');
+		expect(bldReport).toContain('Казарми');
+		expect(bldReport).toContain('bld_barracks_1');
+		expect(bldReport).toContain('WEST CASTLE DISTANCE');
+
+		// 2. Worker Report
+		const worker = mockSim.players.west.worker;
+		expect(worker).toBeDefined();
+		if (worker) {
+			const workerReport = logService.getWorkerReport(worker, 'west', mockSim);
+			expect(workerReport).toContain('=== WORKER DIAGNOSTIC REPORT ===');
+			expect(workerReport).toContain('Селянин');
+			expect(workerReport).toContain('Building (bld_farm_1');
+		}
+
+		// 3. Castle Report
+		const castle = mockSim.castles.west;
+		const castleReport = logService.getCastleReport(castle, mockSim);
+		expect(castleReport).toContain('=== CASTLE DIAGNOSTIC REPORT ===');
+		expect(castleReport).toContain('West Castle (Alliance)');
+		expect(castleReport).toContain('4500/5000');
+
+		// 4. Group Report
+		const groupReport = logService.getGroupReport(mockSim.units);
+		expect(groupReport).toContain('=== UNIT GROUP DIAGNOSTIC REPORT ===');
+		expect(groupReport).toContain('Бугай');
+
+		// 5. Unified getEntityReport handles all selection modes
+		// A. Building selection
+		const entBld = logService.getEntityReport(mockSim, {
+			type: 'building',
+			instanceId: 'bld_barracks_1'
+		});
+		expect(entBld).not.toBeNull();
+		expect(entBld?.title).toBe('будівлі Казарми');
+		expect(entBld?.report).toContain('Казарми');
+
+		// B. Worker selection
+		const entWorker = logService.getEntityReport(mockSim, { type: 'worker' });
+		expect(entWorker).not.toBeNull();
+		expect(entWorker?.title).toBe('робітника');
+		expect(entWorker?.report).toContain('Селянин');
+
+		// C. Castle selection
+		const entCastle = logService.getEntityReport(mockSim, { type: 'castle', team: 'west' });
+		expect(entCastle).not.toBeNull();
+		expect(entCastle?.title).toBe('замку (Захід)');
+		expect(entCastle?.report).toContain('West Castle');
+
+		// D. Group selection
+		const entGroup = logService.getEntityReport(mockSim, {
+			type: 'group',
+			unitIds: ['unit_grunt_1']
+		});
+		expect(entGroup).not.toBeNull();
+		expect(entGroup?.title).toContain('групи');
+
+		// E. Unit selection
+		const entUnit = logService.getEntityReport(mockSim, {
+			type: 'unit',
+			instanceId: 'unit_grunt_1'
+		});
+		expect(entUnit).not.toBeNull();
+		expect(entUnit?.title).toBe('юніта Бугай');
+
+		// F. No entity selected and no worker fallback
+		const emptySim = {
+			units: [],
+			buildings: [],
+			castles: {},
+			players: {}
+		} as unknown as import('../engine/simulation').Simulation;
+		const entNone = logService.getEntityReport(emptySim, null);
+		expect(entNone).toBeNull();
+	});
 });

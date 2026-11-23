@@ -2,6 +2,7 @@
 	import type { Simulation } from '../engine/simulation';
 	import { CASTLE_ITEMS_LIST } from '../engine/items';
 	import { sound } from '../services/audio';
+	import { shortcutDigit, isEditableTarget } from '../hotkeys/hotkeys';
 	import {
 		ShoppingBag,
 		Scroll,
@@ -39,12 +40,13 @@
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (!isOpen) return;
+		if (isEditableTarget(e.target)) return;
 		if (e.key === 'Escape') {
 			isOpen = false;
 			return;
 		}
-		const num = parseInt(e.key, 10);
-		if (num >= 1 && num <= CASTLE_ITEMS_LIST.length) {
+		const num = shortcutDigit(e);
+		if (num !== null && num >= 1 && num <= CASTLE_ITEMS_LIST.length) {
 			const item = CASTLE_ITEMS_LIST[num - 1];
 			if (item) handleBuy(item.id);
 		}

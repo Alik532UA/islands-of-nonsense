@@ -21,6 +21,7 @@
 		WEST_CASTLE_STAGE_URLS,
 		EAST_CASTLE_STAGE_URLS
 	} from '../renderer/castleAssets';
+	import { shortcutLetter, shortcutDigit, isEditableTarget } from '../hotkeys/hotkeys';
 
 	let {
 		sim,
@@ -126,7 +127,12 @@
 	const HOTKEYS = ['Q', 'W', 'E', 'R', 'A', 'S', 'D', 'F', 'Z', 'X', 'V'];
 
 	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape' || (e.key.toUpperCase() === 'B' && activeEntityType !== 'castle')) {
+		if (isEditableTarget(e.target)) return;
+
+		const letter = shortcutLetter(e)?.toUpperCase();
+		const digit = shortcutDigit(e);
+
+		if (e.key === 'Escape' || (letter === 'B' && activeEntityType !== 'castle')) {
 			if (selectedBuildingId) {
 				onSelectBuilding(null);
 				return;
@@ -135,13 +141,10 @@
 			return;
 		}
 
-		const key = e.key.toUpperCase();
-
 		// Upgrades 1..9 for selected placed building
-		if (placedBuilding && availableUpgrades.length > 0) {
-			const num = parseInt(key, 10);
-			if (num >= 1 && num <= availableUpgrades.length) {
-				const up = availableUpgrades[num - 1];
+		if (placedBuilding && availableUpgrades.length > 0 && digit !== null) {
+			if (digit >= 1 && digit <= availableUpgrades.length) {
+				const up = availableUpgrades[digit - 1];
 				onUpgradeBuilding?.(placedBuilding.instanceId, up.id);
 				return;
 			}
@@ -149,7 +152,7 @@
 
 		// Hotkey 'V' or 'C' for slot 10 (Скриня зі Скарбами h008)
 		if (
-			(key === 'V' || key === 'C') &&
+			(letter === 'V' || letter === 'C') &&
 			(activeEntityType === 'worker' || activeEntityType === 'none')
 		) {
 			if (availableBuildings.length >= 11) {
@@ -160,14 +163,16 @@
 		}
 
 		// Hotkeys Q..X for command card in worker or unselected mode
-		const idx = HOTKEYS.indexOf(key);
-		if (
-			idx !== -1 &&
-			idx < availableBuildings.length &&
-			(activeEntityType === 'worker' || activeEntityType === 'none')
-		) {
-			const bld = availableBuildings[idx];
-			onSelectBuilding(selectedBuildingId === bld.id ? null : bld.id);
+		if (letter) {
+			const idx = HOTKEYS.indexOf(letter);
+			if (
+				idx !== -1 &&
+				idx < availableBuildings.length &&
+				(activeEntityType === 'worker' || activeEntityType === 'none')
+			) {
+				const bld = availableBuildings[idx];
+				onSelectBuilding(selectedBuildingId === bld.id ? null : bld.id);
+			}
 		}
 	}
 </script>

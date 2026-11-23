@@ -2,8 +2,10 @@
 import { browser, dev } from '$app/env';
 import { redact } from './redact';
 import { sessionStore } from './storage';
-import type { Unit } from '../engine/types';
+import type { Unit, Building, WorkerState, Castle, MatchTeam } from '../engine/types';
 import type { Simulation } from '../engine/simulation';
+import type { SelectedEntity } from '../renderer/entityRenderer';
+import { getCastleStageIndex } from '../renderer/castleAssets';
 
 export type Level = 'info' | 'warn' | 'error';
 
@@ -229,14 +231,12 @@ class LogService {
 			u.targetX ?? (u.team === 'west' ? sim.castles.east.x : sim.castles.west.x);
 		const directTargetY =
 			u.targetY ?? (u.team === 'west' ? sim.castles.east.y : sim.castles.west.y);
-		const lineClear = sim.workerSystem.isGroundLineClear(
-			u.x,
-			u.y,
-			directTargetX,
-			directTargetY,
-			u.size
-		);
-		const resolved = sim.workerSystem.resolveGroundObstacles(u.x, u.y, u.size);
+		const lineClear = sim.workerSystem?.isGroundLineClear
+			? sim.workerSystem.isGroundLineClear(u.x, u.y, directTargetX, directTargetY, u.size)
+			: true;
+		const resolved = sim.workerSystem?.resolveGroundObstacles
+			? sim.workerSystem.resolveGroundObstacles(u.x, u.y, u.size)
+			: { x: u.x, y: u.y };
 		const isPenetrating = Math.hypot(resolved.x - u.x, resolved.y - u.y) > 0.5;
 
 		const obstacles = [
@@ -271,6 +271,282 @@ class LogService {
 		];
 
 		return [...header, ...waypoints, ...obstacles, ...logs].join('\n');
+	}
+
+	getBuildingReport(b: Building, sim: Simulation): string {
+		const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.1';
+		const westCastleDist = Math.hypot(
+			sim.castles.west.x - (b.x + 32),
+			sim.castles.west.y - (b.y + 32)
+		);
+		const eastCastleDist = Math.hypot(
+			sim.castles.east.x - (b.x + 32),
+			sim.castles.east.y - (b.y + 32)
+		);
+
+		const header = [
+			'=== BUILDING DIAGNOSTIC REPORT ===',
+			`DATE: ${new Date().toISOString()}`,
+			`VERSION: ${appVersion}`,
+			`BUILDING: ${b.name} [${b.defId}] (ID: ${b.instanceId})`,
+			`TEAM: ${b.team.toUpperCase()} | RACE: ${b.race} | LANE: ${b.lane.toUpperCase()}`,
+			`GRID TILE: (${b.tileX}, ${b.tileY}) | WORLD POS: (${b.x}, ${b.y})`,
+			`HP: ${Math.round(b.hp)}/${b.maxHp} | ARMOR: ${b.armor} (${b.armorType})`,
+			`STATUS: ${b.isUnderConstruction ? `Under Construction (${Math.round(b.buildProgress || 0)}/${b.maxBuildProgress || 100})` : 'Operational'}`,
+			`SPAWN: Unit=${b.spawnUnitId || 'None'}, Timer=${(b.spawnTimer || 0).toFixed(1)}s/${b.spawnCooldown || 0}s`,
+			`ATTACK: ${b.attackRange ? `Range=${b.attackRange}, Dmg=${b.damageMin}-${b.damageMax} (${b.attackType}), Cooldown=${b.attackCooldown}` : 'None (Production/Econ)'}`,
+			`SPECIAL TYPE: ${b.specialType || 'None'} | UPGRADE FROM: ${b.upgradeFrom || 'Base'}`,
+			`COST: Gold=${b.goldCost}, Lumber=${b.lumberCost || 0}`,
+			''
+		];
+
+		const nearbyUnits = sim.units
+			.filter((u) => u.hp > 0 && Math.hypot(u.x - (b.x + 32), u.y - (b.y + 32)) <= 400)
+			.map((u) => {
+				const dist = Math.hypot(u.x - (b.x + 32), u.y - (b.y + 32));
+				return `  - [${u.team.toUpperCase()}] ${u.name} (${u.instanceId}): at (${u.x.toFixed(1)}, ${u.y.toFixed(1)}), dist: ${dist.toFixed(1)}px, hp: ${Math.round(u.hp)}/${u.maxHp}, state: ${u.state}`;
+			});
+
+		const context = [
+			'--- PROXIMITY & MAP CONTEXT ---',
+			`WEST CASTLE DISTANCE: ${westCastleDist.toFixed(1)}px`,
+			`EAST CASTLE DISTANCE: ${eastCastleDist.toFixed(1)}px`,
+			`NEARBY UNITS WITHIN 400px (${nearbyUnits.length}):`,
+			...(nearbyUnits.length ? nearbyUnits : ['  None within 400px']),
+			''
+		];
+
+		const bldEntries = this.#entries.filter((e) => {
+			const text = `${e.message} ${safeJson(e.data)}`;
+			return text.includes(b.instanceId) || text.includes(b.name);
+		});
+
+		const logs = [
+			`--- LOG HISTORY FOR THIS BUILDING (${bldEntries.length} entries) ---`,
+			...(bldEntries.length
+				? bldEntries.map(
+						(e) =>
+							`[${e.time}] [${e.level.toUpperCase()}] [${e.category.toUpperCase()}] ${e.message}` +
+							(e.data.length ? ` ${safeJson(e.data)}` : '')
+					)
+				: ['No specific log entries captured for this building']),
+			'=== END OF REPORT ==='
+		];
+
+		return [...header, ...context, ...logs].join('\n');
+	}
+
+	getWorkerReport(w: WorkerState, team: MatchTeam, sim: Simulation): string {
+		const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.1';
+		const header = [
+			'=== WORKER DIAGNOSTIC REPORT ===',
+			`DATE: ${new Date().toISOString()}`,
+			`VERSION: ${appVersion}`,
+			`WORKER: ${w.name} [TEAM: ${team.toUpperCase()}]`,
+			`POSITION: (X: ${w.x.toFixed(1)}, Y: ${w.y.toFixed(1)}) | TARGET: (X: ${w.targetX.toFixed(1)}, Y: ${w.targetY.toFixed(1)})`,
+			`HP: ${Math.round(w.hp)}/${w.maxHp} | ARMOR: ${w.armor} | SPEED: ${w.speed}`,
+			`STATUS: ${w.isBuilding ? `Building (${w.targetBuildingId || 'N/A'}, timer: ${(w.buildTimer || 0).toFixed(1)}s)` : w.isRepairing ? `Repairing (${w.targetRepairBuildingId || 'N/A'})` : 'Idle / Moving'}`,
+			`STUCK TIMER: ${(w.stuckTimer || 0).toFixed(2)}s | AVOIDANCE BIAS: ${w.avoidanceBias ?? 0}`,
+			`BUILD QUEUE: ${w.buildQueue?.length ? w.buildQueue.join(', ') : 'Empty'}`,
+			''
+		];
+
+		const waypoints = [
+			'--- PATHFINDING & WAYPOINTS ---',
+			`ACTIVE WAYPOINTS: ${w.path?.length ?? 0}`,
+			`WAYPOINTS LIST: ${w.path?.length ? w.path.map((wp, i) => `#${i + 1} (${Math.round(wp.x)}, ${Math.round(wp.y)})`).join(' -> ') : 'None (direct movement)'}`,
+			''
+		];
+
+		const nearbyCoins = (sim.goldCoins || [])
+			.filter((c) => Math.hypot(c.x - w.x, c.y - w.y) <= 500)
+			.map(
+				(c) =>
+					`  - [GOLD COIN] at (${c.x}, ${c.y}), dist: ${Math.hypot(c.x - w.x, c.y - w.y).toFixed(1)}px, value: ${c.value}g`
+			);
+
+		const context = [
+			'--- PROXIMITY & ENVIRONMENT ---',
+			`NEARBY GOLD COINS (${nearbyCoins.length}):`,
+			...(nearbyCoins.length ? nearbyCoins : ['  None within 500px']),
+			''
+		];
+
+		const workerEntries = this.#entries.filter((e) => {
+			const text = `${e.message} ${safeJson(e.data)}`.toLowerCase();
+			return (
+				text.includes('worker') ||
+				text.includes(w.name.toLowerCase()) ||
+				e.category === 'navigation'
+			);
+		});
+
+		const logs = [
+			`--- LOG HISTORY FOR WORKER (${workerEntries.length} entries) ---`,
+			...(workerEntries.length
+				? workerEntries
+						.slice(-15)
+						.map(
+							(e) =>
+								`[${e.time}] [${e.level.toUpperCase()}] [${e.category.toUpperCase()}] ${e.message}` +
+								(e.data.length ? ` ${safeJson(e.data)}` : '')
+						)
+				: ['No specific log entries captured for worker']),
+			'=== END OF REPORT ==='
+		];
+
+		return [...header, ...waypoints, ...context, ...logs].join('\n');
+	}
+
+	getCastleReport(c: Castle, sim: Simulation): string {
+		const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.1';
+		const player = sim.players[c.team];
+		const hpPct = ((c.hp / c.maxHp) * 100).toFixed(1);
+		const stage = getCastleStageIndex(c.hp, c.maxHp);
+
+		const header = [
+			'=== CASTLE DIAGNOSTIC REPORT ===',
+			`DATE: ${new Date().toISOString()}`,
+			`VERSION: ${appVersion}`,
+			`CASTLE: ${c.team === 'west' ? 'West Castle (Alliance)' : 'East Castle (Chaos)'}`,
+			`TEAM: ${c.team.toUpperCase()} | POSITION: (X: ${c.x}, Y: ${c.y})`,
+			`HP: ${Math.round(c.hp)}/${c.maxHp} (${hpPct}%) | DESTRUCTION STAGE: Stage ${stage} (of 0..7)`,
+			`PLAYER: Name="${player?.name ?? 'Unknown'}", Race="${player?.race ?? 'Unknown'}", Gold=${player?.gold ?? 0}, Lumber=${player?.lumber ?? 0}`,
+			`FOOD: ${player?.food ?? 0}/${player?.maxFood ?? 0} | COMMANDER: #${player?.commander ?? 'N/A'}`,
+			`FORGE LEVELS: Attack=+${player?.forge?.attack ?? 0}, Armor=+${player?.forge?.armor ?? 0}, Econ=+${player?.forge?.econ ?? 0}`,
+			''
+		];
+
+		const attackingUnits = sim.units
+			.filter((u) => u.hp > 0 && u.team !== c.team && Math.hypot(u.x - c.x, u.y - c.y) <= 600)
+			.map(
+				(u) =>
+					`  - [ENEMY] ${u.name} (${u.instanceId}): at (${u.x.toFixed(1)}, ${u.y.toFixed(1)}), dist: ${Math.hypot(u.x - c.x, u.y - c.y).toFixed(1)}px, hp: ${Math.round(u.hp)}/${u.maxHp}`
+			);
+
+		const defendingUnits = sim.units
+			.filter((u) => u.hp > 0 && u.team === c.team && Math.hypot(u.x - c.x, u.y - c.y) <= 600)
+			.map(
+				(u) =>
+					`  - [ALLY] ${u.name} (${u.instanceId}): at (${u.x.toFixed(1)}, ${u.y.toFixed(1)}), dist: ${Math.hypot(u.x - c.x, u.y - c.y).toFixed(1)}px, hp: ${Math.round(u.hp)}/${u.maxHp}`
+			);
+
+		const combat = [
+			'--- SURROUNDING UNITS (WITHIN 600px) ---',
+			`ENEMY UNITS NEAR CASTLE (${attackingUnits.length}):`,
+			...(attackingUnits.length ? attackingUnits : ['  None within 600px']),
+			`DEFENDING ALLY UNITS NEAR CASTLE (${defendingUnits.length}):`,
+			...(defendingUnits.length ? defendingUnits : ['  None within 600px']),
+			''
+		];
+
+		const castleEntries = this.#entries.filter((e) => {
+			const text = `${e.message} ${safeJson(e.data)}`.toLowerCase();
+			return text.includes('castle') || text.includes(c.team);
+		});
+
+		const logs = [
+			`--- LOG HISTORY FOR CASTLE (${castleEntries.length} entries) ---`,
+			...(castleEntries.length
+				? castleEntries
+						.slice(-15)
+						.map(
+							(e) =>
+								`[${e.time}] [${e.level.toUpperCase()}] [${e.category.toUpperCase()}] ${e.message}` +
+								(e.data.length ? ` ${safeJson(e.data)}` : '')
+						)
+				: ['No specific log entries captured for castle']),
+			'=== END OF REPORT ==='
+		];
+
+		return [...header, ...combat, ...logs].join('\n');
+	}
+
+	getGroupReport(units: Unit[]): string {
+		const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.1';
+		const unitBreakdown = new Map<string, number>();
+		for (const u of units) {
+			unitBreakdown.set(u.name, (unitBreakdown.get(u.name) || 0) + 1);
+		}
+		const summary = Array.from(unitBreakdown.entries())
+			.map(([name, count]) => `  - ${name}: ${count}`)
+			.join('\n');
+
+		const header = [
+			'=== UNIT GROUP DIAGNOSTIC REPORT ===',
+			`DATE: ${new Date().toISOString()}`,
+			`VERSION: ${appVersion}`,
+			`TOTAL UNITS SELECTED: ${units.length}`,
+			'COMPOSITION:',
+			summary,
+			''
+		];
+
+		const unitDetails = units.slice(0, 20).map((u, i) => {
+			return `#${i + 1} [${u.team.toUpperCase()}] ${u.name} (${u.instanceId}): hp=${Math.round(u.hp)}/${u.maxHp}, pos=(${u.x.toFixed(1)}, ${u.y.toFixed(1)}), state=${u.state}, lane=${u.lane}`;
+		});
+
+		const list = [`--- UNITS LIST (Showing up to 20 of ${units.length}) ---`, ...unitDetails, ''];
+
+		return [...header, ...list, '=== END OF REPORT ==='].join('\n');
+	}
+
+	getEntityReport(
+		sim: Simulation,
+		selectedEntity: SelectedEntity | null,
+		selectedPlacedBuildingId?: string | null,
+		selectedUnitId?: string | null
+	): { report: string; title: string } | null {
+		// 1. Specific unit selected
+		const unitId =
+			selectedUnitId || (selectedEntity?.type === 'unit' ? selectedEntity.instanceId : null);
+		if (unitId) {
+			const u = sim.units.find((x) => x.instanceId === unitId);
+			if (u) {
+				return { report: this.getUnitReport(u, sim), title: `юніта ${u.name}` };
+			}
+		}
+
+		// 2. Specific building selected
+		const bldId =
+			selectedPlacedBuildingId ||
+			(selectedEntity?.type === 'building' ? selectedEntity.instanceId : null);
+		if (bldId) {
+			const b = sim.buildings.find((x) => x.instanceId === bldId);
+			if (b) {
+				return { report: this.getBuildingReport(b, sim), title: `будівлі ${b.name}` };
+			}
+		}
+
+		// 3. Castle selected
+		if (selectedEntity?.type === 'castle') {
+			const c = sim.castles[selectedEntity.team];
+			if (c) {
+				const teamName = selectedEntity.team === 'west' ? 'Захід' : 'Схід';
+				return { report: this.getCastleReport(c, sim), title: `замку (${teamName})` };
+			}
+		}
+
+		// 4. Group selected
+		if (selectedEntity?.type === 'group' && selectedEntity.unitIds.length > 0) {
+			const units = sim.units.filter((u) => selectedEntity.unitIds.includes(u.instanceId));
+			if (units.length > 0) {
+				return {
+					report: this.getGroupReport(units),
+					title: `групи (${units.length} юнітів)`
+				};
+			}
+		}
+
+		// 5. Worker selected (or default fallback if worker is selected)
+		if (selectedEntity?.type === 'worker') {
+			const w = sim.players.west?.worker;
+			if (w) {
+				return { report: this.getWorkerReport(w, 'west', sim), title: `робітника` };
+			}
+		}
+
+		return null;
 	}
 }
 

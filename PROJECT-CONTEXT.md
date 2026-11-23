@@ -156,9 +156,11 @@
 
 ---
 
-## 7. Модель версіонування (VERSIONING-v10)
+## 7. Модель версіонування (VERSIONING-v10 § 1 & § 2)
 
-- **Синхронізація версій**: `package.json` та константа версії у збірці.
+- **Модель бампа**: «бамп на коміт» `scripts/bump-version.mjs` (піднімає patch-версію `+0.0.1` на чистому Node ESM без дочірніх процесів `npm`).
+- **Синхронізація**: синхронізує `package.json`, `package-lock.json`, `static/app-version.json` та `src/lib/config/version.ts`.
+- **Хуки**: `.husky/pre-commit` автоматично викликає тести, перевірку типів та бамп перед створенням коміту.
 - **Клієнтський захист**: перевірка цілісності коду та обробка застарілих чанків.
 
 ---
@@ -200,7 +202,7 @@
 | :-------------------- | :---------: | :---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **I18N**              |     Так     | Двомовність UA/EN, `src/lib/i18n/index.ts`                                                                                                                  |
 | **DEPENDENCIES**      |     Так     | Lockfile, `scripts/check-audit.mjs`                                                                                                                         |
-| **VERSIONING**        |     Так     | `package.json`, версія у футері                                                                                                                             |
+| **VERSIONING**        |     Так     | `__APP_VERSION__`, `scripts/bump-version.mjs`, версія у футері                                                                                              |
 | **ACCESSIBILITY**     |     Так     | WCAG 2.2 AA перевірки, гарячі клавіші, семантичні діалоги                                                                                                   |
 | **STORAGE-NAMESPACE** |     Так     | Префікс `castlefight_`, `src/lib/services/storage.ts`                                                                                                       |
 | **ERROR-HANDLING**    |     Так     | `<svelte:boundary>`, `ErrorFallback.svelte`                                                                                                                 |

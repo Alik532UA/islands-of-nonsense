@@ -14,6 +14,7 @@
 	import StartMatchModal from '../lib/components/StartMatchModal.svelte';
 	import { storage } from '../lib/services/storage';
 	import { createKeySequence, listenForSequences } from '../lib/debug/keySequence';
+	import { shortcutLetter, isEditableTarget } from '../lib/hotkeys/hotkeys';
 	import { logService } from '../lib/services/logService.svelte';
 	import { perfMonitor } from '$lib/debug/perfMonitor.svelte';
 
@@ -49,6 +50,10 @@
 	let unlistenSequences: (() => void) | null = null;
 
 	function handleKeyDown(e: KeyboardEvent) {
+		if (isEditableTarget(e.target)) return;
+
+		const letter = shortcutLetter(e);
+
 		if (e.key === 'Escape') {
 			selectedBuildingId = null;
 			selectedPlacedBuildingId = null;
@@ -81,31 +86,13 @@
 				e.preventDefault();
 				sim.isRunning = !sim.isRunning;
 				uiTick = sim.stateVersion;
-			} else if (
-				(e.key === 'f' || e.key === 'F') &&
-				!e.repeat &&
-				(!isWorkerGridActive || e.altKey)
-			) {
+			} else if (letter === 'f' && !e.repeat && (!isWorkerGridActive || e.altKey)) {
 				isForgeOpen = !isForgeOpen;
-			} else if (
-				(e.key === 'c' || e.key === 'C') &&
-				!e.repeat &&
-				(!isWorkerGridActive || e.altKey)
-			) {
+			} else if (letter === 'c' && !e.repeat && (!isWorkerGridActive || e.altKey)) {
 				isCommanderOpen = !isCommanderOpen;
-			} else if (
-				(e.key === 'b' || e.key === 'B') &&
-				!e.repeat &&
-				(!isWorkerGridActive || e.altKey)
-			) {
+			} else if (letter === 'b' && !e.repeat && (!isWorkerGridActive || e.altKey)) {
 				isShopOpen = !isShopOpen;
-			} else if (
-				(e.key === 'r' || e.key === 'R') &&
-				!e.repeat &&
-				!isForgeOpen &&
-				!isCommanderOpen &&
-				!isShopOpen
-			) {
+			} else if (letter === 'r' && !e.repeat && !isForgeOpen && !isCommanderOpen && !isShopOpen) {
 				if (selectedPlacedBuildingId) {
 					const bld = sim.buildings.find((b) => b.instanceId === selectedPlacedBuildingId);
 					if (bld && bld.team === 'west' && bld.hp < bld.maxHp) {
@@ -139,7 +126,7 @@
 					}
 				}
 			} else if (
-				(e.key === 'e' || e.key === 'E') &&
+				letter === 'e' &&
 				!e.repeat &&
 				!isForgeOpen &&
 				!isCommanderOpen &&
@@ -388,7 +375,7 @@
 				letter: 'l',
 				threshold: 5,
 				windowMs: 2500,
-				onComplete: handleCopyUnitLog
+				onComplete: handleCopyEntityLog
 			})
 		);
 	});
@@ -401,19 +388,27 @@
 		renderer?.destroy();
 	});
 
-	function handleCopyUnitLog() {
-		const activeUnitId =
-			selectedUnitId || (selectedEntity?.type === 'unit' ? selectedEntity.instanceId : null);
-		const unit = activeUnitId ? sim.units.find((u) => u.instanceId === activeUnitId) : null;
+	function handleCopyEntityLog() {
+		const result = logService.getEntityReport(
+			sim,
+			selectedEntity,
+			selectedPlacedBuildingId,
+			selectedUnitId
+		);
 
-		if (!unit) {
+		if (!result) {
 			sound.playErrorResource();
-			sim.addFloatingText('Спочатку виберіть юніта!', cameraX, cameraY, '#f87171');
+			sim.addFloatingText(
+				"Спочатку виберіть об'єкт (юніт, будівля, робітник або замок)!",
+				cameraX,
+				cameraY,
+				'#f87171'
+			);
 			uiTick = sim.stateVersion;
 			return;
 		}
 
-		const report = logService.getUnitReport(unit, sim);
+		const { report, title } = result;
 
 		if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
 			navigator.clipboard.writeText(report).catch(() => {
@@ -433,9 +428,45 @@
 			document.body.removeChild(textarea);
 		}
 
+		// Find target position for floating text
+		let fx = cameraX;
+		let fy = cameraY - 40;
+		if (selectedUnitId || selectedEntity?.type === 'unit') {
+			const u = sim.units.find(
+				(x) =>
+					x.instanceId === (selectedUnitId || (selectedEntity as { instanceId: string }).instanceId)
+			);
+			if (u) {
+				fx = u.x;
+				fy = u.y - 35;
+			}
+		} else if (selectedPlacedBuildingId || selectedEntity?.type === 'building') {
+			const b = sim.buildings.find(
+				(x) =>
+					x.instanceId ===
+					(selectedPlacedBuildingId || (selectedEntity as { instanceId: string }).instanceId)
+			);
+			if (b) {
+				fx = b.x + 32;
+				fy = b.y - 20;
+			}
+		} else if (selectedEntity?.type === 'worker') {
+			const w = sim.players.west?.worker;
+			if (w) {
+				fx = w.x;
+				fy = w.y - 30;
+			}
+		} else if (selectedEntity?.type === 'castle') {
+			const c = sim.castles[selectedEntity.team];
+			if (c) {
+				fx = c.x;
+				fy = c.y - 80;
+			}
+		}
+
 		sound.playCoin();
-		sim.addFloatingText('Лог юніта скопійовано! (5x L)', unit.x, unit.y - 35, '#38bdf8');
-		logService.info('ui', `Copied diagnostic log for unit ${unit.name} (${unit.instanceId})`);
+		sim.addFloatingText(`Лог ${title} скопійовано! (5x L)`, fx, fy, '#38bdf8');
+		logService.info('ui', `Copied diagnostic log for ${title}`);
 		uiTick = sim.stateVersion;
 	}
 

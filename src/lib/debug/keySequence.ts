@@ -1,5 +1,7 @@
 // src/lib/debug/keySequence.ts — лише коли збір логів із пристроїв (DEBUGGING § 3): серія натискань і єдиний глобальний обробник службових жестів
-import { shortcutLetter } from '$lib/hotkeys/hotkeys';
+import { shortcutLetter, isEditableTarget } from '$lib/hotkeys/hotkeys';
+
+export { isEditableTarget };
 
 export interface KeyStroke {
 	/** Літера з `shortcutLetter()` (HOTKEYS § 1.3); `null` — клавіша без літери. */
@@ -13,14 +15,7 @@ export interface KeyStroke {
 	target?: EventTarget | null;
 }
 
-const EDITABLE = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
 const MODIFIER = /^(?:Shift|Control|Alt|Meta)(?:Left|Right)$/;
-
-/** Поле вводу — через `closest`: фокус у `contenteditable` стоїть на вкладеному вузлі. */
-export function isEditableTarget(target: EventTarget | null | undefined): boolean {
-	const element = target as Partial<Element> | null | undefined;
-	return typeof element?.closest === 'function' && element.closest(EDITABLE) !== null;
-}
 
 export function createKeySequence(options: {
 	/** Мала латинська літера. Читається тією самою `shortcutLetter()`, що й решта скорочень проєкту. */

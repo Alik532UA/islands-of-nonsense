@@ -8,6 +8,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf8'));
 
 export function getInlineScriptHashes(): `sha256-${string}`[] {
 	const htmlPath = path.resolve(__dirname, 'src/app.html');
@@ -26,7 +27,7 @@ export default defineConfig(({ mode }) => ({
 		strictPort: true
 	},
 	define: {
-		__APP_VERSION__: JSON.stringify('0.0.1')
+		__APP_VERSION__: JSON.stringify(pkg.version)
 	},
 	resolve: {
 		alias: {
