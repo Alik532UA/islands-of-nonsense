@@ -5,6 +5,7 @@ export * from './engine/damageMatrix';
 export * from './engine/spatialGrid';
 export * from './engine/gameModes';
 export * from './engine/matchStats';
+export * from './engine/balanceAnalyzer';
 export * from './services/storage';
 export * from './services/audio';
 export * from './errors';
