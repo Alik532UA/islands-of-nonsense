@@ -133,7 +133,10 @@ export class DefenseSystem {
 			this.sim.buildings = this.sim.buildings.filter((b) => b.instanceId !== building.instanceId);
 			const bDef = getBuilding(building.defId);
 			if (bDef && isLegendaryBuilding(bDef)) {
-				const owner = this.sim.players[building.team];
+				const owner =
+					(building.playerId
+						? this.sim.allPlayers.find((p) => p.id === building.playerId)
+						: null) || this.sim.players[building.team];
 				if (owner && owner.food > 0) owner.food--;
 			}
 			this.sim.addFloatingText(

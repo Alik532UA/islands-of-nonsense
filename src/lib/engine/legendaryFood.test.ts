@@ -71,6 +71,49 @@ describe('Point 4: Food Cap & Legendary Buildings (Golden Cheese I004)', () => {
 		expect(sim.players.west.food).toBe(0);
 	});
 
+	it('blocks upgrading into a legendary building when food cap is full and consumes food upon upgrade', () => {
+		sim.players.west.gold = 5000;
+		sim.players.west.lumber = 2000;
+
+		// Build parent building h00J (not legendary, no food needed)
+		const builtParent = sim.build('west', 'h00J', 25, 20);
+		expect(builtParent).toBe(true);
+		expect(sim.players.west.food).toBe(0);
+		expect(sim.players.west.maxFood).toBe(0);
+
+		const parentBld = sim.buildings[0];
+
+		// Attempt to upgrade to legendary h05F without food cap -> blocked
+		const upgradedWithoutFood = sim.upgradeBuilding('west', parentBld.instanceId, 'h05F');
+		expect(upgradedWithoutFood).toBe(false);
+		expect(sim.players.west.food).toBe(0);
+
+		// Unlock food cap by buying Golden Cheese
+		sim.buyCastleItem('west', 'I004');
+		expect(sim.players.west.maxFood).toBe(1);
+
+		// Now upgrade succeeds and consumes 1 food
+		const upgradedWithFood = sim.upgradeBuilding('west', parentBld.instanceId, 'h05F');
+		expect(upgradedWithFood).toBe(true);
+		expect(sim.players.west.food).toBe(1);
+	});
+
+	it('frees food when a legendary building is destroyed in combat', () => {
+		sim.buyCastleItem('west', 'I004');
+		sim.players.west.gold = 3000;
+		sim.players.west.lumber = 1000;
+		sim.build('west', 'h05F', 25, 20);
+		expect(sim.players.west.food).toBe(1);
+
+		const bld = sim.buildings[0];
+		// Deliver lethal enemy damage to destroy legendary structure
+		sim.combatSystem.damageBuilding(bld, 50000, 'chaos', 'east');
+
+		expect(bld.hp).toBe(0);
+		expect(sim.buildings.length).toBe(0);
+		expect(sim.players.west.food).toBe(0);
+	});
+
 	it('resets food and maxFood on round reset', () => {
 		sim.buyCastleItem('west', 'I004');
 		expect(sim.players.west.maxFood).toBe(1);
