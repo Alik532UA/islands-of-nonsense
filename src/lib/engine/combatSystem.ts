@@ -53,7 +53,7 @@ export class CombatSystem {
 	 */
 	public findBestTarget(u: Unit): Unit | null {
 		const acquisitionRange = Math.max(u.range + 80, 420);
-		const canHitAir = u.range > 120 || !!u.flying;
+		const canHitAir = u.canHitAir ?? (u.range > 120 || !!u.flying);
 
 		const candidates = this.sim.spatialGrid.queryRadius(u.x, u.y, acquisitionRange, (candidate) => {
 			if (candidate.team === u.team) return false;

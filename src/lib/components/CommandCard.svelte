@@ -149,10 +149,9 @@
 					</button>
 				{:else}
 					{#each availableUpgrades as up, uIdx}
-						{@const upCost =
-							up.upgrade_extra_cost > 0
-								? up.upgrade_extra_cost
-								: Math.max(50, (up.gold_cost || 200) - placedBuilding.goldCost)}
+						{@const upCost = up.upgrade_from
+							? (up.gold_cost ?? 200)
+							: Math.max(50, (up.gold_cost || 200) - placedBuilding.goldCost)}
 						{@const upLumber = up.lumber_cost || 0}
 						{@const canAfford = playerGold >= upCost && (player.lumber ?? 0) >= upLumber}
 						<button

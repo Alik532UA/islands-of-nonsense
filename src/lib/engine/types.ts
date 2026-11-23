@@ -147,6 +147,7 @@ export interface UnitDefinition {
 	range: number | null;
 	move_type: string | null;
 	flying: boolean;
+	canHitAir?: boolean;
 	gold_cost: number;
 	raw_fields?: Record<string, unknown>;
 	splashRadius?: number;
@@ -264,6 +265,7 @@ export interface Unit {
 	range: number;
 	speed: number;
 	flying: boolean;
+	canHitAir?: boolean;
 	currentTargetId: string | null;
 	targetX: number;
 	targetY: number;

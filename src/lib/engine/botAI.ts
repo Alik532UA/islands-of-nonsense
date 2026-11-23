@@ -10,7 +10,14 @@ import {
 	GRID_STEP,
 	CELL_SIZE
 } from './constants';
-import type { MatchTeam, Building, BuildingDefinition, Lane, PlayerState } from './types';
+import type {
+	MatchTeam,
+	Building,
+	BuildingDefinition,
+	UnitDefinition,
+	Lane,
+	PlayerState
+} from './types';
 import {
 	getBaseBuildingsForRace,
 	getUpgradesForBuilding,
@@ -38,6 +45,14 @@ export const BOT_TIER_LIMITS: Record<number, { minPrice: number; maxPrice: numbe
 	3: { minPrice: 165, maxPrice: 5000 },
 	4: { minPrice: 200, maxPrice: 5000 }
 };
+
+function unitDefCanHitAir(unitDef: UnitDefinition): boolean {
+	if (unitDef.canHitAir !== undefined) return unitDef.canHitAir;
+	if (unitDef.raw_fields?.ua1g) {
+		return String(unitDef.raw_fields.ua1g).toLowerCase().includes('air');
+	}
+	return !!unitDef.flying || (unitDef.range !== null && unitDef.range > 120);
+}
 
 export class BotAI {
 	private sim: Simulation;
@@ -156,7 +171,7 @@ export class BotAI {
 		// Unit tactical counters
 		const unitDef = building.unit ? UNITS_MAP.get(building.unit) : null;
 		if (unitDef) {
-			const canHitAir = unitDef.flying || (unitDef.range !== null && unitDef.range > 120);
+			const canHitAir = unitDefCanHitAir(unitDef);
 
 			// Anti-Air scoring
 			if (scan.flyingCount > 0) {
@@ -256,6 +271,7 @@ export class BotAI {
 					this.sim.orderWorkerMove(this.team, safeX, safeY, player);
 				}
 			}
+			return;
 		}
 
 		// 0a. Idle worker coin pickup on team base (cooperative / independent without swarming)
@@ -396,10 +412,9 @@ export class BotAI {
 				const isLeg = isLegendaryBuilding(up);
 				if (isLeg && player.food >= player.maxFood) continue;
 
-				const cost =
-					up.upgrade_extra_cost > 0
-						? up.upgrade_extra_cost
-						: Math.max(50, (up.gold_cost || 200) - b.goldCost);
+				const cost = up.upgrade_from
+					? (up.gold_cost ?? 200)
+					: Math.max(50, (up.gold_cost || 200) - b.goldCost);
 				if (player.gold >= cost) {
 					upgradeCandidates.push({ building: b, upgrade: up, cost });
 				}
@@ -413,7 +428,7 @@ export class BotAI {
 				let score = 5000 + c.cost / 4;
 				const uDef = c.upgrade.unit ? UNITS_MAP.get(c.upgrade.unit) : null;
 				if (uDef) {
-					const canHitAir = uDef.flying || (uDef.range !== null && uDef.range > 120);
+					const canHitAir = unitDefCanHitAir(uDef);
 					if (scan.flyingCount > 0 && canHitAir) score += 3500;
 					const attack = uDef.attack_type?.toLowerCase() || 'normal';
 					if (scan.totalCount > 0) {
@@ -594,7 +609,7 @@ export class BotAI {
 			// Counter-pick bonuses:
 			const unitDef = b.unit ? UNITS_MAP.get(b.unit) : null;
 			if (unitDef) {
-				const canHitAir = unitDef.flying || (unitDef.range !== null && unitDef.range > 120);
+				const canHitAir = unitDefCanHitAir(unitDef);
 				if (scan.flyingCount > 0 && canHitAir) {
 					priority += 3500; // Urgent anti-air response
 				}

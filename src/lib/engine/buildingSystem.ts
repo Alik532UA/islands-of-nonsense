@@ -547,10 +547,9 @@ export class BuildingSystem {
 			return false;
 		}
 
-		const upgradeCost =
-			targetDef.upgrade_extra_cost > 0
-				? targetDef.upgrade_extra_cost
-				: Math.max(50, (targetDef.gold_cost || 200) - building.goldCost);
+		const upgradeCost = targetDef.upgrade_from
+			? (targetDef.gold_cost ?? 200)
+			: Math.max(50, (targetDef.gold_cost || 200) - building.goldCost);
 
 		if (player.gold < upgradeCost) return false;
 
@@ -780,6 +779,11 @@ export class BuildingSystem {
 			range: Math.max(90, unitDef.range ?? 100),
 			speed: Number(unitDef.raw_fields?.umvs) || 270,
 			flying: !!unitDef.flying,
+			canHitAir:
+				unitDef.canHitAir ??
+				(unitDef.raw_fields?.ua1g
+					? String(unitDef.raw_fields.ua1g).toLowerCase().includes('air')
+					: !!unitDef.flying || (unitDef.range !== null && unitDef.range > 120)),
 			currentTargetId: null,
 			targetX: building.team === 'west' ? ARENA_WIDTH - 200 : 200,
 			targetY: laneY,

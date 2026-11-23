@@ -1020,6 +1020,7 @@ export class Simulation {
 		abilityType?: import('./types').UnitAbilityType;
 		abilities?: import('./types').UnitAbilityDef[];
 		flying?: boolean;
+		canHitAir?: boolean;
 		size?: number;
 		critChance?: number;
 		evadeChance?: number;
@@ -1059,6 +1060,9 @@ export class Simulation {
 			range: options.range ?? 100,
 			speed: options.speed ?? 100,
 			flying: !!options.flying,
+			canHitAir:
+				options.canHitAir ??
+				(!!options.flying || (options.range !== undefined && options.range > 120)),
 			currentTargetId: null,
 			targetX: options.team === 'west' ? ARENA_WIDTH - 200 : 200,
 			targetY: options.y,
