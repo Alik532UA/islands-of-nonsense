@@ -1,6 +1,6 @@
 {
 	"name": "castle-fight-web-pack",
-	"version": "0.0.3",
+	"version": "0.0.4",
 	"private": true,
 	"type": "module",
 	"imports": {
@@ -19,6 +19,8 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"check:build": "node scripts/check-build.mjs",
+		"check:bundle": "node scripts/check-bundle.mjs",
+		"test:balance": "vitest run src/lib/engine/balanceRunner.test.ts",
 		"audit:ci": "node scripts/check-audit.mjs",
 		"lint": "npm run lint:format && npm run lint:code",
 		"lint:format": "prettier --check .",
