@@ -399,7 +399,6 @@ export class EconomySystem {
 				);
 				break;
 			case 'as':
-			case 'sbor':
 				for (const u of this.sim.units) {
 					if (u.team === team && u.state !== 'DEAD') {
 						u.buffs = u.buffs || [];
@@ -408,6 +407,22 @@ export class EconomySystem {
 				}
 				this.sim.addFloatingText(
 					`${ability.nameUk}! (+Швидкість атаки)`,
+					this.sim.castles[team].x,
+					this.sim.castles[team].y - 60,
+					'#10b981'
+				);
+				break;
+			case 'sbor':
+				this.sim.greatAssemblyTimer[team] = ability.duration || 15;
+				for (const u of this.sim.units) {
+					if (u.team === team && u.state !== 'DEAD') {
+						u.buffs = u.buffs || [];
+						u.buffs.push({ type: 'as', timer: ability.duration || 15, value: 0.2 });
+						u.buffs.push({ type: 'dmg', timer: ability.duration || 15, value: 0.15 });
+					}
+				}
+				this.sim.addFloatingText(
+					`${ability.nameUk}! (+Велика збірка)`,
 					this.sim.castles[team].x,
 					this.sim.castles[team].y - 60,
 					'#10b981'

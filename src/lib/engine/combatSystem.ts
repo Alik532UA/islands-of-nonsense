@@ -1237,7 +1237,7 @@ export class CombatSystem {
 					y: target.y,
 					team: target.team,
 					value: 15,
-					lifeTime: 30.0
+					lifeTime: 15.0
 				});
 				const recyclers = this.sim.buildings.filter(
 					(b) => b.team === target.team && b.specialType === 'recycler'
@@ -1249,14 +1249,27 @@ export class CombatSystem {
 				}
 			}
 
-			// Scavenger Great Assembly (Великая сборка): empower closest friendly unit
-			if (target.isScavenger && (target.team === 'west' || target.team === 'east')) {
+			// Scavenger Scrap & Great Assembly (Велика збірка)
+			const isScavengerUnit = target.isScavenger || target.defId?.startsWith('cg1');
+			if (isScavengerUnit && (target.team === 'west' || target.team === 'east')) {
+				const greatAssembly = (this.sim.greatAssemblyTimer?.[target.team] ?? 0) > 0;
+				const hasAssemblyPlant = this.sim.buildings.some(
+					(b) =>
+						b.team === target.team &&
+						(b.defId === 'cg08' || b.defId === 'cg0b') &&
+						!b.isUnderConstruction
+				);
+				const targetCount = (greatAssembly ? 4 : 2) + (hasAssemblyPlant ? 1 : 0);
+				const asBonus = greatAssembly ? 0.2 : 0.1;
+				const searchRadius = 400 + (hasAssemblyPlant ? 100 : 0);
+
 				const allies = this.sim.units.filter(
 					(u) =>
 						u.team === target.team &&
 						u.state !== 'DEAD' &&
 						u.instanceId !== target.instanceId &&
-						u.lane === target.lane
+						u.lane === target.lane &&
+						Math.hypot(u.x - target.x, u.y - target.y) <= searchRadius
 				);
 				if (allies.length > 0) {
 					allies.sort(
@@ -1264,11 +1277,19 @@ export class CombatSystem {
 							Math.hypot(a.x - target.x, a.y - target.y) -
 							Math.hypot(b.x - target.x, b.y - target.y)
 					);
-					const closest = allies[0];
-					closest.hp = Math.min(closest.maxHp, closest.hp + 75);
-					closest.buffs = closest.buffs || [];
-					closest.buffs.push({ type: 'dmg', timer: 10, value: 0.15 });
-					this.sim.addFloatingText('+Уламки (+15% шкоди)', closest.x, closest.y - 25, '#f59e0b');
+					const chosen = allies.slice(0, targetCount);
+					for (const ally of chosen) {
+						ally.hp = Math.min(ally.maxHp, ally.hp + 75);
+						ally.buffs = ally.buffs || [];
+						ally.buffs.push({ type: 'as', timer: 15.0, value: asBonus });
+						ally.buffs.push({ type: 'dmg', timer: 15.0, value: 0.15 });
+						this.sim.addFloatingText(
+							greatAssembly ? '+Велика Збірка (+20% AS)' : '+Уламки (+10% AS)',
+							ally.x,
+							ally.y - 25,
+							'#f59e0b'
+						);
+					}
 				}
 			}
 

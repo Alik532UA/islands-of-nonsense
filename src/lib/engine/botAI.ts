@@ -218,8 +218,20 @@ export class BotAI {
 			(botWorker.buildQueue && botWorker.buildQueue.length > 0) ||
 			botWorker.isRepairing;
 
-		// 00a. Complete any unfinished buildings under construction first!
-		if (botWorker && !botWorker.isBuilding && !botWorker.isRepairing) {
+		const enemiesInCourtyard = this.sim.units.filter(
+			(u) =>
+				u.team === enemyTeam &&
+				u.state !== 'DEAD' &&
+				(this.team === 'west' ? u.x <= 1500 : u.x >= ARENA_WIDTH - 1500)
+		);
+
+		// 00a. Complete any unfinished buildings under construction first (if base is safe!)
+		if (
+			enemiesInCourtyard.length === 0 &&
+			botWorker &&
+			!botWorker.isBuilding &&
+			!botWorker.isRepairing
+		) {
 			const unfinished = this.sim.buildings.find(
 				(b) =>
 					b.team === this.team && (!b.playerId || b.playerId === player.id) && b.isUnderConstruction
@@ -229,13 +241,6 @@ export class BotAI {
 				if (resumed) return;
 			}
 		}
-
-		const enemiesInCourtyard = this.sim.units.filter(
-			(u) =>
-				u.team === enemyTeam &&
-				u.state !== 'DEAD' &&
-				(this.team === 'west' ? u.x <= 1500 : u.x >= ARENA_WIDTH - 1500)
-		);
 
 		if (botWorker && enemiesInCourtyard.length > 0) {
 			// If castle is wounded and bot has gold, dispatch worker to repair from rear safety
@@ -403,7 +408,29 @@ export class BotAI {
 
 		// When tier >= 3, upgrade probability is 100% (WC3 reference: "при поднятом ярусе 3+ шанс заменён на 100%")
 		if (upgradeCandidates.length > 0 && (tier >= 3 || Math.random() < 0.45)) {
-			const candidate = upgradeCandidates[Math.floor(Math.random() * upgradeCandidates.length)];
+			// Score upgrade candidates with tactical counter-picks rather than pure random choice
+			const scoredUpgrades = upgradeCandidates.map((c) => {
+				let score = 5000 + c.cost / 4;
+				const uDef = c.upgrade.unit ? UNITS_MAP.get(c.upgrade.unit) : null;
+				if (uDef) {
+					const canHitAir = uDef.flying || (uDef.range !== null && uDef.range > 120);
+					if (scan.flyingCount > 0 && canHitAir) score += 3500;
+					const attack = uDef.attack_type?.toLowerCase() || 'normal';
+					if (scan.totalCount > 0) {
+						if (attack === 'magic' && scan.heavyCount / scan.totalCount >= 0.3) score += 2000;
+						if (
+							(attack === 'pierce' || attack === 'siege') &&
+							scan.lightCount / scan.totalCount >= 0.35
+						) {
+							score += 1800;
+						}
+						if (attack === 'siege' && scan.fortCount > 0) score += 2200;
+					}
+				}
+				return { ...c, score };
+			});
+			scoredUpgrades.sort((a, b) => b.score - a.score);
+			const candidate = scoredUpgrades[0];
 			this.sim.upgradeBuilding(
 				this.team,
 				candidate.building.instanceId,
@@ -608,10 +635,11 @@ export class BotAI {
 			return topTarget.building;
 		}
 
-		// If shortfall to top priority candidate is small (<= 60 gold) and castle is not in emergency:
-		// Save gold for it!
+		// If shortfall to top priority candidate is small and castle is not in emergency:
+		// Dynamic shortfall saving: scales with estimated income (between 40g and 150g, ~2-2.5 income cycles)
 		const shortfall = topTarget.cost - player.gold;
-		if (shortfall <= 60 && castleHpRatio >= 0.45) {
+		const maxShortfallSave = Math.max(40, Math.min(150, estimatedIncome * 2.5));
+		if (shortfall <= maxShortfallSave && castleHpRatio >= 0.45) {
 			return null; // Save gold!
 		}
 

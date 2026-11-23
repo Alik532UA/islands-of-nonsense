@@ -789,7 +789,11 @@ export class BuildingSystem {
 			evadeChance: unitEvadeChance,
 			splashRadius: hasCleave ? 120 : unitDef.splashRadius,
 			reflectDamagePct: hasThorns ? 0.25 : unitDef.reflectDamagePct,
-			isScavenger: unitDef.isScavenger,
+			isScavenger: !!(
+				unitDef.isScavenger ||
+				unitDef.id?.startsWith('cg1') ||
+				building.race === 'Збирачі'
+			),
 			abilityType: resolveUnitAbility(unitDef),
 			abilities,
 			abilityCooldownTimer: 0,

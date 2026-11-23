@@ -131,6 +131,7 @@ export class Simulation {
 
 	// Rescue Strike (Emergency Castle Defense, 180s CD)
 	public rescueStrikeCooldown: Record<MatchTeam, number> = { west: 0, east: 0 };
+	public greatAssemblyTimer: Record<MatchTeam, number> = { west: 0, east: 0 };
 	public rescueStrikeEffects: {
 		team: MatchTeam;
 		x: number;
@@ -895,6 +896,9 @@ export class Simulation {
 		this.rescueStrikeCooldown.west = Math.max(0, this.rescueStrikeCooldown.west - dt);
 		this.rescueStrikeCooldown.east = Math.max(0, this.rescueStrikeCooldown.east - dt);
 
+		this.greatAssemblyTimer.west = Math.max(0, this.greatAssemblyTimer.west - dt);
+		this.greatAssemblyTimer.east = Math.max(0, this.greatAssemblyTimer.east - dt);
+
 		for (const eff of this.rescueStrikeEffects) {
 			eff.timer -= dt;
 		}
@@ -930,8 +934,9 @@ export class Simulation {
 			}
 		}
 
-		// 4. Update Battlefield Gold Coins (I000)
+		// 4. Update Battlefield Gold Coins (I000) & Scrap Debris
 		this.economySystem.updateGoldCoins(dt);
+		this.updateDebris(dt);
 
 		// 5. Update Economy
 		this.economySystem.updateEconomy(dt);
@@ -1162,6 +1167,34 @@ export class Simulation {
 			t.y -= 22 * dt;
 		}
 		this.floatingTexts = this.floatingTexts.filter((t) => t.life > 0);
+	}
+
+	private updateDebris(dt: number): void {
+		if (this.debris.length === 0) return;
+		for (const d of this.debris) {
+			d.lifeTime -= dt;
+		}
+		for (const unit of this.units) {
+			if (unit.state === 'DEAD' || unit.team === 'neutral') continue;
+			for (const d of this.debris) {
+				if (d.lifeTime <= 0) continue;
+				if (d.team === unit.team && Math.hypot(unit.x - d.x, unit.y - d.y) <= 48) {
+					unit.buffs = unit.buffs || [];
+					const greatAssembly = (this.greatAssemblyTimer?.[d.team] ?? 0) > 0;
+					const asBonus = greatAssembly ? 0.2 : 0.1;
+					unit.buffs.push({ type: 'as', timer: 15.0, value: asBonus });
+					unit.hp = Math.min(unit.maxHp, unit.hp + 35);
+					this.addFloatingText(
+						greatAssembly ? '+Велика Збірка (+20% AS)' : '+Уламки (+10% AS)',
+						unit.x,
+						unit.y - 20,
+						'#f59e0b'
+					);
+					d.lifeTime = 0;
+				}
+			}
+		}
+		this.debris = this.debris.filter((d) => d.lifeTime > 0);
 	}
 
 	// --- SUB-SYSTEM DELEGATION (BACKWARD COMPATIBLE PUBLIC API) ---
