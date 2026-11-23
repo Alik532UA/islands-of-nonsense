@@ -284,6 +284,21 @@
 							<span class="text-[8px] font-mono text-emerald-300 font-bold">[R]</span>
 						</button>
 					{/if}
+					{#if sim.brokenBridge}
+						<button
+							type="button"
+							onclick={() => sim.orderBridgeRepair('west')}
+							disabled={(player.lumber ?? 0) < 50}
+							class="w-16 h-11 rounded border border-amber-500/70 bg-amber-950/70 hover:bg-amber-900/90 disabled:opacity-40 text-amber-200 flex flex-col items-center justify-center p-0.5 transition cursor-pointer shadow"
+							title="Наказати робітникові відбудувати зламаний міст (50 деревини)"
+						>
+							<span class="text-[10px] font-bold flex items-center gap-0.5">
+								<Wrench class="w-3 h-3 text-amber-400" />
+								Міст
+							</span>
+							<span class="text-[8px] font-mono text-amber-300 font-bold">50🪵</span>
+						</button>
+					{/if}
 					{#each Object.values(CASTLE_ITEMS).slice(0, selectedCastle.hp < selectedCastle.maxHp ? 3 : 4) as item}
 						{@const canAfford = playerGold >= item.cost}
 						<button
@@ -385,6 +400,30 @@
 		</div>
 	{:else}
 		<!-- Authentic Warcraft III 4x3 Command Card Grid (12 slots) -->
+		{#if sim.brokenBridge}
+			<div class="flex items-center justify-between mb-1 px-0.5">
+				<span class="text-[9px] text-amber-300 font-semibold flex items-center gap-1">
+					<Wrench class="w-2.5 h-2.5 text-amber-400" />
+					Зламано: {sim.brokenBridge === 'top'
+						? 'верхній'
+						: sim.brokenBridge === 'mid'
+							? 'центральний'
+							: 'нижній'} міст
+				</span>
+				<button
+					type="button"
+					onclick={() => sim.orderBridgeRepair('west')}
+					disabled={(player.lumber ?? 0) < 50}
+					class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition {(player.lumber ??
+						0) >= 50
+						? 'bg-amber-950/80 hover:bg-amber-900 border-amber-500/70 text-amber-200 cursor-pointer shadow'
+						: 'bg-slate-900/60 border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
+					title="Наказати робітникові відбудувати зламаний міст (50 деревини)"
+				>
+					Відбудувати (50🪵)
+				</button>
+			</div>
+		{/if}
 		<div class="grid grid-cols-4 gap-1.5 w-[280px]">
 			{#each availableBuildings.slice(0, 11) as bld, idx}
 				{@const isSelected = selectedBuildingId === bld.id}

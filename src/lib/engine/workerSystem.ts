@@ -14,7 +14,8 @@ import {
 	EAST_ISLAND_CENTER_X,
 	EAST_ISLAND_CENTER_Y,
 	ISLAND_RADIUS_X,
-	ISLAND_RADIUS_Y
+	ISLAND_RADIUS_Y,
+	BRIDGE_REPAIR_LUMBER_COST
 } from './constants';
 import type { MatchTeam, WorkerState, PlayerState } from './types';
 import { logService } from '../services/logService.svelte';
@@ -1428,6 +1429,36 @@ export class WorkerSystem {
 		return false;
 	}
 
+	public repairBridge(team: MatchTeam, playerInput?: PlayerState): boolean {
+		if (!this.sim.brokenBridge) return false;
+		const p = playerInput || this.sim.players[team];
+		const w = p?.worker;
+		if (!w) return false;
+
+		const cost = BRIDGE_REPAIR_LUMBER_COST;
+		if ((p.lumber ?? 0) < cost) {
+			this.sim.addFloatingText(`Потрібно ${cost}🪵 для ремонту!`, w.x, w.y - 20, '#ef4444');
+			return false;
+		}
+
+		p.lumber = (p.lumber ?? 0) - cost;
+		const bridgeLane = this.sim.brokenBridge;
+		const bx = team === 'west' ? BRIDGE_SPAN_MIN_X - 40 : BRIDGE_SPAN_MAX_X + 40;
+		const by =
+			bridgeLane === 'top' ? TOP_LANE_Y : bridgeLane === 'mid' ? MID_LANE_Y : BOTTOM_LANE_Y;
+
+		w.isBuilding = false;
+		w.targetBuildingId = null;
+		w.isRepairing = true;
+		w.targetRepairBuildingId = 'bridge_' + bridgeLane;
+		w.targetX = bx;
+		w.targetY = by;
+		w.path = this.findWorkerPath(team, w.x, w.y, bx, by);
+		this.sim.addFloatingText('Ремонт мосту...', w.x, w.y - 20, '#38bdf8');
+		this.sim.notifyStateChanged();
+		return true;
+	}
+
 	/**
 	 * Updates workers position, obstacle navigation, construction progress, and repairs.
 	 */
@@ -1512,6 +1543,41 @@ export class WorkerSystem {
 				}
 
 				if (w.targetRepairBuildingId) {
+					if (w.targetRepairBuildingId.startsWith('bridge')) {
+						if (!this.sim.brokenBridge) {
+							w.isRepairing = false;
+							w.isBuilding = false;
+							w.targetRepairBuildingId = null;
+							continue;
+						}
+						const bridgeLane = this.sim.brokenBridge;
+						const bx = team === 'west' ? BRIDGE_SPAN_MIN_X - 40 : BRIDGE_SPAN_MAX_X + 40;
+						const by =
+							bridgeLane === 'top' ? TOP_LANE_Y : bridgeLane === 'mid' ? MID_LANE_Y : BOTTOM_LANE_Y;
+						const dist = Math.hypot(bx - w.x, by - w.y);
+						if (dist <= 50) {
+							w.isBuilding = true;
+							w.isRepairing = true;
+							w.path = [];
+							this.sim.bridgeRepairProgress += 25 * dt;
+							if (this.sim.bridgeRepairProgress >= 100) {
+								this.sim.repairBridge(bridgeLane);
+								w.isRepairing = false;
+								w.isBuilding = false;
+								w.targetRepairBuildingId = null;
+								this.sim.addFloatingText('Міст відбудовано!', bx, by - 25, '#10b981');
+								this.sim.onSoundEffect?.('buildingComplete');
+							}
+						} else {
+							w.isBuilding = false;
+							w.isRepairing = true;
+							w.targetX = bx;
+							w.targetY = by;
+							this.advanceWorkerAlongPath(w, team, bx, by, dt, 20);
+						}
+						continue;
+					}
+
 					const repTarget =
 						this.sim.buildings.find((b) => b.instanceId === w.targetRepairBuildingId) ||
 						(w.targetRepairBuildingId.startsWith('castle') ? this.sim.castles[team] : null);

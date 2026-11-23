@@ -199,13 +199,26 @@ export class Simulation {
 
 	// Three Bridges state: 'top' | 'mid' | 'bottom'. One randomly chosen as broken.
 	public brokenBridge: 'top' | 'mid' | 'bottom' | null = 'mid';
+	public bridgeRepairProgress: number = 0;
 
 	public repairBridge(bridge?: 'top' | 'mid' | 'bottom'): void {
 		if (!bridge || this.brokenBridge === bridge) {
 			this.brokenBridge = null;
+			this.bridgeRepairProgress = 0;
+			for (const p of this.allPlayers) {
+				if (p.worker?.targetRepairBuildingId?.startsWith('bridge')) {
+					p.worker.isRepairing = false;
+					p.worker.isBuilding = false;
+					p.worker.targetRepairBuildingId = null;
+				}
+			}
 			this.addFloatingText('Міст відремонтовано!', ARENA_WIDTH / 2, MID_LANE_Y, '#22c55e');
 			this.notifyStateChanged();
 		}
+	}
+
+	public orderBridgeRepair(team: MatchTeam, player?: PlayerState): boolean {
+		return this.workerSystem.repairBridge(team, player);
 	}
 
 	public setPlayerPreferredLane(team: MatchTeam, lane: 'auto' | 'top' | 'mid' | 'bottom'): void {
@@ -295,6 +308,7 @@ export class Simulation {
 		this.targetWins = config.targetWins ?? 2;
 		const bridges: ('top' | 'mid' | 'bottom')[] = ['top', 'mid', 'bottom'];
 		this.brokenBridge = bridges[Math.floor(Math.random() * 3)];
+		this.bridgeRepairProgress = 0;
 		const castleHp = Math.round(14000 * (this.gameModeConfig.castleHpMultiplier || 1.0));
 		this.castles = {
 			west: { team: 'west', x: WEST_CASTLE_X, y: WEST_CASTLE_Y, hp: castleHp, maxHp: castleHp },
@@ -880,6 +894,7 @@ export class Simulation {
 		this.coinSpawnTimer = this.coinSpawnInterval;
 		const bridges: ('top' | 'mid' | 'bottom')[] = ['top', 'mid', 'bottom'];
 		this.brokenBridge = bridges[Math.floor(Math.random() * 3)];
+		this.bridgeRepairProgress = 0;
 		this.initDecorations(1337 + this.round * 31);
 		this.winner = null;
 		this.roundWinner = null;

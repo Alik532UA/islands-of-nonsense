@@ -19,7 +19,12 @@ describe('Point 4: Unequal Team Income Multiplier (jo[team] = opponentCount / al
 		sim1v1.build('west', 'h037', 25, 20);
 		const normalIncome = sim1v1.calculateIncome('west');
 
-		const sim1v2 = new Simulation({ teamSizeWest: 1, teamSizeEast: 2, botDifficulty: 0, startGold: 2000 });
+		const sim1v2 = new Simulation({
+			teamSizeWest: 1,
+			teamSizeEast: 2,
+			botDifficulty: 0,
+			startGold: 2000
+		});
 		expect(sim1v2.teamMembers.west.length).toBe(1);
 		expect(sim1v2.teamMembers.east.length).toBe(2);
 
@@ -40,7 +45,12 @@ describe('Point 4: Unequal Team Income Multiplier (jo[team] = opponentCount / al
 		sim1v1.build('west', 'h037', 25, 20);
 		const normalIncome = sim1v1.calculateIncome('west');
 
-		const sim1v3 = new Simulation({ teamSizeWest: 1, teamSizeEast: 3, botDifficulty: 0, startGold: 2000 });
+		const sim1v3 = new Simulation({
+			teamSizeWest: 1,
+			teamSizeEast: 3,
+			botDifficulty: 0,
+			startGold: 2000
+		});
 		expect(sim1v3.teamMembers.west.length).toBe(1);
 		expect(sim1v3.teamMembers.east.length).toBe(3);
 
@@ -56,7 +66,12 @@ describe('Point 4: Unequal Team Income Multiplier (jo[team] = opponentCount / al
 		sim1v1.build('west', 'h038', 25, 24);
 		const normalIncome = sim1v1.calculateIncome('west');
 
-		const sim2v3 = new Simulation({ teamSizeWest: 2, teamSizeEast: 3, botDifficulty: 0, startGold: 2000 });
+		const sim2v3 = new Simulation({
+			teamSizeWest: 2,
+			teamSizeEast: 3,
+			botDifficulty: 0,
+			startGold: 2000
+		});
 		expect(sim2v3.teamMembers.west.length).toBe(2);
 		expect(sim2v3.teamMembers.east.length).toBe(3);
 

@@ -8,7 +8,8 @@ import {
 	WEST_CASTLE_X,
 	EAST_CASTLE_X,
 	GRID_STEP,
-	CELL_SIZE
+	CELL_SIZE,
+	BRIDGE_REPAIR_LUMBER_COST
 } from './constants';
 import type {
 	MatchTeam,
@@ -527,7 +528,23 @@ export class BotAI {
 			estimatedIncome,
 			castleHpRatio
 		);
-		if (!chosenBuilding) return;
+		if (!chosenBuilding) {
+			// 8. Auxiliary engineering: repair broken bridge if lumber is available and bot is established
+			if (
+				botWorker &&
+				this.sim.brokenBridge &&
+				!isWorkerBusy &&
+				(player.lumber ?? 0) >= BRIDGE_REPAIR_LUMBER_COST &&
+				myBuildings.length >= 2 &&
+				enemiesInCourtyard.length === 0
+			) {
+				const broken = this.sim.brokenBridge;
+				if (player.preferredLane === broken || broken === 'mid' || Math.random() < 0.5) {
+					this.sim.orderBridgeRepair(this.team, player);
+				}
+			}
+			return;
+		}
 
 		// 7. Optimal building placement slot selection
 		// Consider all buildings on the team (both own and allies) for spacing and clearance

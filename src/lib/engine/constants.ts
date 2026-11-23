@@ -91,3 +91,5 @@ export const SOLID_MAP_OBSTACLES: MapObstacle[] = [
 	// Arena Lower Perimeter Sea boundary
 	{ minX: 0, maxX: ARENA_WIDTH, minY: ARENA_HEIGHT - 60, maxY: ARENA_HEIGHT }
 ];
+
+export const BRIDGE_REPAIR_LUMBER_COST = 50;
