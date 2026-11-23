@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { BotAI } from './botAI';
+import { BotAI, isAirThreatActive } from './botAI';
 import { Simulation } from './simulation';
 import { UNITS_MAP, getBaseBuildingsForRace } from './gameData';
 import { EAST_GRID_START_X, WEST_GRID_START_X } from './constants';
@@ -638,6 +638,150 @@ describe('Point 8: Tactical Counter-Pick Bot AI', () => {
 			expect(worker.isBuilding).toBe(true);
 			expect(worker.targetBuildingId).toBe('bld_active');
 			expect(worker.buildQueue.length).toBeGreaterThanOrEqual(1);
+		});
+	});
+
+	describe('Point 6: Adaptive Bot AI Anti-Air Priority', () => {
+		it('accurately computes flying and total DPS during army scan', () => {
+			// Enemy flying unit with 40 damage, 2.0s cooldown -> 20 DPS
+			sim.spawnUnitDirectly({
+				team: 'west',
+				lane: 'top',
+				x: 500,
+				y: 220,
+				hp: 800,
+				damage: 40,
+				attackCooldown: 2.0,
+				flying: true
+			});
+
+			// Enemy ground unit with 10 damage, 1.0s cooldown -> 10 DPS
+			sim.spawnUnitDirectly({
+				team: 'west',
+				lane: 'bottom',
+				x: 600,
+				y: 580,
+				hp: 500,
+				damage: 10,
+				attackCooldown: 1.0,
+				flying: false
+			});
+
+			const scan = botAI.scanEnemyArmy();
+			expect(scan.flyingCount).toBe(1);
+			expect(scan.totalCount).toBe(2);
+			expect(scan.flyingDps).toBeCloseTo(20, 1);
+			expect(scan.totalDps).toBeCloseTo(30, 1);
+			// Flying DPS ratio is 20 / 30 = 66% (> 15% threshold)
+			expect(isAirThreatActive(scan)).toBe(true);
+		});
+
+		it('boosts anti-air score by +5000 and penalizes ground-only when air threat is active', () => {
+			const threatScan = {
+				flyingCount: 2,
+				flyingDps: 40,
+				totalDps: 100,
+				heavyCount: 0,
+				lightCount: 0,
+				fortCount: 0,
+				mediumCount: 2,
+				totalCount: 2,
+				topPressure: 100,
+				bottomPressure: 100
+			};
+
+			const aaBuilding: BuildingDefinition = {
+				id: 'b_aa_test',
+				name: 'Вартова вежа',
+				hp: 1000,
+				armor: 5,
+				armor_type: 'fort',
+				attack_type: 'pierce',
+				gold_cost: 200,
+				unit: 'u_test_archer',
+				upgrade_from: null,
+				upgrade_extra_cost: 0,
+				race: 'Люди'
+			};
+
+			const groundBuilding: BuildingDefinition = {
+				id: 'b_ground_test',
+				name: 'Казарми',
+				hp: 1000,
+				armor: 5,
+				armor_type: 'fort',
+				attack_type: 'normal',
+				gold_cost: 200,
+				unit: 'u_test_footman',
+				upgrade_from: null,
+				upgrade_extra_cost: 0,
+				race: 'Люди'
+			};
+
+			const scoreAA = botAI.scoreBuilding(aaBuilding, 1, threatScan, 0);
+			const scoreGround = botAI.scoreBuilding(groundBuilding, 1, threatScan, 0);
+
+			// AA has +5000 bonus, Ground has -2000 penalty: difference >= 6500
+			expect(scoreAA - scoreGround).toBeGreaterThanOrEqual(6500);
+		});
+
+		it('bypasses diversity quota to build anti-air spawner when aerial raid is active', () => {
+			const player = sim.players.east;
+			player.gold = 600;
+			player.race = 'Люди';
+
+			const threatScan = {
+				flyingCount: 2,
+				flyingDps: 50,
+				totalDps: 80,
+				heavyCount: 0,
+				lightCount: 0,
+				fortCount: 0,
+				mediumCount: 2,
+				totalCount: 2,
+				topPressure: 200,
+				bottomPressure: 200
+			};
+
+			const ranks = botAI.getArmyBuildingRanks('Люди');
+			// Find an anti-air building and simulate that we already built 3 copies of it
+			const aaRank = ranks.find((r) => {
+				const uDef = r.building.unit ? UNITS_MAP.get(r.building.unit) : null;
+				return uDef && (uDef.flying || (uDef.range !== null && uDef.range > 120));
+			})!;
+
+			const mockBuildings = [
+				{
+					instanceId: 'bld_aa_1',
+					defId: aaRank.building.id,
+					team: 'east',
+					race: 'Люди',
+					goldCost: aaRank.building.gold_cost || 160
+				},
+				{
+					instanceId: 'bld_aa_2',
+					defId: aaRank.building.id,
+					team: 'east',
+					race: 'Люди',
+					goldCost: aaRank.building.gold_cost || 160
+				},
+				{
+					instanceId: 'bld_aa_3',
+					defId: aaRank.building.id,
+					team: 'east',
+					race: 'Люди',
+					goldCost: aaRank.building.gold_cost || 160
+				}
+			] as unknown as import('./types').Building[];
+
+			// Normally diversity quota would prevent building a 4th copy when minCount is 0 (0 + 2 = 2 max).
+			// But under active air threat, anti-air is allowed and picked!
+			const chosen = botAI.chooseBuildingCandidate(player, mockBuildings, threatScan, 20, 1.0);
+			expect(chosen).toBeDefined();
+			expect(chosen).not.toBeNull();
+			const uDef = chosen?.unit ? UNITS_MAP.get(chosen.unit) : null;
+			const canHitAir = uDef && (uDef.flying || (uDef.range !== null && uDef.range > 120));
+			expect(canHitAir).toBe(true);
 		});
 	});
 });

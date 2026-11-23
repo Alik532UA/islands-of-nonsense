@@ -24,11 +24,14 @@ import {
 	isLegendaryBuilding,
 	getBuildingVisualRank,
 	UNITS_MAP,
-	SPECIAL_BUILDINGS
+	SPECIAL_BUILDINGS,
+	GUARD_TOWERS
 } from './gameData';
 
 export interface EnemyArmyScan {
 	flyingCount: number;
+	flyingDps?: number;
+	totalDps?: number;
 	heavyCount: number;
 	lightCount: number;
 	fortCount: number;
@@ -36,6 +39,15 @@ export interface EnemyArmyScan {
 	totalCount: number;
 	topPressure: number;
 	bottomPressure: number;
+}
+
+export function isAirThreatActive(scan: EnemyArmyScan): boolean {
+	if (scan.flyingCount >= 2) return true;
+	if (scan.flyingCount >= 1 && scan.totalCount <= 3) return true;
+	const fDps = scan.flyingDps ?? 0;
+	const tDps = scan.totalDps ?? 0;
+	if (tDps > 0 && fDps / tDps >= 0.15) return true;
+	return false;
 }
 
 export const BOT_TIER_LIMITS: Record<number, { minPrice: number; maxPrice: number }> = {
@@ -115,6 +127,8 @@ export class BotAI {
 
 		const scan: EnemyArmyScan = {
 			flyingCount: 0,
+			flyingDps: 0,
+			totalDps: 0,
 			heavyCount: 0,
 			lightCount: 0,
 			fortCount: 0,
@@ -128,7 +142,18 @@ export class BotAI {
 			if (u.team !== enemyTeam || u.state === 'DEAD') continue;
 
 			scan.totalCount++;
-			if (u.flying) scan.flyingCount++;
+			const uDamage =
+				u.damageMax !== undefined && u.damageMin !== undefined
+					? (u.damageMax + u.damageMin) / 2
+					: u.damageMax || 15;
+			const uCd = Math.max(0.4, u.attackCooldown || 1.5);
+			const dps = uDamage / uCd;
+			scan.totalDps = (scan.totalDps || 0) + dps;
+
+			if (u.flying) {
+				scan.flyingCount++;
+				scan.flyingDps = (scan.flyingDps || 0) + dps;
+			}
 
 			const armor = u.armorType?.toLowerCase();
 			if (armor === 'large' || armor === 'heavy') scan.heavyCount++;
@@ -174,7 +199,14 @@ export class BotAI {
 			const canHitAir = unitDefCanHitAir(unitDef);
 
 			// Anti-Air scoring
-			if (scan.flyingCount > 0) {
+			const isAirThreat = isAirThreatActive(scan);
+			if (isAirThreat) {
+				if (canHitAir) {
+					score += 5000;
+				} else {
+					score -= 2000;
+				}
+			} else if (scan.flyingCount > 0) {
 				if (canHitAir) {
 					score += 350;
 				} else {
@@ -429,7 +461,12 @@ export class BotAI {
 				const uDef = c.upgrade.unit ? UNITS_MAP.get(c.upgrade.unit) : null;
 				if (uDef) {
 					const canHitAir = unitDefCanHitAir(uDef);
-					if (scan.flyingCount > 0 && canHitAir) score += 3500;
+					if (isAirThreatActive(scan)) {
+						if (canHitAir) score += 5000;
+						else score -= 1500;
+					} else if (scan.flyingCount > 0 && canHitAir) {
+						score += 3500;
+					}
 					const attack = uDef.attack_type?.toLowerCase() || 'normal';
 					if (scan.totalCount > 0) {
 						if (attack === 'magic' && scan.heavyCount / scan.totalCount >= 0.3) score += 2000;
@@ -569,19 +606,40 @@ export class BotAI {
 
 		// 2. Diversity Quota: candidate rank must not exceed minCount by 2 or more
 		// i.e. current count < minCount + 2
+		const isAirThreat = isAirThreatActive(scan);
 		const eligibleArmy = armyRanks.filter((ar) => {
 			const currentCount = rankCounts.get(ar.rank) || 0;
-			const isDiverse = currentCount < minCount + 2;
+			const unitDef = ar.building.unit ? UNITS_MAP.get(ar.building.unit) : null;
+			const canHitAir = unitDef ? unitDefCanHitAir(unitDef) : false;
+			const isDiverse = currentCount < minCount + 2 || (isAirThreat && canHitAir);
 			const foodOk = !isLegendaryBuilding(ar.building) || player.food < player.maxFood;
 			const lumberOk = (ar.building.lumber_cost || 0) <= (player.lumber ?? 0);
 			return isDiverse && foodOk && lumberOk;
 		});
 
-		// 3. Special Buildings (Treasure Chest, Repair Center)
+		// 3. Special Buildings (Treasure Chest, Repair Center, Emergency Anti-Air Tower)
 		const specialCandidates: { building: BuildingDefinition; priority: number; cost: number }[] =
 			[];
 		const treasureCount = myBuildings.filter((b) => b.specialType === 'treasure').length;
 		const repairCount = myBuildings.filter((b) => b.specialType === 'repair').length;
+		const towerCount = myBuildings.filter((b) => b.specialType === 'tower').length;
+
+		if (isAirThreat && towerCount < 2) {
+			const raceTower =
+				GUARD_TOWERS.find((t) => t.race === player.race) ||
+				GUARD_TOWERS.find((t) => t.id === 'h006');
+			if (
+				raceTower &&
+				(raceTower.lumber_cost || 0) <= (player.lumber ?? 0) &&
+				player.gold >= (raceTower.gold_cost || 150)
+			) {
+				specialCandidates.push({
+					building: raceTower,
+					priority: 5200,
+					cost: raceTower.gold_cost || 150
+				});
+			}
+		}
 
 		if (player.gold >= 300 && estimatedIncome < 50 && treasureCount < 1) {
 			const chest = SPECIAL_BUILDINGS.find((b) => b.specialType === 'treasure');
@@ -610,8 +668,14 @@ export class BotAI {
 			const unitDef = b.unit ? UNITS_MAP.get(b.unit) : null;
 			if (unitDef) {
 				const canHitAir = unitDefCanHitAir(unitDef);
-				if (scan.flyingCount > 0 && canHitAir) {
-					priority += 3500; // Urgent anti-air response
+				if (isAirThreat) {
+					if (canHitAir) {
+						priority += 5000; // Urgent adaptive anti-air response
+					} else {
+						priority -= 2500; // Heavily penalize ground-only during aerial raid
+					}
+				} else if (scan.flyingCount > 0 && canHitAir) {
+					priority += 3500; // General anti-air response
 				}
 				const attack = unitDef.attack_type?.toLowerCase() || 'normal';
 				if (scan.totalCount > 0) {
