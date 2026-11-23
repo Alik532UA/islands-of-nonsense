@@ -1206,6 +1206,22 @@ export class Simulation {
 		for (const d of this.debris) {
 			d.lifeTime -= dt;
 		}
+
+		// 1. Worker salvage: if worker walks near debris, salvage scrap for team gold bonus (+10g)
+		for (const team of ['west', 'east'] as MatchTeam[]) {
+			const worker = this.players[team]?.worker;
+			if (!worker) continue;
+			for (const d of this.debris) {
+				if (d.lifeTime <= 0) continue;
+				if (d.team === team && Math.hypot(worker.x - d.x, worker.y - d.y) <= 64) {
+					this.players[team].gold += 10;
+					this.addFloatingText('+10g Брухт', worker.x, worker.y - 20, '#eab308');
+					d.lifeTime = 0;
+				}
+			}
+		}
+
+		// 2. Unit pickup: walking over scrap debris
 		for (const unit of this.units) {
 			if (unit.state === 'DEAD' || unit.team === 'neutral') continue;
 			for (const d of this.debris) {
@@ -1213,8 +1229,15 @@ export class Simulation {
 				if (d.team === unit.team && Math.hypot(unit.x - d.x, unit.y - d.y) <= 48) {
 					unit.buffs = unit.buffs || [];
 					const greatAssembly = (this.greatAssemblyTimer?.[d.team] ?? 0) > 0;
+					const hasAssemblyPlant = this.buildings.some(
+						(b) =>
+							b.team === d.team &&
+							(b.defId === 'cg08' || b.defId === 'cg0c') &&
+							!b.isUnderConstruction
+					);
+					const buffDuration = 15.0 + (hasAssemblyPlant ? 5.0 : 0.0);
 					const asBonus = greatAssembly ? 0.2 : 0.1;
-					unit.buffs.push({ type: 'as', timer: 15.0, value: asBonus });
+					unit.buffs.push({ type: 'as', timer: buffDuration, value: asBonus });
 					unit.hp = Math.min(unit.maxHp, unit.hp + 35);
 					this.addFloatingText(
 						greatAssembly ? '+Велика Збірка (+20% AS)' : '+Уламки (+10% AS)',

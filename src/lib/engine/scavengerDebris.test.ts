@@ -154,9 +154,11 @@ describe('Point 2: Full Scavenger Race Debris and Great Assembly Mechanics', () 
 			if (dyingScavenger.state === 'DEAD') break;
 		}
 
-		// With Assembly plant: 2 + 1 = 3 allies buffed
+		// With Assembly plant: 2 + 1 = 3 allies buffed, and duration extended to 20s (15 + 5)
 		for (const ally of allies) {
-			expect(ally.buffs?.some((b) => b.type === 'as')).toBe(true);
+			const buff = ally.buffs?.find((b) => b.type === 'as');
+			expect(buff).toBeDefined();
+			expect(buff?.timer).toBe(20.0);
 		}
 	});
 
@@ -187,5 +189,69 @@ describe('Point 2: Full Scavenger Race Debris and Great Assembly Mechanics', () 
 		// Debris should be consumed and ally buffed
 		expect(sim.debris.length).toBe(0);
 		expect(walkingAlly.buffs?.some((b) => b.type === 'as')).toBe(true);
+	});
+
+	it('worker walking near scrap debris salvages it for +10 gold', () => {
+		const initialGold = sim.players.west.gold;
+		const worker = sim.players.west.worker;
+		expect(worker).toBeDefined();
+		if (!worker) return;
+
+		// Spawn debris right near worker
+		sim.debris.push({
+			id: 'worker_debris',
+			x: worker.x + 10,
+			y: worker.y + 10,
+			team: 'west',
+			value: 15,
+			lifeTime: 15.0
+		});
+
+		expect(sim.debris.length).toBe(1);
+
+		// Step simulation
+		sim.step(0.05);
+
+		// Debris is salvaged, +10 gold granted to west
+		expect(sim.debris.length).toBe(0);
+		expect(sim.players.west.gold).toBe(initialGold + 10);
+	});
+
+	it('Recycler buildings stack salvage bonus up to cap of 2 buildings', () => {
+		// Build 3 recyclers for west
+		sim.build('west', 'cg07_recycler', 25, 20);
+		sim.build('west', 'cg07_recycler', 25, 24);
+		sim.build('west', 'cg07_recycler', 25, 28);
+		for (const b of sim.buildings) b.isUnderConstruction = false;
+
+		const goldBefore = sim.players.west.gold;
+
+		// Spawn dying unit on west team
+		const dyingUnit = sim.spawnUnitDirectly({
+			team: 'west',
+			lane: 'bottom',
+			x: 1000,
+			y: 580,
+			hp: 10
+		});
+
+		sim.spawnUnitDirectly({
+			team: 'east',
+			lane: 'bottom',
+			x: 1005,
+			y: 580,
+			hp: 1000,
+			damage: 500,
+			range: 100,
+			attackCooldown: 0.1
+		});
+
+		for (let i = 0; i < 15; i++) {
+			sim.step(0.05);
+			if (dyingUnit.state === 'DEAD') break;
+		}
+
+		// Cap of 2 recyclers * 4g = +8g
+		expect(sim.players.west.gold).toBe(goldBefore + 8);
 	});
 });

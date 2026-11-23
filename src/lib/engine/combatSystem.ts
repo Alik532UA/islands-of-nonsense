@@ -1689,10 +1689,13 @@ export class CombatSystem {
 					lifeTime: 15.0
 				});
 				const recyclers = this.sim.buildings.filter(
-					(b) => b.team === target.team && b.specialType === 'recycler'
+					(b) =>
+						b.team === target.team &&
+						(b.specialType === 'recycler' || b.defId === 'cg0b' || b.defId === 'cg07_recycler')
 				);
 				if (recyclers.length > 0) {
-					const scrapBonus = recyclers.length * 4;
+					const count = Math.min(2, recyclers.length);
+					const scrapBonus = count * 4;
 					this.sim.players[target.team].gold += scrapBonus;
 					this.sim.addFloatingText(`+${scrapBonus}g Брухт`, target.x, target.y - 20, '#eab308');
 				}
@@ -1705,12 +1708,13 @@ export class CombatSystem {
 				const hasAssemblyPlant = this.sim.buildings.some(
 					(b) =>
 						b.team === target.team &&
-						(b.defId === 'cg08' || b.defId === 'cg0b') &&
+						(b.defId === 'cg08' || b.defId === 'cg0c') &&
 						!b.isUnderConstruction
 				);
 				const targetCount = (greatAssembly ? 4 : 2) + (hasAssemblyPlant ? 1 : 0);
 				const asBonus = greatAssembly ? 0.2 : 0.1;
 				const searchRadius = 400 + (hasAssemblyPlant ? 100 : 0);
+				const buffDuration = 15.0 + (hasAssemblyPlant ? 5.0 : 0.0);
 
 				const allies = this.sim.units.filter(
 					(u) =>
@@ -1730,8 +1734,8 @@ export class CombatSystem {
 					for (const ally of chosen) {
 						ally.hp = Math.min(ally.maxHp, ally.hp + 75);
 						ally.buffs = ally.buffs || [];
-						ally.buffs.push({ type: 'as', timer: 15.0, value: asBonus });
-						ally.buffs.push({ type: 'dmg', timer: 15.0, value: 0.15 });
+						ally.buffs.push({ type: 'as', timer: buffDuration, value: asBonus });
+						ally.buffs.push({ type: 'dmg', timer: buffDuration, value: 0.15 });
 						this.sim.addFloatingText(
 							greatAssembly ? '+Велика Збірка (+20% AS)' : '+Уламки (+10% AS)',
 							ally.x,
