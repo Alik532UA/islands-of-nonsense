@@ -26,7 +26,10 @@ export const SPELL_MANA_COSTS: Record<string, number> = {
 	ensnare: 50,
 	mana_burn: 35,
 	raise_dead: 45,
-	corpse_explosion: 35
+	corpse_explosion: 35,
+	polymorph: 60,
+	cyclone: 50,
+	banish: 40
 };
 
 /**
@@ -75,6 +78,13 @@ export class CombatSystem {
 			if (candidate.lane !== u.lane) return false;
 			if (candidate.state === 'DEAD' || candidate.hp <= 0) return false;
 			if (candidate.flying && !canHitAir) return false;
+			if (candidate.isCycloned || candidate.buffs?.some((b) => b.type === 'cyclone')) return false;
+			if (
+				(candidate.isBanished || candidate.buffs?.some((b) => b.type === 'banish')) &&
+				(u.attackType === 'normal' || u.attackType === 'pierce' || u.attackType === 'siege')
+			) {
+				return false;
+			}
 			return true;
 		});
 
@@ -184,6 +194,29 @@ export class CombatSystem {
 					continue;
 				}
 			}
+
+			// Cyclone check: suspended in air, completely disabled and invulnerable
+			const isCycloned = u.buffs?.some((b) => b.type === 'cyclone');
+			u.isCycloned = !!isCycloned;
+			if (isCycloned) {
+				continue;
+			}
+
+			// Polymorph check: transformed into sheep, cannot attack or cast spells
+			const isPolymorphed = u.buffs?.some((b) => b.type === 'polymorph');
+			u.isPolymorphed = !!isPolymorphed;
+			if (isPolymorphed) {
+				u.currentTargetId = null;
+			}
+
+			// Banish check: ethereal form
+			const isBanished = u.buffs?.some((b) => b.type === 'banish');
+			u.isBanished = !!isBanished;
+
+			// Mana Shield check
+			const hasManaShield =
+				u.abilityType === 'mana_shield' || u.abilities?.some((a) => a.type === 'mana_shield');
+			u.hasManaShield = Boolean(hasManaShield && u.maxMana && (u.mana ?? 0) > 0);
 
 			// Stun check: stunned units cannot move or attack
 			const isStunned = u.buffs?.some((b) => b.type === 'stun');
@@ -706,6 +739,98 @@ export class CombatSystem {
 				}
 			}
 
+			// 16. Polymorph (Чарівниця)
+			const hasPolymorph =
+				!isPolymorphed &&
+				(u.abilityType === 'polymorph' || u.abilities?.some((a) => a.type === 'polymorph'));
+			const polyCost = SPELL_MANA_COSTS.polymorph ?? 60;
+			if (
+				hasPolymorph &&
+				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
+				(!u.maxMana || (u.mana ?? 0) >= polyCost)
+			) {
+				const enemy = this.sim.units.find(
+					(other) =>
+						other.team !== u.team &&
+						other.lane === u.lane &&
+						other.state !== 'DEAD' &&
+						!other.isBoss &&
+						!other.buffs?.some((b) => b.type === 'polymorph' || b.type === 'cyclone') &&
+						Math.hypot(other.x - u.x, other.y - u.y) <= 450
+				);
+				if (enemy) {
+					if (u.maxMana && u.mana !== undefined) {
+						u.mana = Math.max(0, u.mana - polyCost);
+					}
+					u.abilityCooldownTimer = 12.0;
+					enemy.buffs = enemy.buffs || [];
+					enemy.buffs.push({ type: 'polymorph', timer: 5.5, value: 0 });
+					enemy.currentTargetId = null;
+					this.sim.addFloatingText('Перетворення! 🐑', enemy.x, enemy.y - 25, '#e879f9');
+				}
+			}
+
+			// 17. Cyclone (Смерч)
+			const hasCyclone =
+				!isPolymorphed &&
+				(u.abilityType === 'cyclone' || u.abilities?.some((a) => a.type === 'cyclone'));
+			const cycCost = SPELL_MANA_COSTS.cyclone ?? 50;
+			if (
+				hasCyclone &&
+				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
+				(!u.maxMana || (u.mana ?? 0) >= cycCost)
+			) {
+				const enemy = this.sim.units.find(
+					(other) =>
+						other.team !== u.team &&
+						other.lane === u.lane &&
+						other.state !== 'DEAD' &&
+						!other.isBoss &&
+						!other.buffs?.some((b) => b.type === 'cyclone' || b.type === 'polymorph') &&
+						Math.hypot(other.x - u.x, other.y - u.y) <= 500
+				);
+				if (enemy) {
+					if (u.maxMana && u.mana !== undefined) {
+						u.mana = Math.max(0, u.mana - cycCost);
+					}
+					u.abilityCooldownTimer = 14.0;
+					enemy.buffs = enemy.buffs || [];
+					enemy.buffs.push({ type: 'cyclone', timer: 4.5, value: 0 });
+					enemy.currentTargetId = null;
+					this.sim.addFloatingText('Смерч! 🌪️', enemy.x, enemy.y - 25, '#94a3b8');
+				}
+			}
+
+			// 18. Banish (Вигнання в астрал)
+			const hasBanish =
+				!isPolymorphed &&
+				(u.abilityType === 'banish' || u.abilities?.some((a) => a.type === 'banish'));
+			const banishCost = SPELL_MANA_COSTS.banish ?? 40;
+			if (
+				hasBanish &&
+				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
+				(!u.maxMana || (u.mana ?? 0) >= banishCost)
+			) {
+				const enemy = this.sim.units.find(
+					(other) =>
+						other.team !== u.team &&
+						other.lane === u.lane &&
+						other.state !== 'DEAD' &&
+						!other.isBoss &&
+						!other.buffs?.some((b) => b.type === 'banish' || b.type === 'cyclone') &&
+						Math.hypot(other.x - u.x, other.y - u.y) <= 450
+				);
+				if (enemy) {
+					if (u.maxMana && u.mana !== undefined) {
+						u.mana = Math.max(0, u.mana - banishCost);
+					}
+					u.abilityCooldownTimer = 11.0;
+					enemy.buffs = enemy.buffs || [];
+					enemy.buffs.push({ type: 'banish', timer: 6.0, value: 0 });
+					this.sim.addFloatingText('Астрал! 👻', enemy.x, enemy.y - 25, '#2dd4bf');
+				}
+			}
+
 			u.prevX = u.x;
 			u.prevY = u.y;
 			u.cooldownTimer -= dt;
@@ -723,6 +848,12 @@ export class CombatSystem {
 			if (u.buffs?.some((b) => b.type === 'weakness')) {
 				currentSpeed *= 0.75;
 			}
+			if (isPolymorphed) {
+				currentSpeed *= 0.55;
+			}
+			if (isBanished) {
+				currentSpeed *= 0.7;
+			}
 
 			const targetLaneY =
 				u.lane === 'top' ? TOP_LANE_Y : u.lane === 'mid' ? MID_LANE_Y : BOTTOM_LANE_Y;
@@ -736,6 +867,18 @@ export class CombatSystem {
 
 			// Target Acquisition (WC3 Threat & Aggro System)
 			let enemyTarget = this.findBestTarget(u);
+
+			if (isPolymorphed) {
+				enemyTarget = null;
+				u.currentTargetId = null;
+			}
+			if (
+				isBanished &&
+				(u.attackType === 'normal' || u.attackType === 'pierce' || u.attackType === 'siege')
+			) {
+				enemyTarget = null;
+				u.currentTargetId = null;
+			}
 
 			// Authentic WC3 Siege Priority:
 			// Siege weapons prioritize buildings, defensive towers, and castles when in range
@@ -1406,6 +1549,32 @@ export class CombatSystem {
 		isCrit: boolean,
 		attackerUnit?: Unit
 	): void {
+		// Cyclone: invulnerable
+		if (target.isCycloned || target.buffs?.some((b) => b.type === 'cyclone')) {
+			return;
+		}
+
+		// Banish: immune to physical, amplified by magic
+		if (target.isBanished || target.buffs?.some((b) => b.type === 'banish')) {
+			if (attackType === 'normal' || attackType === 'pierce' || attackType === 'siege') {
+				return;
+			}
+			if (attackType === 'magic' || attackType === 'chaos') {
+				rawDmg = Math.round(rawDmg * 1.66);
+			}
+		}
+
+		// Mana Shield: absorbs 50% damage using mana (1 dmg = 0.5 mana)
+		if (target.hasManaShield && target.maxMana && target.mana && target.mana > 0) {
+			const absorbDamageMax = Math.round(rawDmg * 0.5);
+			const manaNeeded = absorbDamageMax * 0.5;
+			const manaUsed = Math.min(target.mana, manaNeeded);
+			const actualDamageAbsorbed = Math.round(manaUsed * 2);
+			target.mana = Math.max(0, target.mana - manaUsed);
+			rawDmg = Math.max(1, rawDmg - actualDamageAbsorbed);
+			this.sim.addFloatingText('Щит мани', target.x, target.y - 25, '#60a5fa');
+		}
+
 		let effectiveArmor = target.armor;
 		if (target.buffs?.some((b) => b.type === 'shield')) {
 			effectiveArmor += 5;

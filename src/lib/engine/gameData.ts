@@ -680,6 +680,53 @@ export const UNIT_ABILITY_CATALOG: Record<UnitAbilityType, Omit<UnitAbilityDef, 
 		descriptionUk: 'Пожирає сусідній труп, відновлюючи 35% від максимального здоров’я.',
 		descriptionEn: 'Consumes a nearby corpse to restore 35% of max HP.',
 		icon: 'Utensils'
+	},
+	polymorph: {
+		nameUk: 'Перетворення',
+		nameEn: 'Polymorph',
+		type: 'polymorph',
+		isPassive: false,
+		cooldown: 12.0,
+		manaCost: 60,
+		descriptionUk:
+			'Перетворює ворожого бійця на беззахисну вівцю на 5.5 с (не може битися чи чаклувати).',
+		descriptionEn:
+			'Transforms target enemy into a harmless sheep for 5.5s (cannot attack or cast).',
+		icon: 'Sparkles'
+	},
+	cyclone: {
+		nameUk: 'Смерч',
+		nameEn: 'Cyclone',
+		type: 'cyclone',
+		isPassive: false,
+		cooldown: 14.0,
+		manaCost: 50,
+		descriptionUk: 'Підкидає ворога у повітря вихором на 4.5 с, повністю виводячи його з бою.',
+		descriptionEn: 'Tosses an enemy into the air for 4.5s, completely incapacitating them.',
+		icon: 'Wind'
+	},
+	banish: {
+		nameUk: 'Вигнання в астрал',
+		nameEn: 'Banish',
+		type: 'banish',
+		isPassive: false,
+		cooldown: 11.0,
+		manaCost: 40,
+		descriptionUk:
+			'Переносить ворога в астральний вимір на 6 с: імунітет до фізичної шкоди, але +66% шкоди від магії.',
+		descriptionEn:
+			'Banishes unit to ethereal form for 6s: immune to physical attacks, but +66% magic damage taken.',
+		icon: 'Ghost'
+	},
+	mana_shield: {
+		nameUk: 'Щит мани',
+		nameEn: 'Mana Shield',
+		type: 'mana_shield',
+		isPassive: true,
+		descriptionUk:
+			'Використовує ману кастера для поглинання 50% отриманої шкоди (1 шкода = 0.5 мани).',
+		descriptionEn: 'Absorbs 50% of incoming damage using caster mana pool (1 dmg = 0.5 mana).',
+		icon: 'ShieldCheck'
 	}
 };
 
@@ -950,6 +997,46 @@ export function getUnitAbilities(def?: UnitDefinition): UnitAbilityDef[] {
 		matchedTypes.add('cannibalize');
 	}
 
+	// 26. Polymorph
+	if (
+		codes.some((c) => ['Aply', 'A06V', 'A08L'].includes(c)) ||
+		name.includes('чарівниця') ||
+		name.includes('волшебница') ||
+		name.includes('чародійка')
+	) {
+		matchedTypes.add('polymorph');
+	}
+
+	// 27. Cyclone
+	if (
+		codes.some((c) => ['Acyc', 'A07A', 'A01G'].includes(c)) ||
+		name.includes('смерч') ||
+		name.includes('друїд когтя') ||
+		name.includes('прикликач вітру')
+	) {
+		matchedTypes.add('cyclone');
+	}
+
+	// 28. Banish
+	if (
+		codes.some((c) => ['Aban', 'A016', 'A05J'].includes(c)) ||
+		name.includes('астрал') ||
+		name.includes('маг крові') ||
+		name.includes('вигнан')
+	) {
+		matchedTypes.add('banish');
+	}
+
+	// 29. Mana Shield
+	if (
+		codes.some((c) => ['Amsh', 'A03H', 'A09P'].includes(c)) ||
+		name.includes('щит мани') ||
+		name.includes('морська відьма') ||
+		name.includes('архімаг')
+	) {
+		matchedTypes.add('mana_shield');
+	}
+
 	return Array.from(matchedTypes).map((type) => ({
 		id: `abil_${type}`,
 		...UNIT_ABILITY_CATALOG[type]
@@ -969,6 +1056,18 @@ export function resolveUnitAbility(def?: UnitDefinition): UnitAbilityType {
 	if (!def) return 'none';
 	const name = (def.name || '').toLowerCase();
 
+	if (name.includes('чарівниця') || name.includes('волшебница') || name.includes('чародійка')) {
+		return 'polymorph';
+	}
+	if (name.includes('прикликач вітру') || name.includes('смерч')) {
+		return 'cyclone';
+	}
+	if (name.includes('маг крові') || name.includes('астрал')) {
+		return 'banish';
+	}
+	if (name.includes('морська відьма') || name.includes('щит мани')) {
+		return 'mana_shield';
+	}
 	if (name.includes('некромант') || def.id === 'u009') {
 		return 'raise_dead';
 	}

@@ -219,7 +219,11 @@ export type UnitAbilityType =
 	| 'mana_burn'
 	| 'raise_dead'
 	| 'corpse_explosion'
-	| 'cannibalize';
+	| 'cannibalize'
+	| 'polymorph'
+	| 'cyclone'
+	| 'banish'
+	| 'mana_shield';
 
 export interface UnitAbilityDef {
 	id: string;
@@ -256,7 +260,11 @@ export interface ActiveBuff {
 		| 'frost'
 		| 'curse'
 		| 'inner_fire'
-		| 'armor_buff';
+		| 'armor_buff'
+		| 'polymorph'
+		| 'cyclone'
+		| 'banish'
+		| 'mana_shield';
 	timer: number;
 	value: number;
 }
@@ -317,6 +325,10 @@ export interface Unit {
 	immolationDps?: number;
 	isStunned?: boolean;
 	isEnsnared?: boolean;
+	isPolymorphed?: boolean;
+	isCycloned?: boolean;
+	isBanished?: boolean;
+	hasManaShield?: boolean;
 	buildingDefId?: string;
 	buildingName?: string;
 	targetBuildingId?: string | null;
