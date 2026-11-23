@@ -18,11 +18,13 @@
 	import { shortcutLetter, isEditableTarget } from '$lib/hotkeys/hotkeys';
 	import { logService } from '$lib/services/logService.svelte';
 	import { perfMonitor } from '$lib/debug/perfMonitor.svelte';
+	import type { MatchSync } from '$lib/net/matchSync';
 
 	let canvasEl: HTMLCanvasElement;
 	let sim = $state(new Simulation({ botDifficulty: 15, startGold: 500, isRunning: false }));
 	let botAI: BotAI | null = null;
 	let renderer: ArenaRenderer | null = null;
+	let matchSync = $state<MatchSync | null>(null);
 
 	let uiTick = $state(0);
 	let selectedBuildingId = $state<string | null>(null);
@@ -155,6 +157,12 @@
 	}
 
 	function handleUpgradeBuilding(instanceId: string, targetDefId: string) {
+		if (matchSync) {
+			void matchSync.dispatch('UPGRADE', { targetId: instanceId, buildingType: targetDefId });
+			sound.playUpgrade();
+			uiTick = sim.stateVersion;
+			return;
+		}
 		const success = sim.upgradeBuilding('west', instanceId, targetDefId);
 		if (success) {
 			sound.playUpgrade();
@@ -165,6 +173,14 @@
 	}
 
 	function handleSellBuilding(instanceId: string) {
+		if (matchSync) {
+			void matchSync.dispatch('SELL', { targetId: instanceId });
+			sound.playCoin();
+			selectedPlacedBuildingId = null;
+			selectedEntity = { type: 'worker' };
+			uiTick = sim.stateVersion;
+			return;
+		}
 		const success = sim.sellBuilding('west', instanceId);
 		if (success) {
 			sound.playCoin();
@@ -175,6 +191,12 @@
 	}
 
 	function handleContinueConstruction(instanceId: string) {
+		if (matchSync) {
+			void matchSync.dispatch('REPAIR', { targetId: instanceId });
+			sound.playWorkerAck();
+			uiTick = sim.stateVersion;
+			return;
+		}
 		const success = sim.continueConstruction('west', instanceId);
 		if (success) {
 			sound.playWorkerAck();
@@ -189,9 +211,29 @@
 		const searchParams =
 			typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
 		const urlMode = searchParams?.get('mode');
+		const urlRoom = searchParams?.get('room');
 		const skipStartModal = storage.getJSON<boolean>('skip_start_modal', false);
 
-		if (urlMode === 'sandbox') {
+		if (urlRoom) {
+			isSettingsOpen = false;
+			try {
+				const { liveNet } = await import('$lib/net/roomNet');
+				const { MatchSync: MS } = await import('$lib/net/matchSync');
+				const uid = await liveNet.me();
+				const transport = await liveNet.roomTransport(urlRoom);
+				matchSync = new MS({
+					sim,
+					transport,
+					localUid: uid,
+					localTeam: 'west',
+					onCommandApplied: () => {
+						uiTick = sim.stateVersion;
+					}
+				});
+			} catch (err) {
+				logService.warn('network', 'Failed to connect room match sync', { err: String(err) });
+			}
+		} else if (urlMode === 'sandbox') {
 			isSettingsOpen = false;
 			handleStartNewMatch({
 				botDifficulty: 0,
@@ -257,25 +299,39 @@
 			},
 			onTileClick: (tileX: number, tileY: number, shiftKey = false) => {
 				if (selectedBuildingId) {
-					const success = sim.build(
-						'west',
-						selectedBuildingId,
-						tileX,
-						tileY,
-						'top',
-						undefined,
-						shiftKey
-					);
-					if (success) {
+					if (matchSync) {
+						void matchSync.dispatch('BUILD', {
+							buildingType: selectedBuildingId,
+							x: tileX,
+							y: tileY
+						});
 						sound.playBuild();
 						if (!shiftKey) {
 							selectedBuildingId = null;
 							selectedPlacedBuildingId = null;
 							selectedEntity = { type: 'worker' };
 						}
-						uiTick = sim.stateVersion;
 					} else {
-						sound.playErrorResource();
+						const success = sim.build(
+							'west',
+							selectedBuildingId,
+							tileX,
+							tileY,
+							'top',
+							undefined,
+							shiftKey
+						);
+						if (success) {
+							sound.playBuild();
+							if (!shiftKey) {
+								selectedBuildingId = null;
+								selectedPlacedBuildingId = null;
+								selectedEntity = { type: 'worker' };
+							}
+							uiTick = sim.stateVersion;
+						} else {
+							sound.playErrorResource();
+						}
 					}
 				} else {
 					const existing = sim.buildings.find((b) => b.tileX === tileX && b.tileY === tileY);
@@ -371,6 +427,7 @@
 
 	onDestroy(() => {
 		perfMonitor.detachSim();
+		matchSync?.dispose();
 		if (animFrameId) cancelAnimationFrame(animFrameId);
 		if (countdownTimer) clearInterval(countdownTimer);
 		if (unlistenSequences) unlistenSequences();
