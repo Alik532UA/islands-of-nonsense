@@ -43,6 +43,10 @@ export const translations = {
 		'menu.vsBotDesc': 'Класичний бій проти ШІ з вибором раси та складності',
 		'menu.sandbox': 'Пісочниця (Sandbox)',
 		'menu.sandboxDesc': 'Необмежені ресурси для експериментів з арміями',
+		'menu.botVsBot': 'Битва компʼютерів (ШІ проти ШІ)',
+		'menu.botVsBotDesc': 'Режим глядача: спостерігайте за боєм двох тактичних алгоритмів',
+		'menu.allRandom': 'Випадкові раси (All Random)',
+		'menu.allRandomDesc': 'Швидкий матч із випадковим розподілом рас між гравцями',
 		'menu.back': 'Назад у меню',
 		// ACCOUNT-v10
 		'account.title': 'Акаунт та Профіль',
@@ -116,6 +120,10 @@ export const translations = {
 		'menu.vsBotDesc': 'Classic battle against AI with race & difficulty selection',
 		'menu.sandbox': 'Sandbox',
 		'menu.sandboxDesc': 'Unlimited resources to experiment with builds & armies',
+		'menu.botVsBot': 'AI vs AI Spectator',
+		'menu.botVsBotDesc': 'Spectator mode: observe two tactical algorithms battle it out',
+		'menu.allRandom': 'All Random (AR)',
+		'menu.allRandomDesc': 'Fast-paced match with randomized races for both sides',
 		'menu.back': 'Back to Menu',
 		// ACCOUNT-v10
 		'account.title': 'Account & Profile',

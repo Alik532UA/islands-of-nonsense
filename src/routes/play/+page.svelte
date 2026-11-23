@@ -1,7 +1,11 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { Bot, Sparkles, ArrowLeft } from 'lucide-svelte';
+	import { Bot, Sparkles, ArrowLeft, Eye, Dices } from 'lucide-svelte';
 	import { t } from '$lib/i18n';
+	import { settings } from '$lib/services/settings.svelte';
+
+	onMount(() => settings.claimHeader(t('menu.singleplayer')));
 </script>
 
 <svelte:head>
@@ -19,6 +23,7 @@
 	</header>
 
 	<nav class="menu-tiles">
+		<!-- 1. Classic Battle vs Bot -->
 		<a
 			href={resolve('/play/battle')}
 			class="menu-btn menu-btn--game menu-tile anim-stagger-1"
@@ -29,6 +34,7 @@
 			<span class="text-xs text-slate-400 font-normal">{t('menu.vsBotDesc')}</span>
 		</a>
 
+		<!-- 2. Sandbox Testing Mode -->
 		<a
 			href="{resolve('/play/battle')}?mode=sandbox"
 			class="menu-btn menu-btn--game menu-tile anim-stagger-2"
@@ -37,6 +43,28 @@
 			<Sparkles class="menu-tile__icon text-cyan-400" />
 			<span class="font-bold text-cyan-100">{t('menu.sandbox')}</span>
 			<span class="text-xs text-slate-400 font-normal">{t('menu.sandboxDesc')}</span>
+		</a>
+
+		<!-- 3. AI vs AI Spectator Mode -->
+		<a
+			href="{resolve('/play/battle')}?mode=botVsBot"
+			class="menu-btn menu-btn--game menu-tile anim-stagger-3"
+			data-testid="play-spectator-link"
+		>
+			<Eye class="menu-tile__icon text-emerald-400" />
+			<span class="font-bold text-emerald-100">{t('menu.botVsBot')}</span>
+			<span class="text-xs text-slate-400 font-normal">{t('menu.botVsBotDesc')}</span>
+		</a>
+
+		<!-- 4. All Random Mode -->
+		<a
+			href="{resolve('/play/battle')}?mode=allRandom"
+			class="menu-btn menu-btn--game menu-tile anim-stagger-4"
+			data-testid="play-allrandom-link"
+		>
+			<Dices class="menu-tile__icon text-purple-400" />
+			<span class="font-bold text-purple-100">{t('menu.allRandom')}</span>
+			<span class="text-xs text-slate-400 font-normal">{t('menu.allRandomDesc')}</span>
 		</a>
 	</nav>
 

@@ -186,8 +186,50 @@
 		perfMonitor.attachSim(sim);
 		botAI = new BotAI(sim);
 		unlistenAudio = attachAudioBridge(sim, sound);
+		const searchParams =
+			typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+		const urlMode = searchParams?.get('mode');
 		const skipStartModal = storage.getJSON<boolean>('skip_start_modal', false);
-		if (skipStartModal) {
+
+		if (urlMode === 'sandbox') {
+			isSettingsOpen = false;
+			handleStartNewMatch({
+				botDifficulty: 0,
+				startGold: 99999,
+				modeId: 'standard',
+				teamSize: 1,
+				targetWins: 10,
+				coinMode: 'crazy',
+				fogOfWar: false,
+				botVsBot: false
+			});
+		} else if (urlMode === 'botVsBot') {
+			isSettingsOpen = false;
+			handleStartNewMatch({
+				botDifficulty: 20,
+				startGold: 500,
+				modeId: 'standard',
+				teamSize: 1,
+				targetWins: 2,
+				coinMode: 'normal',
+				fogOfWar: false,
+				botVsBot: true
+			});
+		} else if (urlMode === 'allRandom') {
+			isSettingsOpen = false;
+			handleStartNewMatch({
+				botDifficulty: 15,
+				startGold: 500,
+				modeId: 'allRandom',
+				allRandom: true,
+				westRace: 'random',
+				teamSize: 1,
+				targetWins: 2,
+				coinMode: 'normal',
+				fogOfWar: true,
+				botVsBot: false
+			});
+		} else if (skipStartModal) {
 			isSettingsOpen = false;
 			const saved = storage.getJSON<Partial<SimulationConfig>>('match_settings', {});
 			handleStartNewMatch({

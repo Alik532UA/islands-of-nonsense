@@ -24,6 +24,12 @@ test.describe('Castle Fight Web — Smoke and Interaction E2E', () => {
 		await page.getByTestId('menu-play-link').click();
 		await expect(page).toHaveURL(new RegExp(`${BASE}/play`));
 
+		// Verify all 4 game mode tiles exist on /play
+		await expect(page.getByTestId('play-battle-link')).toBeVisible();
+		await expect(page.getByTestId('play-sandbox-link')).toBeVisible();
+		await expect(page.getByTestId('play-spectator-link')).toBeVisible();
+		await expect(page.getByTestId('play-allrandom-link')).toBeVisible();
+
 		// Click Battle vs AI
 		await page.getByTestId('play-battle-link').click();
 		await expect(page).toHaveURL(new RegExp(`${BASE}/play/battle`));
@@ -73,18 +79,6 @@ test.describe('Castle Fight Web — Smoke and Interaction E2E', () => {
 
 	test('supports keyboard hotkeys for modals and actions in battle', async ({ page }) => {
 		await page.goto(`${BASE}/play/battle`);
-
-		// Start match from setup modal if present
-		const startMatchBtn = page.getByRole('button', { name: /почати новий матч/i });
-		if (await startMatchBtn.isVisible()) {
-			await startMatchBtn.click();
-		}
-
-		// Fast-forward countdown if present
-		const startNowBtn = page.getByRole('button', { name: /Розпочати бій зараз/i });
-		if (await startNowBtn.isVisible()) {
-			await startNowBtn.click();
-		}
 
 		// Press C for commander
 		await page.keyboard.press('c');
