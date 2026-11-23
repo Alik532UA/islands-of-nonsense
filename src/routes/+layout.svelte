@@ -5,6 +5,8 @@
 	import { dev } from '$app/env';
 	import ServiceBadge from '$lib/components/ServiceBadge.svelte';
 	import GameHeader from '$lib/components/GameHeader.svelte';
+	import SettingsModal from '$lib/components/SettingsModal.svelte';
+	import { settings } from '$lib/services/settings.svelte';
 	import { debugMode } from '$lib/debug/debugMode.svelte';
 	import { hardReset } from '$lib/debug/hardReset';
 	import { createKeySequence, listenForSequences } from '$lib/debug/keySequence';
@@ -45,4 +47,5 @@
 
 <GameHeader />
 {@render children()}
+<SettingsModal isOpen={settings.isSettingsOpen} onClose={() => settings.closeSettings()} />
 <ServiceBadge />

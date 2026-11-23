@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 
 :root {
+	--ui-scale: 1;
 	--fill-u: clamp(14px, 1.8vmin, 22px);
 	--space-xs: 4px;
 	--space-sm: 8px;
@@ -31,6 +32,16 @@ body {
 		'Segoe UI',
 		Roboto,
 		sans-serif;
+}
+
+/* ===== Scalable UI Layer (SETTINGS-v10) ===== */
+.ui-scalable,
+.menu-page,
+.game-header,
+[data-testid='top-bar'],
+[data-testid='bottom-bar'],
+[data-testid='command-card'] {
+	zoom: var(--ui-scale, 1);
 }
 
 /* ===== Menu Styles (VetCrewGames-pattern) ===== */

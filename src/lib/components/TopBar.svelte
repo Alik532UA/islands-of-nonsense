@@ -446,6 +446,18 @@
 			>
 				{settings.locale === 'uk' ? 'UA' : 'EN'}
 			</button>
+
+			<!-- Settings modal button -->
+			<button
+				type="button"
+				onclick={() => settings.openSettings()}
+				class="p-1 rounded hover:bg-[#2a241b] text-amber-300 transition cursor-pointer shrink-0"
+				title="Налаштування гри"
+				aria-label="Налаштування гри"
+				data-testid="topbar-settings-btn"
+			>
+				<Sliders class="w-3.5 h-3.5" />
+			</button>
 		</div>
 
 		<!-- Authentic WC3 Resource Boxes -->

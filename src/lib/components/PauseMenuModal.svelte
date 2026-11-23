@@ -92,6 +92,16 @@
 					<span>Перезапустити бій</span>
 				</button>
 
+				<!-- Game Client Settings (Audio, Language, Scale) -->
+				<button
+					onclick={() => settings.openSettings()}
+					class="w-full py-2 px-4 bg-[#181d28] hover:bg-[#252d3d] border border-amber-500/40 text-amber-200 font-semibold rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+					data-testid="pause-game-settings-btn"
+				>
+					<Sliders class="w-3.5 h-3.5 text-amber-400" />
+					<span>Налаштування гри (Звук, Мова, UI)</span>
+				</button>
+
 				<!-- Match Settings -->
 				{#if onOpenSettings}
 					<button

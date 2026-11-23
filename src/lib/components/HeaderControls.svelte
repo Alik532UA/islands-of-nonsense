@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { CircleUser, Volume2, VolumeX, Maximize2, Minimize2 } from 'lucide-svelte';
+	import { CircleUser, Volume2, VolumeX, Maximize2, Minimize2, Sliders } from 'lucide-svelte';
 	import { settings } from '$lib/services/settings.svelte';
 	import { fullscreen, canFullscreen } from '$lib/services/fullscreen.svelte';
 	import { playerAvatar } from '$lib/services/playerAvatar.svelte';
@@ -30,7 +30,7 @@
 		{settings.locale === 'uk' ? 'UA' : 'EN'}
 	</button>
 
-	<!-- Sound toggle -->
+	<!-- Sound toggle (Quick Mute) -->
 	<button
 		type="button"
 		class="header-btn"
@@ -44,6 +44,18 @@
 		{:else}
 			<VolumeX class="w-4 h-4 text-slate-400" />
 		{/if}
+	</button>
+
+	<!-- Settings Modal Button -->
+	<button
+		type="button"
+		class="header-btn"
+		onclick={() => settings.openSettings()}
+		title={t('settings.btn') || 'Налаштування'}
+		aria-label={t('settings.btn') || 'Налаштування'}
+		data-testid="header-settings-btn"
+	>
+		<Sliders class="w-4 h-4 text-amber-300 hover:rotate-45 transition-transform" />
 	</button>
 
 	<!-- Account link -->

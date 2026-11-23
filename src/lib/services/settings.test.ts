@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { settings } from './settings.svelte';
+import { sound } from './audio';
 
 describe('SettingsService & Header Claiming', () => {
 	it('allows claiming and releasing header titles and custom back actions', () => {
@@ -31,15 +32,27 @@ describe('SettingsService & Header Claiming', () => {
 		expect(settings.headerBack).toBeNull();
 	});
 
-	it('toggles sound and volume', () => {
+	it('toggles sound and synchronizes with sound engine', () => {
 		settings.setSound(false);
 		expect(settings.sound).toBe(false);
+		expect(sound.isEnabled()).toBe(false);
 
 		settings.setSound(true);
 		expect(settings.sound).toBe(true);
+		expect(sound.isEnabled()).toBe(true);
 
 		settings.setVolume(0.5);
 		expect(settings.volume).toBe(0.5);
+		expect(sound.getVolume()).toBe(0.5);
+
+		// Clamping tests
+		settings.setVolume(1.5);
+		expect(settings.volume).toBe(1.0);
+		expect(sound.getVolume()).toBe(1.0);
+
+		settings.setVolume(-0.2);
+		expect(settings.volume).toBe(0.0);
+		expect(sound.getVolume()).toBe(0.0);
 	});
 
 	it('toggles locale', () => {
@@ -48,5 +61,30 @@ describe('SettingsService & Header Claiming', () => {
 
 		settings.setLocale('uk');
 		expect(settings.locale).toBe('uk');
+	});
+
+	it('manages UI scale and settings modal state', () => {
+		expect(settings.isSettingsOpen).toBe(false);
+
+		settings.openSettings();
+		expect(settings.isSettingsOpen).toBe(true);
+
+		settings.closeSettings();
+		expect(settings.isSettingsOpen).toBe(false);
+
+		settings.toggleSettings();
+		expect(settings.isSettingsOpen).toBe(true);
+
+		settings.toggleSettings();
+		expect(settings.isSettingsOpen).toBe(false);
+
+		settings.setUiScale(1.15);
+		expect(settings.uiScale).toBe(1.15);
+
+		settings.setUiScale(0.85);
+		expect(settings.uiScale).toBe(0.85);
+
+		settings.setUiScale(1);
+		expect(settings.uiScale).toBe(1);
 	});
 });

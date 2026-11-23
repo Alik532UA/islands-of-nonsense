@@ -43,7 +43,7 @@ export async function createRoom(options: NewRoomOptions): Promise<string> {
 	for (let attempt = 0; attempt < CODE_TRIES; attempt++) {
 		const code = generateRoomCode(random);
 
-		let taken = false;
+		let taken: boolean;
 		try {
 			taken = (await get(ref(db, `rooms/${code}/info`))).exists();
 		} catch (error) {
