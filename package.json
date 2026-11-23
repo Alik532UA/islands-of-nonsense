@@ -1,6 +1,6 @@
 {
 	"name": "islands-of-nonsense",
-	"version": "0.0.66",
+	"version": "0.0.67",
 	"private": true,
 	"type": "module",
 	"imports": {
@@ -18,7 +18,8 @@
 		"test:e2e": "playwright test",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-		"check:build": "node scripts/check-build.mjs",
+		"check:rules": "node scripts/check-rules.mjs",
+		"check:build": "node scripts/check-rules.mjs && node scripts/check-build.mjs",
 		"check:bundle": "node scripts/check-bundle.mjs",
 		"test:balance": "vitest run src/lib/engine/balanceRunner.test.ts",
 		"audit:ci": "node scripts/check-audit.mjs",
