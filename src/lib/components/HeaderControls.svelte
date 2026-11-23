@@ -3,6 +3,8 @@
 	import { CircleUser, Volume2, VolumeX, Maximize2, Minimize2 } from 'lucide-svelte';
 	import { settings } from '$lib/services/settings.svelte';
 	import { fullscreen, canFullscreen } from '$lib/services/fullscreen.svelte';
+	import { playerAvatar } from '$lib/services/playerAvatar.svelte';
+	import Avatar from '$lib/components/ui/Avatar.svelte';
 	import { t } from '$lib/i18n';
 
 	function toggleLang() {
@@ -52,7 +54,11 @@
 		aria-label={t('account.title') || 'Акаунт'}
 		data-testid="header-account-link"
 	>
-		<CircleUser class="w-5 h-5 text-amber-400" />
+		{#if playerAvatar.value}
+			<Avatar avatar={playerAvatar.value} size={20} />
+		{:else}
+			<CircleUser class="w-5 h-5 text-amber-400" />
+		{/if}
 	</a>
 
 	<!-- Fullscreen toggle -->
