@@ -74,6 +74,8 @@ export interface SimulationConfig {
 	fogOfWar?: boolean;
 	coinMode?: CoinMode;
 	teamSize?: 1 | 2 | 3;
+	teamSizeWest?: 1 | 2 | 3;
+	teamSizeEast?: 1 | 2 | 3;
 	botVsBot?: boolean; // Spectator mode: bots play against each other without human player
 	randomColors?: boolean; // Default true: randomizes player and bot colors across match
 	isRunning?: boolean;
@@ -459,7 +461,10 @@ export class Simulation {
 			east: [p2]
 		};
 
-		if (this.teamSize >= 2) {
+		const westSize = config.teamSizeWest ?? this.teamSize;
+		const eastSize = config.teamSizeEast ?? this.teamSize;
+
+		if (westSize >= 2 || eastSize >= 2) {
 			const p3Choice = takeRace(undefined, true);
 			const p4Choice = takeRace(undefined, true);
 
@@ -550,11 +555,11 @@ export class Simulation {
 				}
 			};
 
-			this.teamMembers.west.push(p3);
-			this.teamMembers.east.push(p4);
+			if (westSize >= 2) this.teamMembers.west.push(p3);
+			if (eastSize >= 2) this.teamMembers.east.push(p4);
 		}
 
-		if (this.teamSize === 3) {
+		if (westSize === 3 || eastSize === 3) {
 			const p5Choice = takeRace(undefined, true);
 			const p6Choice = takeRace(undefined, true);
 
@@ -645,8 +650,8 @@ export class Simulation {
 				}
 			};
 
-			this.teamMembers.west.push(p5);
-			this.teamMembers.east.push(p6);
+			if (westSize === 3) this.teamMembers.west.push(p5);
+			if (eastSize === 3) this.teamMembers.east.push(p6);
 		}
 
 		this.allPlayers = [...this.teamMembers.west, ...this.teamMembers.east];

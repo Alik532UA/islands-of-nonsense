@@ -90,6 +90,14 @@ export class EconomySystem {
 			multiplier *= 1 + 0.2 * treasureBoxes;
 		}
 
+		// Team balance income multiplier (jo[team]): docs/04 § 1.1 & orig_war3map.j lines 2320-2349
+		// Compensates outnumbered teams (e.g., 1v2 -> 2.0x, 1v3 -> 3.0x, 2v3 -> 1.5x)
+		const allyCount = Math.max(1, this.sim.teamMembers[team]?.length || 1);
+		const enemyTeam: MatchTeam = team === 'west' ? 'east' : 'west';
+		const enemyCount = Math.max(1, this.sim.teamMembers[enemyTeam]?.length || 1);
+		const jo = enemyCount > allyCount ? enemyCount / allyCount : 1.0;
+		multiplier *= jo;
+
 		return Math.max(3, Math.round(baseIncome * multiplier));
 	}
 
