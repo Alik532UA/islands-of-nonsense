@@ -48,7 +48,7 @@
 	let isForgeOpen = $state(false);
 	let isCommanderOpen = $state(false);
 	let isShopOpen = $state(false);
-	let isSettingsOpen = $state(true);
+	let isSettingsOpen = $state(false);
 	let isPauseMenuOpen = $state(false);
 
 	function openPauseMenu() {
@@ -314,7 +314,7 @@
 				fogOfWar: true,
 				botVsBot: false
 			});
-		} else if (skipStartModal) {
+		} else {
 			isSettingsOpen = false;
 			const saved = storage.getJSON<Partial<SimulationConfig>>('match_settings', {});
 			handleStartNewMatch({
@@ -325,11 +325,9 @@
 				targetWins: saved.targetWins ?? 2,
 				coinMode: (saved.coinMode as 'none' | 'normal' | 'crazy') ?? 'normal',
 				fogOfWar: saved.fogOfWar ?? true,
-				botVsBot: saved.botVsBot ?? false
+				botVsBot: saved.botVsBot ?? false,
+				westRace: saved.westRace
 			});
-		} else {
-			isSettingsOpen = true;
-			sim.isRunning = false;
 		}
 
 		renderer = new ArenaRenderer({

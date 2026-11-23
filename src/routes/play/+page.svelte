@@ -25,7 +25,7 @@
 	<nav class="menu-tiles">
 		<!-- 1. Classic Battle vs Bot -->
 		<a
-			href={resolve('/play/battle')}
+			href="{resolve('/play/setup')}?mode=vsBot"
 			class="menu-btn menu-btn--game menu-tile anim-stagger-1"
 			data-testid="play-battle-link"
 		>
@@ -36,7 +36,7 @@
 
 		<!-- 2. Sandbox Testing Mode -->
 		<a
-			href="{resolve('/play/battle')}?mode=sandbox"
+			href="{resolve('/play/setup')}?mode=sandbox"
 			class="menu-btn menu-btn--game menu-tile anim-stagger-2"
 			data-testid="play-sandbox-link"
 		>
@@ -47,7 +47,7 @@
 
 		<!-- 3. AI vs AI Spectator Mode -->
 		<a
-			href="{resolve('/play/battle')}?mode=botVsBot"
+			href="{resolve('/play/setup')}?mode=botVsBot"
 			class="menu-btn menu-btn--game menu-tile anim-stagger-3"
 			data-testid="play-spectator-link"
 		>
@@ -58,7 +58,7 @@
 
 		<!-- 4. All Random Mode -->
 		<a
-			href="{resolve('/play/battle')}?mode=allRandom"
+			href="{resolve('/play/setup')}?mode=allRandom"
 			class="menu-btn menu-btn--game menu-tile anim-stagger-4"
 			data-testid="play-allrandom-link"
 		>

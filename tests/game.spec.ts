@@ -30,8 +30,12 @@ test.describe('Castle Fight Web — Smoke and Interaction E2E', () => {
 		await expect(page.getByTestId('play-spectator-link')).toBeVisible();
 		await expect(page.getByTestId('play-allrandom-link')).toBeVisible();
 
-		// Click Battle vs AI
+		// Click Battle vs AI -> leads to Match Setup lobby
 		await page.getByTestId('play-battle-link').click();
+		await expect(page).toHaveURL(new RegExp(`${BASE}/play/setup`));
+
+		// Click Start Match from Setup lobby -> leads to Battle
+		await page.getByTestId('setup-start-match-btn').click();
 		await expect(page).toHaveURL(new RegExp(`${BASE}/play/battle`));
 
 		// Verify arena container exists
