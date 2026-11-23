@@ -48,7 +48,7 @@ describe('database.rules.json security invariants & Firebase architecture', () =
 		expect(movesWrite).toContain('auth.uid');
 
 		const movesValidate = json.rules.rooms.$code.moves.$seq['.validate'];
-		expect(movesValidate).toContain("$seq.matches(/^[0-9]{6}$/)");
+		expect(movesValidate).toContain('$seq.matches(/^[0-9]{6}$/)');
 
 		const seqValidate = json.rules.rooms.$code.moves.$seq.seq['.validate'];
 		expect(seqValidate).toContain('newData.val() >= 1');
@@ -84,6 +84,30 @@ describe('database.rules.json security invariants & Firebase architecture', () =
 		const json = JSON.parse(raw);
 
 		expect(json.rules.leaders['.indexOn']).toContain('score');
+	});
+
+	it('strictly validates move payload bounds against cheating and overflow', () => {
+		const raw = readFileSync(rulesPath, 'utf8');
+		const json = JSON.parse(raw);
+		const payloadRules = json.rules.rooms.$code.moves.$seq.payload;
+
+		expect(payloadRules.tick['.validate']).toContain('newData.val() >= 0');
+		expect(payloadRules.team['.validate']).toContain("'west'");
+		expect(payloadRules.team['.validate']).toContain("'east'");
+		expect(payloadRules.buildingType['.validate']).toContain('newData.val().length <= 16');
+		expect(payloadRules.x['.validate']).toContain('newData.val() <= 120');
+		expect(payloadRules.y['.validate']).toContain('newData.val() <= 60');
+		expect(payloadRules.checksum['.validate']).toContain('newData.val().length <= 32');
+	});
+
+	it('strictly validates player game history stats are non-negative', () => {
+		const raw = readFileSync(rulesPath, 'utf8');
+		const json = JSON.parse(raw);
+		const gameRules = json.rules.users.$uid.play.games.$gameId;
+
+		expect(gameRules.wins['.validate']).toContain('newData.val() >= 0');
+		expect(gameRules.losses['.validate']).toContain('newData.val() >= 0');
+		expect(gameRules.score['.validate']).toContain('newData.val() >= 0');
 	});
 
 	it('plans database room sweep for stale rooms older than 24 hours', () => {
