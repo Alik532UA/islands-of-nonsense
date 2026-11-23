@@ -65,6 +65,9 @@ export interface SimulationConfig {
 	modeId?: string;
 	uniqueRaces?: boolean;
 	allRandom?: boolean;
+	bannedRaces?: string[];
+	banDraft?: boolean;
+	banCount?: number;
 	westRace?: string;
 	eastRace?: string;
 	targetWins?: number;
@@ -119,6 +122,7 @@ export class Simulation {
 	public targetWins = 2;
 	public round = 1;
 	public score = { west: 0, east: 0 };
+	public bannedRaces: string[] = [];
 
 	// Economy state
 	public incomeTimer = 3.0; // Current countdown
@@ -280,6 +284,7 @@ export class Simulation {
 		if (config.uniqueRaces !== undefined) {
 			this.gameModeConfig.uniqueRaces = config.uniqueRaces;
 		}
+		this.bannedRaces = config.bannedRaces ?? this.gameModeConfig.bannedRaces ?? [];
 		this.coinMode = config.coinMode ?? 'normal';
 		if (this.coinMode === 'crazy') {
 			this.coinSpawnTimer = 20.0;
@@ -294,7 +299,9 @@ export class Simulation {
 			east: { team: 'east', x: EAST_CASTLE_X, y: EAST_CASTLE_Y, hp: castleHp, maxHp: castleHp }
 		};
 
-		const availableRaces = RACES_LIST.map((r) => r.race);
+		const availableRaces = RACES_LIST.map((r) => r.race).filter(
+			(r) => !this.bannedRaces.includes(r)
+		);
 		const isAllRandom = !!config.allRandom;
 		const isUniqueRaces = !!config.uniqueRaces;
 
@@ -308,13 +315,17 @@ export class Simulation {
 				}
 				return { race: picked, isRandom: true };
 			}
-			if (requested && remainingRaces.includes(requested)) {
+			if (
+				requested &&
+				!this.bannedRaces.includes(requested) &&
+				remainingRaces.includes(requested)
+			) {
 				if (isUniqueRaces) {
 					remainingRaces.splice(remainingRaces.indexOf(requested), 1);
 				}
 				return { race: requested, isRandom: false };
 			}
-			if (requested) {
+			if (requested && !this.bannedRaces.includes(requested)) {
 				return { race: requested, isRandom: false };
 			}
 			const idx = Math.floor(Math.random() * remainingRaces.length);
@@ -325,14 +336,22 @@ export class Simulation {
 			return { race: picked, isRandom: false };
 		};
 
+		const initialWestReq =
+			config.westRace && !this.bannedRaces.includes(config.westRace) ? config.westRace : undefined;
 		const westChoice = takeRace(
-			config.westRace || 'Люди',
+			initialWestReq ||
+				(isAllRandom || config.westRace === 'random' ? undefined : availableRaces[0]),
 			isAllRandom || config.westRace === 'random'
 		);
 		const eastIsRandomReq =
 			isAllRandom || config.eastRace === 'random' || (!config.eastRace && config.botDifficulty > 0);
+		const initialEastReq =
+			config.eastRace && !this.bannedRaces.includes(config.eastRace) ? config.eastRace : undefined;
 		const eastChoice = takeRace(
-			config.eastRace || (!config.eastRace && config.botDifficulty > 0 ? undefined : 'Орки'),
+			initialEastReq ||
+				(!config.eastRace && config.botDifficulty > 0
+					? undefined
+					: availableRaces.find((r) => r !== westChoice.race) || availableRaces[0]),
 			eastIsRandomReq
 		);
 
@@ -699,7 +718,9 @@ export class Simulation {
 
 		const otherTeam = team === 'west' ? 'east' : 'west';
 		const otherPlayer = this.players[otherTeam];
-		const availableRaces = RACES_LIST.map((r) => r.race);
+		const availableRaces = RACES_LIST.map((r) => r.race).filter(
+			(r) => !this.bannedRaces.includes(r)
+		);
 
 		if (race === 'random') {
 			let pool = availableRaces;
@@ -732,6 +753,16 @@ export class Simulation {
 		}
 
 		// Direct race selection
+		if (this.bannedRaces.includes(race)) {
+			this.addFloatingText(
+				'Раса заблокована (-ban)!',
+				team === 'west' ? 300 : 1600,
+				400,
+				'#ef4444'
+			);
+			return false;
+		}
+
 		if (this.config.uniqueRaces && otherPlayer && otherPlayer.race === race) {
 			this.addFloatingText('Раса вже зайнята (-ur)!', team === 'west' ? 300 : 1600, 400, '#ef4444');
 			return false;
@@ -751,6 +782,14 @@ export class Simulation {
 		}
 		this.notifyStateChanged();
 		return true;
+	}
+
+	public isRaceBanned(race: string): boolean {
+		return this.bannedRaces.includes(race);
+	}
+
+	public getAvailableRaces(): string[] {
+		return RACES_LIST.map((r) => r.race).filter((r) => !this.bannedRaces.includes(r));
 	}
 
 	public notifyStateChanged(): void {
@@ -859,7 +898,11 @@ export class Simulation {
 				coinsCollected: 0,
 				itemsPurchased: 0
 			};
-			if (newRaces?.[p.team] && p === this.players[p.team]) {
+			if (
+				newRaces?.[p.team] &&
+				p === this.players[p.team] &&
+				!this.bannedRaces.includes(newRaces[p.team]!)
+			) {
 				p.race = newRaces[p.team]!;
 			}
 			if (newCommanders?.[p.team] && p === this.players[p.team]) {

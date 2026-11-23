@@ -1,8 +1,21 @@
 <script lang="ts">
 	import type { SimulationConfig } from '../engine/simulation';
 	import { GAME_MODES } from '../engine/gameModes';
+	import { RACES_LIST } from '../engine/gameData';
 	import { storage } from '../services/storage';
-	import { Swords, Bot, Coins, Trophy, Dices, X, Play, Sliders, Eye, Users } from 'lucide-svelte';
+	import {
+		Swords,
+		Bot,
+		Coins,
+		Trophy,
+		Dices,
+		X,
+		Play,
+		Sliders,
+		Eye,
+		Users,
+		Ban
+	} from 'lucide-svelte';
 
 	let {
 		isOpen = false,
@@ -27,6 +40,19 @@
 	let coinMode = $state<'none' | 'normal' | 'crazy'>('normal');
 	let botVsBot = $state(false);
 	let skipStartModal = $state(false);
+	let bannedRaces = $state<string[]>([]);
+
+	function toggleBanRace(race: string) {
+		if (bannedRaces.includes(race)) {
+			bannedRaces = bannedRaces.filter((r) => r !== race);
+		} else {
+			if (bannedRaces.length >= 2) {
+				bannedRaces = [...bannedRaces.slice(1), race];
+			} else {
+				bannedRaces = [...bannedRaces, race];
+			}
+		}
+	}
 
 	// Synchronize when opened with currentConfig / saved storage
 	$effect(() => {
@@ -37,6 +63,7 @@
 			selectedMode = saved.modeId ?? currentConfig?.modeId ?? 'standard';
 			teamSize = (saved.teamSize as 1 | 2 | 3) ?? currentConfig?.teamSize ?? 1;
 			targetWins = saved.targetWins ?? currentConfig?.targetWins ?? 2;
+			bannedRaces = saved.bannedRaces ?? currentConfig?.bannedRaces ?? [];
 			raceChoiceMode =
 				saved.allRandom || saved.westRace === 'random'
 					? 'random'
@@ -56,6 +83,7 @@
 		const isAr =
 			modeConfig.allRandom || selectedMode === 'allRandom' || raceChoiceMode === 'random';
 		const isUr = modeConfig.uniqueRaces || selectedMode === 'uniqueRaces';
+		const isBanDraft = modeConfig.banDraft || selectedMode === 'banDraft';
 
 		const newConfig: SimulationConfig = {
 			botDifficulty,
@@ -64,9 +92,14 @@
 			teamSize,
 			allRandom: isAr,
 			uniqueRaces: isUr,
+			bannedRaces: isBanDraft || bannedRaces.length > 0 ? bannedRaces : undefined,
 			targetWins,
 			coinMode,
-			westRace: isAr ? 'random' : 'Люди',
+			westRace: isAr
+				? 'random'
+				: bannedRaces.includes('Люди')
+					? RACES_LIST.find((r) => !bannedRaces.includes(r.race))?.race || 'Орки'
+					: 'Люди',
 			fogOfWar,
 			botVsBot
 		};
@@ -278,6 +311,61 @@
 										<div class="text-[9px] text-slate-500">+30% золота</div>
 									</button>
 								</div>
+							</div>
+						</div>
+
+						<!-- Banned Races Draft (-ban) -->
+						<div
+							class="bg-slate-950/40 p-2.5 rounded-2xl border transition {selectedMode ===
+							'banDraft'
+								? 'border-red-500/80 ring-1 ring-red-500/40 bg-red-950/20'
+								: 'border-slate-800'}"
+						>
+							<div class="flex items-center justify-between mb-1.5">
+								<label class="font-bold text-slate-300 flex items-center gap-1.5 text-xs">
+									<Ban class="w-4 h-4 text-red-400" />
+									<span>Заблоковані раси (-ban):</span>
+								</label>
+								<div class="flex items-center gap-1.5 text-[10px]">
+									<span class="text-slate-400">
+										Обрано: <strong class="text-amber-300">{bannedRaces.length}/2</strong>
+									</span>
+									{#if bannedRaces.length > 0}
+										<button
+											type="button"
+											onclick={() => (bannedRaces = [])}
+											class="text-[9px] text-red-400 hover:text-red-300 ml-1 underline cursor-pointer"
+										>
+											Очистити
+										</button>
+									{/if}
+								</div>
+							</div>
+							<div class="text-[10px] text-slate-400 mb-2">
+								{selectedMode === 'banDraft'
+									? 'Оберіть до 2 рас, які будуть суворо виключені з драфту для обох команд'
+									: 'Опціональне блокування до 2 рас (недоступні гравцям та ботам)'}
+							</div>
+							<div class="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+								{#each RACES_LIST as raceDef}
+									{@const isBanned = bannedRaces.includes(raceDef.race)}
+									<button
+										type="button"
+										onclick={() => toggleBanRace(raceDef.race)}
+										class="py-1 px-1.5 rounded-lg border text-center transition cursor-pointer flex items-center justify-center gap-1 {isBanned
+											? 'bg-red-950/80 border-red-500 text-red-200 font-bold ring-1 ring-red-500/50 shadow-sm shadow-red-500/20'
+											: 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'}"
+									>
+										{#if isBanned}
+											<span class="text-[9px] text-red-400">🚫</span>
+										{/if}
+										<span
+											class="text-[11px] truncate {isBanned ? 'line-through text-red-300' : ''}"
+										>
+											{raceDef.race}
+										</span>
+									</button>
+								{/each}
 							</div>
 						</div>
 

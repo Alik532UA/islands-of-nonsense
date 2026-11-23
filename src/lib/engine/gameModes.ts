@@ -16,6 +16,9 @@ export interface GameModeConfig {
 	castleHpMultiplier: number;
 	uniqueRaces?: boolean;
 	allRandom?: boolean;
+	bannedRaces?: string[];
+	banDraft?: boolean;
+	banCount?: number;
 	noSpecialBuildings?: boolean;
 	noArtillery?: boolean;
 	noRescueStrike?: boolean;
@@ -64,6 +67,20 @@ export const GAME_MODES: Record<string, GameModeConfig> = {
 		allowForge: true,
 		castleHpMultiplier: 1.0,
 		uniqueRaces: true
+	},
+	banDraft: {
+		id: 'banDraft',
+		nameUk: 'Бан-драфт (-ban)',
+		nameEn: 'Banned Races Draft (-ban)',
+		descriptionUk: 'Вибір заблокованих рас перед початком матчу, заборонених для обох команд',
+		descriptionEn: 'Prohibit drafting designated banned races for all teams in the match',
+		startGold: 150,
+		incomeMultiplier: 1.0,
+		botDifficulty: 15,
+		allowForge: true,
+		castleHpMultiplier: 1.0,
+		banDraft: true,
+		banCount: 2
 	},
 	noSpecial: {
 		id: 'noSpecial',

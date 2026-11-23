@@ -193,4 +193,71 @@ describe('Point 9: Game Modes & Random Race Bonus (+30% Gold)', () => {
 		expect(bought).toBe(true);
 		expect(sim.castles.east.hp).toBe(initialHp - 800);
 	});
+
+	it('містить режим бан-драфту (-ban / banDraft) у GAME_MODES', () => {
+		expect(GAME_MODES.banDraft).toBeDefined();
+		expect(GAME_MODES.banDraft.banDraft).toBe(true);
+		expect(GAME_MODES.banDraft.banCount).toBe(2);
+	});
+
+	it('забороняє вибір заблокованих рас у режимі бан-драфту (-ban)', () => {
+		const sim = new Simulation({
+			botDifficulty: 15,
+			startGold: 500,
+			bannedRaces: ['Люди', 'Нежить'],
+			westRace: 'Орки'
+		});
+
+		expect(sim.bannedRaces).toEqual(['Люди', 'Нежить']);
+		expect(sim.isRaceBanned('Люди')).toBe(true);
+		expect(sim.isRaceBanned('Нежить')).toBe(true);
+		expect(sim.isRaceBanned('Орки')).toBe(false);
+
+		// getAvailableRaces should exclude banned races
+		const available = sim.getAvailableRaces();
+		expect(available.includes('Люди')).toBe(false);
+		expect(available.includes('Нежить')).toBe(false);
+		expect(available.includes('Орки')).toBe(true);
+
+		// Direct pick of a banned race fails
+		const bannedPick = sim.setPlayerRace('west', 'Люди');
+		expect(bannedPick).toBe(false);
+		expect(sim.players.west.race).toBe('Орки');
+
+		// Picking allowed race succeeds
+		const allowedPick = sim.setPlayerRace('west', 'Наги');
+		expect(allowedPick).toBe(true);
+		expect(sim.players.west.race).toBe('Наги');
+	});
+
+	it('випадковий вибір раси (random / allRandom) ніколи не призначає заблоковані раси (-ban)', () => {
+		const sim = new Simulation({
+			botDifficulty: 15,
+			startGold: 500,
+			bannedRaces: ['Люди', 'Орки'],
+			allRandom: true
+		});
+
+		for (let i = 0; i < 30; i++) {
+			sim.setPlayerRace('west', 'random');
+			expect(sim.players.west.race).not.toBe('Люди');
+			expect(sim.players.west.race).not.toBe('Орки');
+		}
+	});
+
+	it('resetRound ігнорує спробу встановити заблоковану расу', () => {
+		const sim = new Simulation({
+			botDifficulty: 0,
+			startGold: 500,
+			bannedRaces: ['Хаос'],
+			westRace: 'Люди'
+		});
+
+		sim.resetRound({ west: 'Хаос' });
+		// Race remains 'Люди' because 'Хаос' is banned
+		expect(sim.players.west.race).toBe('Люди');
+
+		sim.resetRound({ west: 'Наги' });
+		expect(sim.players.west.race).toBe('Наги');
+	});
 });

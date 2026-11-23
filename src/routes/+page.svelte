@@ -516,6 +516,9 @@
 					: sim.players.west.isRandomRace
 						? 'random'
 						: sim.players.west.race;
+			if (chosenWestRace !== 'random' && sim.isRaceBanned(chosenWestRace)) {
+				chosenWestRace = sim.getAvailableRaces()[0] || 'Орки';
+			}
 			countdownSeconds = 15;
 			if (countdownTimer) clearInterval(countdownTimer);
 			countdownTimer = setInterval(() => {
@@ -612,18 +615,33 @@
 							{/if}
 						</button>
 						{#each RACES_LIST as raceDef}
+							{@const isBanned = sim.isRaceBanned(raceDef.race)}
+							{@const isOpponentOccupied =
+								sim.gameModeConfig.uniqueRaces && sim.players.east.race === raceDef.race}
+							{@const isDisabled = isBanned || isOpponentOccupied}
 							{@const isSelected = chosenWestRace === raceDef.race}
 							<button
+								disabled={isDisabled}
 								onclick={() => {
-									chosenWestRace = raceDef.race;
-									sound.playUpgrade();
+									if (!isDisabled) {
+										chosenWestRace = raceDef.race;
+										sound.playUpgrade();
+									}
 								}}
-								class="p-2.5 rounded-xl border text-center transition cursor-pointer flex flex-col items-center justify-center gap-1 {isSelected
-									? 'bg-amber-600/30 border-amber-400 text-amber-200 ring-2 ring-amber-400/50 font-bold shadow-lg'
-									: 'bg-[#181e2b] border-[#3b3226] hover:border-slate-500 text-slate-300'}"
+								class="p-2.5 rounded-xl border text-center transition flex flex-col items-center justify-center gap-1 {isDisabled
+									? 'bg-slate-900/40 border-red-950/60 text-slate-500 opacity-50 cursor-not-allowed'
+									: isSelected
+										? 'bg-amber-600/30 border-amber-400 text-amber-200 ring-2 ring-amber-400/50 font-bold shadow-lg cursor-pointer'
+										: 'bg-[#181e2b] border-[#3b3226] hover:border-slate-500 text-slate-300 cursor-pointer'}"
 							>
-								<span class="text-xs font-bold">{raceDef.race}</span>
-								{#if isSelected}
+								<span class="text-xs font-bold {isBanned ? 'line-through text-red-400/80' : ''}">
+									{raceDef.race}
+								</span>
+								{#if isBanned}
+									<span class="text-[9px] text-red-400 font-bold">🚫 Бан (-ban)</span>
+								{:else if isOpponentOccupied}
+									<span class="text-[9px] text-amber-400/80 font-bold">Зайнято (-ur)</span>
+								{:else if isSelected}
 									<span class="text-[9px] text-emerald-400 font-bold">✓ Обрано</span>
 								{/if}
 							</button>
