@@ -42,6 +42,18 @@ export const CASTLE_ITEMS: Record<string, CastleItem> = {
 		icon: 'Scroll',
 		cooldown: 45
 	},
+	I000: {
+		id: 'I000',
+		nameUk: 'Дисперсійний Жезл',
+		nameEn: 'Wand of Negation',
+		cost: 350,
+		descriptionUk:
+			'Розсіює всі чари (Dispel): миттєво знімає позитивні та негативні магічні ефекти з усіх бійців на полі бою.',
+		descriptionEn:
+			'Dispel magic: instantly removes all positive and negative magical effects from all units on the battlefield.',
+		icon: 'Wand2',
+		cooldown: 35
+	},
 	I009: {
 		id: 'I009',
 		nameUk: 'Руна Ремонту',

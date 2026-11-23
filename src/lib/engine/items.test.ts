@@ -10,25 +10,46 @@ describe('Point 1: Castle Shop & Complete Consumables Roster', () => {
 		sim = new Simulation({ botDifficulty: 0, startGold: 5000 });
 	});
 
-	it('defines complete 10-item WC3 castle shop roster with correct costs and cooldowns', () => {
+	it('defines complete 12-item WC3 castle shop roster with correct costs and cooldowns', () => {
 		const expectedItems: Record<string, { cost: number; cooldown: number }> = {
 			I001: { cost: 150, cooldown: 30 },
 			I005: { cost: 150, cooldown: 35 },
 			I00E: { cost: 300, cooldown: 45 },
+			I000: { cost: 350, cooldown: 35 },
 			I009: { cost: 500, cooldown: 40 },
 			I00A: { cost: 575, cooldown: 45 },
 			I008: { cost: 600, cooldown: 60 },
 			I003: { cost: 650, cooldown: 50 },
+			I00N: { cost: 650, cooldown: 60 },
 			I00F: { cost: 900, cooldown: 90 },
 			I007: { cost: 1400, cooldown: 75 },
 			I004: { cost: 1500, cooldown: 120 }
 		};
 
+		expect(Object.keys(CASTLE_ITEMS).length).toBe(12);
 		for (const [id, stats] of Object.entries(expectedItems)) {
 			expect(CASTLE_ITEMS[id]).toBeDefined();
 			expect(CASTLE_ITEMS[id].cost).toBe(stats.cost);
 			expect(CASTLE_ITEMS[id].cooldown).toBe(stats.cooldown);
 		}
+	});
+
+	it('Wand of Negation (I000) dispels all positive and negative magical effects from units on lanes', () => {
+		const unit = sim.spawnUnitDirectly({
+			team: 'west',
+			lane: 'top',
+			x: 500,
+			y: 220,
+			hp: 500
+		});
+		unit.buffs = [
+			{ type: 'as', timer: 10, value: 0.25 },
+			{ type: 'weakness', timer: 10, value: 0.4 }
+		];
+
+		const bought = sim.buyCastleItem('west', 'I000');
+		expect(bought).toBe(true);
+		expect(unit.buffs.length).toBe(0);
 	});
 
 	it('enforces gold requirement and cooldown when buying items', () => {

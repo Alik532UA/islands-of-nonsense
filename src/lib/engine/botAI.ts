@@ -399,6 +399,16 @@ export class BotAI {
 			}
 		}
 
+		if (this.sim.canBuyCastleItem(this.team, 'I000')) {
+			const buffedUnits = this.sim.units.filter(
+				(u) => u.state !== 'DEAD' && u.buffs && u.buffs.length > 0
+			);
+			if (buffedUnits.length >= 4) {
+				this.sim.buyCastleItem(this.team, 'I000');
+				return;
+			}
+		}
+
 		// 3. Forge decision: Team BotSmith vs standard bots (WC3 CF_BotForge)
 		const isSmith = this.isBotSmith(player);
 		const maxAttack = isSmith ? 5 : 2;

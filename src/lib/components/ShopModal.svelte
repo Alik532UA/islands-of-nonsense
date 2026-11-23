@@ -110,7 +110,9 @@
 																? 'bg-stone-500/10 border-stone-500/30 text-stone-300'
 																: item.id === 'I003'
 																	? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
-																	: 'bg-violet-500/10 border-violet-500/30 text-violet-400'}"
+																	: item.id === 'I000'
+																		? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400'
+																		: 'bg-violet-500/10 border-violet-500/30 text-violet-400'}"
 							>
 								{#if item.id === 'I00E'}
 									<Scroll class="w-5 h-5" />
@@ -120,6 +122,8 @@
 									<Crown class="w-5 h-5" />
 								{:else if item.id === 'I001'}
 									<Swords class="w-5 h-5" />
+								{:else if item.id === 'I000'}
+									<Wand2 class="w-5 h-5" />
 								{:else if item.id === 'I005'}
 									<Zap class="w-5 h-5" />
 								{:else if item.id === 'I009'}

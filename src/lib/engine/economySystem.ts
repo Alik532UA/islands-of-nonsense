@@ -720,6 +720,25 @@ export class EconomySystem {
 				);
 				break;
 			}
+			case 'I000': {
+				// Wand of Negation: mass dispel of positive and negative buffs on all living units
+				let dispelled = 0;
+				for (const u of this.sim.units) {
+					if (u.state === 'DEAD') continue;
+					if (u.buffs && u.buffs.length > 0) {
+						dispelled += u.buffs.length;
+						u.buffs = [];
+					}
+				}
+				this.sim.addFloatingText(
+					`Дисперсійний Жезл! (${dispelled} розвіяно)`,
+					myCastle.x,
+					myCastle.y - 60,
+					'#818cf8'
+				);
+				this.sim.onSoundEffect?.('magic');
+				break;
+			}
 			case 'I00F': {
 				this.sim.castleInvulnerableTimer[team] = 6.0;
 				this.sim.addFloatingText(
