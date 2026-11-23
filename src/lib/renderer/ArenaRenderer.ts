@@ -1,5 +1,5 @@
 import 'pixi.js/unsafe-eval';
-import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
+import { Application, Container, Graphics, Sprite, Texture, Assets } from 'pixi.js';
 import type { Simulation } from '../engine/simulation';
 import {
 	ARENA_WIDTH,
@@ -179,26 +179,38 @@ export class ArenaRenderer {
 		this.rootContainer.addChild(this.uiLayer);
 
 		// Setup Progressive Destruction Castle Textures & Sprites
-		this.westCastleTextures = WEST_CASTLE_STAGE_URLS.map((url) => Texture.from(url));
-		this.eastCastleTextures = EAST_CASTLE_STAGE_URLS.map((url) => Texture.from(url));
-
-		this.westCastleSprite = new Sprite(this.westCastleTextures[0]);
-		this.westCastleSprite.anchor.set(0.5, 0.5);
-		this.westCastleSprite.x = WEST_CASTLE_X;
-		this.westCastleSprite.y = WEST_CASTLE_Y - 20;
-		this.westCastleSprite.width = 410;
-		this.westCastleSprite.height = 380;
-
-		this.eastCastleSprite = new Sprite(this.eastCastleTextures[0]);
-		this.eastCastleSprite.anchor.set(0.5, 0.5);
-		this.eastCastleSprite.x = EAST_CASTLE_X;
-		this.eastCastleSprite.y = EAST_CASTLE_Y - 15;
-		this.eastCastleSprite.width = 415;
-		this.eastCastleSprite.height = 335;
-
 		this.castlesLayer.addChild(this.castleShadowGraphics);
-		this.castlesLayer.addChild(this.westCastleSprite);
-		this.castlesLayer.addChild(this.eastCastleSprite);
+
+		try {
+			const [westLoaded, eastLoaded] = await Promise.all([
+				Promise.all(WEST_CASTLE_STAGE_URLS.map((url) => Assets.load<Texture>(url))),
+				Promise.all(EAST_CASTLE_STAGE_URLS.map((url) => Assets.load<Texture>(url)))
+			]);
+			this.westCastleTextures = westLoaded;
+			this.eastCastleTextures = eastLoaded;
+
+			if (this.westCastleTextures[0]) {
+				this.westCastleSprite = new Sprite(this.westCastleTextures[0]);
+				this.westCastleSprite.anchor.set(0.5, 0.5);
+				this.westCastleSprite.x = WEST_CASTLE_X;
+				this.westCastleSprite.y = WEST_CASTLE_Y - 20;
+				this.westCastleSprite.width = 410;
+				this.westCastleSprite.height = 380;
+				this.castlesLayer.addChild(this.westCastleSprite);
+			}
+
+			if (this.eastCastleTextures[0]) {
+				this.eastCastleSprite = new Sprite(this.eastCastleTextures[0]);
+				this.eastCastleSprite.anchor.set(0.5, 0.5);
+				this.eastCastleSprite.x = EAST_CASTLE_X;
+				this.eastCastleSprite.y = EAST_CASTLE_Y - 15;
+				this.eastCastleSprite.width = 415;
+				this.eastCastleSprite.height = 335;
+				this.castlesLayer.addChild(this.eastCastleSprite);
+			}
+		} catch {
+			// In case preloading fails, renderCastles handles procedural authentic castle fallback
+		}
 
 		this.setupInteraction(canvas);
 		this.drawStaticTerrain();
@@ -674,38 +686,64 @@ export class ArenaRenderer {
 		const westCastle = this.sim.castles.west;
 		const eastCastle = this.sim.castles.east;
 
-		// 1. Update West Castle (Human) Sprite stage based on HP
-		if (this.westCastleSprite) {
-			const westStage = getCastleStageIndex(westCastle.hp, westCastle.maxHp);
-			const targetTexture = this.westCastleTextures[westStage];
-			if (targetTexture && this.westCastleSprite.texture !== targetTexture) {
-				this.westCastleSprite.texture = targetTexture;
-			}
-		}
-
-		// 2. Update East Castle (Chaos) Sprite stage based on HP
-		if (this.eastCastleSprite) {
-			const eastStage = getCastleStageIndex(eastCastle.hp, eastCastle.maxHp);
-			const targetTexture = this.eastCastleTextures[eastStage];
-			if (targetTexture && this.eastCastleSprite.texture !== targetTexture) {
-				this.eastCastleSprite.texture = targetTexture;
-			}
-		}
-
-		// 3. Render 2.5D ambient drop shadows beneath the castle bases
+		// 1. Clear shadow & fallback graphics layer
 		this.castleShadowGraphics.clear();
-		// West Castle shadow
+
+		// 2. Render 2.5D ambient drop shadows beneath the castle bases
 		this.castleShadowGraphics.ellipse(WEST_CASTLE_X + 8, WEST_CASTLE_Y + 75, 175, 68);
 		this.castleShadowGraphics.fill({ color: 0x000000, alpha: 0.42 });
-		// East Castle shadow
 		this.castleShadowGraphics.ellipse(EAST_CASTLE_X + 6, EAST_CASTLE_Y + 68, 180, 64);
 		this.castleShadowGraphics.fill({ color: 0x000000, alpha: 0.45 });
 
-		// 4. Render Selection rings and Tactical Health Bars in overlay layer
-		this.castlesOverlayLayer.clear();
 		const westSelected = selectedEntity?.type === 'castle' && selectedEntity.team === 'west';
 		const eastSelected = selectedEntity?.type === 'castle' && selectedEntity.team === 'east';
 
+		// 3. Update West Castle (Human) Sprite stage based on HP
+		const westStage = getCastleStageIndex(westCastle.hp, westCastle.maxHp);
+		const westTexture = this.westCastleTextures[westStage];
+		if (this.westCastleSprite && westTexture && westTexture.width > 1) {
+			if (this.westCastleSprite.texture !== westTexture) {
+				this.westCastleSprite.texture = westTexture;
+			}
+			this.westCastleSprite.width = 410;
+			this.westCastleSprite.height = 380;
+			this.westCastleSprite.visible = true;
+		} else {
+			if (this.westCastleSprite) {
+				this.westCastleSprite.visible = false;
+			}
+			this.entityRenderer.renderAuthenticCastle(
+				this.castleShadowGraphics,
+				westCastle,
+				true,
+				westSelected
+			);
+		}
+
+		// 4. Update East Castle (Chaos) Sprite stage based on HP
+		const eastStage = getCastleStageIndex(eastCastle.hp, eastCastle.maxHp);
+		const eastTexture = this.eastCastleTextures[eastStage];
+		if (this.eastCastleSprite && eastTexture && eastTexture.width > 1) {
+			if (this.eastCastleSprite.texture !== eastTexture) {
+				this.eastCastleSprite.texture = eastTexture;
+			}
+			this.eastCastleSprite.width = 415;
+			this.eastCastleSprite.height = 335;
+			this.eastCastleSprite.visible = true;
+		} else {
+			if (this.eastCastleSprite) {
+				this.eastCastleSprite.visible = false;
+			}
+			this.entityRenderer.renderAuthenticCastle(
+				this.castleShadowGraphics,
+				eastCastle,
+				false,
+				eastSelected
+			);
+		}
+
+		// 5. Render Selection rings and Tactical Health Bars in overlay layer
+		this.castlesOverlayLayer.clear();
 		if (westSelected) {
 			this.castlesOverlayLayer.beginPath();
 			this.castlesOverlayLayer.ellipse(WEST_CASTLE_X, WEST_CASTLE_Y + 30, 195, 82);
@@ -752,8 +790,6 @@ export class ArenaRenderer {
 	public destroy(): void {
 		this.isDestroyed = true;
 		this.overlayRenderer.destroy();
-		this.westCastleTextures.forEach((t) => t.destroy(true));
-		this.eastCastleTextures.forEach((t) => t.destroy(true));
 		this.app.destroy(true, { children: true });
 	}
 }
