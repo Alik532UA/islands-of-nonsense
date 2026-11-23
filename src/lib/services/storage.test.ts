@@ -33,7 +33,7 @@ describe('Storage Facade (STORAGE-NAMESPACE-v10)', () => {
 	});
 
 	it('забезпечує наявність обовʼязкового префікса проєкту', () => {
-		expect(STORAGE_PREFIX).toBe('castlefight_');
+		expect(STORAGE_PREFIX).toBe('islandsofnonsense_');
 	});
 
 	it('зберігає та отримує строкові значення через префікс', () => {

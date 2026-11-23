@@ -28,9 +28,9 @@ describe('Project Structure & Canon Gates (PROJECT-STRUCTURE-v10 & CI-CD-AND-TOO
 		expect(pkg.scripts['check:build']).toBeDefined();
 	});
 
-	it('PROJECT-CONTEXT.md містить префікс сховища castlefight_ та опис AC', () => {
+	it('PROJECT-CONTEXT.md містить префікс сховища islandsofnonsense_ та опис AC', () => {
 		const context = readFileSync('PROJECT-CONTEXT.md', 'utf8');
-		expect(context).toContain('castlefight_');
+		expect(context).toContain('islandsofnonsense_');
 		expect(context).toContain('STORAGE-NAMESPACE-v10');
 		expect(context).toContain('Acceptance Criteria');
 	});

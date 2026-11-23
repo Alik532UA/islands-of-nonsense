@@ -11,6 +11,6 @@ Follow guidelines in `PROJECT-CONTEXT.md` and `AGENTS.md`.
 
 ## Constraints
 
-- Storage prefix: `castlefight_`
+- Storage prefix: `islandsofnonsense_` (legacy: `castlefight_`)
 - Svelte 5 runes only
 - Pure headless simulation decoupled from PixiJS

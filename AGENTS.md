@@ -47,7 +47,7 @@ src/
 3. **Ізоляція веб-сховища (STORAGE-NAMESPACE-v10)**:
    - Спільний домен: `https://alik532ua.github.io`.
    - Заборонено прямий доступ до `window.localStorage` або `window.sessionStorage`.
-   - Усі операції виконуються виключно через `storage` фасад із `$lib/services/storage.ts` з обов'язковим префіксом `castlefight_`.
+   - Усі операції виконуються виключно через `storage` фасад із `$lib/services/storage.ts` з обов'язковим префіксом `islandsofnonsense_` (legacy: `castlefight_`).
 4. **Безпека (SECURITY-v10)**:
    - Заборонено використання необробленого `{@html}` та викликів `document.write`.
    - Усі дії підтверджуються в `src/security.test.ts`.

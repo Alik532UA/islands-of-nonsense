@@ -52,7 +52,7 @@ export default defineConfig(({ mode }) => ({
 				strict: true
 			}),
 			paths: {
-				base: (process.env.BASE_PATH ?? (mode === 'production' ? '/castle-fight-web-pack' : '')) as
+				base: (process.env.BASE_PATH ?? (mode === 'production' ? '/islands-of-nonsense' : '')) as
 					'' | `/${string}`,
 				relative: false,
 				origin: 'https://alik532ua.github.io'

@@ -5,6 +5,7 @@
  */
 import { readFileSync, writeFileSync, existsSync, utimesSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { execSync } from 'node:child_process';
 
 const rootDir = process.cwd();
 const packageJsonPath = resolve(rootDir, 'package.json');
@@ -14,7 +15,23 @@ const configDir = resolve(rootDir, 'src/lib/config');
 const tsVersionPath = resolve(configDir, 'version.ts');
 const viteConfigPath = resolve(rootDir, 'vite.config.ts');
 
-const syncOnly = process.argv.includes('--sync-only');
+let syncOnly = process.argv.includes('--sync-only');
+
+if (process.argv.includes('--pre-commit')) {
+	try {
+		const headPkgRaw = execSync('git show HEAD:package.json', {
+			encoding: 'utf-8',
+			stdio: ['pipe', 'pipe', 'ignore']
+		});
+		const headPkg = JSON.parse(headPkgRaw);
+		const currentPkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
+		if (currentPkg.version !== headPkg.version) {
+			syncOnly = true;
+		}
+	} catch {
+		// Fallback to bump if HEAD is inaccessible
+	}
+}
 
 const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
 const [major, minor, patch] = pkg.version.split('.');

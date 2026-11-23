@@ -1,28 +1,28 @@
 ---
-Назва: Контекст проєкту castle-fight-web-pack
+Назва: Контекст проєкту islands-of-nonsense
 Канон: selection_criteria/v10 та product_criteria/v10
 Дата оновлення: 2026-11-23
 ---
 
-# Castle Fight Web — Project Context
+# Islands of Nonsense (Castle Fight Web) — Project Context
 
 ## 0. AI Executive Summary & Navigation Index (Швидкий довідник для агентів)
 
 > [!NOTE]
 > Цей розділ є головним вказівником для автономних AI-агентів (LLM). Використовуйте його як Single Source of Truth для миттєвої навігації без потреби парсити весь детальний інженерний контекст.
 
-| Параметр / Інваріант      | Значення                                                                | Локація у коді / Примітка                                       |
-| :------------------------ | :---------------------------------------------------------------------- | :-------------------------------------------------------------- |
-| **Стек**                  | SvelteKit 3 + Svelte 5 (Runes) + TypeScript (`strict: true`) + PixiJS 8 | [package.json](package.json), [vite.config.ts](vite.config.ts)  |
-| **Хостинг та домен**      | `https://alik532ua.github.io/castle-fight-web-pack/`                    | GitHub Pages (`adapter-static`), fallback `404.html`            |
-| **Префікс сховища**       | `castlefight_` (dev: `castlefight-dev_`)                                | Суворий фасад у `src/lib/services/storage.ts`                   |
-| **Порт dev-сервера**      | **5174** (`--strictPort` для уникнення колізій із 5173/5197/5399)       | `package.json` dev script                                       |
-| **Маршрутизація та i18n** | 2 мови (`uk` типова, `en`), сувора заборона `ru`                        | `src/lib/i18n/index.ts`                                         |
-| **Захист CSP**            | `mode: 'hash'`, повна політика у `vite.config.ts`                       | `vite.config.ts`, `src/csp-hash.test.ts`                        |
-| **Безпека XSS & Storage** | Заборона сирого `{@html}` та неізольованого `localStorage`              | `src/security.test.ts`                                          |
-| **Error Boundary**        | `<svelte:boundary>` + `ErrorFallback.svelte`                            | `src/routes/+layout.svelte`, `src/routes/+error.svelte`         |
-| **Тестування та гейти**   | 49 Vitest сьютів (280+ тестів) + Playwright E2E + Axe a11y              | `npm test`, `npm run test:e2e`, `check:build`, `audit:ci`       |
-| **CI/CD Автоматизація**   | Deploy + Lighthouse CI + Bundle Budgets                                 | `.github/workflows/deploy.yml`, `lighthouse.yml`, `budgets.yml` |
+| Параметр / Інваріант      | Значення                                                                     | Локація у коді / Примітка                                       |
+| :------------------------ | :--------------------------------------------------------------------------- | :-------------------------------------------------------------- |
+| **Стек**                  | SvelteKit 3 + Svelte 5 (Runes) + TypeScript (`strict: true`) + PixiJS 8      | [package.json](package.json), [vite.config.ts](vite.config.ts)  |
+| **Хостинг та домен**      | `https://alik532ua.github.io/islands-of-nonsense/`                           | GitHub Pages (`adapter-static`), fallback `404.html`            |
+| **Префікс сховища**       | `islandsofnonsense_` (dev: `islandsofnonsense-dev_`, legacy: `castlefight_`) | Суворий фасад у `src/lib/services/storage.ts`                   |
+| **Порт dev-сервера**      | **5174** (`--strictPort` для уникнення колізій із 5173/5197/5399)            | `package.json` dev script                                       |
+| **Маршрутизація та i18n** | 2 мови (`uk` типова, `en`), сувора заборона `ru`                             | `src/lib/i18n/index.ts`                                         |
+| **Захист CSP**            | `mode: 'hash'`, повна політика у `vite.config.ts`                            | `vite.config.ts`, `src/csp-hash.test.ts`                        |
+| **Безпека XSS & Storage** | Заборона сирого `{@html}` та неізольованого `localStorage`                   | `src/security.test.ts`                                          |
+| **Error Boundary**        | `<svelte:boundary>` + `ErrorFallback.svelte`                                 | `src/routes/+layout.svelte`, `src/routes/+error.svelte`         |
+| **Тестування та гейти**   | 52 Vitest сьютів (300+ тестів) + Playwright E2E + Axe a11y                   | `npm test`, `npm run test:e2e`, `check:build`, `audit:ci`       |
+| **CI/CD Автоматизація**   | Deploy + Lighthouse CI + Bundle Budgets                                      | `.github/workflows/deploy.yml`, `lighthouse.yml`, `budgets.yml` |
 
 ### Швидкий покажчик ключових рішень:
 
@@ -39,18 +39,18 @@
 
 ## 1. Загальні відомості
 
-- **Назва**: Castle Fight Web (WC3 Tactical Auto-Battler)
+- **Назва**: Islands of Nonsense (WC3 Tactical Auto-Battler / Castle Fight Web)
 - **Опис**: Браузерний порт легендарної карти Warcraft III _Castle Fight (v37 / 1.17)_. Гравці зводять будівлі на своїх базах, які автоматично спавнять війська. Війська марширують по верхній та нижній лініях, б'ються стінка на стінку та штурмують ворожий замок.
 - **Стек**: SvelteKit 3 (`@sveltejs/kit`), Svelte 5 (виключно Runes: `$state`, `$derived`, `$props`), TypeScript (`strict: true`), Pixi.JS 8 (WebGL / WebGPU рендерер арени), Tailwind CSS v4 (`@tailwindcss/vite`), `@sveltejs/adapter-static`.
-- **Хостинг**: GitHub Pages (`https://alik532ua.github.io/castle-fight-web-pack/`).
-- **Гілка деплою**: `main` (або `master`).
+- **Хостинг**: GitHub Pages (`https://alik532ua.github.io/islands-of-nonsense/`).
+- **Гілка деплою**: `main`.
 
 ---
 
 ## 2. Конфігурація адресації та базового шляху (SEO-v10 § 1.2)
 
 - **SITE_ORIGIN**: `https://alik532ua.github.io`
-- **SITE_BASE**: `/castle-fight-web-pack` (у production-збірці; порожній рядок у локальній розробці)
+- **SITE_BASE**: `/islands-of-nonsense` (у production-збірці; порожній рядок у локальній розробці)
 - **paths.relative**: `false`
 - **paths.origin**: `https://alik532ua.github.io`
 - **Fallback**: `404.html` (налаштовано у `vite.config.ts`)
@@ -62,26 +62,26 @@
 
 Сайт розміщено на спільному домені `alik532ua.github.io`. Для запобігання взаємного пошкодження та перекриття даних між проєктами всі операції з веб-сховищем підлягають обов'язковій ізоляції:
 
-- **Префікс сховища**: `castlefight_`
-- **Префікс dev-середовища**: `castlefight-dev_`
+- **Префікс сховища**: `islandsofnonsense_` (раніше: `castlefight_`)
+- **Префікс dev-середовища**: `islandsofnonsense-dev_`
 
-| Поле                      | Значення           |
-| ------------------------- | ------------------ |
-| **PROJECT_PREFIX**        | `castlefight_`     |
-| **STORAGE_PREFIX (prod)** | `castlefight_`     |
-| **STORAGE_PREFIX (dev)**  | `castlefight-dev_` |
+| Поле                      | Значення                 |
+| ------------------------- | ------------------------ |
+| **PROJECT_PREFIX**        | `islandsofnonsense_`     |
+| **STORAGE_PREFIX (prod)** | `islandsofnonsense_`     |
+| **STORAGE_PREFIX (dev)**  | `islandsofnonsense-dev_` |
 
 ### Реєстр ключів сховища
 
-| Ключ (без префікса)  | Повний ключ у сховищі            | Призначення                   | Дозволені значення           |
-| -------------------- | -------------------------------- | ----------------------------- | ---------------------------- |
-| `settings_volume`    | `castlefight_settings_volume`    | Загальна гучність аудіо       | Число від 0.0 до 1.0         |
-| `settings_sound_fx`  | `castlefight_settings_sound_fx`  | Перемикач звукових ефектів    | `true` / `false`             |
-| `settings_lang`      | `castlefight_settings_lang`      | Мова інтерфейсу               | `'uk'` \| `'en'`             |
-| `selected_commander` | `castlefight_selected_commander` | Вибраний командир гравця      | `'sasha'\|'alik'\|'dima'...` |
-| `high_score`         | `castlefight_high_score`         | Максимальна кількість перемог | Ціле невід'ємне число        |
-| `match_history`      | `castlefight_match_history`      | Останні 10 зіграних матчів    | JSON масив MatchSummary      |
-| `stale_reload`       | `castlefight_stale_reload`       | Захист від циклу оновлення    | URL поточної сторінки        |
+| Ключ (без префікса)  | Повний ключ у сховищі                  | Призначення                   | Дозволені значення           |
+| -------------------- | -------------------------------------- | ----------------------------- | ---------------------------- |
+| `settings_volume`    | `islandsofnonsense_settings_volume`    | Загальна гучність аудіо       | Число від 0.0 до 1.0         |
+| `settings_sound_fx`  | `islandsofnonsense_settings_sound_fx`  | Перемикач звукових ефектів    | `true` / `false`             |
+| `settings_lang`      | `islandsofnonsense_settings_lang`      | Мова інтерфейсу               | `'uk'` \| `'en'`             |
+| `selected_commander` | `islandsofnonsense_selected_commander` | Вибраний командир гравця      | `'sasha'\|'alik'\|'dima'...` |
+| `high_score`         | `islandsofnonsense_high_score`         | Максимальна кількість перемог | Ціле невід'ємне число        |
+| `match_history`      | `islandsofnonsense_match_history`      | Останні 10 зіграних матчів    | JSON масив MatchSummary      |
+| `stale_reload`       | `islandsofnonsense_stale_reload`       | Захист від циклу оновлення    | URL поточної сторінки        |
 
 - Прямий виклик `window.localStorage` або `window.sessionStorage` заборонений поза фасадом `$lib/services/storage.ts` (контролюється `src/security.test.ts`).
 - Метод `storage.clear()` видаляє тільки власні ключі префіксу.
