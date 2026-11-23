@@ -300,6 +300,19 @@ export class ArenaRenderer {
 		});
 	}
 
+	public getVisibleWorldBounds(): { minX: number; minY: number; maxX: number; maxY: number } {
+		const screenW = this.app?.screen?.width || 1200;
+		const screenH = this.app?.screen?.height || 800;
+		const halfW = screenW / (2 * this.zoom);
+		const halfH = screenH / (2 * this.zoom);
+		return {
+			minX: this.cameraX - halfW,
+			minY: this.cameraY - halfH,
+			maxX: this.cameraX + halfW,
+			maxY: this.cameraY + halfH
+		};
+	}
+
 	public screenToWorld(screenX: number, screenY: number): { x: number; y: number } {
 		const screenW = this.app.screen.width;
 		const screenH = this.app.screen.height;
@@ -737,20 +750,32 @@ export class ArenaRenderer {
 		const selectedPlacedId = this.getSelectedPlacedBuildingId?.() || null;
 		const selectedEntity = this.getSelectedEntity?.() || null;
 		const isWorkerSelected = selectedEntity?.type === 'worker';
+		const bounds = this.getVisibleWorldBounds();
 
 		this.overlayRenderer.drawGridLayer(this.gridLayer, selectedDefId, this.hoveredTile);
-		this.entityRenderer.drawBuildingsLayer(this.buildingsLayer, selectedPlacedId, this.enableFog);
-		this.entityRenderer.drawWorkersLayer(this.workersLayer, isWorkerSelected, this.enableFog);
-		this.entityRenderer.drawUnitsLayer(this.unitsLayer, selectedEntity, this.enableFog);
-		this.entityRenderer.drawCoinsLayer(this.coinsLayer, this.enableFog);
+		this.entityRenderer.drawBuildingsLayer(
+			this.buildingsLayer,
+			selectedPlacedId,
+			this.enableFog,
+			bounds
+		);
+		this.entityRenderer.drawWorkersLayer(
+			this.workersLayer,
+			isWorkerSelected,
+			this.enableFog,
+			bounds
+		);
+		this.entityRenderer.drawUnitsLayer(this.unitsLayer, selectedEntity, this.enableFog, bounds);
+		this.entityRenderer.drawCoinsLayer(this.coinsLayer, this.enableFog, bounds);
 		this.renderCastles(selectedEntity);
-		this.entityRenderer.drawProjectilesLayer(this.projectilesLayer, this.enableFog);
+		this.entityRenderer.drawProjectilesLayer(this.projectilesLayer, this.enableFog, bounds);
 		this.entityRenderer.drawRescueStrikeEffects(this.projectilesLayer);
 		this.entityRenderer.drawLightningEffects(this.projectilesLayer);
 		this.overlayRenderer.drawDayNight(
 			this.dayNightLayer,
 			this.sim.dayNightCycle,
-			this.castleGlowLayer
+			this.castleGlowLayer,
+			bounds
 		);
 		this.overlayRenderer.drawOrderMarkers(this.markersLayer, this.moveMarkers);
 		this.overlayRenderer.drawFogOfWar(this.fogLayer, this.enableFog);

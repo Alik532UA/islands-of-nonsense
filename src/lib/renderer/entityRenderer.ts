@@ -26,10 +26,24 @@ export class EntityRenderer {
 	// =========================================================================
 	// 1. 2.5D SPYRO-STYLED BUILDINGS LAYER
 	// =========================================================================
-	public drawBuildingsLayer(g: Graphics, selectedPlacedId: string | null, enableFog = false): void {
+	public drawBuildingsLayer(
+		g: Graphics,
+		selectedPlacedId: string | null,
+		enableFog = false,
+		bounds?: { minX: number; minY: number; maxX: number; maxY: number }
+	): void {
 		g.clear();
 
 		for (const b of this.sim.buildings) {
+			if (
+				bounds &&
+				(b.x + CELL_SIZE < bounds.minX - 30 ||
+					b.x > bounds.maxX + 30 ||
+					b.y + CELL_SIZE < bounds.minY - 30 ||
+					b.y > bounds.maxY + 30)
+			) {
+				continue;
+			}
 			if (
 				enableFog &&
 				b.team !== 'west' &&
@@ -489,7 +503,12 @@ export class EntityRenderer {
 	// =========================================================================
 	// 3. 2.5D WORKERS LAYER
 	// =========================================================================
-	public drawWorkersLayer(g: Graphics, isWorkerSelected: boolean, enableFog = false): void {
+	public drawWorkersLayer(
+		g: Graphics,
+		isWorkerSelected: boolean,
+		enableFog = false,
+		bounds?: { minX: number; minY: number; maxX: number; maxY: number }
+	): void {
 		g.clear();
 
 		const playersToRender = this.sim.allPlayers?.length
@@ -499,6 +518,15 @@ export class EntityRenderer {
 		for (const player of playersToRender) {
 			const w = player?.worker;
 			if (!w) continue;
+			if (
+				bounds &&
+				(w.x + 30 < bounds.minX ||
+					w.x - 30 > bounds.maxX ||
+					w.y + 30 < bounds.minY ||
+					w.y - 30 > bounds.maxY)
+			) {
+				continue;
+			}
 			if (enableFog && player.team !== 'west' && !this.sim.isPointRevealed('west', w.x, w.y)) {
 				continue;
 			}
@@ -633,7 +661,12 @@ export class EntityRenderer {
 	// =========================================================================
 	// 4. 2.5D RICH MOBS LAYER (Styling directly from C:\...\раси)
 	// =========================================================================
-	public drawUnitsLayer(g: Graphics, selectedEntity: SelectedEntity, enableFog: boolean): void {
+	public drawUnitsLayer(
+		g: Graphics,
+		selectedEntity: SelectedEntity,
+		enableFog: boolean,
+		bounds?: { minX: number; minY: number; maxX: number; maxY: number }
+	): void {
 		g.clear();
 
 		const westPlayerColor = this.sim.players.west.color?.num || 0x0042ff;
@@ -641,6 +674,16 @@ export class EntityRenderer {
 
 		for (const u of this.sim.units) {
 			const radius = u.size;
+
+			if (
+				bounds &&
+				(u.x + radius + 30 < bounds.minX ||
+					u.x - radius - 30 > bounds.maxX ||
+					u.y + radius + 30 < bounds.minY ||
+					u.y - radius - 30 > bounds.maxY)
+			) {
+				continue;
+			}
 
 			if (u.state === 'DEAD') {
 				if (u.deathTimer !== undefined && u.deathTimer > 0) {
@@ -1036,12 +1079,24 @@ export class EntityRenderer {
 	// =========================================================================
 	// 5. COINS & EFFECTS
 	// =========================================================================
-	public drawCoinsLayer(g: Graphics, enableFog = false): void {
+	public drawCoinsLayer(
+		g: Graphics,
+		enableFog = false,
+		bounds?: { minX: number; minY: number; maxX: number; maxY: number }
+	): void {
 		g.clear();
 
 		// 1. Battlefield scrap debris (metallic gears, bolts, scrap metal from Scavengers & fallen units)
 		if (this.sim.debris) {
 			for (const deb of this.sim.debris) {
+				if (
+					bounds &&
+					(deb.x + 20 < bounds.minX ||
+						deb.x - 20 > bounds.maxX ||
+						deb.y + 20 < bounds.minY ||
+						deb.y - 20 > bounds.maxY)
+				)
+					continue;
 				if (enableFog && !this.sim.isPointRevealed('west', deb.x, deb.y)) continue;
 				const alpha = Math.min(1.0, deb.lifeTime / 4.0);
 				// Cogwheel scrap
@@ -1101,11 +1156,24 @@ export class EntityRenderer {
 		}
 	}
 
-	public drawProjectilesLayer(g: Graphics, enableFog = false): void {
+	public drawProjectilesLayer(
+		g: Graphics,
+		enableFog = false,
+		bounds?: { minX: number; minY: number; maxX: number; maxY: number }
+	): void {
 		g.clear();
 
 		for (const p of this.sim.projectiles) {
 			if (p.damage <= 0) continue;
+			if (
+				bounds &&
+				(p.x + 20 < bounds.minX ||
+					p.x - 20 > bounds.maxX ||
+					p.y + 20 < bounds.minY ||
+					p.y - 20 > bounds.maxY)
+			) {
+				continue;
+			}
 			if (enableFog && !this.sim.isPointRevealed('west', p.x, p.y)) continue;
 
 			let z = 0;

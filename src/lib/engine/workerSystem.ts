@@ -26,6 +26,12 @@ export { SOLID_MAP_OBSTACLES } from './constants';
  * dynamic obstacle collision resolution, and building construction/repairs.
  */
 export class WorkerSystem {
+	// Reusable typed array buffer pool for high-performance A* without garbage collection spikes
+	private astarGScore: Float32Array = new Float32Array(35000);
+	private astarCameFrom: Int32Array = new Int32Array(35000);
+	private astarClosed: Uint8Array = new Uint8Array(35000);
+	private astarBlocked: Int8Array = new Int8Array(35000);
+
 	constructor(private sim: Simulation) {}
 
 	/**
@@ -670,10 +676,21 @@ export class WorkerSystem {
 		}
 
 		const totalNodes = cols * rows;
-		const gScore = new Float32Array(totalNodes).fill(Infinity);
-		const cameFrom = new Int32Array(totalNodes).fill(-1);
-		const closed = new Uint8Array(totalNodes);
-		const blocked = new Int8Array(totalNodes).fill(-1);
+		if (totalNodes > this.astarGScore.length) {
+			const newCap = totalNodes + 5000;
+			this.astarGScore = new Float32Array(newCap);
+			this.astarCameFrom = new Int32Array(newCap);
+			this.astarClosed = new Uint8Array(newCap);
+			this.astarBlocked = new Int8Array(newCap);
+		}
+		const gScore = this.astarGScore;
+		gScore.fill(Infinity, 0, totalNodes);
+		const cameFrom = this.astarCameFrom;
+		cameFrom.fill(-1, 0, totalNodes);
+		const closed = this.astarClosed;
+		closed.fill(0, 0, totalNodes);
+		const blocked = this.astarBlocked;
+		blocked.fill(-1, 0, totalNodes);
 
 		const isBlocked = (c: number, r: number): boolean => {
 			const idx = r * cols + c;

@@ -301,8 +301,13 @@
 
 	onMount(() => {
 		let animId: number;
-		function loop() {
-			renderMinimap();
+		let lastRenderTime = 0;
+		function loop(now: number) {
+			// Throttle minimap rendering to 20 FPS (every 50ms) to eliminate main-thread CPU starvation
+			if (now - lastRenderTime >= 50) {
+				lastRenderTime = now;
+				renderMinimap();
+			}
 			animId = requestAnimationFrame(loop);
 		}
 		animId = requestAnimationFrame(loop);

@@ -292,7 +292,10 @@ export class OverlayRenderer {
 		}
 	}
 
-	public drawCastleLighting(g: Graphics): void {
+	public drawCastleLighting(
+		g: Graphics,
+		bounds?: { minX: number; minY: number; maxX: number; maxY: number }
+	): void {
 		g.clear();
 		const alpha = this.sim.dayNightAmbientAlpha;
 		if (alpha <= 0.005) return;
@@ -302,28 +305,43 @@ export class OverlayRenderer {
 
 		// A. Castles: Grand Warm Hearth Light (R = 600, ultra-soft feathering)
 		// Rendered under castlesLayer to illuminate surrounding terrain without casting a veil over the castle image
-		this.drawSoftRadialLight(
-			g,
-			this.sim.castles.west.x,
-			this.sim.castles.west.y,
-			600,
-			0xfbbf24,
-			maxIntensity
-		);
-		this.drawSoftRadialLight(
-			g,
-			this.sim.castles.east.x,
-			this.sim.castles.east.y,
-			600,
-			0xfbbf24,
-			maxIntensity
-		);
+		if (
+			!bounds ||
+			(this.sim.castles.west.x >= bounds.minX - 650 && this.sim.castles.west.x <= bounds.maxX + 650)
+		) {
+			this.drawSoftRadialLight(
+				g,
+				this.sim.castles.west.x,
+				this.sim.castles.west.y,
+				600,
+				0xfbbf24,
+				maxIntensity
+			);
+		}
+		if (
+			!bounds ||
+			(this.sim.castles.east.x >= bounds.minX - 650 && this.sim.castles.east.x <= bounds.maxX + 650)
+		) {
+			this.drawSoftRadialLight(
+				g,
+				this.sim.castles.east.x,
+				this.sim.castles.east.y,
+				600,
+				0xfbbf24,
+				maxIntensity
+			);
+		}
 	}
 
-	public drawDayNight(g: Graphics, _cycle?: 'day' | 'night', castleLightLayer?: Graphics): void {
+	public drawDayNight(
+		g: Graphics,
+		_cycle?: 'day' | 'night',
+		castleLightLayer?: Graphics,
+		bounds?: { minX: number; minY: number; maxX: number; maxY: number }
+	): void {
 		g.clear();
 		if (castleLightLayer) {
-			this.drawCastleLighting(castleLightLayer);
+			this.drawCastleLighting(castleLightLayer, bounds);
 		}
 
 		const alpha = this.sim.dayNightAmbientAlpha;
@@ -345,27 +363,49 @@ export class OverlayRenderer {
 
 		// If no separate castleLightLayer is provided (e.g. standalone tests), draw to g as fallback
 		if (!castleLightLayer) {
-			this.drawSoftRadialLight(
-				g,
-				this.sim.castles.west.x,
-				this.sim.castles.west.y,
-				600,
-				0xfbbf24,
-				maxIntensity
-			);
-			this.drawSoftRadialLight(
-				g,
-				this.sim.castles.east.x,
-				this.sim.castles.east.y,
-				600,
-				0xfbbf24,
-				maxIntensity
-			);
+			if (
+				!bounds ||
+				(this.sim.castles.west.x >= bounds.minX - 650 &&
+					this.sim.castles.west.x <= bounds.maxX + 650)
+			) {
+				this.drawSoftRadialLight(
+					g,
+					this.sim.castles.west.x,
+					this.sim.castles.west.y,
+					600,
+					0xfbbf24,
+					maxIntensity
+				);
+			}
+			if (
+				!bounds ||
+				(this.sim.castles.east.x >= bounds.minX - 650 &&
+					this.sim.castles.east.x <= bounds.maxX + 650)
+			) {
+				this.drawSoftRadialLight(
+					g,
+					this.sim.castles.east.x,
+					this.sim.castles.east.y,
+					600,
+					0xfbbf24,
+					maxIntensity
+				);
+			}
 		}
 
-		// B. Roadside Stone Braziers (Warm firelight) & Crystals (Ethereal luminescence)
+		// B. Roadside Stone Braziers (Warm firelight) & Crystals (Ethereal luminescence) with Viewport Culling
 		if (this.sim.decorations) {
 			for (const d of this.sim.decorations) {
+				if (bounds) {
+					if (
+						d.x < bounds.minX - 250 ||
+						d.x > bounds.maxX + 250 ||
+						d.y < bounds.minY - 250 ||
+						d.y > bounds.maxY + 250
+					) {
+						continue;
+					}
+				}
 				if (d.type === 'brazier') {
 					this.drawSoftRadialLight(g, d.x, d.y, 220, 0xf59e0b, maxIntensity * 0.9);
 				} else if (d.type === 'crystal') {
@@ -374,11 +414,13 @@ export class OverlayRenderer {
 			}
 		}
 
-		// C. Bridge Magical Stone Lanterns
+		// C. Bridge Magical Stone Lanterns with Viewport Culling
 		const bridgeLanes = [TOP_LANE_Y, MID_LANE_Y, BOTTOM_LANE_Y];
 		const lanternXs = [3080, 3300, 3550, 3750, 3950, 4120];
 		for (const ly of bridgeLanes) {
+			if (bounds && (ly < bounds.minY - 150 || ly > bounds.maxY + 150)) continue;
 			for (const lx of lanternXs) {
+				if (bounds && (lx < bounds.minX - 120 || lx > bounds.maxX + 120)) continue;
 				this.drawSoftRadialLight(g, lx, ly - 95, 95, 0xfbbf24, maxIntensity * 0.65);
 				this.drawSoftRadialLight(g, lx, ly + 95, 95, 0xfbbf24, maxIntensity * 0.65);
 			}
@@ -387,14 +429,24 @@ export class OverlayRenderer {
 		// D. Workers carrying lanterns
 		for (const p of [this.sim.players.west, this.sim.players.east]) {
 			if (p?.worker) {
+				if (
+					bounds &&
+					(p.worker.x < bounds.minX - 200 ||
+						p.worker.x > bounds.maxX + 200 ||
+						p.worker.y < bounds.minY - 200 ||
+						p.worker.y > bounds.maxY + 200)
+				) {
+					continue;
+				}
 				this.drawSoftRadialLight(g, p.worker.x, p.worker.y, 170, 0xfef08a, maxIntensity * 0.75);
 			}
 		}
 	}
 
 	/**
-	 * Renders continuous, feathered radial light dissipation spanning the full 100% of radius,
-	 * 4x smoother than fog-of-war transitions, completely eliminating hard circle edges.
+	 * Renders continuous, feathered radial light dissipation spanning the full 100% of radius.
+	 * Uses adaptive concentric steps (24 for castles, 10 for braziers, 6 for lanterns/crystals)
+	 * slashing geometry by 70% while preserving ultra-soft dissipation.
 	 */
 	public drawSoftRadialLight(
 		g: Graphics,
@@ -402,14 +454,14 @@ export class OverlayRenderer {
 		cy: number,
 		radius: number,
 		color: number,
-		peakAlpha: number
+		peakAlpha: number,
+		customSteps?: number
 	): void {
 		if (peakAlpha <= 0.002 || radius <= 0) return;
 
-		// 24 concentric steps spanning the full 100% radius from r=0 to r=radius
-		// Smooth cubic ease-out: f(t) = (1 - t)^2.6 has zero derivative at outer edge (t = 1)
-		// Dissipates smoothly across the entire radius with zero banding or sharp boundaries
-		const steps = 24;
+		// 24 concentric steps for large light sources (castles R >= 500)
+		// 10 for braziers, 6 for small lanterns and crystals
+		const steps = customSteps ?? (radius >= 500 ? 24 : radius >= 180 ? 10 : 6);
 		const dr = radius / steps;
 
 		for (let s = steps; s >= 1; s--) {

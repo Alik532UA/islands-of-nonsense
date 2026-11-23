@@ -330,6 +330,8 @@
 		await renderer.init(canvasEl);
 
 		let lastTime = performance.now();
+		let lastUiTickTime = 0;
+		let lastStateVersion = -1;
 		let accumulator = 0;
 		const FIXED_STEP = 1 / 60; // 60 FPS silky-smooth simulation rate
 
@@ -363,7 +365,12 @@
 					}
 				}
 				if (stepsCount > 0) {
-					uiTick = sim.tick + sim.stateVersion;
+					const stateChanged = sim.stateVersion !== lastStateVersion;
+					if (stateChanged || now - lastUiTickTime >= 80) {
+						lastUiTickTime = now;
+						lastStateVersion = sim.stateVersion;
+						uiTick = sim.tick + sim.stateVersion;
+					}
 				} else {
 					uiTick = sim.stateVersion;
 				}
