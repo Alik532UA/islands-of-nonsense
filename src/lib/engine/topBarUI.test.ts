@@ -134,4 +134,112 @@ describe('Point 10: TopBar UI/UX Elements & Day/Night Interaction Verification',
 		sim.gameTime = 301;
 		expect(sim.canUseRaceSkill('west')).toBe(true);
 	});
+
+	it('Game timer advances continuously with simulation steps and formats correctly', () => {
+		function formatTime(sec: number): string {
+			const totalSec = Math.floor(sec + 0.001);
+			const m = Math.floor(totalSec / 60);
+			const s = Math.floor(totalSec % 60);
+			return `${m}:${s < 10 ? '0' : ''}${s}`;
+		}
+
+		sim.isRunning = true;
+		expect(sim.gameTime).toBe(0);
+		expect(formatTime(sim.gameTime)).toBe('0:00');
+
+		// Advance 60 frames at 1/60s (1.0s)
+		for (let i = 0; i < 60; i++) {
+			sim.step(1 / 60);
+		}
+		expect(sim.gameTime).toBeCloseTo(1.0, 2);
+		expect(formatTime(sim.gameTime)).toBe('0:01');
+
+		// Advance another 65 seconds
+		for (let i = 0; i < 65 * 60; i++) {
+			sim.step(1 / 60);
+		}
+		expect(sim.gameTime).toBeCloseTo(66.0, 1);
+		expect(formatTime(sim.gameTime)).toBe('1:06');
+
+		// Formatting helper checks
+		expect(formatTime(0)).toBe('0:00');
+		expect(formatTime(59)).toBe('0:59');
+		expect(formatTime(60)).toBe('1:00');
+		expect(formatTime(125)).toBe('2:05');
+		expect(formatTime(600)).toBe('10:00');
+	});
+
+	it('Boss timer counts down from 180s with simulation steps and spawns boss when reaching 0', () => {
+		sim.isRunning = true;
+		expect(sim.bossSpawnTimer).toBe(180);
+		expect(sim.activeBossInstanceId).toBeNull();
+
+		// Step 10 seconds
+		for (let i = 0; i < 10 * 60; i++) {
+			sim.step(1 / 60);
+		}
+		expect(sim.bossSpawnTimer).toBeCloseTo(170, 1);
+		expect(Math.max(0, Math.ceil(sim.bossSpawnTimer))).toBe(170);
+
+		// Step remaining 170 seconds to trigger boss spawn
+		for (let i = 0; i < 170 * 60; i++) {
+			sim.step(1 / 60);
+		}
+		// Boss should have spawned
+		expect(sim.bossSpawnTimer).toBeLessThanOrEqual(0);
+		expect(sim.activeBossInstanceId).not.toBeNull();
+
+		// While boss is active, timer countdown is suspended
+		const timerWhileBossAlive = sim.bossSpawnTimer;
+		sim.step(1 / 60);
+		expect(sim.bossSpawnTimer).toBe(timerWhileBossAlive);
+
+		// When boss is killed, timer resets to 180s
+		const bossUnit = sim.units.find((u) => u.instanceId === sim.activeBossInstanceId);
+		expect(bossUnit).toBeDefined();
+		if (bossUnit) {
+			sim.combatSystem.applyUnitDamage(bossUnit, 999999, 'chaos', 'west', false);
+			expect(sim.bossSpawnTimer).toBe(180);
+			expect(sim.activeBossInstanceId).toBeNull();
+		}
+	});
+
+	it('Simulates game loop tick progression ensuring TopBar reactive derived state updates', () => {
+		sim.isRunning = true;
+		let uiTick = 0;
+
+		// Mock derived state mimicking Svelte 5 TopBar runes:
+		// let gameTime = $derived(uiTick >= 0 ? sim.gameTime : 0);
+		// let bossSpawnTimer = $derived(uiTick >= 0 ? Math.max(0, Math.ceil(sim.bossSpawnTimer)) : 180);
+		const getDerivedGameTime = () => (uiTick >= 0 ? sim.gameTime : 0);
+		const getDerivedBossTimer = () =>
+			uiTick >= 0 ? Math.max(0, Math.ceil(sim.bossSpawnTimer)) : 180;
+
+		expect(getDerivedGameTime()).toBe(0);
+		expect(getDerivedBossTimer()).toBe(180);
+
+		// Simulate 1 frame with 2 sub-steps:
+		const stepsCount = 2;
+		for (let s = 0; s < stepsCount; s++) {
+			sim.step(1 / 60);
+		}
+		// Game loop updates uiTick with sim.tick + sim.stateVersion
+		if (stepsCount > 0) {
+			uiTick = sim.tick + sim.stateVersion;
+		}
+
+		expect(uiTick).toBe(2);
+		expect(getDerivedGameTime()).toBeCloseTo(2 / 60, 3);
+		expect(getDerivedBossTimer()).toBe(180);
+
+		// Advance 2 seconds
+		for (let i = 0; i < 120; i++) {
+			sim.step(1 / 60);
+		}
+		uiTick = sim.tick + sim.stateVersion;
+
+		expect(uiTick).toBe(122);
+		expect(getDerivedGameTime()).toBeCloseTo(122 / 60, 1);
+		expect(getDerivedBossTimer()).toBe(178);
+	});
 });

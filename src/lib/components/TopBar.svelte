@@ -61,8 +61,18 @@
 	let canUseRescue = $derived(uiTick >= 0 ? sim.canUseRescueStrike('west') : false);
 	let rescueCd = $derived(uiTick >= 0 ? sim.rescueStrikeCooldown.west : 0);
 
+	let gameTime = $derived(uiTick >= 0 ? sim.gameTime : 0);
+	let bossSpawnTimer = $derived(uiTick >= 0 ? Math.max(0, Math.ceil(sim.bossSpawnTimer)) : 180);
+	let activeBossInstanceId = $derived(uiTick >= 0 ? sim.activeBossInstanceId : null);
+	let incomeTimer = $derived(uiTick >= 0 ? Math.ceil(sim.incomeTimer) : 0);
+	let isRunning = $derived(uiTick >= 0 ? sim.isRunning : false);
+	let simSpeed = $derived(uiTick >= 0 ? sim.speed : 1);
+	let westLumber = $derived(uiTick >= 0 ? sim.players.west.lumber : 0);
+
 	let incomePct = $derived(
-		Math.max(0, Math.min(100, Math.round((1 - sim.incomeTimer / sim.incomeInterval) * 100)))
+		uiTick >= 0
+			? Math.max(0, Math.min(100, Math.round((1 - sim.incomeTimer / sim.incomeInterval) * 100)))
+			: 0
 	);
 
 	// Day/Night Cycle calculation (every 120s full day/night cycle)
@@ -71,8 +81,9 @@
 	let sunAngle = $derived(uiTick >= 0 ? sim.dayNightProgress * 360 : 0);
 
 	function formatTime(sec: number): string {
-		const m = Math.floor(sec / 60);
-		const s = Math.floor(sec % 60);
+		const totalSec = Math.floor(sec + 0.001);
+		const m = Math.floor(totalSec / 60);
+		const s = Math.floor(totalSec % 60);
 		return `${m}:${s < 10 ? '0' : ''}${s}`;
 	}
 </script>
@@ -249,9 +260,9 @@
 			<div
 				class="text-xs font-mono font-bold text-slate-200 tracking-wider whitespace-nowrap leading-tight mt-0.5"
 			>
-				{formatTime(sim.gameTime)}
+				{formatTime(gameTime)}
 			</div>
-			{#if sim.activeBossInstanceId}
+			{#if activeBossInstanceId}
 				<div
 					class="text-[9px] font-bold text-amber-400 animate-pulse whitespace-nowrap leading-tight"
 				>
@@ -259,7 +270,7 @@
 				</div>
 			{:else}
 				<div class="text-[9px] text-slate-400 font-mono whitespace-nowrap leading-tight">
-					Бос: {Math.max(0, Math.ceil(sim.bossSpawnTimer))}с
+					Бос: {bossSpawnTimer}с
 				</div>
 			{/if}
 		</div>
@@ -278,9 +289,9 @@
 					sim.notifyStateChanged();
 				}}
 				class="p-1 rounded hover:bg-[#2a241b] text-slate-300 transition cursor-pointer shrink-0"
-				title={sim.isRunning ? 'Пауза (Пробіл)' : 'Продовжити (Пробіл)'}
+				title={isRunning ? 'Пауза (Пробіл)' : 'Продовжити (Пробіл)'}
 			>
-				{#if sim.isRunning}
+				{#if isRunning}
 					<Pause class="w-3.5 h-3.5 text-amber-400" />
 				{:else}
 					<Play class="w-3.5 h-3.5 text-emerald-400" />
@@ -297,7 +308,7 @@
 							sim.speed = sp;
 							sim.notifyStateChanged();
 						}}
-						class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold transition cursor-pointer {sim.speed ===
+						class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold transition cursor-pointer {simSpeed ===
 						sp
 							? 'bg-amber-500/25 text-amber-300 border border-amber-500/60 shadow-sm shadow-amber-500/20'
 							: sp >= 10
@@ -337,22 +348,20 @@
 						style="width: {incomePct}%"
 					></div>
 				</div>
-				<span class="text-[9px] text-amber-400/90 font-mono">{Math.ceil(sim.incomeTimer)}с</span>
+				<span class="text-[9px] text-amber-400/90 font-mono">{incomeTimer}с</span>
 			</div>
 
 			<!-- 🌲 Lumber (Wood) Reserve -->
 			<div
-				class="flex items-center gap-1 text-xs {sim.players.west.lumber > 0
+				class="flex items-center gap-1 text-xs {westLumber > 0
 					? 'text-emerald-300'
 					: 'text-slate-500'} border-l border-[#3b3226] pl-2 shrink-0"
 				title="Запас деревини для вдосконалення технологій та будівель вищого тиру"
 			>
 				<TreePine
-					class="w-3.5 h-3.5 shrink-0 {sim.players.west.lumber > 0
-						? 'text-emerald-400'
-						: 'text-slate-500'}"
+					class="w-3.5 h-3.5 shrink-0 {westLumber > 0 ? 'text-emerald-400' : 'text-slate-500'}"
 				/>
-				<span class="font-mono font-bold">{sim.players.west.lumber}</span>
+				<span class="font-mono font-bold">{westLumber}</span>
 			</div>
 
 			<!-- 🥩 Food Cap (Legendary Building Limit) -->

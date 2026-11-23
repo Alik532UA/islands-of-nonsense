@@ -72,6 +72,21 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 		expect(formatTime(600)).toBe('10:00');
 	});
 
+	it('TopBar has reactive derived bindings for gameTime and bossSpawnTimer avoiding frozen timers', () => {
+		expect(topBarContent).toContain('let gameTime = $derived(uiTick >= 0 ? sim.gameTime : 0);');
+		expect(topBarContent).toContain(
+			'let bossSpawnTimer = $derived(uiTick >= 0 ? Math.max(0, Math.ceil(sim.bossSpawnTimer)) : 180);'
+		);
+		expect(topBarContent).toContain(
+			'let activeBossInstanceId = $derived(uiTick >= 0 ? sim.activeBossInstanceId : null);'
+		);
+
+		// Template binds to reactive derived gameTime and bossSpawnTimer
+		expect(topBarContent).toContain('{formatTime(gameTime)}');
+		expect(topBarContent).toContain('Бос: {bossSpawnTimer}с');
+		expect(topBarContent).toContain('{#if activeBossInstanceId}');
+	});
+
 	it('floating income text above castle is positioned cleanly above castle building without intersecting center', () => {
 		const economyPath = path.resolve(process.cwd(), 'src/lib/engine/economySystem.ts');
 		const economyContent = fs.readFileSync(economyPath, 'utf-8');

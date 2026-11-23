@@ -362,7 +362,11 @@
 						botAI?.update(botDt);
 					}
 				}
-				uiTick = sim.stateVersion;
+				if (stepsCount > 0) {
+					uiTick = sim.tick + sim.stateVersion;
+				} else {
+					uiTick = sim.stateVersion;
+				}
 			}
 
 			animFrameId = requestAnimationFrame(gameLoop);
