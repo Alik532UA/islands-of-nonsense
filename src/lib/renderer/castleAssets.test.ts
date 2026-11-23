@@ -3,7 +3,9 @@ import {
 	getCastleStageIndex,
 	WEST_CASTLE_STAGE_URLS,
 	EAST_CASTLE_STAGE_URLS,
-	CASTLE_FADE_DURATION_MS
+	CASTLE_FADE_DURATION_MS,
+	CASTLE_STAGE_COOLDOWN_MS,
+	canTriggerCastleStageTransition
 } from './castleAssets';
 
 describe('Castle Destruction Stages & Asset Mapping', () => {
@@ -74,5 +76,49 @@ describe('Castle Destruction Stages & Asset Mapping', () => {
 
 		// Must transition progressively from ruined rubble back to pristine fortress
 		expect(stages).toEqual([7, 6, 5, 4, 3, 2, 1, 0]);
+	});
+
+	it('enforces 1000ms cooldown on castle stage transitions to prevent boundary value flickering', () => {
+		expect(CASTLE_STAGE_COOLDOWN_MS).toBe(1000);
+
+		const maxHp = 5000;
+		const lastTransitionTime = 10000;
+
+		// 1. Same stage target does not trigger
+		expect(canTriggerCastleStageTransition(10500, lastTransitionTime, 1, 1, 4000, maxHp)).toBe(
+			false
+		);
+
+		// 2. Damage/repair fluctuation across threshold within 1000ms cooldown is rejected
+		// At t = 10200 (only 200ms after last transition): stage shifts from 1 to 2
+		expect(canTriggerCastleStageTransition(10200, lastTransitionTime, 1, 2, 3600, maxHp)).toBe(
+			false
+		);
+
+		// At t = 10600 (only 600ms after last transition): worker heals it back to stage 1
+		expect(canTriggerCastleStageTransition(10600, lastTransitionTime, 2, 1, 3800, maxHp)).toBe(
+			false
+		);
+
+		// At t = 10999 (999ms): still blocked
+		expect(canTriggerCastleStageTransition(10999, lastTransitionTime, 1, 2, 3600, maxHp)).toBe(
+			false
+		);
+
+		// 3. Once 1000ms has elapsed (t >= 11000), transition is permitted
+		expect(canTriggerCastleStageTransition(11000, lastTransitionTime, 1, 2, 3600, maxHp)).toBe(
+			true
+		);
+
+		// 4. Critical exceptions: lethal castle destruction (HP <= 0) triggers immediately without cooldown
+		expect(canTriggerCastleStageTransition(10100, lastTransitionTime, 6, 7, 0, maxHp)).toBe(true);
+		expect(canTriggerCastleStageTransition(10100, lastTransitionTime, 5, 7, -100, maxHp)).toBe(
+			true
+		);
+
+		// 5. Full restoration (new round or match restart to 100% HP) triggers immediately
+		expect(canTriggerCastleStageTransition(10100, lastTransitionTime, 4, 0, maxHp, maxHp)).toBe(
+			true
+		);
 	});
 });

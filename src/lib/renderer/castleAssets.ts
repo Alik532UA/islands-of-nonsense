@@ -44,6 +44,31 @@ export const EAST_CASTLE_STAGE_URLS: string[] = [
 export const CASTLE_FADE_DURATION_MS = 400;
 
 /**
+ * Cooldown in milliseconds between castle stage image transitions to prevent
+ * rapid flickering/jumping on damage/repair boundary thresholds.
+ */
+export const CASTLE_STAGE_COOLDOWN_MS = 1000;
+
+/**
+ * Evaluates whether a new castle destruction stage transition should be triggered,
+ * enforcing a 1000ms cooldown between transitions while permitting immediate
+ * updates for lethal castle destruction (HP <= 0) or full health restoration.
+ */
+export function canTriggerCastleStageTransition(
+	now: number,
+	lastChangeTime: number,
+	currentStage: number,
+	targetStage: number,
+	hp: number,
+	maxHp: number
+): boolean {
+	if (targetStage === currentStage) return false;
+	// Always permit immediate transition on lethal destruction or full health reset
+	if (hp <= 0 || (hp >= maxHp && targetStage === 0)) return true;
+	return now - lastChangeTime >= CASTLE_STAGE_COOLDOWN_MS;
+}
+
+/**
  * Calculates the progressive destruction stage (0 to 7) for a castle based on its current and max HP.
  * Stage 0: 100% to 87.5% HP (Pristine, glowing magical ring / bright lava)
  * Stage 1: 87.5% to 75% HP (Light battle wear, flying banners)

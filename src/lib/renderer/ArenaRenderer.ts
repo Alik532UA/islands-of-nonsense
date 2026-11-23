@@ -19,7 +19,9 @@ import {
 	WEST_CASTLE_STAGE_URLS,
 	EAST_CASTLE_STAGE_URLS,
 	getCastleStageIndex,
-	CASTLE_FADE_DURATION_MS
+	CASTLE_FADE_DURATION_MS,
+	CASTLE_STAGE_COOLDOWN_MS,
+	canTriggerCastleStageTransition
 } from './castleAssets';
 
 export type { SelectedEntity };
@@ -101,11 +103,13 @@ export class ArenaRenderer {
 	private westCastleStage = 0;
 	private westCastleTargetStage = 0;
 	private westCastleFadeStartTime = 0;
+	private westCastleLastStageChangeTime = 0;
 	private westCastleIsFading = false;
 
 	private eastCastleStage = 0;
 	private eastCastleTargetStage = 0;
 	private eastCastleFadeStartTime = 0;
+	private eastCastleLastStageChangeTime = 0;
 	private eastCastleIsFading = false;
 
 	private hoveredTile: { x: number; y: number } | null = null;
@@ -171,6 +175,8 @@ export class ArenaRenderer {
 		}
 		this.westCastleStage = 0;
 		this.westCastleTargetStage = 0;
+		this.westCastleFadeStartTime = 0;
+		this.westCastleLastStageChangeTime = 0;
 		this.westCastleIsFading = false;
 
 		if (this.eastCastleBaseSprite && this.eastCastleTextures[0]) {
@@ -184,6 +190,8 @@ export class ArenaRenderer {
 		}
 		this.eastCastleStage = 0;
 		this.eastCastleTargetStage = 0;
+		this.eastCastleFadeStartTime = 0;
+		this.eastCastleLastStageChangeTime = 0;
 		this.eastCastleIsFading = false;
 	}
 
@@ -777,19 +785,29 @@ export class ArenaRenderer {
 			if (isWest) {
 				this.westCastleStage = 0;
 				this.westCastleTargetStage = 0;
+				this.westCastleFadeStartTime = 0;
+				this.westCastleLastStageChangeTime = 0;
 				this.westCastleIsFading = false;
 			} else {
 				this.eastCastleStage = 0;
 				this.eastCastleTargetStage = 0;
+				this.eastCastleFadeStartTime = 0;
+				this.eastCastleLastStageChangeTime = 0;
 				this.eastCastleIsFading = false;
 			}
 			baseSprite.visible = true;
 			return true;
 		}
 
-		// Stage transition initiated
+		// Stage transition check with 1000ms boundary fluctuation cooldown
 		const activeTarget = inFade ? fadeTarget : currentStage;
-		if (targetStage !== activeTarget) {
+		const lastChangeTime = isWest
+			? this.westCastleLastStageChangeTime
+			: this.eastCastleLastStageChangeTime;
+
+		if (
+			canTriggerCastleStageTransition(now, lastChangeTime, activeTarget, targetStage, hp, maxHp)
+		) {
 			if (inFade) {
 				// Mid-fade retarget: promote the currently transitioning texture to base
 				baseSprite.texture = fadeSprite.texture;
@@ -802,10 +820,12 @@ export class ArenaRenderer {
 			if (isWest) {
 				this.westCastleTargetStage = targetStage;
 				this.westCastleFadeStartTime = now;
+				this.westCastleLastStageChangeTime = now;
 				this.westCastleIsFading = true;
 			} else {
 				this.eastCastleTargetStage = targetStage;
 				this.eastCastleFadeStartTime = now;
+				this.eastCastleLastStageChangeTime = now;
 				this.eastCastleIsFading = true;
 			}
 		}
