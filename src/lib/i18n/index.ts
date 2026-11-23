@@ -44,6 +44,10 @@ export const translations = {
 		'menu.sandbox': 'Пісочниця (Sandbox)',
 		'menu.sandboxDesc': 'Необмежені ресурси для експериментів з арміями',
 		'menu.back': 'Назад у меню',
+		// ACCOUNT-v10
+		'account.title': 'Акаунт та Профіль',
+		'account.subtitle': 'Керування профілем, статистика та збереження',
+		'account.placeholder': 'Розділ профілю та збереження статистики гравця.',
 		// DEBUGGING-v10
 		'debug.copyReport': 'Скопіювати повний звіт',
 		'debug.viewErrors': 'Переглянути помилки',
@@ -113,6 +117,10 @@ export const translations = {
 		'menu.sandbox': 'Sandbox',
 		'menu.sandboxDesc': 'Unlimited resources to experiment with builds & armies',
 		'menu.back': 'Back to Menu',
+		// ACCOUNT-v10
+		'account.title': 'Account & Profile',
+		'account.subtitle': 'Profile management, stats, and saves',
+		'account.placeholder': 'Player profile and saved match statistics section.',
 		// DEBUGGING-v10
 		'debug.copyReport': 'Copy Full Report',
 		'debug.viewErrors': 'View Errors',

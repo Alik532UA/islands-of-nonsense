@@ -4,6 +4,7 @@
 	import type { LayoutProps } from './$types';
 	import { dev } from '$app/env';
 	import ServiceBadge from '$lib/components/ServiceBadge.svelte';
+	import GameHeader from '$lib/components/GameHeader.svelte';
 	import { debugMode } from '$lib/debug/debugMode.svelte';
 	import { hardReset } from '$lib/debug/hardReset';
 	import { createKeySequence, listenForSequences } from '$lib/debug/keySequence';
@@ -42,5 +43,6 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
+<GameHeader />
 {@render children()}
 <ServiceBadge />
