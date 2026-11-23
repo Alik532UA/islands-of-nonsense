@@ -26,6 +26,12 @@ import { CombatSystem } from './combatSystem';
 import { EconomySystem } from './economySystem';
 import { BotAI } from './botAI';
 import { getGameMode, type GameModeConfig } from './gameModes';
+import {
+	generateMatchAnalytics,
+	exportMatchAnalyticsJSON,
+	exportMatchAnalyticsCSV,
+	type MatchAnalyticsReport
+} from './matchStats';
 
 import {
 	ARENA_WIDTH,
@@ -867,6 +873,18 @@ export class Simulation {
 		return list[0] || null;
 	}
 
+	public exportAnalytics(): MatchAnalyticsReport {
+		return generateMatchAnalytics(this);
+	}
+
+	public exportAnalyticsJSON(): string {
+		return exportMatchAnalyticsJSON(this);
+	}
+
+	public exportAnalyticsCSV(): string {
+		return exportMatchAnalyticsCSV(this);
+	}
+
 	public resetRound(
 		newRaces?: { west?: string; east?: string },
 		newCommanders?: { west?: number; east?: number }
@@ -930,7 +948,11 @@ export class Simulation {
 				totalDamageDealt: 0,
 				damageToCastle: 0,
 				coinsCollected: 0,
-				itemsPurchased: 0
+				itemsPurchased: 0,
+				lumberEarned: 0,
+				lumberSpent: 0,
+				damageByAttackType: {},
+				damageByArmorType: {}
 			};
 			if (
 				newRaces?.[p.team] &&

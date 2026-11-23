@@ -354,6 +354,7 @@ export class BuildingSystem {
 		player.stats.goldSpent += cost;
 		if (lumberCost > 0) {
 			player.lumber -= lumberCost;
+			player.stats.lumberSpent = (player.stats.lumberSpent || 0) + lumberCost;
 		}
 
 		const spawnCd = getSpawnCooldown(bDef, getUnit(bDef.unit));
@@ -578,6 +579,7 @@ export class BuildingSystem {
 		player.stats.goldSpent += upgradeCost;
 		if (upgradeLumber > 0) {
 			player.lumber -= upgradeLumber;
+			player.stats.lumberSpent = (player.stats.lumberSpent || 0) + upgradeLumber;
 		}
 		building.lumberCost = (building.lumberCost || 0) + upgradeLumber;
 		if (targetIsLeg && !currentIsLeg) {

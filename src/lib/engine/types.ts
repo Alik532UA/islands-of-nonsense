@@ -513,6 +513,10 @@ export interface PlayerState {
 		damageToCastle: number;
 		coinsCollected: number;
 		itemsPurchased: number;
+		lumberEarned?: number;
+		lumberSpent?: number;
+		damageByAttackType?: Record<string, number>;
+		damageByArmorType?: Record<string, number>;
 	};
 }
 

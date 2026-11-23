@@ -1784,7 +1784,18 @@ export class CombatSystem {
 		target.hp -= finalDamage;
 
 		if (attackerTeam === 'west' || attackerTeam === 'east') {
-			this.sim.players[attackerTeam].stats.totalDamageDealt += finalDamage;
+			const attStats = this.sim.players[attackerTeam].stats;
+			attStats.totalDamageDealt += finalDamage;
+			attStats.damageByAttackType = attStats.damageByAttackType || {};
+			attStats.damageByAttackType[attackType] =
+				(attStats.damageByAttackType[attackType] || 0) + finalDamage;
+		}
+
+		if (target.team === 'west' || target.team === 'east') {
+			const defStats = this.sim.players[target.team].stats;
+			defStats.damageByArmorType = defStats.damageByArmorType || {};
+			defStats.damageByArmorType[target.armorType] =
+				(defStats.damageByArmorType[target.armorType] || 0) + finalDamage;
 		}
 
 		if (attackerUnit?.buildingDefId && (attackerTeam === 'west' || attackerTeam === 'east')) {

@@ -1,3 +1,5 @@
+import type { MatchAnalyticsReport } from './matchStats';
+
 export interface ReplayAction {
 	tick: number;
 	team: 'west' | 'east';
@@ -26,6 +28,7 @@ export interface MatchReplayData {
 		westCastleHp: number;
 		eastCastleHp: number;
 	};
+	analytics?: MatchAnalyticsReport;
 }
 
 export class ReplaySerializer {

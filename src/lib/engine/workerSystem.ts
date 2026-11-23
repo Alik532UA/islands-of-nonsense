@@ -1442,6 +1442,7 @@ export class WorkerSystem {
 		}
 
 		p.lumber = (p.lumber ?? 0) - cost;
+		p.stats.lumberSpent = (p.stats.lumberSpent || 0) + cost;
 		const bridgeLane = this.sim.brokenBridge;
 		const bx = team === 'west' ? BRIDGE_SPAN_MIN_X - 40 : BRIDGE_SPAN_MAX_X + 40;
 		const by =
@@ -1501,6 +1502,7 @@ export class WorkerSystem {
 						w.isBuilding = false;
 						w.targetBuildingId = null;
 						p.lumber += 25;
+						p.stats.lumberEarned = (p.stats.lumberEarned || 0) + 25;
 						this.sim.addFloatingText(
 							'+Готово! (+25🪵)',
 							targetBld.x + CELL_SIZE / 2,
