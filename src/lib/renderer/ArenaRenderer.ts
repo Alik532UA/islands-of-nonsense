@@ -208,7 +208,7 @@ export class ArenaRenderer {
 			canvas,
 			width: initWidth,
 			height: initHeight,
-			backgroundColor: 0x014f86,
+			backgroundColor: 0x012e4a,
 			resolution: window.devicePixelRatio || 1,
 			autoDensity: true
 		});

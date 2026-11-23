@@ -33,12 +33,13 @@ export class TerrainRenderer {
 		g.clear();
 
 		// 1. Slow-drifting ambient ocean swells across visible water
-		const padY = 500;
-		const swellDrift = (time * 14) % 180;
-		for (let y = -padY + swellDrift; y < ARENA_HEIGHT + padY; y += 180) {
-			const isBright = Math.floor((y - swellDrift) / 180) % 2 === 0;
-			g.rect(-800, y, ARENA_WIDTH + 1600, 90);
-			g.fill({ color: isBright ? 0x014f86 : 0x026496, alpha: 0.7 });
+		const padX = 3000;
+		const padY = 600;
+		const swellDrift = (time * 14) % 200;
+		for (let y = -padY + swellDrift; y < ARENA_HEIGHT + padY; y += 200) {
+			const isBright = Math.floor((y - swellDrift) / 200) % 2 === 0;
+			g.rect(-padX, y, ARENA_WIDTH + padX * 2, 100);
+			g.fill({ color: isBright ? 0x013858 : 0x012e4a, alpha: 0.5 });
 		}
 
 		// 2. Flowing Central Strait River Churn (Southward current between the two islands)

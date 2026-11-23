@@ -10,7 +10,11 @@ import {
 	GRID_STEP,
 	TOP_LANE_Y,
 	MID_LANE_Y,
-	BOTTOM_LANE_Y
+	BOTTOM_LANE_Y,
+	WEST_ISLAND_CENTER_X,
+	WEST_ISLAND_CENTER_Y,
+	ISLAND_RADIUS_X,
+	ISLAND_RADIUS_Y
 } from '../engine/constants';
 
 export class OverlayRenderer {
@@ -111,14 +115,14 @@ export class OverlayRenderer {
 		if (this.fogCanvas) return;
 
 		this.fogCanvas = document.createElement('canvas');
-		this.fogCanvas.width = 1120;
-		this.fogCanvas.height = 480;
+		this.fogCanvas.width = 1320;
+		this.fogCanvas.height = 640;
 		this.fogCtx = this.fogCanvas.getContext('2d');
 
 		this.fogTexture = Texture.from(this.fogCanvas);
 		this.fogSprite = new Sprite(this.fogTexture);
-		this.fogSprite.x = -2000;
-		this.fogSprite.y = -1200;
+		this.fogSprite.x = -3000;
+		this.fogSprite.y = -2000;
 		this.fogSprite.scale.set(10, 10);
 		this.fogSprite.alpha = 0.45;
 	}
@@ -137,8 +141,8 @@ export class OverlayRenderer {
 			container.addChild(this.fogSprite);
 		}
 		this.fogSprite.visible = true;
-		this.fogSprite.x = -2000;
-		this.fogSprite.y = -1200;
+		this.fogSprite.x = -3000;
+		this.fogSprite.y = -2000;
 		this.fogSprite.scale.set(10, 10);
 
 		// Throttle full canvas redraw and texture upload to every 3rd frame (20 Hz)
@@ -160,9 +164,31 @@ export class OverlayRenderer {
 		// 2. Smooth feathered radial dissipation using destination-out
 		ctx.globalCompositeOperation = 'destination-out';
 
-		const scale = 0.1; // 1120 / 11200
-		const offsetX = 2000;
-		const offsetY = 1200;
+		const scale = 0.1; // 1320 / 13200
+		const offsetX = 3000;
+		const offsetY = 2000;
+
+		// A. West Island Home Base (Entire courtyard fully and smoothly revealed matching island contour)
+		const islandCx = (WEST_ISLAND_CENTER_X + offsetX) * scale;
+		const islandCy = (WEST_ISLAND_CENTER_Y + offsetY) * scale;
+		const islandRx = (ISLAND_RADIUS_X + 80) * scale;
+		const islandRy = (ISLAND_RADIUS_Y + 80) * scale;
+
+		ctx.save();
+		ctx.translate(islandCx, islandCy);
+		ctx.scale(1, islandRy / islandRx);
+
+		const islandGrad = ctx.createRadialGradient(0, 0, islandRx * 0.78, 0, 0, islandRx * 1.05);
+		islandGrad.addColorStop(0, 'rgba(0, 0, 0, 1.0)');
+		islandGrad.addColorStop(0.5, 'rgba(0, 0, 0, 0.85)');
+		islandGrad.addColorStop(0.8, 'rgba(0, 0, 0, 0.40)');
+		islandGrad.addColorStop(1, 'rgba(0, 0, 0, 0.0)');
+
+		ctx.fillStyle = islandGrad;
+		ctx.beginPath();
+		ctx.arc(0, 0, islandRx * 1.05, 0, Math.PI * 2);
+		ctx.fill();
+		ctx.restore();
 
 		const addVision = (worldX: number, worldY: number, radius: number) => {
 			const cx = (worldX + offsetX) * scale;
@@ -170,10 +196,12 @@ export class OverlayRenderer {
 			const r = radius * scale;
 			if (r <= 0) return;
 
-			// Smooth radial falloff gradient
-			const grad = ctx.createRadialGradient(cx, cy, r * 0.45, cx, cy, r);
+			// Ultra-smooth feathered radial falloff gradient without harsh rings
+			const grad = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r);
 			grad.addColorStop(0, 'rgba(0, 0, 0, 1.0)');
-			grad.addColorStop(0.7, 'rgba(0, 0, 0, 0.85)');
+			grad.addColorStop(0.35, 'rgba(0, 0, 0, 0.85)');
+			grad.addColorStop(0.65, 'rgba(0, 0, 0, 0.50)');
+			grad.addColorStop(0.85, 'rgba(0, 0, 0, 0.18)');
 			grad.addColorStop(1, 'rgba(0, 0, 0, 0.0)');
 
 			ctx.fillStyle = grad;
@@ -182,17 +210,17 @@ export class OverlayRenderer {
 			ctx.fill();
 		};
 
-		// A. West Castle (wide panoramic vision)
+		// B. West Castle (wide panoramic vision)
 		addVision(this.sim.castles.west.x, this.sim.castles.west.y, 750);
 
-		// B. West Worker(s)
+		// C. West Worker(s)
 		for (const p of this.sim.teamMembers?.west || [this.sim.players.west]) {
 			if (p?.worker) {
 				addVision(p.worker.x, p.worker.y, 520);
 			}
 		}
 
-		// C. West Buildings & Towers
+		// D. West Buildings & Towers
 		for (const b of this.sim.buildings) {
 			if (b.team === 'west') {
 				const radius = b.specialType === 'tower' ? 750 : 500;
@@ -200,21 +228,12 @@ export class OverlayRenderer {
 			}
 		}
 
-		// D. West Units (1100px base vision, 1250px flying aerial vision, dynamically extended to range + 100px)
+		// E. West Units advancing across arena
 		for (const u of this.sim.units) {
 			if (u.team === 'west' && u.state !== 'DEAD') {
 				const baseVision = u.flying ? 1250 : 1100;
 				const radius = Math.max(baseVision, (u.range ?? 0) + 100);
 				addVision(u.x, u.y, radius);
-			}
-		}
-
-		// E. West Island Decorations (Natural fixtures: braziers, spires, monoliths, flowers, mushrooms)
-		if (this.sim.decorations) {
-			for (const d of this.sim.decorations) {
-				if (d.team === 'west') {
-					addVision(d.x, d.y, 160);
-				}
 			}
 		}
 
@@ -353,8 +372,10 @@ export class OverlayRenderer {
 		// During night: deep midnight slate (0x0f172a)
 		const ambientColor = phase === 'dusk' ? 0x1e1b4b : phase === 'dawn' ? 0x2e1065 : 0x0f172a;
 
-		// 1. Full arena ambient darkness blanket
-		g.rect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
+		// 1. Full arena ambient darkness blanket covering full ocean canvas
+		const padX = 3000;
+		const padY = 2000;
+		g.rect(-padX, -padY, ARENA_WIDTH + padX * 2, ARENA_HEIGHT + padY * 2);
 		g.fill({ color: ambientColor, alpha });
 
 		// 2. Continuous feathered radial light dissipation (4x smoother than fog-of-war)
