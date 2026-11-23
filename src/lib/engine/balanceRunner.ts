@@ -1,4 +1,5 @@
 import { Simulation, type SimulationConfig } from './simulation.js';
+import { analyzeAllRaces, type OverallBalanceReport } from './balanceAnalyzer.js';
 
 export interface HeadlessMatchReport {
 	winner: 'west' | 'east' | 'draw' | 'timeout';
@@ -97,6 +98,28 @@ export class HeadlessBalanceRunner {
 			drawsOrTimeouts,
 			averageTicks: Math.round(totalTicks / matchCount),
 			averageExecutionTimeMs: Math.round(totalTimeMs / matchCount)
+		};
+	}
+
+	/**
+	 * Executes mathematical balance audit across all 11 races.
+	 * Asserts that all race power-per-gold metrics stay within the tolerance corridor (canon ±12%).
+	 */
+	static runBalanceAudit(tolerancePercent: number = 12): OverallBalanceReport {
+		return analyzeAllRaces(tolerancePercent);
+	}
+
+	/**
+	 * Checks whether all 11 races pass the CI balance gate.
+	 */
+	static verifyRaceBalanceGate(tolerancePercent: number = 12): {
+		passed: boolean;
+		report: OverallBalanceReport;
+	} {
+		const report = analyzeAllRaces(tolerancePercent);
+		return {
+			passed: report.outliers.length === 0 && report.races.length === 11,
+			report
 		};
 	}
 }

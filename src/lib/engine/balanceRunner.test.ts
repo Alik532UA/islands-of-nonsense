@@ -23,4 +23,25 @@ describe('HeadlessBalanceRunner (Deterministic Simulation Benchmark)', () => {
 		expect(tournament.averageTicks).toBe(30);
 		expect(tournament.westWins + tournament.eastWins + tournament.drawsOrTimeouts).toBe(2);
 	});
+
+	it('should run balance audit and assert all 11 races stay within canon tolerance corridor (±12%)', () => {
+		const report = HeadlessBalanceRunner.runBalanceAudit(12);
+
+		expect(report.races.length).toBe(11);
+		expect(report.totalBuildingsEvaluated).toBeGreaterThan(90);
+		expect(report.globalAveragePower).toBeGreaterThan(50);
+		expect(report.outliers.length).toBe(0);
+
+		for (const race of report.races) {
+			expect(Math.abs(race.deviationPercent)).toBeLessThanOrEqual(12);
+		}
+	});
+
+	it('should enforce CI balance gate ensuring passed === true for all 11 races', () => {
+		const result = HeadlessBalanceRunner.verifyRaceBalanceGate(12);
+
+		expect(result.passed).toBe(true);
+		expect(result.report.outliers.length).toBe(0);
+		expect(result.report.races.length).toBe(11);
+	});
 });
