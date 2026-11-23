@@ -1,6 +1,19 @@
 <script lang="ts">
 	import type { Simulation } from '../engine/simulation';
-	import { Trophy, Skull, RotateCcw, Award, Crown, Pause, Play, Clock } from 'lucide-svelte';
+	import { resolve } from '$app/paths';
+	import { goto } from '$app/navigation';
+	import {
+		Trophy,
+		Skull,
+		RotateCcw,
+		Award,
+		Crown,
+		Pause,
+		Play,
+		Clock,
+		ArrowLeft,
+		House
+	} from 'lucide-svelte';
 
 	let {
 		sim,
@@ -251,35 +264,62 @@
 			</div>
 
 			<!-- Action Buttons -->
-			<div class="flex gap-2">
-				{#if !isMatchOver && onReselectCommander}
+			<div class="space-y-2">
+				<div class="flex gap-2">
+					{#if !isMatchOver && onReselectCommander}
+						<button
+							type="button"
+							onclick={onReselectCommander}
+							class="py-3 px-4 rounded-xl font-bold text-xs tracking-wide transition flex items-center justify-center gap-1.5 cursor-pointer bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 shadow-lg hover:border-amber-400"
+							data-testid="victory-reselect-commander-btn"
+						>
+							<Crown class="w-4 h-4 text-amber-400" />
+							Командир
+						</button>
+					{/if}
 					<button
 						type="button"
-						onclick={onReselectCommander}
-						class="py-3 px-4 rounded-xl font-bold text-xs tracking-wide transition flex items-center justify-center gap-1.5 cursor-pointer bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 shadow-lg hover:border-amber-400"
+						onclick={onNextRound}
+						class="flex-1 py-3.5 px-6 rounded-xl font-bold text-sm tracking-wide transition flex items-center justify-center gap-2 cursor-pointer shadow-lg {isMatchOver
+							? isWestWin
+								? 'bg-amber-600 hover:bg-amber-500 text-slate-950 shadow-amber-600/30 font-black'
+								: 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/30'
+							: isWestWin
+								? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30'
+								: 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/30'}"
+						data-testid="victory-next-round-btn"
 					>
-						<Crown class="w-4 h-4 text-amber-400" />
-						Командир
+						<RotateCcw class="w-4 h-4" />
+						{#if isMatchOver}
+							Зіграти ще раз {!isPaused ? `(${countdown}с)` : ''}
+						{:else}
+							Розпочати раунд {sim.round + 1} {!isPaused ? `(${countdown}с)` : ''}
+						{/if}
 					</button>
-				{/if}
-				<button
-					type="button"
-					onclick={onNextRound}
-					class="flex-1 py-3.5 px-6 rounded-xl font-bold text-sm tracking-wide transition flex items-center justify-center gap-2 cursor-pointer shadow-lg {isMatchOver
-						? isWestWin
-							? 'bg-amber-600 hover:bg-amber-500 text-slate-950 shadow-amber-600/30 font-black'
-							: 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/30'
-						: isWestWin
-							? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30'
-							: 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/30'}"
-				>
-					<RotateCcw class="w-4 h-4" />
-					{#if isMatchOver}
-						Розпочати новий матч {!isPaused ? `(${countdown}с)` : ''}
-					{:else}
-						Розпочати раунд {sim.round + 1} {!isPaused ? `(${countdown}с)` : ''}
-					{/if}
-				</button>
+				</div>
+
+				<!-- Navigation Buttons when match is over or between rounds -->
+				<div class="pt-2 border-t border-slate-800 flex items-center justify-between gap-2">
+					<button
+						type="button"
+						onclick={() => goto(resolve('/play'))}
+						class="flex-1 py-2 px-3 rounded-lg text-xs font-semibold bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition flex items-center justify-center gap-1.5 cursor-pointer"
+						data-testid="victory-exit-modes-btn"
+					>
+						<ArrowLeft class="w-3.5 h-3.5 text-amber-400" />
+						<span>До режимів</span>
+					</button>
+
+					<button
+						type="button"
+						onclick={() => goto(resolve('/'))}
+						class="flex-1 py-2 px-3 rounded-lg text-xs font-semibold bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition flex items-center justify-center gap-1.5 cursor-pointer"
+						data-testid="victory-exit-home-btn"
+					>
+						<House class="w-3.5 h-3.5 text-slate-400" />
+						<span>Головне меню</span>
+					</button>
+				</div>
 			</div>
 		</div>
 	</div>
