@@ -3,6 +3,8 @@
 	import { Gamepad2, CodeXml } from 'lucide-svelte';
 	import UserRoundGroupIcon from '$lib/components/ui/UserRoundGroupIcon.svelte';
 	import { t } from '$lib/i18n';
+	import { settings } from '$lib/services/settings.svelte';
+	import { siblingUrl } from '$lib/siblings';
 </script>
 
 <svelte:head>
@@ -51,7 +53,7 @@
 	<!-- Ecosystem & Partner Links -->
 	<div class="menu-links mt-8">
 		<a
-			href="https://alik532ua.github.io/DigitalWorkshop/"
+			href={siblingUrl('digitalworkshop', settings.locale)}
 			class="menu-btn menu-btn--link"
 			target="_blank"
 			rel="noopener noreferrer"

@@ -1,11 +1,27 @@
 import { storage } from './storage';
 import { getLocale, setLocale, type Locale } from '$lib/i18n';
 
+function detectInitialLocale(): Locale {
+	if (typeof window !== 'undefined') {
+		const param = new URLSearchParams(window.location.search).get('lang');
+		if (param === 'uk' || param === 'en') {
+			setLocale(param);
+			return param;
+		}
+	}
+	const saved = storage.getJSON<Locale>('settings_lang', 'uk');
+	if (saved === 'uk' || saved === 'en') {
+		setLocale(saved);
+		return saved;
+	}
+	return getLocale();
+}
+
 class SettingsService {
 	#headerTitle = $state<string | null>(null);
 	#sound = $state(storage.getJSON<boolean>('settings_sound_fx', true));
 	#volume = $state(storage.getJSON<number>('settings_volume', 0.8));
-	#locale = $state<Locale>(getLocale());
+	#locale = $state<Locale>(detectInitialLocale());
 
 	get headerTitle(): string | null {
 		return this.#headerTitle;
