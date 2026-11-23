@@ -52,6 +52,19 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 		expect(topBarContent).toContain('w-24 xl:w-28 2xl:w-32 shrink-0');
 	});
 
+	it('castle HP meters format values without decimals to prevent text overflow', () => {
+		expect(topBarContent).toContain('let westHp = $derived(');
+		expect(topBarContent).toContain('let eastHp = $derived(');
+		expect(topBarContent).toContain('Math.ceil(westCastle.hp)');
+		expect(topBarContent).toContain('Math.ceil(eastCastle.hp)');
+		expect(topBarContent).toContain(
+			'<span class="text-slate-300 font-mono text-[9px]">{westHp}</span>'
+		);
+		expect(topBarContent).toContain(
+			'<span class="text-slate-300 font-mono text-[9px]">{eastHp}</span>'
+		);
+	});
+
 	it('left navigation buttons have uniform gap-1.5, shrink-0 and compact padding', () => {
 		expect(topBarContent).toContain('class="flex items-center gap-1.5 shrink-0"');
 		expect(topBarContent).toContain('px-2 py-1 rounded text-xs font-semibold');

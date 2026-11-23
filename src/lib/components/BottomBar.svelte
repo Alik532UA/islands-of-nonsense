@@ -292,7 +292,7 @@
 						style="width: {cPct}%"
 					></div>
 					<span class="relative z-10 text-[9px] font-mono font-bold text-white drop-shadow">
-						{Math.ceil(cHp)} / {cMaxHp}
+						{Math.ceil(cHp)} / {Math.round(cMaxHp)}
 					</span>
 				{:else if activeEntityType === 'group'}
 					{@const totalHp = groupUnits.reduce((acc, u) => acc + u.hp, 0)}
@@ -303,7 +303,7 @@
 						style="width: {pct}%"
 					></div>
 					<span class="relative z-10 text-[9px] font-mono font-bold text-white drop-shadow">
-						{Math.ceil(totalHp)} / {totalMaxHp}
+						{Math.ceil(totalHp)} / {Math.round(totalMaxHp)}
 					</span>
 				{:else if activeEntityType === 'building' && placedBuilding}
 					{@const bHp = placedBuilding.hp ?? placedBuilding.goldCost * 4}
@@ -317,7 +317,7 @@
 						style="width: {bPct}%"
 					></div>
 					<span class="relative z-10 text-[9px] font-mono font-bold text-white drop-shadow">
-						{Math.ceil(bHp)} / {bMaxHp}
+						{Math.ceil(bHp)} / {Math.round(bMaxHp)}
 					</span>
 				{:else if activeEntityType === 'unit' && selectedUnit}
 					{@const isEnemy = selectedUnit.team === 'east'}
@@ -331,7 +331,7 @@
 						style="width: {hpPct}%"
 					></div>
 					<span class="relative z-10 text-[9px] font-mono font-bold text-white drop-shadow">
-						{Math.ceil(selectedUnit.hp)} / {selectedUnit.maxHp}
+						{Math.ceil(selectedUnit.hp)} / {Math.round(selectedUnit.maxHp)}
 					</span>
 				{:else if activeEntityType === 'none'}
 					<span class="relative z-10 text-[9px] font-mono text-slate-500">—</span>
@@ -344,7 +344,7 @@
 						style="width: {wPct}%"
 					></div>
 					<span class="relative z-10 text-[9px] font-mono font-bold text-white drop-shadow">
-						{Math.ceil(wHp)} / {wMaxHp}
+						{Math.ceil(wHp)} / {Math.round(wMaxHp)}
 					</span>
 				{/if}
 			</div>

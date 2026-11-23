@@ -39,12 +39,25 @@
 	let westCastle = $derived(uiTick >= 0 ? sim.castles.west : sim.castles.west);
 	let eastCastle = $derived(uiTick >= 0 ? sim.castles.east : sim.castles.east);
 	let player = $derived(uiTick >= 0 ? sim.players.west : sim.players.west);
-	let playerGold = $derived(uiTick >= 0 ? sim.players.west.gold : 0);
-	let westIncome = $derived(uiTick >= 0 ? sim.calculateIncome('west') : 15);
+	let playerGold = $derived(uiTick >= 0 ? Math.floor(sim.players.west.gold) : 0);
+	let westIncome = $derived(uiTick >= 0 ? Math.round(sim.calculateIncome('west')) : 15);
 	let commander = $derived(uiTick >= 0 ? getCommander(player.commander) : getCommander(1));
 
-	let westHpPct = $derived(Math.max(0, Math.round((westCastle.hp / westCastle.maxHp) * 100)));
-	let eastHpPct = $derived(Math.max(0, Math.round((eastCastle.hp / eastCastle.maxHp) * 100)));
+	let westHp = $derived(
+		uiTick >= 0 ? Math.max(0, Math.ceil(westCastle.hp)) : Math.round(westCastle.maxHp)
+	);
+	let eastHp = $derived(
+		uiTick >= 0 ? Math.max(0, Math.ceil(eastCastle.hp)) : Math.round(eastCastle.maxHp)
+	);
+	let westMaxHp = $derived(Math.round(westCastle.maxHp));
+	let eastMaxHp = $derived(Math.round(eastCastle.maxHp));
+
+	let westHpPct = $derived(
+		Math.max(0, Math.min(100, Math.round((westHp / (westMaxHp || 1)) * 100)))
+	);
+	let eastHpPct = $derived(
+		Math.max(0, Math.min(100, Math.round((eastHp / (eastMaxHp || 1)) * 100)))
+	);
 
 	let raceAbility = $derived(uiTick >= 0 ? getRaceAbility(player.race) : getRaceAbility('Люди'));
 	let canCastRaceSkill = $derived(uiTick >= 0 ? sim.canUseRaceSkill('west') : false);
@@ -67,7 +80,7 @@
 	let incomeTimer = $derived(uiTick >= 0 ? Math.ceil(sim.incomeTimer) : 0);
 	let isRunning = $derived(uiTick >= 0 ? sim.isRunning : false);
 	let simSpeed = $derived(uiTick >= 0 ? sim.speed : 1);
-	let westLumber = $derived(uiTick >= 0 ? sim.players.west.lumber : 0);
+	let westLumber = $derived(uiTick >= 0 ? Math.floor(sim.players.west.lumber) : 0);
 
 	let incomePct = $derived(
 		uiTick >= 0
@@ -384,7 +397,7 @@
 			<!-- West Castle HP (Player) -->
 			<div
 				class="w-24 xl:w-28 2xl:w-32 shrink-0"
-				title="Західний Замок (Гравець): {westCastle.hp} / {westCastle.maxHp}"
+				title="Західний Замок (Гравець): {westHp} / {westMaxHp}"
 			>
 				<div
 					class="flex justify-between items-center text-[10px] font-bold mb-0.5 whitespace-nowrap"
@@ -393,7 +406,7 @@
 						<Shield class="w-3 h-3 text-blue-400 shrink-0" />
 						Ваш Замок
 					</span>
-					<span class="text-slate-300 font-mono text-[9px]">{westCastle.hp}</span>
+					<span class="text-slate-300 font-mono text-[9px]">{westHp}</span>
 				</div>
 				<div class="h-2 w-full bg-[#0c1017] rounded-full overflow-hidden border border-[#3b3226]">
 					<div
@@ -406,12 +419,12 @@
 			<!-- East Castle HP (Enemy Bot) -->
 			<div
 				class="w-24 xl:w-28 2xl:w-32 shrink-0"
-				title="Східний Замок ({sim.players.east.race} Бот): {eastCastle.hp} / {eastCastle.maxHp}"
+				title="Східний Замок ({sim.players.east.race} Бот): {eastHp} / {eastMaxHp}"
 			>
 				<div
 					class="flex justify-between items-center text-[10px] font-bold mb-0.5 whitespace-nowrap"
 				>
-					<span class="text-slate-300 font-mono text-[9px]">{eastCastle.hp}</span>
+					<span class="text-slate-300 font-mono text-[9px]">{eastHp}</span>
 					<span class="text-rose-400 flex items-center gap-0.5">
 						Замок Ворога
 						<Shield class="w-3 h-3 text-rose-400 shrink-0" />
