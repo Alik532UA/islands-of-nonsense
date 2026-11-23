@@ -1,0 +1,88 @@
+<script lang="ts">
+	import { Keyboard, X } from 'lucide-svelte';
+	import { t } from '$lib/i18n';
+
+	let {
+		isOpen = false,
+		onClose
+	}: {
+		isOpen: boolean;
+		onClose: () => void;
+	} = $props();
+
+	const shortcuts = [
+		{ key: 'Пробіл', desc: 'Пауза / Відновити симуляцію' },
+		{ key: 'Esc', desc: 'Скинути вибір / Меню паузи' },
+		{ key: 'E', desc: 'Рятувальний удар (Rescue Strike)' },
+		{ key: 'R', desc: 'Навичка раси / Ремонт споруди чи замку' },
+		{ key: 'F', desc: 'Кузня (Покращення шкоди й броні)' },
+		{ key: 'C', desc: 'Командири та спеціальні здібності' },
+		{ key: 'B', desc: 'Крамниця предметів замку' },
+		{ key: '1 – 6', desc: 'Швидкий вибір будівлі для зведення' },
+		{ key: 'Shift + Клік', desc: 'Серійне зведення кількох споруд' },
+		{ key: 'Стрілки', desc: 'Переміщення камери ареною' },
+		{ key: 'Коліщатко', desc: 'Масштабування поля бою (Zoom)' }
+	];
+</script>
+
+{#if isOpen}
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 select-none animate-in fade-in duration-150"
+		role="dialog"
+		aria-modal="true"
+		aria-label="Гарячі клавіші"
+	>
+		<div
+			class="relative w-full max-w-lg bg-[#0d111a] border border-amber-500/40 rounded-2xl shadow-2xl p-5 text-slate-200 overflow-hidden"
+		>
+			<!-- Header -->
+			<div class="flex items-center justify-between pb-3 border-b border-slate-800">
+				<div class="flex items-center gap-2.5">
+					<div class="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+						<Keyboard class="w-5 h-5" />
+					</div>
+					<div>
+						<h2 class="text-base font-bold text-amber-200">Гарячі клавіші та керування</h2>
+						<p class="text-xs text-slate-400">Швидкі команди для битви в реальному часі</p>
+					</div>
+				</div>
+				<button
+					type="button"
+					onclick={onClose}
+					class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+					aria-label="Закрити"
+					data-testid="hotkeys-close-btn"
+				>
+					<X class="w-5 h-5" />
+				</button>
+			</div>
+
+			<!-- Shortcuts list -->
+			<div class="mt-4 max-h-[60vh] overflow-y-auto space-y-2 pr-1">
+				{#each shortcuts as s}
+					<div
+						class="flex items-center justify-between py-1.5 px-3 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-slate-700 transition"
+					>
+						<span class="text-xs text-slate-300">{s.desc}</span>
+						<kbd
+							class="px-2.5 py-1 text-xs font-mono font-bold bg-[#1a2130] text-amber-300 border border-amber-500/30 rounded-lg shadow-inner"
+						>
+							{s.key}
+						</kbd>
+					</div>
+				{/each}
+			</div>
+
+			<!-- Footer -->
+			<div class="mt-5 pt-3 border-t border-slate-800 flex justify-end">
+				<button
+					type="button"
+					onclick={onClose}
+					class="px-5 py-2 text-xs font-bold text-slate-900 bg-amber-400 hover:bg-amber-300 rounded-xl transition cursor-pointer shadow-md"
+				>
+					Зрозуміло
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}

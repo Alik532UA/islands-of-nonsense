@@ -14,6 +14,8 @@
 	import ShopModal from '$lib/components/ShopModal.svelte';
 	import StartMatchModal from '$lib/components/StartMatchModal.svelte';
 	import PauseMenuModal from '$lib/components/PauseMenuModal.svelte';
+	import HotkeysHelpModal from '$lib/components/HotkeysHelpModal.svelte';
+	import { ZoomIn, ZoomOut, Compass, HelpCircle } from 'lucide-svelte';
 	import { storage } from '$lib/services/storage';
 	import { createKeySequence, listenForSequences } from '$lib/debug/keySequence';
 	import { shortcutLetter, isEditableTarget } from '$lib/hotkeys/hotkeys';
@@ -50,6 +52,7 @@
 	let isShopOpen = $state(false);
 	let isSettingsOpen = $state(false);
 	let isPauseMenuOpen = $state(false);
+	let isHelpOpen = $state(false);
 
 	function openPauseMenu() {
 		sim.isRunning = false;
@@ -91,6 +94,10 @@
 		const letter = shortcutLetter(e);
 
 		if (e.key === 'Escape') {
+			if (isHelpOpen) {
+				isHelpOpen = false;
+				return;
+			}
 			if (isPauseMenuOpen) {
 				resumeFromPauseMenu();
 				return;
@@ -102,7 +109,8 @@
 				isForgeOpen ||
 				isCommanderOpen ||
 				isShopOpen ||
-				isSettingsOpen;
+				isSettingsOpen ||
+				isHelpOpen;
 
 			selectedBuildingId = null;
 			selectedPlacedBuildingId = null;
@@ -112,6 +120,7 @@
 			isCommanderOpen = false;
 			isShopOpen = false;
 			isSettingsOpen = false;
+			isHelpOpen = false;
 
 			if (!hadActiveModalOrSelection) {
 				openPauseMenu();
@@ -145,6 +154,8 @@
 				isCommanderOpen = !isCommanderOpen;
 			} else if (letter === 'b' && !e.repeat && (!isWorkerGridActive || e.altKey)) {
 				isShopOpen = !isShopOpen;
+			} else if ((letter === 'h' || e.key === '?') && !e.repeat && (!isWorkerGridActive || e.altKey)) {
+				isHelpOpen = !isHelpOpen;
 			} else if (letter === 'r' && !e.repeat && !isForgeOpen && !isCommanderOpen && !isShopOpen) {
 				if (selectedPlacedBuildingId) {
 					const bld = sim.buildings.find((b) => b.instanceId === selectedPlacedBuildingId);
@@ -742,6 +753,59 @@
 			</div>
 		{/if}
 
+		<!-- Floating On-Screen Viewport & Help Controls (Touch & Quick Ergonomics) -->
+		<div class="absolute right-4 bottom-6 z-20 flex flex-col gap-2 select-none">
+			<button
+				type="button"
+				onclick={() => {
+					const nz = Math.min(1.5, zoom + 0.15);
+					renderer?.setCamera(cameraX, cameraY, nz);
+				}}
+				class="w-9 h-9 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 text-amber-300 flex items-center justify-center backdrop-blur-md shadow-lg transition active:scale-95 cursor-pointer"
+				title="Наблизити (Zoom In)"
+				aria-label="Наблизити"
+				data-testid="arena-zoom-in"
+			>
+				<ZoomIn class="w-4 h-4" />
+			</button>
+			<button
+				type="button"
+				onclick={() => {
+					const nz = Math.max(0.4, zoom - 0.15);
+					renderer?.setCamera(cameraX, cameraY, nz);
+				}}
+				class="w-9 h-9 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 text-amber-300 flex items-center justify-center backdrop-blur-md shadow-lg transition active:scale-95 cursor-pointer"
+				title="Віддалити (Zoom Out)"
+				aria-label="Віддалити"
+				data-testid="arena-zoom-out"
+			>
+				<ZoomOut class="w-4 h-4" />
+			</button>
+			<button
+				type="button"
+				onclick={() => {
+					const isWest = (matchSync?.localTeam ?? 'west') === 'west';
+					renderer?.setCamera(isWest ? 800 : 6400, 1200);
+				}}
+				class="w-9 h-9 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 text-amber-300 flex items-center justify-center backdrop-blur-md shadow-lg transition active:scale-95 cursor-pointer"
+				title="Центрувати на замку"
+				aria-label="Центрувати на замку"
+				data-testid="arena-center-base"
+			>
+				<Compass class="w-4 h-4" />
+			</button>
+			<button
+				type="button"
+				onclick={() => (isHelpOpen = true)}
+				class="w-9 h-9 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 text-amber-300 flex items-center justify-center backdrop-blur-md shadow-lg transition active:scale-95 cursor-pointer"
+				title="Гарячі клавіші та довідка"
+				aria-label="Гарячі клавіші"
+				data-testid="arena-help-btn"
+			>
+				<HelpCircle class="w-4 h-4" />
+			</button>
+		</div>
+
 		<!-- Pre-Match 10s Countdown & Race Selection Overlay -->
 		{#if matchPhase === 'COUNTDOWN'}
 			<div
@@ -904,4 +968,5 @@
 		}}
 		onSurrender={handleSurrender}
 	/>
+	<HotkeysHelpModal isOpen={isHelpOpen} onClose={() => (isHelpOpen = false)} />
 </main>
