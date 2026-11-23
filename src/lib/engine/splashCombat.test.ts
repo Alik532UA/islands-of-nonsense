@@ -171,4 +171,77 @@ describe('Point 7: Unit Innate Passives & AoE Splash Damage', () => {
 		expect(closeAlly.hp).toBeGreaterThan(200);
 		expect(closeAlly.buffs?.some((b) => b.type === 'dmg')).toBe(true);
 	});
+
+	it('should apply authentic 3-ring splash falloff (full 100%, medium 40%, small 15%)', () => {
+		const impactX = 500;
+		const impactY = 500;
+		const splashRadius = 100;
+		const baseDamage = 100;
+
+		// 1. Target in inner ring (dist = 20 <= 30): 100% factor
+		const innerTarget = sim.spawnUnitDirectly({
+			team: 'east',
+			lane: 'bottom',
+			x: impactX + 20,
+			y: impactY,
+			hp: 1000,
+			maxHp: 1000,
+			armor: 0
+		});
+
+		// 2. Target in middle ring (dist = 50, 30 < 50 <= 65): 40% factor
+		const middleTarget = sim.spawnUnitDirectly({
+			team: 'east',
+			lane: 'bottom',
+			x: impactX + 50,
+			y: impactY,
+			hp: 1000,
+			maxHp: 1000,
+			armor: 0
+		});
+
+		// 3. Target in outer ring (dist = 85, 65 < 85 <= 100): 15% factor
+		const outerTarget = sim.spawnUnitDirectly({
+			team: 'east',
+			lane: 'bottom',
+			x: impactX + 85,
+			y: impactY,
+			hp: 1000,
+			maxHp: 1000,
+			armor: 0
+		});
+
+		// 4. Target beyond splash radius (dist = 120 > 100): 0% factor
+		const outsideTarget = sim.spawnUnitDirectly({
+			team: 'east',
+			lane: 'bottom',
+			x: impactX + 120,
+			y: impactY,
+			hp: 1000,
+			maxHp: 1000,
+			armor: 0
+		});
+
+		sim.combatSystem.triggerSplashDamage(
+			impactX,
+			impactY,
+			splashRadius,
+			baseDamage,
+			'chaos',
+			'west',
+			undefined,
+			'bottom'
+		);
+
+		const innerLoss = 1000 - innerTarget.hp;
+		const middleLoss = 1000 - middleTarget.hp;
+		const outerLoss = 1000 - outerTarget.hp;
+		const outsideLoss = 1000 - outsideTarget.hp;
+
+		// Verify 3-ring falloff ordering: inner (100) > middle (40) > outer (15) > outside (0)
+		expect(innerLoss).toBe(100);
+		expect(middleLoss).toBe(40);
+		expect(outerLoss).toBe(15);
+		expect(outsideLoss).toBe(0);
+	});
 });

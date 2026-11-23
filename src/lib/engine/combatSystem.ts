@@ -1231,6 +1231,13 @@ export class CombatSystem {
 		}
 	}
 
+	/**
+	 * Authentic WC3 3-ring splash damage falloff calculation:
+	 * - Inner ring (dist <= radius * 0.3): 100% full splash damage
+	 * - Medium ring (radius * 0.3 < dist <= radius * 0.65): 40% medium damage
+	 * - Outer ring (radius * 0.65 < dist <= radius): 15% small damage
+	 * - Beyond radius: 0 damage
+	 */
 	public triggerSplashDamage(
 		x: number,
 		y: number,
@@ -1249,16 +1256,32 @@ export class CombatSystem {
 			maxTimer: 0.35
 		});
 
-		const radiusSq = radius * radius;
+		const fullRadius = radius * 0.3;
+		const medRadius = radius * 0.65;
+		const maxRadius = radius;
+
+		const fullRadiusSq = fullRadius * fullRadius;
+		const medRadiusSq = medRadius * medRadius;
+		const maxRadiusSq = maxRadius * maxRadius;
+
 		for (const u of this.sim.units) {
 			if (u.instanceId === primaryTargetId || u.state === 'DEAD' || u.team === attackerTeam)
 				continue;
 			if (lane && u.lane !== lane) continue;
 			const dx = u.x - x;
 			const dy = u.y - y;
-			if (dx * dx + dy * dy <= radiusSq) {
-				this.applyUnitDamage(u, Math.round(damage), attackType, attackerTeam, false);
+			const distSq = dx * dx + dy * dy;
+			if (distSq > maxRadiusSq) continue;
+
+			let factor = 0.15; // Outer ring (Small damage)
+			if (distSq <= fullRadiusSq) {
+				factor = 1.0; // Inner ring (Full damage)
+			} else if (distSq <= medRadiusSq) {
+				factor = 0.4; // Middle ring (Medium damage)
 			}
+
+			const splashDmg = Math.max(1, Math.round(damage * factor));
+			this.applyUnitDamage(u, splashDmg, attackType, attackerTeam, false);
 		}
 	}
 
