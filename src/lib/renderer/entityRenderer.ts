@@ -2,6 +2,7 @@ import type { Graphics } from 'pixi.js';
 import type { Simulation } from '../engine/simulation';
 import { WC3_PLAYER_COLORS, type Castle, type MatchTeam, type Unit } from '../engine/types';
 import { CELL_SIZE } from '../engine/constants';
+import { getBuildingVisualRank } from '../engine/gameData';
 
 export type SelectedEntity =
 	| { type: 'worker' }
@@ -40,7 +41,6 @@ export class EntityRenderer {
 			const py = b.y;
 			const isWest = b.team === 'west';
 			const isSelected = selectedPlacedId === b.instanceId;
-			const teamColor = this.sim.players[b.team]?.color?.num || (isWest ? 0x0042ff : 0xff0303);
 
 			// 1. 2.5D Drop Shadow on grass
 			g.roundRect(px + 4, py + 8, CELL_SIZE, CELL_SIZE, 8);
@@ -73,32 +73,16 @@ export class EntityRenderer {
 			g.lineTo(px + CELL_SIZE - 2, py + half - 2);
 			g.stroke({ color: 0x334155, width: 1.5, alpha: 0.6 });
 
-			// 3. Steep-Pitched 2.5D Shingled Roof with Race Color
-			const raceColors: Record<string, number> = {
-				Люди: 0x1e40af,
-				Орки: 0x991b1b,
-				Нежить: 0x065f46,
-				Ельфи: 0x047857,
-				Эльфы: 0x047857,
-				Хаос: 0x831843,
-				Наги: 0x0e7490,
-				Північ: 0x0284c7,
-				Север: 0x0284c7,
-				Порча: 0x6b21a8,
-				'Нічні ельфи': 0x3f6212,
-				'Ночні ельфи': 0x3f6212,
-				'Ночные эльфы': 0x3f6212,
-				Техніки: 0x92400e,
-				Техники: 0x92400e,
-				Збирачі: 0x475569,
-				Сборщики: 0x475569
-			};
-			const roofColor = raceColors[b.race] || 0x1e3a8a;
+			// 3. Steep-Pitched 2.5D Shingled Roof with Player Color
+			const playerSlotColor = b.playerSlot ? WC3_PLAYER_COLORS[b.playerSlot - 1]?.num : null;
+			const playerColor =
+				playerSlotColor ?? this.sim.players[b.team]?.color?.num ?? (isWest ? 0x0042ff : 0xff0303);
 
 			g.roundRect(px + 6, py + 5, CELL_SIZE - 12, CELL_SIZE - 14, 5);
-			g.fill({ color: roofColor });
+			g.fill({ color: playerColor });
+			// Roof top highlight
 			g.roundRect(px + 8, py + 6, CELL_SIZE - 16, (CELL_SIZE - 14) / 2, 4);
-			g.fill({ color: 0xffffff, alpha: 0.2 });
+			g.fill({ color: 0xffffff, alpha: 0.22 });
 
 			// 4 Corner Stone Bastions with Verdigris Caps
 			const cornerPositions = [
@@ -117,19 +101,127 @@ export class EntityRenderer {
 				g.fill({ color: 0x0f766e });
 			}
 
-			// Team colored crest / pennant stripe
-			g.beginPath();
-			g.rect(px + half - 4, py + 6, 8, CELL_SIZE - 16);
-			g.fill({ color: teamColor });
-			g.stroke({ color: 0xfef08a, width: 1, alpha: 0.8 });
+			// 4. Central Tactical Dice Pip Face / Special Emblem
+			// Clearly conveys building strength/tier (1..6 dice pips) and building role
+			const cx = px + half;
+			const cy = py + half;
+			const rankInfo = getBuildingVisualRank(b.defId, b.race);
+			const isUpgraded = rankInfo.isUpgrade;
 
-			// 4. Cozy Spyro Lantern Window (Warm glowing yellow light)
+			// Inset emblem panel
 			g.beginPath();
-			g.circle(px + half, py + half - 2, 6);
-			g.fill({ color: 0xfbbf24 });
-			g.beginPath();
-			g.circle(px + half, py + half - 2, 3);
-			g.fill({ color: 0xfef08a });
+			g.roundRect(cx - 13, cy - 13, 26, 26, 4);
+			g.fill({ color: 0x090d16, alpha: 0.85 });
+			g.stroke({
+				color: isUpgraded ? 0xf59e0b : 0x475569,
+				width: isUpgraded ? 2 : 1
+			});
+
+			// If upgraded building: golden chevron rank indicator above dice
+			if (isUpgraded) {
+				g.beginPath();
+				g.moveTo(cx - 6, cy - 14);
+				g.lineTo(cx, cy - 19);
+				g.lineTo(cx + 6, cy - 14);
+				g.stroke({ color: 0xfbbf24, width: 2 });
+			}
+
+			if (rankInfo.specialType) {
+				switch (rankInfo.specialType) {
+					case 'tower':
+						// Stone battlements and glowing arrow slit
+						g.beginPath();
+						g.roundRect(cx - 6, cy - 1, 12, 8, 1);
+						g.fill({ color: 0x94a3b8 });
+						g.beginPath();
+						g.rect(cx - 7, cy - 6, 4, 5);
+						g.rect(cx + 3, cy - 6, 4, 5);
+						g.fill({ color: 0x94a3b8 });
+						g.beginPath();
+						g.rect(cx - 1, cy + 1, 2, 4);
+						g.fill({ color: 0xfef08a });
+						break;
+					case 'treasure':
+						// Golden embossed treasure coin
+						g.beginPath();
+						g.circle(cx, cy, 7);
+						g.fill({ color: 0xf59e0b });
+						g.stroke({ color: 0xfde047, width: 1.5 });
+						g.beginPath();
+						g.circle(cx, cy, 3);
+						g.fill({ color: 0xffffff });
+						break;
+					case 'repair':
+						// Emerald restorative cross
+						g.beginPath();
+						g.roundRect(cx - 2.5, cy - 7, 5, 14, 1);
+						g.roundRect(cx - 7, cy - 2.5, 14, 5, 1);
+						g.fill({ color: 0x10b981 });
+						break;
+					case 'recycler':
+					default:
+						// Salvage recycling triangular nodes
+						for (let a = 0; a < 3; a++) {
+							const ang = a * ((Math.PI * 2) / 3) - Math.PI / 2;
+							g.beginPath();
+							g.circle(cx + Math.cos(ang) * 6, cy + Math.sin(ang) * 6, 2.5);
+							g.fill({ color: 0x38bdf8 });
+						}
+						break;
+				}
+			} else {
+				// Dice pips 1..6 representing building tier
+				const pipColor = isUpgraded ? 0xfbbf24 : 0xf8fafc;
+				const pipGlow = isUpgraded ? 0xfef08a : 0xffffff;
+				const d = 6;
+				const pipR = 2.4;
+
+				const drawPip = (x: number, y: number) => {
+					g.beginPath();
+					g.circle(x, y, pipR);
+					g.fill({ color: pipColor });
+					g.beginPath();
+					g.circle(x - 0.5, y - 0.5, 1);
+					g.fill({ color: pipGlow });
+				};
+
+				switch (rankInfo.rank) {
+					case 1:
+						drawPip(cx, cy);
+						break;
+					case 2:
+						drawPip(cx - d, cy - d);
+						drawPip(cx + d, cy + d);
+						break;
+					case 3:
+						drawPip(cx - d, cy - d);
+						drawPip(cx, cy);
+						drawPip(cx + d, cy + d);
+						break;
+					case 4:
+						drawPip(cx - d, cy - d);
+						drawPip(cx + d, cy - d);
+						drawPip(cx - d, cy + d);
+						drawPip(cx + d, cy + d);
+						break;
+					case 5:
+						drawPip(cx - d, cy - d);
+						drawPip(cx + d, cy - d);
+						drawPip(cx, cy);
+						drawPip(cx - d, cy + d);
+						drawPip(cx + d, cy + d);
+						break;
+					case 6:
+					default:
+						drawPip(cx - d, cy - d);
+						drawPip(cx + d, cy - d);
+						drawPip(cx - d, cy);
+						drawPip(cx + d, cy);
+						drawPip(cx - d, cy + d);
+						drawPip(cx + d, cy + d);
+						break;
+				}
+			}
 
 			// Arched doorway facing movement direction
 			const doorX = isWest ? px + CELL_SIZE - 5 : px + 1;
@@ -183,19 +275,17 @@ export class EntityRenderer {
 				const progPct = Math.max(0, Math.min(1, bProg / bMax));
 
 				const barX = px + 4;
-				const barY = py - 9;
+				const barY = py - 8;
 				const barW = CELL_SIZE - 8;
-				const barH = 5;
+				const barH = 4;
 
 				g.roundRect(barX - 1, barY - 1, barW + 2, barH + 2, 2);
 				g.fill({ color: 0x090d16 });
 				g.roundRect(barX, barY, barW * progPct, barH, 1.5);
 				g.fill({ color: 0xf59e0b });
-			}
-
-			// Spawn progress timer bar
-			if (!b.isUnderConstruction && b.spawnCooldown > 0) {
-				const pct = Math.max(0, Math.min(1, (b.spawnTimer || 0) / b.spawnCooldown));
+			} else {
+				// Horizontal HP status bar across top of building
+				const hpPct = Math.max(0, Math.min(1, b.hp / b.maxHp));
 				const barX = px + 4;
 				const barY = py - 8;
 				const barW = CELL_SIZE - 8;
@@ -203,8 +293,27 @@ export class EntityRenderer {
 
 				g.roundRect(barX - 1, barY - 1, barW + 2, barH + 2, 2);
 				g.fill({ color: 0x090d16 });
+				if (hpPct > 0) {
+					const hpColor = hpPct > 0.5 ? 0x22c55e : hpPct > 0.25 ? 0xeab308 : 0xef4444;
+					g.roundRect(barX, barY, barW * hpPct, barH, 1.5);
+					g.fill({ color: hpColor });
+				}
+			}
+
+			// Unit spawn timer status bar: VERTICAL along right edge of building
+			if (!b.isUnderConstruction && b.spawnCooldown > 0) {
+				const pct = Math.max(0, Math.min(1, (b.spawnTimer || 0) / b.spawnCooldown));
+				const vBarX = px + CELL_SIZE + 2;
+				const vBarY = py + 4;
+				const vBarW = 4;
+				const vBarH = CELL_SIZE - 8;
+
+				g.roundRect(vBarX - 1, vBarY - 1, vBarW + 2, vBarH + 2, 2);
+				g.fill({ color: 0x090d16 });
 				if (pct > 0) {
-					g.roundRect(barX, barY, barW * pct, barH, 1);
+					const fillH = Math.max(2, Math.round(vBarH * pct));
+					const fillY = vBarY + vBarH - fillH; // Fills vertically upwards from bottom to top
+					g.roundRect(vBarX, fillY, vBarW, fillH, 1.5);
 					g.fill({ color: 0x38bdf8 });
 				}
 			}

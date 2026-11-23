@@ -117,6 +117,13 @@ export class BuildingSystem {
 			if (Math.abs(y - botY) < clearance) return true;
 		}
 
+		// West Courtyard & Rear Lanes (x < 1500): keep lane corridors clear for army march
+		if (x < 1500) {
+			if (Math.abs(y - TOP_LANE_Y) < clearance) return true;
+			if (Math.abs(y - MID_LANE_Y) < clearance) return true;
+			if (Math.abs(y - BOTTOM_LANE_Y) < clearance) return true;
+		}
+
 		// East Island roads fanning out from castle (5600, 1200) to bridges at 3960
 		if (x >= BRIDGE_SPAN_MAX_X - 20 && x <= 5700) {
 			const prog = (5700 - x) / (5700 - BRIDGE_SPAN_MAX_X);
@@ -125,6 +132,13 @@ export class BuildingSystem {
 			if (Math.abs(y - MID_LANE_Y) < clearance) return true;
 			const botY = 1200 + prog * (BOTTOM_LANE_Y - 1200);
 			if (Math.abs(y - botY) < clearance) return true;
+		}
+
+		// East Courtyard & Rear Lanes (x > 5700): keep lane corridors clear for army march
+		if (x > 5700) {
+			if (Math.abs(y - TOP_LANE_Y) < clearance) return true;
+			if (Math.abs(y - MID_LANE_Y) < clearance) return true;
+			if (Math.abs(y - BOTTOM_LANE_Y) < clearance) return true;
 		}
 
 		return false;
@@ -199,13 +213,13 @@ export class BuildingSystem {
 		const rMidY = ry + rh / 2;
 
 		// Bridges strait area is always road / water
-		if (rMaxX > 3160 && rx < 4040) {
+		if (rMaxX > BRIDGE_SPAN_MIN_X - 60 && rx < BRIDGE_SPAN_MAX_X + 60) {
 			return true;
 		}
 
-		// West Island roads fanning out from Castle (1600, 1200) to bridges at 3240
-		if (rMidX >= 1550 && rMidX <= 3240) {
-			const prog = (rMidX - 1550) / (3240 - 1550);
+		// West Island roads fanning out from Castle (1600, 1200) to bridges at BRIDGE_SPAN_MIN_X
+		if (rMidX >= 1550 && rMidX <= BRIDGE_SPAN_MIN_X) {
+			const prog = (rMidX - 1550) / (BRIDGE_SPAN_MIN_X - 1550);
 			// Top road: 1200 -> 660
 			const topY = 1200 + prog * (TOP_LANE_Y - 1200);
 			if (Math.abs(rMidY - topY) < roadHeight / 2 + 10) return true;
@@ -216,9 +230,9 @@ export class BuildingSystem {
 			if (Math.abs(rMidY - botY) < roadHeight / 2 + 10) return true;
 		}
 
-		// East Island roads fanning out from Castle (5600, 1200) to bridges at 3960
-		if (rMidX >= 3960 && rMidX <= 5650) {
-			const prog = (5650 - rMidX) / (5650 - 3960);
+		// East Island roads fanning out from Castle (5600, 1200) to bridges at BRIDGE_SPAN_MAX_X
+		if (rMidX >= BRIDGE_SPAN_MAX_X && rMidX <= 5650) {
+			const prog = (5650 - rMidX) / (5650 - BRIDGE_SPAN_MAX_X);
 			// Top road: 1200 -> 660
 			const topY = 1200 + prog * (TOP_LANE_Y - 1200);
 			if (Math.abs(rMidY - topY) < roadHeight / 2 + 10) return true;

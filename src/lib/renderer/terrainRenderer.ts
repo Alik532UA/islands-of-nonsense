@@ -166,9 +166,9 @@ export class TerrainRenderer {
 		// =========================================================================
 		// 5. THREE 2.5D BRIDGES OVER CENTRAL STRAIT (One Broken)
 		// =========================================================================
-		const bridgeMinX = BRIDGE_SPAN_MIN_X - 60; // 3180
-		const bridgeMaxX = BRIDGE_SPAN_MAX_X + 60; // 4020
-		const bridgeW = bridgeMaxX - bridgeMinX; // 840
+		const bridgeMinX = BRIDGE_SPAN_MIN_X - 20; // 3040
+		const bridgeMaxX = BRIDGE_SPAN_MAX_X + 20; // 4160
+		const bridgeW = bridgeMaxX - bridgeMinX; // 1120
 		const centerX = (bridgeMinX + bridgeMaxX) / 2; // 3600
 
 		// Top Bridge
@@ -187,28 +187,28 @@ export class TerrainRenderer {
 	private drawBridgeheadPiers(g: Graphics): void {
 		const lanes = [TOP_LANE_Y, MID_LANE_Y, BOTTOM_LANE_Y];
 		for (const ly of lanes) {
-			// West landing pier (linking natural west coast at ~3060 to bridge start 3240)
+			// West landing pier (firmly anchoring west bridgehead at 3060 into green island cape)
 			g.beginPath();
-			g.roundRect(3020, ly - 88, 220, 176, 12);
+			g.roundRect(2970, ly - 88, 150, 176, 12);
 			g.fill({ color: 0x334155 });
 			g.stroke({ color: 0x1e293b, width: 3 });
 
 			// Balustrade parapets
-			g.rect(3020, ly - 92, 220, 14);
+			g.rect(2970, ly - 92, 150, 14);
 			g.fill({ color: 0x64748b });
-			g.rect(3020, ly + 78, 220, 14);
+			g.rect(2970, ly + 78, 150, 14);
 			g.fill({ color: 0x64748b });
 
-			// East landing pier (linking bridge end 3960 to natural east coast at ~4140)
+			// East landing pier (firmly anchoring east bridgehead at 4140 into green island cape)
 			g.beginPath();
-			g.roundRect(3960, ly - 88, 220, 176, 12);
+			g.roundRect(4080, ly - 88, 150, 176, 12);
 			g.fill({ color: 0x334155 });
 			g.stroke({ color: 0x1e293b, width: 3 });
 
 			// Balustrade parapets
-			g.rect(3960, ly - 92, 220, 14);
+			g.rect(4080, ly - 92, 150, 14);
 			g.fill({ color: 0x64748b });
-			g.rect(3960, ly + 78, 220, 14);
+			g.rect(4080, ly + 78, 150, 14);
 			g.fill({ color: 0x64748b });
 		}
 	}
@@ -227,7 +227,7 @@ export class TerrainRenderer {
 		isWest: boolean,
 		seed: number
 	): void {
-		const numPoints = 120;
+		const numPoints = 200;
 		const basePoly: { x: number; y: number }[] = [];
 
 		for (let i = 0; i < numPoints; i++) {
@@ -242,8 +242,43 @@ export class TerrainRenderer {
 				Math.sin(a * 13 + seed * 0.7) * 14 +
 				Math.cos(a * 23 + seed * 2.1) * 8;
 
-			const px = cx + cosA * (radiusX + noise);
+			let px = cx + cosA * (radiusX + noise);
 			const py = cy + sinA * (radiusY + noise);
+
+			// Procedurally extend broad, solid land promontories (capes) at Top, Mid, and Bottom bridgeheads
+			// so that dry green land extends solidly 80px under each bridge and piers with zero water gaps!
+			const lanes = [TOP_LANE_Y, MID_LANE_Y, BOTTOM_LANE_Y];
+			if (isWest && cosA > 0) {
+				let maxCapeReach = 0;
+				for (const ly of lanes) {
+					const distY = Math.abs(py - ly);
+					if (distY <= 135) {
+						maxCapeReach = Math.max(maxCapeReach, 3130);
+					} else if (distY < 230) {
+						const t = (distY - 135) / 95;
+						const blend = 1 - t * t * (3 - 2 * t);
+						maxCapeReach = Math.max(maxCapeReach, px + Math.max(0, 3130 - px) * blend);
+					}
+				}
+				if (maxCapeReach > 0) {
+					px = Math.max(px, maxCapeReach);
+				}
+			} else if (!isWest && cosA < 0) {
+				let minCapeReach = Infinity;
+				for (const ly of lanes) {
+					const distY = Math.abs(py - ly);
+					if (distY <= 135) {
+						minCapeReach = Math.min(minCapeReach, 4070);
+					} else if (distY < 230) {
+						const t = (distY - 135) / 95;
+						const blend = 1 - t * t * (3 - 2 * t);
+						minCapeReach = Math.min(minCapeReach, px - Math.max(0, px - 4070) * blend);
+					}
+				}
+				if (minCapeReach < Infinity) {
+					px = Math.min(px, minCapeReach);
+				}
+			}
 
 			basePoly.push({ x: px, y: py });
 		}
@@ -390,16 +425,10 @@ export class TerrainRenderer {
 	public drawNaturalRoadNetwork(g: Graphics): void {
 		const roadHeight = 150;
 
-		// 1. West Castle Grand Stone Plaza
-		this.drawCastlePlaza(g, WEST_CASTLE_X, WEST_CASTLE_Y);
-
-		// 2. East Castle Grand Stone Plaza
-		this.drawCastlePlaza(g, EAST_CASTLE_X, EAST_CASTLE_Y);
-
-		// 3. West Cobblestone Highways
+		// 1. West Cobblestone Highways (drawn underneath the castle plaza rim)
 		this.drawIslandRoadFanned(g, WEST_CASTLE_X, WEST_CASTLE_Y, BRIDGE_SPAN_MIN_X, roadHeight, true);
 
-		// 4. East Cobblestone Highways
+		// 2. East Cobblestone Highways (drawn underneath the castle plaza rim)
 		this.drawIslandRoadFanned(
 			g,
 			EAST_CASTLE_X,
@@ -408,6 +437,12 @@ export class TerrainRenderer {
 			roadHeight,
 			false
 		);
+
+		// 3. West Castle Grand Stone Plaza (drawn cleanly on top of road origins)
+		this.drawCastlePlaza(g, WEST_CASTLE_X, WEST_CASTLE_Y);
+
+		// 4. East Castle Grand Stone Plaza (drawn cleanly on top of road origins)
+		this.drawCastlePlaza(g, EAST_CASTLE_X, EAST_CASTLE_Y);
 	}
 
 	private drawCastlePlaza(g: Graphics, cx: number, cy: number): void {
@@ -455,153 +490,210 @@ export class TerrainRenderer {
 		isWest: boolean
 	): void {
 		const dir = isWest ? 1 : -1;
+		const plazaStartDist = 160; // Start inside plaza circle so edges hide smoothly under rim
+		const mergeX = isWest ? 2300 : 4900;
 
 		// 1. Middle Highway (Direct horizontal connection to Mid Bridge)
-		const midStartX = isWest ? cx + 180 : bridgeEdgeX;
-		const midW = Math.abs(bridgeEdgeX - (cx + dir * 180));
-		this.drawProceduralCobblestoneSection(g, midStartX, MID_LANE_Y - roadH / 2, midW, roadH, 0);
+		const midStartX = cx + dir * plazaStartDist;
+		if (isWest) {
+			this.drawOrientedHighwaySegment(
+				g,
+				midStartX,
+				MID_LANE_Y,
+				bridgeEdgeX,
+				MID_LANE_Y,
+				roadH,
+				101
+			);
+		} else {
+			this.drawOrientedHighwaySegment(
+				g,
+				bridgeEdgeX,
+				MID_LANE_Y,
+				midStartX,
+				MID_LANE_Y,
+				roadH,
+				101
+			);
+		}
 
-		// 2. Top Highway (Angled fan-out from castle plaza to Top Bridge)
-		this.drawAngledHighway(
-			g,
-			cx + dir * 80,
-			cy - 160,
-			cx + dir * 170,
-			cy - 60,
-			bridgeEdgeX,
-			TOP_LANE_Y - roadH / 2,
-			bridgeEdgeX,
-			TOP_LANE_Y + roadH / 2,
-			isWest
-		);
+		// 2. Top Highway (Angled fan-out from castle plaza + horizontal pre-bridge highway)
+		const topAngle = Math.atan2(TOP_LANE_Y - cy, mergeX - cx);
+		const topStartX = cx + Math.cos(topAngle) * plazaStartDist;
+		const topStartY = cy + Math.sin(topAngle) * plazaStartDist;
 
-		// 3. Bottom Highway (Angled fan-out from castle plaza to Bottom Bridge)
-		this.drawAngledHighway(
-			g,
-			cx + dir * 170,
-			cy + 60,
-			cx + dir * 80,
-			cy + 160,
-			bridgeEdgeX,
-			BOTTOM_LANE_Y - roadH / 2,
-			bridgeEdgeX,
-			BOTTOM_LANE_Y + roadH / 2,
-			isWest
-		);
+		// Road elbow junction base
+		g.beginPath();
+		g.circle(mergeX, TOP_LANE_Y, roadH / 2);
+		g.fill({ color: 0x54402d });
+		g.beginPath();
+		g.circle(mergeX, TOP_LANE_Y, roadH / 2 - 3);
+		g.fill({ color: 0x8a7153 });
+
+		if (isWest) {
+			this.drawOrientedHighwaySegment(g, topStartX, topStartY, mergeX, TOP_LANE_Y, roadH, 201);
+			this.drawOrientedHighwaySegment(g, mergeX, TOP_LANE_Y, bridgeEdgeX, TOP_LANE_Y, roadH, 202);
+		} else {
+			this.drawOrientedHighwaySegment(g, bridgeEdgeX, TOP_LANE_Y, mergeX, TOP_LANE_Y, roadH, 202);
+			this.drawOrientedHighwaySegment(g, mergeX, TOP_LANE_Y, topStartX, topStartY, roadH, 201);
+		}
+
+		// 3. Bottom Highway (Angled fan-out from castle plaza + horizontal pre-bridge highway)
+		const botAngle = Math.atan2(BOTTOM_LANE_Y - cy, mergeX - cx);
+		const botStartX = cx + Math.cos(botAngle) * plazaStartDist;
+		const botStartY = cy + Math.sin(botAngle) * plazaStartDist;
+
+		// Road elbow junction base
+		g.beginPath();
+		g.circle(mergeX, BOTTOM_LANE_Y, roadH / 2);
+		g.fill({ color: 0x54402d });
+		g.beginPath();
+		g.circle(mergeX, BOTTOM_LANE_Y, roadH / 2 - 3);
+		g.fill({ color: 0x8a7153 });
+
+		if (isWest) {
+			this.drawOrientedHighwaySegment(g, botStartX, botStartY, mergeX, BOTTOM_LANE_Y, roadH, 301);
+			this.drawOrientedHighwaySegment(
+				g,
+				mergeX,
+				BOTTOM_LANE_Y,
+				bridgeEdgeX,
+				BOTTOM_LANE_Y,
+				roadH,
+				302
+			);
+		} else {
+			this.drawOrientedHighwaySegment(
+				g,
+				bridgeEdgeX,
+				BOTTOM_LANE_Y,
+				mergeX,
+				BOTTOM_LANE_Y,
+				roadH,
+				302
+			);
+			this.drawOrientedHighwaySegment(g, mergeX, BOTTOM_LANE_Y, botStartX, botStartY, roadH, 301);
+		}
 	}
 
-	private drawAngledHighway(
+	/**
+	 * Draws a highway segment between two points with authentic interlocking cobblestone pavers,
+	 * realistic color variation, top highlights, and worn cart rut tracks.
+	 * Used identically for Top, Mid, and Bottom highways so all roadways have 100% unified texture and appearance.
+	 */
+	private drawOrientedHighwaySegment(
 		g: Graphics,
 		x1: number,
 		y1: number,
 		x2: number,
 		y2: number,
-		bx1: number,
-		by1: number,
-		bx2: number,
-		by2: number,
-		_isWest: boolean
-	): void {
-		// Base earthy roadbed polygon
-		g.beginPath();
-		g.poly([x1, y1, bx1, by1, bx2, by2, x2, y2]);
-		g.fill({ color: 0x54402d });
-		g.stroke({ color: 0x3b2f21, width: 3 });
-
-		// Inner paving tone
-		g.beginPath();
-		g.poly([x1 + 4, y1 + 4, bx1, by1 + 4, bx2, by2 - 4, x2 + 4, y2 - 4]);
-		g.fill({ color: 0x8a7153 });
-
-		// Interlocking cobblestone bands across angled highway
-		const steps = 18;
-		for (let i = 1; i < steps; i++) {
-			const t = i / steps;
-			const pTopX = x1 + (bx1 - x1) * t;
-			const pTopY = y1 + (by1 - y1) * t;
-			const pBotX = x2 + (bx2 - x2) * t;
-			const pBotY = y2 + (by2 - y2) * t;
-
-			g.beginPath();
-			g.moveTo(pTopX, pTopY);
-			g.lineTo(pBotX, pBotY);
-			g.stroke({ color: 0x4a3b2c, width: 2, alpha: 0.55 });
-
-			// Individual paver stone highlights along row
-			const subStones = 5;
-			for (let j = 0; j < subStones; j++) {
-				const st = (j + 0.5) / subStones;
-				const sx = pTopX + (pBotX - pTopX) * st;
-				const sy = pTopY + (pBotY - pTopY) * st;
-				g.circle(sx, sy, 3.5);
-				g.fill({ color: 0xa89178, alpha: 0.45 });
-			}
-		}
-
-		// Worn wheel rut lines
-		for (const frac of [0.35, 0.65]) {
-			g.beginPath();
-			g.moveTo(x1 + (x2 - x1) * frac, y1 + (y2 - y1) * frac);
-			g.lineTo(bx1 + (bx2 - bx1) * frac, by1 + (by2 - by1) * frac);
-			g.stroke({ color: 0x6e563d, width: 4, alpha: 0.4 });
-		}
-	}
-
-	private drawProceduralCobblestoneSection(
-		g: Graphics,
-		x: number,
-		y: number,
-		w: number,
-		h: number,
+		roadH: number,
 		seed: number
 	): void {
-		// Earth roadbed foundation
+		const dx = x2 - x1;
+		const dy = y2 - y1;
+		const len = Math.hypot(dx, dy);
+		if (len < 1) return;
+
+		const ux = dx / len;
+		const uy = dy / len;
+		const nx = -uy;
+		const ny = ux;
+		const halfH = roadH / 2;
+
+		// 1. Earth roadbed foundation polygon
+		const c1x = x1 + nx * halfH;
+		const c1y = y1 + ny * halfH;
+		const c2x = x2 + nx * halfH;
+		const c2y = y2 + ny * halfH;
+		const c3x = x2 - nx * halfH;
+		const c3y = y2 - ny * halfH;
+		const c4x = x1 - nx * halfH;
+		const c4y = y1 - ny * halfH;
+
 		g.beginPath();
-		g.roundRect(x, y, w, h, 6);
+		g.poly([c1x, c1y, c2x, c2y, c3x, c3y, c4x, c4y]);
 		g.fill({ color: 0x54402d });
 		g.stroke({ color: 0x3b2f21, width: 2.5 });
 
-		// Road surface warm base
+		// 2. Inner warm road surface base
+		const inset = 3;
+		const iHalfH = halfH - inset;
+		const ic1x = x1 + ux * inset + nx * iHalfH;
+		const ic1y = y1 + uy * inset + ny * iHalfH;
+		const ic2x = x2 - ux * inset + nx * iHalfH;
+		const ic2y = y2 - uy * inset + ny * iHalfH;
+		const ic3x = x2 - ux * inset - nx * iHalfH;
+		const ic3y = y2 - uy * inset - ny * iHalfH;
+		const ic4x = x1 + ux * inset - nx * iHalfH;
+		const ic4y = y1 + uy * inset - ny * iHalfH;
+
 		g.beginPath();
-		g.roundRect(x + 3, y + 3, w - 6, h - 6, 4);
+		g.poly([ic1x, ic1y, ic2x, ic2y, ic3x, ic3y, ic4x, ic4y]);
 		g.fill({ color: 0x8a7153 });
 
-		// Procedural stone pavers in interlocking rows
-		const stoneW = 28;
-		const stoneH = 18;
-		const cols = Math.floor(w / stoneW);
-		const rows = Math.floor(h / stoneH);
-
+		// 3. Interlocking procedural cobblestone pavers
+		const stoneL = 28; // along road length
+		const stoneW = 18; // across road width
 		const stoneColors = [0x92785c, 0x806950, 0x9c8366, 0x765f47, 0xa48d70];
 
-		for (let r = 0; r < rows; r++) {
-			const rowOff = (r % 2) * (stoneW / 2);
-			for (let c = 0; c < cols; c++) {
-				const sx = x + 4 + c * stoneW + rowOff;
-				const sy = y + 4 + r * stoneH;
-				if (sx + stoneW - 3 > x + w - 4) continue;
+		const numRows = Math.floor((roadH - 12) / stoneW);
+		const startV = -halfH + 6;
 
-				const pseudo = Math.sin(sx * 11 + sy * 19 + seed) * 1000;
+		const halfStoneL = (stoneL - 4) / 2;
+		const halfStoneW = (stoneW - 3) / 2;
+
+		for (let r = 0; r < numRows; r++) {
+			const vOffset = startV + r * stoneW + stoneW / 2;
+			const rowStagger = (r % 2) * (stoneL / 2);
+
+			for (let s = 4 + rowStagger; s + stoneL <= len - 4; s += stoneL) {
+				const uCenter = s + stoneL / 2;
+				const pcx = x1 + ux * uCenter + nx * vOffset;
+				const pcy = y1 + uy * uCenter + ny * vOffset;
+
+				const pseudo = Math.sin(pcx * 11.23 + pcy * 19.45 + seed) * 1000;
 				const colIdx = Math.floor(Math.abs(pseudo)) % stoneColors.length;
 
-				// Cobblestone block
+				// Paver 4 corners oriented along road
+				const p1x = pcx + ux * halfStoneL + nx * halfStoneW;
+				const p1y = pcy + uy * halfStoneL + ny * halfStoneW;
+				const p2x = pcx - ux * halfStoneL + nx * halfStoneW;
+				const p2y = pcy - uy * halfStoneL + ny * halfStoneW;
+				const p3x = pcx - ux * halfStoneL - nx * halfStoneW;
+				const p3y = pcy - uy * halfStoneL - ny * halfStoneW;
+				const p4x = pcx + ux * halfStoneL - nx * halfStoneW;
+				const p4y = pcy + uy * halfStoneL - ny * halfStoneW;
+
 				g.beginPath();
-				g.roundRect(sx, sy, stoneW - 4, stoneH - 3, 3);
+				g.poly([p1x, p1y, p2x, p2y, p3x, p3y, p4x, p4y]);
 				g.fill({ color: stoneColors[colIdx] });
 
-				// Top highlight
+				// Paver top edge highlight
 				g.beginPath();
-				g.moveTo(sx + 2, sy + 1);
-				g.lineTo(sx + stoneW - 6, sy + 1);
+				g.moveTo(p2x, p2y);
+				g.lineTo(p1x, p1y);
 				g.stroke({ color: 0xc4ab91, width: 1, alpha: 0.5 });
 			}
 		}
 
-		// Cart tracks / worn wheel ruts
-		g.rect(x + 10, y + h * 0.32, w - 20, 6);
-		g.fill({ color: 0x6e563d, alpha: 0.45 });
-		g.rect(x + 10, y + h * 0.68, w - 20, 6);
-		g.fill({ color: 0x6e563d, alpha: 0.45 });
+		// 4. Two worn wheel rut lines (cart tracks) along the road
+		for (const rutFrac of [-0.34, 0.34]) {
+			const rutV = halfH * rutFrac;
+			const rutW = 3;
+			const r1x = x1 + ux * 8 + nx * (rutV + rutW);
+			const r1y = y1 + uy * 8 + ny * (rutV + rutW);
+			const r2x = x2 - ux * 8 + nx * (rutV + rutW);
+			const r2y = y2 - uy * 8 + ny * (rutV + rutW);
+			const r3x = x2 - ux * 8 + nx * (rutV - rutW);
+			const r3y = y2 - uy * 8 + ny * (rutV - rutW);
+			const r4x = x1 + ux * 8 + nx * (rutV - rutW);
+			const r4y = y1 + uy * 8 + ny * (rutV - rutW);
+
+			g.beginPath();
+			g.poly([r1x, r1y, r2x, r2y, r3x, r3y, r4x, r4y]);
+			g.fill({ color: 0x6e563d, alpha: 0.45 });
+		}
 	}
 
 	/**
@@ -848,7 +940,7 @@ export class TerrainRenderer {
 
 		if (!isBroken) {
 			// 1. Heavy stone foundation pier in riverbed
-			g.roundRect(centerX - 190, topY + 16, 380, bridgeH + 36, 24);
+			g.roundRect(centerX - 280, topY + 16, 560, bridgeH + 36, 24);
 			g.fill({ color: 0x1e293b, alpha: 0.9 });
 
 			// 2. 2.5D Drop Shadow on water
@@ -879,12 +971,32 @@ export class TerrainRenderer {
 			g.fill({ color: 0x94a3b8 });
 			g.stroke({ color: 0x334155, width: 2 });
 
+			// Parapet stone blocks
+			for (let px = leftX + 10; px < leftX + bridgeW; px += 45) {
+				g.beginPath();
+				g.moveTo(px, topY - 14);
+				g.lineTo(px, topY + 4);
+				g.stroke({ color: 0x475569, width: 1.5 });
+
+				g.beginPath();
+				g.moveTo(px, topY + bridgeH - 4);
+				g.lineTo(px, topY + bridgeH + 14);
+				g.stroke({ color: 0x334155, width: 1.5 });
+			}
+
 			g.roundRect(leftX - 12, topY + bridgeH - 4, bridgeW + 24, 18, 6);
 			g.fill({ color: 0x64748b });
 			g.stroke({ color: 0x334155, width: 2 });
 
 			// 5. Glowing Magical Stone Lanterns
-			const lanternXCoords = [leftX + 24, centerX - 140, centerX + 140, leftX + bridgeW - 24];
+			const lanternXCoords = [
+				leftX + 30,
+				leftX + 230,
+				centerX - 140,
+				centerX + 140,
+				leftX + bridgeW - 230,
+				leftX + bridgeW - 30
+			];
 			for (const lx of lanternXCoords) {
 				g.circle(lx, topY - 16, 9);
 				g.fill({ color: 0xfbbf24 });
@@ -898,7 +1010,7 @@ export class TerrainRenderer {
 			}
 		} else {
 			// BROKEN / COLLAPSED FANTASY BRIDGE
-			const stubW = bridgeW * 0.32;
+			const stubW = bridgeW * 0.35;
 			const gapW = bridgeW - stubW * 2;
 
 			// Left Broken Stub

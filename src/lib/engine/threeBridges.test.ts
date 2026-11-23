@@ -84,4 +84,94 @@ describe('Three Bridges & Twin Islands Mechanics', () => {
 		// The unit should divert upwards towards Mid bridge
 		expect(unit.y).toBeLessThan(BOTTOM_LANE_Y);
 	});
+
+	it('strictly prevents ground units and workers from walking on water', () => {
+		sim.brokenBridge = null;
+
+		// 1. Water points in open ocean and between bridges are blocked for ground units
+		const openRiverWater = { x: 3600, y: 930 }; // Between Top (660) and Mid (1200) bridges
+		const northOceanWater = { x: 3600, y: 150 }; // North open sea
+		const southOceanWater = { x: 3600, y: 2250 }; // South open sea
+
+		expect(sim.workerSystem.isPointOnWater(openRiverWater.x, openRiverWater.y)).toBe(true);
+		expect(sim.workerSystem.isPointBlockedForGround(openRiverWater.x, openRiverWater.y)).toBe(true);
+		expect(sim.workerSystem.isPointBlockedForGround(northOceanWater.x, northOceanWater.y)).toBe(
+			true
+		);
+		expect(sim.workerSystem.isPointBlockedForGround(southOceanWater.x, southOceanWater.y)).toBe(
+			true
+		);
+
+		// 2. Active bridge decks are walkable ground
+		const onTopBridge = { x: 3600, y: TOP_LANE_Y };
+		expect(sim.workerSystem.isPointOnWater(onTopBridge.x, onTopBridge.y)).toBe(false);
+		expect(sim.workerSystem.isPointWalkableGround(onTopBridge.x, onTopBridge.y)).toBe(true);
+
+		// 3. Workers are blocked from water
+		expect(
+			sim.workerSystem.isPointBlockedForWorker('west', openRiverWater.x, openRiverWater.y)
+		).toBe(true);
+		expect(
+			sim.workerSystem.isPointBlockedForWorker('west', northOceanWater.x, northOceanWater.y)
+		).toBe(true);
+
+		// 4. resolveGroundObstacles pushes units in water back to land or bridge deck
+		const resolved = sim.workerSystem.resolveGroundObstacles(
+			openRiverWater.x,
+			openRiverWater.y,
+			16
+		);
+		expect(sim.workerSystem.isPointWalkableGround(resolved.x, resolved.y)).toBe(true);
+
+		// 5. Eastern shoreline cove between bridgehead capes is water, not walkable ground
+		const coastalCoveWater = { x: 3120, y: 930 };
+		expect(sim.workerSystem.isPointOnWater(coastalCoveWater.x, coastalCoveWater.y)).toBe(true);
+		expect(sim.workerSystem.isPointWalkableGround(coastalCoveWater.x, coastalCoveWater.y)).toBe(
+			false
+		);
+
+		// 6. Pre-bridge highway approach at TOP_LANE_Y is walkable ground
+		const highwayApproach = { x: 2700, y: TOP_LANE_Y };
+		expect(sim.workerSystem.isPointOnWater(highwayApproach.x, highwayApproach.y)).toBe(false);
+		expect(sim.workerSystem.isPointWalkableGround(highwayApproach.x, highwayApproach.y)).toBe(true);
+	});
+
+	it('maintains units strictly on bridge deck without falling into water during river transit', () => {
+		sim.brokenBridge = null;
+
+		const unit = sim.spawnUnitDirectly({
+			team: 'west',
+			lane: 'top',
+			x: 3200,
+			y: TOP_LANE_Y,
+			flying: false,
+			speed: 250
+		});
+
+		for (let step = 0; step < 20; step++) {
+			sim.step(0.05);
+			// Ground unit must remain on walkable bridge deck, never on water
+			expect(sim.workerSystem.isPointWalkableGround(unit.x, unit.y)).toBe(true);
+			expect(Math.abs(unit.y - TOP_LANE_Y)).toBeLessThanOrEqual(56);
+		}
+	});
+
+	it('ensures units on bridge approaches (x 2300-3060) remain within corridor and do not enter water', () => {
+		sim.brokenBridge = null;
+
+		const unit = sim.spawnUnitDirectly({
+			team: 'west',
+			lane: 'top',
+			x: 2500,
+			y: TOP_LANE_Y + 30,
+			flying: false,
+			speed: 250
+		});
+
+		for (let step = 0; step < 25; step++) {
+			sim.step(0.05);
+			expect(sim.workerSystem.isPointWalkableGround(unit.x, unit.y)).toBe(true);
+			expect(Math.abs(unit.y - TOP_LANE_Y)).toBeLessThanOrEqual(72);
+		}
+	});
 });

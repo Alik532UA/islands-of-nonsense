@@ -272,6 +272,7 @@ export interface Unit {
 	path?: { x: number; y: number }[];
 	pathTargetX?: number;
 	pathTargetY?: number;
+	lastPathTime?: number;
 	stuckTimer?: number;
 	lastMoveX?: number;
 	lastMoveY?: number;

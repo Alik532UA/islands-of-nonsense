@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Simulation } from './simulation';
 import type { Unit, ArmorType } from './types';
-import { TOP_LANE_Y, MID_LANE_Y } from './constants';
+import { TOP_LANE_Y, MID_LANE_Y, BRIDGE_SPAN_MIN_X } from './constants';
 
 describe('Mob Castle Assault & Obstacle Navigation without Teleportation', () => {
 	it('units on enemy island navigate directly towards enemy castle (not just horizontal lane line) and attack castle', () => {
@@ -344,11 +344,241 @@ describe('Mob Castle Assault & Obstacle Navigation without Teleportation', () =>
 			if (stepDist > maxStepDistance) maxStepDistance = stepDist;
 		}
 
-		// Unit should have advanced across the bridge entrance (~3240)
-		expect(unit.x).toBeGreaterThan(3240);
+		// Unit should have advanced across the bridge entrance (~3060)
+		expect(unit.x).toBeGreaterThan(BRIDGE_SPAN_MIN_X);
 		// Movement must be smooth and continuous: maximum single step cannot exceed normal travel speed (200 * 0.05 = 10 px)
 		expect(maxStepDistance).toBeLessThanOrEqual(25);
 		// Unit is safely on the bridge
 		expect(Math.abs(unit.y - TOP_LANE_Y)).toBeLessThanOrEqual(62);
+	});
+
+	it('units behind friendly castle (e.g. at x=1464, y=1219) navigate around the castle and reach highway/bridge without getting stuck', () => {
+		const sim = new Simulation({ botDifficulty: 0, startGold: 500 });
+		sim.brokenBridge = 'bottom'; // Force bottom lane units to cross via mid bridge (y=1200)
+
+		const unit: Unit = {
+			defId: 'hfoo',
+			instanceId: 'unit_test_520',
+			team: 'west',
+			name: 'Піхотинець',
+			x: 1464,
+			y: 1219,
+			prevX: 1464,
+			prevY: 1219,
+			hp: 420,
+			maxHp: 420,
+			size: 16,
+			speed: 270,
+			attackCooldown: 1.0,
+			cooldownTimer: 0,
+			damageMin: 20,
+			damageMax: 25,
+			damageBonusPct: 0,
+			armorBonus: 0,
+			attackType: 'normal',
+			range: 90,
+			armor: 2,
+			armorType: 'medium' as ArmorType,
+			state: 'WALKING',
+			lane: 'bottom',
+			flying: false,
+			currentTargetId: null,
+			targetX: 7000,
+			targetY: 1740
+		};
+		sim.units.push(unit);
+
+		// Step simulation for 6 seconds (120 ticks of 0.05s)
+		for (let s = 0; s < 120; s++) {
+			sim.step(0.05);
+		}
+
+		// The unit must NOT stay stuck at x=1464
+		expect(unit.x).toBeGreaterThan(1800);
+		// Stuck timer must remain clean
+		expect(unit.stuckTimer || 0).toBeLessThan(0.6);
+	});
+
+	it('units successfully navigate and flow through a 1-tile gap (32px corridor) between buildings without getting stuck', () => {
+		const sim = new Simulation({ botDifficulty: 0, startGold: 500 });
+		sim.brokenBridge = null;
+
+		// Place two buildings separated by an exact 1-tile gap (32px)
+		// Building 1: x=600, y=500 (occupies 600..664, 500..564)
+		// Building 2: x=696, y=500 (occupies 696..760, 500..564)
+		// 1-tile gap: x=664..696 (32px wide corridor, centerline x=680)
+		sim.buildings.push({
+			instanceId: 'gap_bld_1',
+			defId: 'h000',
+			name: 'Barracks 1',
+			team: 'west',
+			race: 'Люди',
+			upgradeFrom: null,
+			x: 600,
+			y: 500,
+			tileX: 13,
+			tileY: 13,
+			lane: 'top',
+			hp: 1000,
+			maxHp: 1000,
+			armor: 5,
+			armorType: 'fort',
+			goldCost: 200,
+			spawnTimer: 9999,
+			spawnCooldown: 20,
+			spawnUnitId: 'u_footman'
+		});
+		sim.buildings.push({
+			instanceId: 'gap_bld_2',
+			defId: 'h000',
+			name: 'Barracks 2',
+			team: 'west',
+			race: 'Люди',
+			upgradeFrom: null,
+			x: 696,
+			y: 500,
+			tileX: 16,
+			tileY: 13,
+			lane: 'top',
+			hp: 1000,
+			maxHp: 1000,
+			armor: 5,
+			armorType: 'fort',
+			goldCost: 200,
+			spawnTimer: 9999,
+			spawnCooldown: 20,
+			spawnUnitId: 'u_footman'
+		});
+
+		// Spawn a cluster of 5 units queueing before the 1-tile gap
+		for (let i = 0; i < 5; i++) {
+			sim.units.push({
+				defId: 'hfoo',
+				instanceId: `gap_unit_${i}`,
+				team: 'west',
+				name: 'Піхотинець',
+				x: 680,
+				y: 400 - i * 20,
+				prevX: 680,
+				prevY: 400 - i * 20,
+				hp: 420,
+				maxHp: 420,
+				size: 16,
+				speed: 250,
+				attackCooldown: 1.0,
+				cooldownTimer: 0,
+				damageMin: 20,
+				damageMax: 25,
+				damageBonusPct: 0,
+				armorBonus: 0,
+				attackType: 'normal',
+				range: 90,
+				armor: 2,
+				armorType: 'medium' as ArmorType,
+				state: 'WALKING',
+				lane: 'top',
+				flying: false,
+				currentTargetId: null,
+				targetX: 680,
+				targetY: 800
+			});
+		}
+
+		// Step simulation for 6 seconds (120 ticks of 0.05s) to let entire single-file queue pass through
+		for (let s = 0; s < 120; s++) {
+			sim.step(0.05);
+		}
+
+		// All 5 units must have passed through the 1-tile gap (y > 564) without getting stuck
+		for (let i = 0; i < 5; i++) {
+			const u = sim.units.find((unit) => unit.instanceId === `gap_unit_${i}`);
+			expect(u).toBeDefined();
+			if (!u) continue;
+			expect(u.y).toBeGreaterThan(564); // Successfully exited the 1-tile corridor
+			expect(u.stuckTimer || 0).toBeLessThan(0.6); // Not stuck
+		}
+	});
+
+	it('units in a pocket surrounded by buildings with 1-tile (32px) gaps can exit without getting trapped', () => {
+		const sim = new Simulation({ botDifficulty: 0, startGold: 500 });
+		// Surround pocket around (x: 432, y: 732)
+		// 1-tile (32px) gaps:
+		// Col 0: 304, Col 1: 400, Col 2: 496
+		// Row 0: 604, Row 1: 700, Row 2: 796
+		const bPositions = [
+			{ x: 304, y: 604 },
+			{ x: 400, y: 604 },
+			{ x: 496, y: 604 },
+			{ x: 304, y: 700 },
+			{ x: 496, y: 700 },
+			{ x: 304, y: 796 },
+			{ x: 400, y: 796 },
+			{ x: 496, y: 796 }
+		];
+		bPositions.forEach((pos, idx) => {
+			sim.buildings.push({
+				defId: 'h_barracks',
+				instanceId: `surround_bld_${idx}`,
+				team: 'west',
+				name: 'Казарми',
+				race: 'Люди',
+				x: pos.x,
+				y: pos.y,
+				hp: 1000,
+				maxHp: 1000,
+				armor: 5,
+				armorType: 'fortified' as ArmorType,
+				tileX: Math.round((pos.x - 64) / 32),
+				tileY: Math.round((pos.y - 64) / 32),
+				lane: 'mid',
+				goldCost: 100,
+				spawnCooldown: 20,
+				spawnTimer: 10,
+				upgradeFrom: null,
+				spawnUnitId: 'u_footman'
+			});
+		});
+
+		// Place 15 units inside the center empty lot (x: 432, y: 732)
+		for (let i = 0; i < 15; i++) {
+			const unit: Unit = {
+				defId: 'hfoo',
+				instanceId: `trapped_unit_${i}`,
+				team: 'west',
+				name: 'Піхотинець',
+				x: 420 + (i % 4) * 6,
+				y: 720 + Math.floor(i / 4) * 6,
+				prevX: 420 + (i % 4) * 6,
+				prevY: 720 + Math.floor(i / 4) * 6,
+				hp: 420,
+				maxHp: 420,
+				size: 16,
+				speed: 250,
+				attackCooldown: 1.0,
+				cooldownTimer: 0,
+				damageMin: 20,
+				damageMax: 25,
+				damageBonusPct: 0,
+				armorBonus: 0,
+				attackType: 'normal',
+				range: 90,
+				armor: 2,
+				armorType: 'medium' as ArmorType,
+				state: 'WALKING',
+				lane: 'bottom',
+				flying: false,
+				currentTargetId: null,
+				targetX: 2500,
+				targetY: 1740
+			};
+			sim.units.push(unit);
+		}
+
+		for (let s = 0; s < 200; s++) {
+			sim.step(0.05);
+		}
+
+		const exitedCount = sim.units.filter((u) => u.x > 600).length;
+		expect(exitedCount).toBe(15);
 	});
 });

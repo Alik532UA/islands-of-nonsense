@@ -12,17 +12,38 @@ import {
 /**
  * Applies hard non-penetration and soft Boids-style separation repulsion between ground units
  * to prevent stacking and create authentic frontline spread across the lane corridor width.
+ * Uses SpatialHashGrid for O(N) performance and single-file corridor flow to prevent bottlenecks.
  */
 export function applyCrowdSeparation(sim: Simulation, dt: number): void {
 	const collisionRadius = 36;
+
+	// Ensure spatial grid has entries (handles direct test calls)
+	if (sim.units.length > 0) {
+		const sampleUnit = sim.units[0];
+		if (sim.spatialGrid.queryRadius(sampleUnit.x, sampleUnit.y, 50).length === 0) {
+			sim.spatialGrid.clear();
+			for (let i = 0; i < sim.units.length; i++) {
+				if (sim.units[i].state !== 'DEAD') sim.spatialGrid.insert(sim.units[i]);
+			}
+		}
+	}
 
 	for (let i = 0; i < sim.units.length; i++) {
 		const u = sim.units[i];
 		if (u.state === 'DEAD' || u.flying) continue;
 
-		for (let j = i + 1; j < sim.units.length; j++) {
-			const other = sim.units[j];
-			if (other.state === 'DEAD' || other.flying || other.lane !== u.lane) continue;
+		// Spatial grid lookup: only inspect nearby candidates rather than O(N^2) full unit scan
+		const neighbors = sim.spatialGrid.queryRadius(u.x, u.y, collisionRadius, (other) => {
+			return (
+				other.instanceId > u.instanceId &&
+				other.lane === u.lane &&
+				!other.flying &&
+				other.state !== 'DEAD'
+			);
+		});
+
+		for (let n = 0; n < neighbors.length; n++) {
+			const other = neighbors[n];
 
 			let dx = u.x - other.x;
 			let dy = u.y - other.y;
@@ -36,14 +57,37 @@ export function applyCrowdSeparation(sim: Simulation, dt: number): void {
 				dist = Math.hypot(dx, dy);
 			}
 
+			// In narrow corridors or during transit, prevent lateral jamming
+			const isWest = u.team === 'west';
+			const moveDx = (u.targetX ?? (isWest ? 2500 : 4700)) - u.x;
+			const moveDy = (u.targetY ?? TOP_LANE_Y) - u.y;
+			const isMovingVertical = Math.abs(moveDy) > Math.abs(moveDx) * 1.5;
+
+			const isStuck =
+				(u.stuckTimer !== undefined && u.stuckTimer > 0.3) ||
+				(other.stuckTimer !== undefined && other.stuckTimer > 0.3);
+
 			// Hard non-penetration threshold
-			const minPhysicalDist = (u.size + other.size) * 0.95;
+			// Walking units in transit use a compact physical clearance (12px)
+			// Stuck units get soft clearance (6px) so they filter smoothly through 1-tile bottlenecks without wedging
+			const isBothWalking = u.state === 'WALKING' && other.state === 'WALKING';
+			const minPhysicalDist = isStuck ? 6 : isBothWalking ? 12 : (u.size + other.size) * 0.85;
 
 			if (dist < minPhysicalDist) {
 				// Smooth positional overlap resolution capped to prevent sudden teleports
-				const overlap = Math.min(minPhysicalDist - dist, 10);
-				const nx = dx / dist;
-				const ny = dy / dist;
+				const overlap = Math.min(minPhysicalDist - dist, isStuck ? 2 : isBothWalking ? 4 : 8);
+				let nx = dx / dist;
+				let ny = dy / dist;
+
+				// In tight flow between buildings, suppress perpendicular push along the walls
+				// so units don't shove each other into building walls and cause friction deadlocks
+				if (isBothWalking) {
+					if (isMovingVertical && Math.abs(dx) < 16) {
+						nx *= 0.15;
+					} else if (!isMovingVertical && Math.abs(dy) < 16) {
+						ny *= 0.15;
+					}
+				}
 
 				let uWeight = 0.5;
 				let otherWeight = 0.5;
@@ -59,17 +103,30 @@ export function applyCrowdSeparation(sim: Simulation, dt: number): void {
 				u.y += ny * overlap * uWeight;
 				other.x -= nx * overlap * otherWeight;
 				other.y -= ny * overlap * otherWeight;
-			} else if (dist < collisionRadius) {
+			} else if (dist < (isBothWalking ? 18 : collisionRadius)) {
 				// Soft Boids-style separation to spread the formation across the lane corridor
-				const overlap = (collisionRadius - dist) / collisionRadius;
-				const push = Math.min(overlap * 50 * dt, 4);
+				const effRadius = isBothWalking ? 18 : collisionRadius;
+				const overlap = (effRadius - dist) / effRadius;
+				const push = Math.min(overlap * 25 * dt, isBothWalking ? 1.5 : 4);
 				const nx = dx / dist;
 				const ny = dy / dist;
 
-				u.x += nx * push * 0.5;
-				u.y += ny * push * 0.5;
-				other.x -= nx * push * 0.5;
-				other.y -= ny * push * 0.5;
+				// In walking single-file transit, only spread laterally across the corridor width,
+				// never push trailing units backwards along their direction of travel!
+				if (isBothWalking) {
+					if (isMovingVertical) {
+						u.x += nx * push * 0.5;
+						other.x -= nx * push * 0.5;
+					} else {
+						u.y += ny * push * 0.5;
+						other.y -= ny * push * 0.5;
+					}
+				} else {
+					u.x += nx * push * 0.5;
+					u.y += ny * push * 0.5;
+					other.x -= nx * push * 0.5;
+					other.y -= ny * push * 0.5;
+				}
 			}
 		}
 
@@ -80,8 +137,8 @@ export function applyCrowdSeparation(sim: Simulation, dt: number): void {
 			u.y = resolved.y;
 		}
 
-		// Keep ground units on their respective bridge railing boundary ONLY when crossing the central ocean channel
-		if (!u.flying && u.team !== 'neutral' && u.x >= BRIDGE_SPAN_MIN_X && u.x <= BRIDGE_SPAN_MAX_X) {
+		// Keep ground units on their respective bridge railing boundary or highway approach
+		if (!u.flying && u.team !== 'neutral') {
 			const effectiveCrossingLane: 'top' | 'mid' | 'bottom' =
 				sim.brokenBridge && u.lane === sim.brokenBridge
 					? sim.brokenBridge === 'mid'
@@ -94,14 +151,19 @@ export function applyCrowdSeparation(sim: Simulation, dt: number): void {
 					: effectiveCrossingLane === 'mid'
 						? MID_LANE_Y
 						: BOTTOM_LANE_Y;
-			const maxBridgeOffset = 62;
-			if (u.y > laneCenterY + maxBridgeOffset) {
-				u.y = laneCenterY + maxBridgeOffset;
-			} else if (u.y < laneCenterY - maxBridgeOffset) {
-				u.y = laneCenterY - maxBridgeOffset;
+
+			if (u.x >= 2300 && u.x <= 4900) {
+				const maxCorridorOffset = u.x >= BRIDGE_SPAN_MIN_X && u.x <= BRIDGE_SPAN_MAX_X ? 56 : 72;
+				if (u.y > laneCenterY + maxCorridorOffset) {
+					u.y = laneCenterY + maxCorridorOffset;
+				} else if (u.y < laneCenterY - maxCorridorOffset) {
+					u.y = laneCenterY - maxCorridorOffset;
+				}
+			} else {
+				// On the islands & courtyard, units spread out and navigate towards targets & castle
+				u.y = Math.max(80, Math.min(ARENA_HEIGHT - 80, u.y));
 			}
 		} else {
-			// On the islands & courtyard, units spread out and navigate towards targets & castle
 			u.y = Math.max(80, Math.min(ARENA_HEIGHT - 80, u.y));
 		}
 		u.x = Math.max(80, Math.min(ARENA_WIDTH - 80, u.x));

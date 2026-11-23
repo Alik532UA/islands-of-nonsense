@@ -15,6 +15,7 @@
 	import { storage } from '../lib/services/storage';
 	import { createKeySequence, listenForSequences } from '../lib/debug/keySequence';
 	import { logService } from '../lib/services/logService.svelte';
+	import { perfMonitor } from '$lib/debug/perfMonitor.svelte';
 
 	let canvasEl: HTMLCanvasElement;
 	let sim = $state(new Simulation({ botDifficulty: 15, startGold: 500, isRunning: false }));
@@ -257,6 +258,7 @@
 	}
 
 	onMount(async () => {
+		perfMonitor.attachSim(sim);
 		botAI = new BotAI(sim);
 		attachAudioHandlers(sim);
 		const skipStartModal = storage.getJSON<boolean>('skip_start_modal', false);
@@ -351,19 +353,27 @@
 			if (sim.isRunning && !isSettingsOpen) {
 				accumulator += rawDelta * sim.speed;
 				let stepsCount = 0;
-				const maxStepsPerFrame = Math.max(120, Math.ceil(sim.speed * 2));
-				while (accumulator >= FIXED_STEP && stepsCount < maxStepsPerFrame) {
-					sim.step(FIXED_STEP);
-					if (sim.bots && sim.bots.length > 0) {
-						sim.updateBots(FIXED_STEP);
-					} else {
-						botAI?.update(FIXED_STEP);
-					}
-					accumulator -= FIXED_STEP;
+				// Dynamic sub-stepping at high speeds (10x, 50x, 100x) prevents CPU saturation and spiral of death
+				const subDt = sim.speed >= 50 ? 1 / 15 : sim.speed >= 10 ? 1 / 30 : FIXED_STEP;
+				const maxStepsPerFrame = sim.speed >= 50 ? 15 : sim.speed >= 10 ? 12 : 8;
+
+				while (accumulator >= subDt && stepsCount < maxStepsPerFrame) {
+					sim.step(subDt);
+					accumulator -= subDt;
 					stepsCount++;
 				}
-				if (accumulator >= FIXED_STEP) {
-					accumulator = 0;
+				if (accumulator > subDt * 2) {
+					accumulator = 0; // Drop accumulated backlog to prevent freeze
+				}
+
+				// Bot AI updates once per animation frame with aggregated delta time
+				if (stepsCount > 0) {
+					const botDt = stepsCount * subDt;
+					if (sim.bots && sim.bots.length > 0) {
+						sim.updateBots(botDt);
+					} else {
+						botAI?.update(botDt);
+					}
 				}
 				uiTick = sim.stateVersion;
 			}
@@ -384,6 +394,7 @@
 	});
 
 	onDestroy(() => {
+		perfMonitor.detachSim();
 		if (animFrameId) cancelAnimationFrame(animFrameId);
 		if (countdownTimer) clearInterval(countdownTimer);
 		if (unlistenSequences) unlistenSequences();
@@ -449,6 +460,7 @@
 
 		sim = new Simulation(newConfig);
 		sim.isRunning = false;
+		perfMonitor.attachSim(sim);
 		attachAudioHandlers(sim);
 		botAI = new BotAI(sim);
 		renderer?.setSimulation(sim);

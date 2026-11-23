@@ -334,6 +334,72 @@ export function getUpgradesForBuilding(buildingId: string): BuildingDefinition[]
 	return upgrades;
 }
 
+export interface BuildingVisualRank {
+	rank: number; // 1 to 6 (dice pips), or 0 for specials
+	isUpgrade: boolean;
+	specialType?: 'tower' | 'treasure' | 'repair' | 'recycler' | 'special';
+}
+
+/**
+ * Computes visual rank (1..6 dice pips) and special type for a building so players
+ * can immediately identify its power level and spawner tier on the map.
+ */
+export function getBuildingVisualRank(defId: string, race?: string): BuildingVisualRank {
+	const bDef = BUILDINGS_MAP.get(defId);
+	if (!bDef) {
+		return { rank: 1, isUpgrade: false };
+	}
+
+	if (bDef.specialType) {
+		return {
+			rank: 0,
+			isUpgrade: false,
+			specialType: bDef.specialType
+		};
+	}
+
+	// Trace root base building if this is an upgraded tier
+	let rootDef = bDef;
+	let isUpgrade = false;
+	const visited = new Set<string>();
+	while (rootDef.upgrade_from && !visited.has(rootDef.upgrade_from)) {
+		visited.add(rootDef.id);
+		const parent = BUILDINGS_MAP.get(rootDef.upgrade_from);
+		if (!parent) break;
+		rootDef = parent;
+		isUpgrade = true;
+	}
+
+	const buildingRace = bDef.race || race;
+	if (buildingRace) {
+		const armySpawners = getBuildingsForRace(buildingRace).filter(
+			(b) => !b.upgrade_from && !b.specialType
+		);
+		armySpawners.sort((a, b) => (a.gold_cost || 0) - (b.gold_cost || 0));
+		const idx = armySpawners.findIndex((b) => b.id === rootDef.id);
+		if (idx >= 0) {
+			return {
+				rank: Math.min(6, idx + 1),
+				isUpgrade
+			};
+		}
+	}
+
+	// Fallback based on gold cost
+	const cost = rootDef.gold_cost || bDef.gold_cost || 150;
+	let rank = 1;
+	if (cost >= 500) rank = 6;
+	else if (cost >= 400) rank = 5;
+	else if (cost >= 320) rank = 4;
+	else if (cost >= 250) rank = 3;
+	else if (cost >= 180) rank = 2;
+
+	return {
+		rank,
+		isUpgrade
+	};
+}
+
 /**
  * Calculates train/spawn time for a building.
  * Defaults to 14-22s depending on cost if not specified in raw_fields.ubld.

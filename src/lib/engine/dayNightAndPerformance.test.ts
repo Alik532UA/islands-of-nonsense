@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Simulation } from './simulation';
 import { TerrainRenderer } from '../renderer/terrainRenderer';
+import { OverlayRenderer } from '../renderer/overlayRenderer';
 import type { Graphics } from 'pixi.js';
 
 describe('Point 10: Smooth Day/Night Transition, FPS Optimization & UI Dial Verification', () => {
@@ -135,5 +136,131 @@ describe('Point 10: Smooth Day/Night Transition, FPS Optimization & UI Dial Veri
 
 		// Number of draw primitives per frame must be lightweight (< 150 instead of old 15,000!)
 		expect(drawCalls).toBeLessThan(150);
+	});
+
+	it('profile simulation step with 150 active units', () => {
+		const testSim = new Simulation({ botDifficulty: 15, startGold: 500, isRunning: true });
+		// Spawn 75 west units and 75 east units
+		for (let i = 0; i < 75; i++) {
+			testSim.units.push({
+				instanceId: `bench_west_${i}`,
+				defId: 'hfoo',
+				name: 'Піхотинець',
+				team: 'west',
+				lane: i % 2 === 0 ? 'top' : 'bottom',
+				x: 800 + (i % 10) * 20,
+				y: (i % 2 === 0 ? 660 : 1740) + Math.floor(i / 10) * 15,
+				prevX: 800,
+				prevY: 660,
+				hp: 420,
+				maxHp: 420,
+				armor: 2,
+				armorType: 'medium',
+				attackType: 'normal',
+				damageMin: 20,
+				damageMax: 25,
+				damageBonusPct: 0,
+				armorBonus: 0,
+				attackCooldown: 1.0,
+				cooldownTimer: 0,
+				range: 90,
+				speed: 270,
+				state: 'WALKING',
+				flying: false,
+				size: 16,
+				currentTargetId: null,
+				targetX: 2500,
+				targetY: i % 2 === 0 ? 660 : 1740
+			});
+			testSim.units.push({
+				instanceId: `bench_east_${i}`,
+				defId: 'hfoo',
+				name: 'Піхотинець',
+				team: 'east',
+				lane: i % 2 === 0 ? 'top' : 'bottom',
+				x: 4800 - (i % 10) * 20,
+				y: (i % 2 === 0 ? 660 : 1740) + Math.floor(i / 10) * 15,
+				prevX: 4800,
+				prevY: 660,
+				hp: 420,
+				maxHp: 420,
+				armor: 2,
+				armorType: 'medium',
+				attackType: 'normal',
+				damageMin: 20,
+				damageMax: 25,
+				damageBonusPct: 0,
+				armorBonus: 0,
+				attackCooldown: 1.0,
+				cooldownTimer: 0,
+				range: 90,
+				speed: 270,
+				state: 'WALKING',
+				flying: false,
+				size: 16,
+				currentTargetId: null,
+				targetX: 4700,
+				targetY: i % 2 === 0 ? 660 : 1740
+			});
+		}
+
+		const t0 = performance.now();
+		const TICKS = 60;
+		for (let s = 0; s < TICKS; s++) {
+			testSim.step(1 / 60);
+		}
+		const elapsed = performance.now() - t0;
+		const msPerTick = elapsed / TICKS;
+		console.log(
+			`[OPTIMIZED BENCHMARK] 150 units: 60 ticks took ${elapsed.toFixed(1)}ms (${msPerTick.toFixed(3)}ms per tick). At 10x = ${(msPerTick * 10).toFixed(2)}ms/frame`
+		);
+		expect(msPerTick).toBeLessThan(5.0); // Under 5ms even with 150 active units!
+	});
+
+	it('renders ultra-soft, continuous radial night light dissipation 4x smoother than fog-of-war', () => {
+		const overlayRenderer = new OverlayRenderer(sim);
+		sim.gameTime = 80; // Full night
+
+		const recordedCircles: { x: number; y: number; r: number; alpha: number }[] = [];
+		let currentAlpha = 1.0;
+
+		const mockGraphics = {
+			clear: () => {},
+			rect: () => {},
+			beginPath: () => {},
+			fill: (style?: { color?: number; alpha?: number }) => {
+				if (style?.alpha !== undefined) {
+					currentAlpha = style.alpha;
+					if (recordedCircles.length > 0) {
+						recordedCircles[recordedCircles.length - 1].alpha = currentAlpha;
+					}
+				}
+			},
+			circle: (x: number, y: number, r: number) => {
+				recordedCircles.push({ x, y, r, alpha: currentAlpha });
+			}
+		} as unknown as Graphics;
+
+		overlayRenderer.drawDayNight(mockGraphics, 'night');
+
+		// 1. Must record multiple soft concentric rings for castles and night light sources
+		expect(recordedCircles.length).toBeGreaterThan(50);
+
+		// 2. Castle lights must have multi-stage feathered falloff
+		const westCastleCircles = recordedCircles.filter(
+			(c) => Math.hypot(c.x - sim.castles.west.x, c.y - sim.castles.west.y) < 5
+		);
+		expect(westCastleCircles.length).toBeGreaterThanOrEqual(20);
+
+		// 3. Falloff must span 100% of radius (r=0 to r=600) vs 25% in fog-of-war (4x smoother)
+		const maxR = Math.max(...westCastleCircles.map((c) => c.r));
+		const minR = Math.min(...westCastleCircles.map((c) => c.r));
+		expect(maxR).toBeGreaterThanOrEqual(580);
+		expect(minR).toBeLessThanOrEqual(30);
+
+		// 4. Outer edge must dissipate to whisper-soft intensity (< 0.005) with zero sharp edge
+		const outerCircle = westCastleCircles.find((c) => c.r === maxR);
+		expect(outerCircle).toBeDefined();
+		expect(outerCircle!.alpha).toBeLessThan(0.005);
 	});
 });

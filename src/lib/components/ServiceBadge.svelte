@@ -2,12 +2,14 @@
 <script lang="ts">
 	import { browser } from '$app/env';
 	import { page } from '$app/state';
-	import { Bug, Check, Copy, EyeOff, Trash2 } from 'lucide-svelte';
+	import { Activity, Bug, Check, Copy, EyeOff, Trash2 } from 'lucide-svelte';
 	import { debugMode } from '$lib/debug/debugMode.svelte';
+	import { perfMonitor } from '$lib/debug/perfMonitor.svelte';
 	import { t } from '$lib/i18n';
 	import { logService } from '$lib/services/logService.svelte';
 	import { fetchServedVersion } from '$lib/services/servedVersion';
 	import ErrorLogModal from '$lib/components/ErrorLogModal.svelte';
+	import PerformanceOverlay from '$lib/components/PerformanceOverlay.svelte';
 
 	const version = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.1';
 	let copied = $state(false);
@@ -54,11 +56,12 @@
 		}
 	}
 
-	async function handleAction(action: 'copy' | 'modal' | 'clear' | 'hide') {
+	async function handleAction(action: 'copy' | 'modal' | 'clear' | 'hide' | 'toggleFps') {
 		menuOpen = false;
 		if (action === 'copy') await copyReport();
 		else if (action === 'modal') modalOpen = true;
 		else if (action === 'clear') logService.clear();
+		else if (action === 'toggleFps') perfMonitor.toggle();
 		else if (action === 'hide') {
 			userDismissed = true;
 			if (debugMode.enabled) debugMode.set(false);
@@ -91,6 +94,17 @@
 				>
 					<Copy size={14} aria-hidden="true" />
 					<span>{t('debug.copyReport')}</span>
+				</button>
+				<button
+					type="button"
+					class="service-menu-item"
+					role="menuitem"
+					onclick={() => handleAction('toggleFps')}
+					data-testid="service-badge-toggle-fps-btn"
+				>
+					<Activity size={14} aria-hidden="true" />
+					<span>{perfMonitor.enabled ? t('debug.hideFps') : t('debug.showFps')}</span>
+					<span class="count">{perfMonitor.fps} FPS</span>
 				</button>
 				<button
 					type="button"
@@ -162,6 +176,7 @@
 {/if}
 
 <ErrorLogModal isOpen={modalOpen} onclose={() => (modalOpen = false)} />
+<PerformanceOverlay />
 
 <style>
 	.service-badge-wrapper {

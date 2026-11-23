@@ -504,7 +504,8 @@ export class CombatSystem {
 				const enemyTeam: MatchTeam = u.team === 'west' ? 'east' : 'west';
 				const targetCastle = u.team === 'west' ? this.sim.castles.east : this.sim.castles.west;
 				const distToCastle = Math.hypot(targetCastle.x - u.x, targetCastle.y - u.y) - 60;
-				const isNearEnemyBase = u.team === 'west' ? u.x >= 3960 : u.x <= 3240;
+				const isNearEnemyBase =
+					u.team === 'west' ? u.x >= BRIDGE_SPAN_MAX_X : u.x <= BRIDGE_SPAN_MIN_X;
 
 				let hasBuildingTarget = distToCastle <= u.range + 65;
 				if (!hasBuildingTarget && isNearEnemyBase) {
@@ -612,7 +613,8 @@ export class CombatSystem {
 					0,
 					Math.hypot(targetCastle.x - u.x, targetCastle.y - u.y) - castleRadius
 				);
-				const isNearEnemyBase = u.team === 'west' ? u.x >= 3960 : u.x <= 3240;
+				const isNearEnemyBase =
+					u.team === 'west' ? u.x >= BRIDGE_SPAN_MAX_X : u.x <= BRIDGE_SPAN_MIN_X;
 
 				let closestBld: Building | null = null;
 				let closestBldDist = Infinity;
@@ -659,15 +661,18 @@ export class CombatSystem {
 						u.targetBuildingId = targetCastle.team === 'west' ? 'castle_west' : 'castle_east';
 
 						// Strategic stage-based navigation across bridges without snapping
-						const navTarget = this.getStrategicNavTarget(
-							u,
-							targetCastle.x,
-							targetCastle.y,
-							crossingLaneY
-						);
+						const hasCustomNav =
+							u.targetX !== undefined &&
+							u.targetY !== undefined &&
+							u.targetX !== (u.team === 'west' ? ARENA_WIDTH - 200 : 200) &&
+							u.targetX !== targetCastle.x;
+
+						const navTarget = hasCustomNav
+							? { x: u.targetX, y: u.targetY }
+							: this.getStrategicNavTarget(u, targetCastle.x, targetCastle.y, crossingLaneY);
 						const dNav = Math.hypot(navTarget.x - u.x, navTarget.y - u.y);
 						if (dNav > 5) {
-							this.moveUnitTowards(u, navTarget.x, navTarget.y, currentSpeed, dt, undefined, true);
+							this.moveUnitTowards(u, navTarget.x, navTarget.y, currentSpeed, dt);
 						}
 					}
 				} else if (closestBld) {
@@ -716,29 +721,25 @@ export class CombatSystem {
 					u.targetBuildingId = targetCastle.team === 'west' ? 'castle_west' : 'castle_east';
 					u.state = 'WALKING';
 
-					const navTarget = this.getStrategicNavTarget(
-						u,
-						targetCastle.x,
-						targetCastle.y,
-						crossingLaneY
-					);
+					const hasCustomNav =
+						u.targetX !== undefined &&
+						u.targetY !== undefined &&
+						u.targetX !== (u.team === 'west' ? ARENA_WIDTH - 200 : 200) &&
+						u.targetX !== targetCastle.x;
+
+					const navTarget = hasCustomNav
+						? { x: u.targetX, y: u.targetY }
+						: this.getStrategicNavTarget(u, targetCastle.x, targetCastle.y, crossingLaneY);
 
 					const d = Math.hypot(navTarget.x - u.x, navTarget.y - u.y);
 					if (d > 5) {
-						this.moveUnitTowards(u, navTarget.x, navTarget.y, currentSpeed, dt, undefined, true);
+						this.moveUnitTowards(u, navTarget.x, navTarget.y, currentSpeed, dt);
 					}
 				}
 			}
-
-			// Enforce solid obstacle collision with tangent sliding for ground units
-			if (!u.flying) {
-				const resolved = this.sim.workerSystem.resolveGroundObstacles(u.x, u.y, u.size);
-				u.x = resolved.x;
-				u.y = resolved.y;
-			}
 		}
 
-		// Apply Crowd Physics & Boids Separation
+		// Apply Crowd Physics & Boids Separation (which also enforces solid obstacle boundaries)
 		this.applyCrowdSeparation(dt);
 	}
 
@@ -857,7 +858,28 @@ export class CombatSystem {
 			u.stuckTimer = 0;
 		}
 
-		// 1. Direct line check: if unobstructed, move straight towards target
+		// 1. Follow active waypoint path if unit already has one
+		if (u.path && u.path.length > 0) {
+			let curWp = u.path[0];
+			let wpDist = Math.hypot(curWp.x - u.x, curWp.y - u.y);
+
+			while (wpDist < 14 && u.path.length > 0) {
+				u.path.shift();
+				if (u.path.length === 0) break;
+				curWp = u.path[0];
+				wpDist = Math.hypot(curWp.x - u.x, curWp.y - u.y);
+			}
+
+			if (u.path.length > 0 && wpDist > 0.001) {
+				const step = Math.min(wpDist, speed * dt);
+				u.x += ((curWp.x - u.x) / wpDist) * step;
+				u.y += ((curWp.y - u.y) / wpDist) * step;
+				return;
+			}
+			u.path = undefined;
+		}
+
+		// 2. Direct line check: if unobstructed, move straight towards target
 		const lineClear = this.sim.workerSystem.isGroundLineClear(
 			u.x,
 			u.y,
@@ -876,12 +898,18 @@ export class CombatSystem {
 			return;
 		}
 
-		// 2. Obstacle ahead: utilize A* waypoint pathfinding (same high-quality algorithm as worker)
+		// 3. Obstacle ahead: utilize A* waypoint pathfinding with cooldown throttling
 		const targetMoved =
 			u.pathTargetX === undefined ||
 			Math.hypot(u.pathTargetX - targetX, (u.pathTargetY ?? 0) - targetY) > 50;
+		const now = this.sim.gameTime;
+		const canRecalcPath = now - (u.lastPathTime ?? -10) >= 1.2;
 
-		if (!u.path || u.path.length === 0 || targetMoved || (u.stuckTimer && u.stuckTimer > 0.6)) {
+		if (
+			(!u.path || u.path.length === 0 || targetMoved || (u.stuckTimer && u.stuckTimer > 0.6)) &&
+			canRecalcPath
+		) {
+			u.lastPathTime = now;
 			u.path = this.sim.workerSystem.findGroundPath(
 				u.team as MatchTeam,
 				u.x,
@@ -895,31 +923,20 @@ export class CombatSystem {
 			u.pathTargetX = targetX;
 			u.pathTargetY = targetY;
 			u.stuckTimer = 0;
-			if (u.path.length > 1) {
-				logService.collision('Unit path calculated', {
-					unit: u.name,
-					unitId: u.instanceId,
-					waypoints: u.path.length,
-					start: { x: Math.round(u.x), y: Math.round(u.y) },
-					dest: { x: Math.round(targetX), y: Math.round(targetY) }
-				});
-			}
 		}
 
 		if (u.path && u.path.length > 0) {
 			let curWp = u.path[0];
 			let wpDist = Math.hypot(curWp.x - u.x, curWp.y - u.y);
 
-			while (wpDist < 20 && u.path.length > 0) {
+			while (wpDist < 14 && u.path.length > 0) {
 				u.path.shift();
 				if (u.path.length === 0) break;
 				curWp = u.path[0];
 				wpDist = Math.hypot(curWp.x - u.x, curWp.y - u.y);
 			}
 
-			if (u.path.length === 0) {
-				u.path = undefined;
-			} else if (wpDist > 0.001) {
+			if (u.path.length > 0 && wpDist > 0.001) {
 				const step = Math.min(wpDist, speed * dt);
 				u.x += ((curWp.x - u.x) / wpDist) * step;
 				u.y += ((curWp.y - u.y) / wpDist) * step;

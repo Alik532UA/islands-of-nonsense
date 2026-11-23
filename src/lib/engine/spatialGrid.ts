@@ -1,21 +1,22 @@
 import type { Unit, Team, Lane } from './types';
 
 /**
- * Fast Spatial Hash Grid for 2D entity lookups.
- * Allows O(1) query of nearby enemy units instead of O(N^2) double loop.
+ * High-performance Spatial Hash Grid for 2D entity lookups.
+ * Uses integer keys and flat array buckets to eliminate GC churn and string allocations.
+ * Allows O(1) query of nearby enemy and ally units instead of O(N^2) loops.
  */
 export class SpatialHashGrid {
 	private cellSize: number;
-	private cells = new Map<string, Set<Unit>>();
+	private cells = new Map<number, Unit[]>();
 
 	constructor(cellSize = 80) {
 		this.cellSize = cellSize;
 	}
 
-	private getKey(x: number, y: number): string {
-		const cx = Math.floor(x / this.cellSize);
-		const cy = Math.floor(y / this.cellSize);
-		return `${cx}:${cy}`;
+	private getKey(x: number, y: number): number {
+		const cx = Math.floor(x / this.cellSize) + 1000;
+		const cy = Math.floor(y / this.cellSize) + 1000;
+		return (cy << 14) | (cx & 0x3fff);
 	}
 
 	public clear(): void {
@@ -26,28 +27,29 @@ export class SpatialHashGrid {
 		const key = this.getKey(unit.x, unit.y);
 		let cell = this.cells.get(key);
 		if (!cell) {
-			cell = new Set();
+			cell = [];
 			this.cells.set(key, cell);
 		}
-		cell.add(unit);
+		cell.push(unit);
 	}
 
 	public queryRadius(x: number, y: number, radius: number, filter?: (u: Unit) => boolean): Unit[] {
 		const results: Unit[] = [];
 		const r2 = radius * radius;
 
-		const minX = Math.floor((x - radius) / this.cellSize);
-		const maxX = Math.floor((x + radius) / this.cellSize);
-		const minY = Math.floor((y - radius) / this.cellSize);
-		const maxY = Math.floor((y + radius) / this.cellSize);
+		const minX = Math.floor((x - radius) / this.cellSize) + 1000;
+		const maxX = Math.floor((x + radius) / this.cellSize) + 1000;
+		const minY = Math.floor((y - radius) / this.cellSize) + 1000;
+		const maxY = Math.floor((y + radius) / this.cellSize) + 1000;
 
 		for (let cx = minX; cx <= maxX; cx++) {
 			for (let cy = minY; cy <= maxY; cy++) {
-				const key = `${cx}:${cy}`;
+				const key = (cy << 14) | (cx & 0x3fff);
 				const cell = this.cells.get(key);
 				if (!cell) continue;
 
-				for (const unit of cell) {
+				for (let i = 0; i < cell.length; i++) {
+					const unit = cell[i];
 					if (unit.state === 'DYING' || unit.state === 'DEAD') continue;
 					const dx = unit.x - x;
 					const dy = unit.y - y;
@@ -87,7 +89,8 @@ export class SpatialHashGrid {
 		let closest: Unit | null = null;
 		let closestDistSq = Infinity;
 
-		for (const u of candidates) {
+		for (let i = 0; i < candidates.length; i++) {
+			const u = candidates[i];
 			const dx = u.x - x;
 			const dy = u.y - y;
 			const distSq = dx * dx + dy * dy;
