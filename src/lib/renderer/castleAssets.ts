@@ -39,6 +39,11 @@ export const EAST_CASTLE_STAGE_URLS: string[] = [
 ];
 
 /**
+ * Standard duration in milliseconds for smooth crossfade between castle destruction stages.
+ */
+export const CASTLE_FADE_DURATION_MS = 400;
+
+/**
  * Calculates the progressive destruction stage (0 to 7) for a castle based on its current and max HP.
  * Stage 0: 100% to 87.5% HP (Pristine, glowing magical ring / bright lava)
  * Stage 1: 87.5% to 75% HP (Light battle wear, flying banners)

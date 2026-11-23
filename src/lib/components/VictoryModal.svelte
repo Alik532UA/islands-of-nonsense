@@ -4,23 +4,27 @@
 
 	let {
 		sim,
+		uiTick = 0,
 		onNextRound
 	}: {
 		sim: Simulation;
+		uiTick?: number;
 		onNextRound: () => void;
 	} = $props();
 
-	let isWestWin = $derived(sim.winner === 'west');
-	let isMatchOver = $derived(!!sim.matchWinner);
-	let statsWest = $derived(sim.players.west.stats);
-	let statsEast = $derived(sim.players.east.stats);
-	let westMvp = $derived(sim.getMvpBuilding('west'));
+	// Explicitly derive from uiTick so Svelte 5 reacts to simulation round/match completion
+	let winner = $derived(uiTick >= 0 ? sim.winner : null);
+	let isWestWin = $derived(winner === 'west');
+	let isMatchOver = $derived(uiTick >= 0 ? !!sim.matchWinner : false);
+	let statsWest = $derived(uiTick >= 0 ? sim.players.west.stats : sim.players.west.stats);
+	let statsEast = $derived(uiTick >= 0 ? sim.players.east.stats : sim.players.east.stats);
+	let westMvp = $derived(uiTick >= 0 ? sim.getMvpBuilding('west') : null);
 
 	let countdown = $state(10);
 	let isPaused = $state(false);
 
 	$effect(() => {
-		if (!sim.winner) {
+		if (!winner) {
 			countdown = 10;
 			isPaused = false;
 			return;
@@ -42,7 +46,7 @@
 	});
 </script>
 
-{#if sim.winner}
+{#if winner}
 	<div
 		class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 select-none"
 	>

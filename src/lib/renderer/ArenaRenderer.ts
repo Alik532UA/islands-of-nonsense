@@ -18,7 +18,8 @@ import { OverlayRenderer } from './overlayRenderer';
 import {
 	WEST_CASTLE_STAGE_URLS,
 	EAST_CASTLE_STAGE_URLS,
-	getCastleStageIndex
+	getCastleStageIndex,
+	CASTLE_FADE_DURATION_MS
 } from './castleAssets';
 
 export type { SelectedEntity };
@@ -89,11 +90,23 @@ export class ArenaRenderer {
 	private markersLayer: Graphics;
 	private uiLayer: Graphics;
 
-	// Castle progressive destruction sprites
+	// Castle progressive destruction sprites with smooth 400ms crossfade
 	private westCastleTextures: Texture[] = [];
 	private eastCastleTextures: Texture[] = [];
-	private westCastleSprite: Sprite | null = null;
-	private eastCastleSprite: Sprite | null = null;
+	private westCastleBaseSprite: Sprite | null = null;
+	private westCastleFadeSprite: Sprite | null = null;
+	private eastCastleBaseSprite: Sprite | null = null;
+	private eastCastleFadeSprite: Sprite | null = null;
+
+	private westCastleStage = 0;
+	private westCastleTargetStage = 0;
+	private westCastleFadeStartTime = 0;
+	private westCastleIsFading = false;
+
+	private eastCastleStage = 0;
+	private eastCastleTargetStage = 0;
+	private eastCastleFadeStartTime = 0;
+	private eastCastleIsFading = false;
 
 	private hoveredTile: { x: number; y: number } | null = null;
 	private isDestroyed = false;
@@ -143,6 +156,35 @@ export class ArenaRenderer {
 		this.enableFog = newSim.config.fogOfWar ?? true;
 		this.entityRenderer.setSimulation(newSim);
 		this.overlayRenderer.setSimulation(newSim);
+		this.resetCastleVisuals();
+	}
+
+	public resetCastleVisuals(): void {
+		if (this.westCastleBaseSprite && this.westCastleTextures[0]) {
+			this.westCastleBaseSprite.texture = this.westCastleTextures[0];
+			this.westCastleBaseSprite.alpha = 1;
+		}
+		if (this.westCastleFadeSprite && this.westCastleTextures[0]) {
+			this.westCastleFadeSprite.texture = this.westCastleTextures[0];
+			this.westCastleFadeSprite.alpha = 0;
+			this.westCastleFadeSprite.visible = false;
+		}
+		this.westCastleStage = 0;
+		this.westCastleTargetStage = 0;
+		this.westCastleIsFading = false;
+
+		if (this.eastCastleBaseSprite && this.eastCastleTextures[0]) {
+			this.eastCastleBaseSprite.texture = this.eastCastleTextures[0];
+			this.eastCastleBaseSprite.alpha = 1;
+		}
+		if (this.eastCastleFadeSprite && this.eastCastleTextures[0]) {
+			this.eastCastleFadeSprite.texture = this.eastCastleTextures[0];
+			this.eastCastleFadeSprite.alpha = 0;
+			this.eastCastleFadeSprite.visible = false;
+		}
+		this.eastCastleStage = 0;
+		this.eastCastleTargetStage = 0;
+		this.eastCastleIsFading = false;
 	}
 
 	public async init(canvas: HTMLCanvasElement): Promise<void> {
@@ -190,23 +232,47 @@ export class ArenaRenderer {
 			this.eastCastleTextures = eastLoaded;
 
 			if (this.westCastleTextures[0]) {
-				this.westCastleSprite = new Sprite(this.westCastleTextures[0]);
-				this.westCastleSprite.anchor.set(0.5, 0.5);
-				this.westCastleSprite.x = WEST_CASTLE_X;
-				this.westCastleSprite.y = WEST_CASTLE_Y - 20;
-				this.westCastleSprite.width = 410;
-				this.westCastleSprite.height = 380;
-				this.castlesLayer.addChild(this.westCastleSprite);
+				this.westCastleBaseSprite = new Sprite(this.westCastleTextures[0]);
+				this.westCastleBaseSprite.anchor.set(0.5, 0.5);
+				this.westCastleBaseSprite.x = WEST_CASTLE_X;
+				this.westCastleBaseSprite.y = WEST_CASTLE_Y - 20;
+				this.westCastleBaseSprite.width = 410;
+				this.westCastleBaseSprite.height = 380;
+				this.westCastleBaseSprite.alpha = 1;
+
+				this.westCastleFadeSprite = new Sprite(this.westCastleTextures[0]);
+				this.westCastleFadeSprite.anchor.set(0.5, 0.5);
+				this.westCastleFadeSprite.x = WEST_CASTLE_X;
+				this.westCastleFadeSprite.y = WEST_CASTLE_Y - 20;
+				this.westCastleFadeSprite.width = 410;
+				this.westCastleFadeSprite.height = 380;
+				this.westCastleFadeSprite.alpha = 0;
+				this.westCastleFadeSprite.visible = false;
+
+				this.castlesLayer.addChild(this.westCastleBaseSprite);
+				this.castlesLayer.addChild(this.westCastleFadeSprite);
 			}
 
 			if (this.eastCastleTextures[0]) {
-				this.eastCastleSprite = new Sprite(this.eastCastleTextures[0]);
-				this.eastCastleSprite.anchor.set(0.5, 0.5);
-				this.eastCastleSprite.x = EAST_CASTLE_X;
-				this.eastCastleSprite.y = EAST_CASTLE_Y - 15;
-				this.eastCastleSprite.width = 415;
-				this.eastCastleSprite.height = 335;
-				this.castlesLayer.addChild(this.eastCastleSprite);
+				this.eastCastleBaseSprite = new Sprite(this.eastCastleTextures[0]);
+				this.eastCastleBaseSprite.anchor.set(0.5, 0.5);
+				this.eastCastleBaseSprite.x = EAST_CASTLE_X;
+				this.eastCastleBaseSprite.y = EAST_CASTLE_Y - 15;
+				this.eastCastleBaseSprite.width = 415;
+				this.eastCastleBaseSprite.height = 335;
+				this.eastCastleBaseSprite.alpha = 1;
+
+				this.eastCastleFadeSprite = new Sprite(this.eastCastleTextures[0]);
+				this.eastCastleFadeSprite.anchor.set(0.5, 0.5);
+				this.eastCastleFadeSprite.x = EAST_CASTLE_X;
+				this.eastCastleFadeSprite.y = EAST_CASTLE_Y - 15;
+				this.eastCastleFadeSprite.width = 415;
+				this.eastCastleFadeSprite.height = 335;
+				this.eastCastleFadeSprite.alpha = 0;
+				this.eastCastleFadeSprite.visible = false;
+
+				this.castlesLayer.addChild(this.eastCastleBaseSprite);
+				this.castlesLayer.addChild(this.eastCastleFadeSprite);
 			}
 		} catch {
 			// In case preloading fails, renderCastles handles procedural authentic castle fallback
@@ -682,6 +748,95 @@ export class ArenaRenderer {
 		);
 	}
 
+	private updateCastleCrossfade(
+		isWest: boolean,
+		hp: number,
+		maxHp: number,
+		textures: Texture[],
+		baseSprite: Sprite | null,
+		fadeSprite: Sprite | null
+	): boolean {
+		if (!baseSprite || !fadeSprite || textures.length === 0) return false;
+
+		const targetStage = getCastleStageIndex(hp, maxHp);
+		const targetTexture = textures[targetStage];
+		if (!targetTexture || targetTexture.width <= 1) return false;
+
+		const currentStage = isWest ? this.westCastleStage : this.eastCastleStage;
+		const inFade = isWest ? this.westCastleIsFading : this.eastCastleIsFading;
+		const fadeTarget = isWest ? this.westCastleTargetStage : this.eastCastleTargetStage;
+		const now = performance.now();
+
+		// Detect full restore (e.g. new round or match restart with full HP)
+		if (targetStage === 0 && (currentStage > 1 || fadeTarget > 1)) {
+			baseSprite.texture = textures[0];
+			baseSprite.alpha = 1;
+			fadeSprite.texture = textures[0];
+			fadeSprite.alpha = 0;
+			fadeSprite.visible = false;
+			if (isWest) {
+				this.westCastleStage = 0;
+				this.westCastleTargetStage = 0;
+				this.westCastleIsFading = false;
+			} else {
+				this.eastCastleStage = 0;
+				this.eastCastleTargetStage = 0;
+				this.eastCastleIsFading = false;
+			}
+			baseSprite.visible = true;
+			return true;
+		}
+
+		// Stage transition initiated
+		const activeTarget = inFade ? fadeTarget : currentStage;
+		if (targetStage !== activeTarget) {
+			if (inFade) {
+				// Mid-fade retarget: promote the currently transitioning texture to base
+				baseSprite.texture = fadeSprite.texture;
+				baseSprite.alpha = 1;
+			}
+			fadeSprite.texture = targetTexture;
+			fadeSprite.alpha = 0;
+			fadeSprite.visible = true;
+
+			if (isWest) {
+				this.westCastleTargetStage = targetStage;
+				this.westCastleFadeStartTime = now;
+				this.westCastleIsFading = true;
+			} else {
+				this.eastCastleTargetStage = targetStage;
+				this.eastCastleFadeStartTime = now;
+				this.eastCastleIsFading = true;
+			}
+		}
+
+		// Progress smooth 400ms crossfade
+		const isCurrentlyFading = isWest ? this.westCastleIsFading : this.eastCastleIsFading;
+		if (isCurrentlyFading) {
+			const startTime = isWest ? this.westCastleFadeStartTime : this.eastCastleFadeStartTime;
+			const progress = Math.min(1, Math.max(0, (now - startTime) / CASTLE_FADE_DURATION_MS));
+			fadeSprite.alpha = progress;
+			fadeSprite.visible = true;
+
+			if (progress >= 1) {
+				baseSprite.texture = fadeSprite.texture;
+				baseSprite.alpha = 1;
+				fadeSprite.alpha = 0;
+				fadeSprite.visible = false;
+				if (isWest) {
+					this.westCastleStage = this.westCastleTargetStage;
+					this.westCastleIsFading = false;
+				} else {
+					this.eastCastleStage = this.eastCastleTargetStage;
+					this.eastCastleIsFading = false;
+				}
+			}
+		}
+
+		baseSprite.visible = true;
+		return true;
+	}
+
 	private renderCastles(selectedEntity?: SelectedEntity | null): void {
 		const westCastle = this.sim.castles.west;
 		const eastCastle = this.sim.castles.east;
@@ -698,20 +853,18 @@ export class ArenaRenderer {
 		const westSelected = selectedEntity?.type === 'castle' && selectedEntity.team === 'west';
 		const eastSelected = selectedEntity?.type === 'castle' && selectedEntity.team === 'east';
 
-		// 3. Update West Castle (Human) Sprite stage based on HP
-		const westStage = getCastleStageIndex(westCastle.hp, westCastle.maxHp);
-		const westTexture = this.westCastleTextures[westStage];
-		if (this.westCastleSprite && westTexture && westTexture.width > 1) {
-			if (this.westCastleSprite.texture !== westTexture) {
-				this.westCastleSprite.texture = westTexture;
-			}
-			this.westCastleSprite.width = 410;
-			this.westCastleSprite.height = 380;
-			this.westCastleSprite.visible = true;
-		} else {
-			if (this.westCastleSprite) {
-				this.westCastleSprite.visible = false;
-			}
+		// 3. Update West Castle (Human) Sprite stage based on HP with 400ms smooth fade
+		const westSuccess = this.updateCastleCrossfade(
+			true,
+			westCastle.hp,
+			westCastle.maxHp,
+			this.westCastleTextures,
+			this.westCastleBaseSprite,
+			this.westCastleFadeSprite
+		);
+		if (!westSuccess) {
+			if (this.westCastleBaseSprite) this.westCastleBaseSprite.visible = false;
+			if (this.westCastleFadeSprite) this.westCastleFadeSprite.visible = false;
 			this.entityRenderer.renderAuthenticCastle(
 				this.castleShadowGraphics,
 				westCastle,
@@ -720,20 +873,18 @@ export class ArenaRenderer {
 			);
 		}
 
-		// 4. Update East Castle (Chaos) Sprite stage based on HP
-		const eastStage = getCastleStageIndex(eastCastle.hp, eastCastle.maxHp);
-		const eastTexture = this.eastCastleTextures[eastStage];
-		if (this.eastCastleSprite && eastTexture && eastTexture.width > 1) {
-			if (this.eastCastleSprite.texture !== eastTexture) {
-				this.eastCastleSprite.texture = eastTexture;
-			}
-			this.eastCastleSprite.width = 415;
-			this.eastCastleSprite.height = 335;
-			this.eastCastleSprite.visible = true;
-		} else {
-			if (this.eastCastleSprite) {
-				this.eastCastleSprite.visible = false;
-			}
+		// 4. Update East Castle (Chaos) Sprite stage based on HP with 400ms smooth fade
+		const eastSuccess = this.updateCastleCrossfade(
+			false,
+			eastCastle.hp,
+			eastCastle.maxHp,
+			this.eastCastleTextures,
+			this.eastCastleBaseSprite,
+			this.eastCastleFadeSprite
+		);
+		if (!eastSuccess) {
+			if (this.eastCastleBaseSprite) this.eastCastleBaseSprite.visible = false;
+			if (this.eastCastleFadeSprite) this.eastCastleFadeSprite.visible = false;
 			this.entityRenderer.renderAuthenticCastle(
 				this.castleShadowGraphics,
 				eastCastle,

@@ -353,8 +353,8 @@
 					accumulator = 0; // Drop accumulated backlog to prevent freeze
 				}
 
-				// Bot AI updates once per animation frame with aggregated delta time
-				if (stepsCount > 0) {
+				// Bot AI updates once per animation frame with aggregated delta time (only during active battle)
+				if (stepsCount > 0 && !sim.winner) {
 					const botDt = stepsCount * subDt;
 					if (sim.bots && sim.bots.length > 0) {
 						sim.updateBots(botDt);
@@ -478,8 +478,15 @@
 			sim.resetRound();
 		}
 		sim.isRunning = true;
-		uiTick = sim.stateVersion;
+		selectedBuildingId = null;
+		selectedPlacedBuildingId = null;
+		selectedUnitId = null;
+		selectedEntity = { type: 'worker' };
 		isCommanderOpen = false;
+		isForgeOpen = false;
+		isShopOpen = false;
+		renderer?.resetCastleVisuals();
+		uiTick = sim.stateVersion;
 	}
 
 	function handleStartNewMatch(newConfig: SimulationConfig) {
@@ -658,7 +665,7 @@
 	<ForgeModal {sim} bind:isOpen={isForgeOpen} />
 	<CommanderModal {sim} bind:isOpen={isCommanderOpen} />
 	<ShopModal {sim} bind:isOpen={isShopOpen} />
-	<VictoryModal {sim} onNextRound={handleNextRound} />
+	<VictoryModal {sim} {uiTick} onNextRound={handleNextRound} />
 	<StartMatchModal
 		isOpen={isSettingsOpen}
 		currentConfig={sim.config}

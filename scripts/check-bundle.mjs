@@ -9,7 +9,7 @@ import { gzipSync } from 'node:zlib';
 
 const BUILD_DIR = process.argv[2] ?? 'build';
 const MAX_JS_KB = 400; // Gzip ceiling for total JS (including PixiJS 8 WebGL runtime + game assets)
-const MAX_CSS_KB = 60;  // Gzip ceiling for CSS
+const MAX_CSS_KB = 60; // Gzip ceiling for CSS
 
 if (!existsSync(BUILD_DIR)) {
 	console.error(`❌ Build directory "${BUILD_DIR}" not found. Run "npm run build" first.`);

@@ -20,7 +20,10 @@ export interface TournamentReport {
 }
 
 export class HeadlessBalanceRunner {
-	static runMatch(maxTicks: number = 300, config: SimulationConfig = { botDifficulty: 1, startGold: 600 }): HeadlessMatchReport {
+	static runMatch(
+		maxTicks: number = 300,
+		config: SimulationConfig = { botDifficulty: 1, startGold: 600 }
+	): HeadlessMatchReport {
 		const startTime = Date.now();
 		const sim = new Simulation({
 			...config,

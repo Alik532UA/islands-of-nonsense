@@ -40,7 +40,11 @@ export class ReplaySerializer {
 		return JSON.stringify(payload);
 	}
 
-	static deserialize(jsonString: string): { success: boolean; data?: MatchReplayData; error?: string } {
+	static deserialize(jsonString: string): {
+		success: boolean;
+		data?: MatchReplayData;
+		error?: string;
+	} {
 		try {
 			const parsed = JSON.parse(jsonString);
 			if (!parsed.version || !parsed.actions || !Array.isArray(parsed.actions)) {

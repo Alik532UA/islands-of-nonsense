@@ -2,10 +2,14 @@ import { describe, it, expect } from 'vitest';
 import {
 	getCastleStageIndex,
 	WEST_CASTLE_STAGE_URLS,
-	EAST_CASTLE_STAGE_URLS
+	EAST_CASTLE_STAGE_URLS,
+	CASTLE_FADE_DURATION_MS
 } from './castleAssets';
 
 describe('Castle Destruction Stages & Asset Mapping', () => {
+	it('defines standard 400ms crossfade duration for smooth destruction stage transitions', () => {
+		expect(CASTLE_FADE_DURATION_MS).toBe(400);
+	});
 	it('contains 8 high-resolution WebP sprites for West (Human) and East (Chaos) castles', () => {
 		expect(WEST_CASTLE_STAGE_URLS).toHaveLength(8);
 		expect(EAST_CASTLE_STAGE_URLS).toHaveLength(8);

@@ -109,4 +109,30 @@ describe('Point 6: Multi-Round Match System (Best of 3 / Best of 5)', () => {
 		expect(sim.winner).toBeNull();
 		expect(sim.matchWinner).toBeNull();
 	});
+
+	it('triggers notifyStateChanged and onRoundEnd callback when castle is destroyed', () => {
+		let reportedWinner: string | null = null;
+		sim.onRoundEnd = (w) => {
+			reportedWinner = w;
+		};
+		const initialVersion = sim.stateVersion;
+
+		sim.castles.west.hp = 0;
+		sim.step(0.05);
+
+		expect(sim.winner).toBe('east');
+		expect(reportedWinner).toBe('east');
+		expect(sim.stateVersion).toBeGreaterThan(initialVersion);
+
+		// While winner is declared, simulation steps return early without incrementing tick
+		const frozenTick = sim.tick;
+		sim.step(0.05);
+		expect(sim.tick).toBe(frozenTick);
+
+		// Calling resetRound clears winner and increments stateVersion
+		const preResetVersion = sim.stateVersion;
+		sim.resetRound();
+		expect(sim.winner).toBeNull();
+		expect(sim.stateVersion).toBeGreaterThan(preResetVersion);
+	});
 });

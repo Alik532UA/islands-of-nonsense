@@ -45,7 +45,6 @@ export class RaceRegistry {
 	register(race: CustomRaceDefinition): boolean {
 		const validation = this.validateRace(race);
 		if (!validation.valid) {
-			console.error(`[RaceRegistry] Failed to register race ${race.id}:`, validation.errors);
 			return false;
 		}
 
@@ -80,7 +79,12 @@ export class RaceRegistry {
 			errors.push('Race name is required');
 		}
 
-		if (!race.buildings || !race.buildings.tier1 || !Array.isArray(race.buildings.tier1) || race.buildings.tier1.length === 0) {
+		if (
+			!race.buildings ||
+			!race.buildings.tier1 ||
+			!Array.isArray(race.buildings.tier1) ||
+			race.buildings.tier1.length === 0
+		) {
 			errors.push('Race must contain at least 1 Tier 1 building');
 		} else {
 			race.buildings.tier1.forEach((b, idx) => {

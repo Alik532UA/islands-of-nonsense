@@ -60,6 +60,7 @@ export class BotAI {
 	}
 
 	public update(dt: number): void {
+		if (this.sim.winner) return;
 		this.decisionTimer -= dt;
 		if (this.decisionTimer <= 0) {
 			this.decisionTimer = 1.5 + Math.random() * 0.5;

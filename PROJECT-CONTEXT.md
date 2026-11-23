@@ -11,18 +11,18 @@
 > [!NOTE]
 > Цей розділ є головним вказівником для автономних AI-агентів (LLM). Використовуйте його як Single Source of Truth для миттєвої навігації без потреби парсити весь детальний інженерний контекст.
 
-| Параметр / Інваріант      | Значення                                                                | Локація у коді / Примітка                                          |
-| :------------------------ | :---------------------------------------------------------------------- | :----------------------------------------------------------------- |
-| **Стек**                  | SvelteKit 3 + Svelte 5 (Runes) + TypeScript (`strict: true`) + PixiJS 8 | [package.json](package.json), [vite.config.ts](vite.config.ts)     |
-| **Хостинг та домен**      | `https://alik532ua.github.io/castle-fight-web-pack/`                    | GitHub Pages (`adapter-static`), fallback `404.html`               |
-| **Префікс сховища**       | `castlefight_` (dev: `castlefight-dev_`)                                | Суворий фасад у `src/lib/services/storage.ts`                      |
-| **Порт dev-сервера**      | **5174** (`--strictPort` для уникнення колізій із 5173/5197/5399)       | `package.json` dev script                                          |
-| **Маршрутизація та i18n** | 2 мови (`uk` типова, `en`), сувора заборона `ru`                        | `src/lib/i18n/index.ts`                                            |
-| **Захист CSP**            | `mode: 'hash'`, повна політика у `vite.config.ts`                       | `vite.config.ts`, `src/csp-hash.test.ts`                           |
-| **Безпека XSS & Storage** | Заборона сирого `{@html}` та неізольованого `localStorage`              | `src/security.test.ts`                                             |
-| **Error Boundary**        | `<svelte:boundary>` + `ErrorFallback.svelte`                            | `src/routes/+layout.svelte`, `src/routes/+error.svelte`            |
-| **Тестування та гейти**   | 49 Vitest сьютів (280+ тестів) + Playwright E2E + Axe a11y              | `npm test`, `npm run test:e2e`, `check:build`, `audit:ci`          |
-| **CI/CD Автоматизація**   | Deploy + Lighthouse CI + Bundle Budgets                                 | `.github/workflows/deploy.yml`, `lighthouse.yml`, `budgets.yml`    |
+| Параметр / Інваріант      | Значення                                                                | Локація у коді / Примітка                                       |
+| :------------------------ | :---------------------------------------------------------------------- | :-------------------------------------------------------------- |
+| **Стек**                  | SvelteKit 3 + Svelte 5 (Runes) + TypeScript (`strict: true`) + PixiJS 8 | [package.json](package.json), [vite.config.ts](vite.config.ts)  |
+| **Хостинг та домен**      | `https://alik532ua.github.io/castle-fight-web-pack/`                    | GitHub Pages (`adapter-static`), fallback `404.html`            |
+| **Префікс сховища**       | `castlefight_` (dev: `castlefight-dev_`)                                | Суворий фасад у `src/lib/services/storage.ts`                   |
+| **Порт dev-сервера**      | **5174** (`--strictPort` для уникнення колізій із 5173/5197/5399)       | `package.json` dev script                                       |
+| **Маршрутизація та i18n** | 2 мови (`uk` типова, `en`), сувора заборона `ru`                        | `src/lib/i18n/index.ts`                                         |
+| **Захист CSP**            | `mode: 'hash'`, повна політика у `vite.config.ts`                       | `vite.config.ts`, `src/csp-hash.test.ts`                        |
+| **Безпека XSS & Storage** | Заборона сирого `{@html}` та неізольованого `localStorage`              | `src/security.test.ts`                                          |
+| **Error Boundary**        | `<svelte:boundary>` + `ErrorFallback.svelte`                            | `src/routes/+layout.svelte`, `src/routes/+error.svelte`         |
+| **Тестування та гейти**   | 49 Vitest сьютів (280+ тестів) + Playwright E2E + Axe a11y              | `npm test`, `npm run test:e2e`, `check:build`, `audit:ci`       |
+| **CI/CD Автоматизація**   | Deploy + Lighthouse CI + Bundle Budgets                                 | `.github/workflows/deploy.yml`, `lighthouse.yml`, `budgets.yml` |
 
 ### Швидкий покажчик ключових рішень:
 
@@ -99,13 +99,13 @@
 2. **Матриця шкоди та броні (Damage Matrix)**:
 
 | Тип атаки \ Броня | Unarmored | Light | Medium | Heavy | Fortified | Hero | Divine |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Normal** | 100% | 150% | 100% | 100% | 70% | 100% | 5% |
-| **Pierce** | 150% | 200% | 75% | 100% | 35% | 50% | 5% |
-| **Siege** | 100% | 100% | 50% | 125% | 150% | 50% | 5% |
-| **Magic** | 100% | 125% | 75% | 200% | 35% | 50% | 5% |
-| **Chaos** | 100% | 100% | 100% | 100% | 100% | 100% | 100% |
-| **Hero** | 100% | 100% | 100% | 100% | 50% | 100% | 5% |
+| :---------------- | :-------: | :---: | :----: | :---: | :-------: | :--: | :----: |
+| **Normal**        |   100%    | 150%  |  100%  | 100%  |    70%    | 100% |   5%   |
+| **Pierce**        |   150%    | 200%  |  75%   | 100%  |    35%    | 50%  |   5%   |
+| **Siege**         |   100%    | 100%  |  50%   | 125%  |   150%    | 50%  |   5%   |
+| **Magic**         |   100%    | 125%  |  75%   | 200%  |    35%    | 50%  |   5%   |
+| **Chaos**         |   100%    | 100%  |  100%  | 100%  |   100%    | 100% |  100%  |
+| **Hero**          |   100%    | 100%  |  100%  | 100%  |    50%    | 100% |   5%   |
 
 Формула зниження шкоди від броні:
 $$DR = \frac{0.06 \times Armor}{1 + 0.06 \times |Armor|}$$
@@ -168,20 +168,21 @@ $$DR = \frac{0.06 \times Armor}{1 + 0.06 \times |Armor|}$$
 
 ## 8. Політика перевірок та гейтів якості (CODE-QUALITY-v10)
 
-| Команда                 | Гейт canon.json   | Опис перевірки                                                                     |
-| :---------------------- | :---------------- | :--------------------------------------------------------------------------------- |
-| `npm run check`         | GATE-SVELTE-CHECK | Сувора перевірка типізації TypeScript та синтаксису Svelte 5 Runes                 |
-| `npm run lint`          | GATE-ESLINT       | Повний лінтинг ESLint Flat Config та форматування Prettier                         |
-| `npm run format`        | —                 | Автоматичне форматування кодової бази                                              |
-| `npm test`              | GATE-TEST-RUNNERS | Vitest юніт-тести рушія, кузні, командирів, сітки та безпеки (49 файлів, 280+ тестів)|
-| `npm run test:balance`  | GATE-BALANCE-SIM  | Headless прогін бот-турніру симуляції балансу без DOM                              |
-| `npm run test:e2e`      | GATE-A11Y-AXE     | Playwright E2E автоматизовані браузерні тести та WCAG 2.2 AA аудит                 |
-| `npm run check:build`   | GATE-BUILD-OUTPUT | Автоматичний гейт зібраного проєкту (`build/index.html`, `build/404.html`)         |
-| `npm run check:bundle`  | GATE-BUNDLE-BUDGET| Контроль ваги бандлу JS (<280 KB gzip з PixiJS) та CSS (<60 KB gzip)               |
-| `npm run audit:ci`      | GATE-AUDIT        | Автоматичний аудит безпеки npm-пакетів                                             |
-| `lhci autorun`          | GATE-LIGHTHOUSE   | Lighthouse CI аудит швидкодії, доступності (minScore: 0.9), SEO та кращих практик  |
+| Команда                | Гейт canon.json    | Опис перевірки                                                                        |
+| :--------------------- | :----------------- | :------------------------------------------------------------------------------------ |
+| `npm run check`        | GATE-SVELTE-CHECK  | Сувора перевірка типізації TypeScript та синтаксису Svelte 5 Runes                    |
+| `npm run lint`         | GATE-ESLINT        | Повний лінтинг ESLint Flat Config та форматування Prettier                            |
+| `npm run format`       | —                  | Автоматичне форматування кодової бази                                                 |
+| `npm test`             | GATE-TEST-RUNNERS  | Vitest юніт-тести рушія, кузні, командирів, сітки та безпеки (49 файлів, 280+ тестів) |
+| `npm run test:balance` | GATE-BALANCE-SIM   | Headless прогін бот-турніру симуляції балансу без DOM                                 |
+| `npm run test:e2e`     | GATE-A11Y-AXE      | Playwright E2E автоматизовані браузерні тести та WCAG 2.2 AA аудит                    |
+| `npm run check:build`  | GATE-BUILD-OUTPUT  | Автоматичний гейт зібраного проєкту (`build/index.html`, `build/404.html`)            |
+| `npm run check:bundle` | GATE-BUNDLE-BUDGET | Контроль ваги бандлу JS (<280 KB gzip з PixiJS) та CSS (<60 KB gzip)                  |
+| `npm run audit:ci`     | GATE-AUDIT         | Автоматичний аудит безпеки npm-пакетів                                                |
+| `lhci autorun`         | GATE-LIGHTHOUSE    | Lighthouse CI аудит швидкодії, доступності (minScore: 0.9), SEO та кращих практик     |
 
 ### CI/CD Пайплайни GitHub Actions:
+
 1. `.github/workflows/deploy.yml` — деплой на GitHub Pages після проходження гейтів якості.
 2. `.github/workflows/lighthouse.yml` — окремий важкий аудит Lighthouse після завершення релізу.
 3. `.github/workflows/budgets.yml` — контроль ваги бандлу на кожному pull request та пуші.

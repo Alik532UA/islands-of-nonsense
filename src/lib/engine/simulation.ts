@@ -637,6 +637,7 @@ export class Simulation {
 	}
 
 	public updateBots(dt: number): void {
+		if (this.winner) return;
 		for (const bot of this.bots) {
 			bot.update(dt);
 		}
