@@ -280,14 +280,16 @@ export class CombatSystem {
 				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
 				(!u.maxMana || (u.mana ?? 0) >= healCost)
 			) {
-				const injuredAlly = this.sim.units.find(
+				const injuredCandidates = this.sim.units.filter(
 					(other) =>
 						other.team === u.team &&
 						other.lane === u.lane &&
 						other.state !== 'DEAD' &&
-						other.hp < other.maxHp &&
+						other.maxHp - other.hp >= 15 &&
 						Math.hypot(other.x - u.x, other.y - u.y) <= 350
 				);
+				injuredCandidates.sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp);
+				const injuredAlly = injuredCandidates[0];
 				if (injuredAlly) {
 					if (u.maxMana && u.mana !== undefined) {
 						u.mana = Math.max(0, u.mana - healCost);
@@ -325,7 +327,7 @@ export class CombatSystem {
 				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
 				(!u.maxMana || (u.mana ?? 0) >= bloodlustCost)
 			) {
-				const unbuffedAlly = this.sim.units.find(
+				const unbuffedAllies = this.sim.units.filter(
 					(other) =>
 						other.team === u.team &&
 						other.lane === u.lane &&
@@ -334,6 +336,12 @@ export class CombatSystem {
 						!other.buffs?.some((b) => b.type === 'bloodlust') &&
 						Math.hypot(other.x - u.x, other.y - u.y) <= 400
 				);
+				unbuffedAllies.sort((a, b) => {
+					const dpsA = (a.damageMax || a.damageMin || 10) / (a.attackCooldown || 1.5);
+					const dpsB = (b.damageMax || b.damageMin || 10) / (b.attackCooldown || 1.5);
+					return dpsB - dpsA;
+				});
+				const unbuffedAlly = unbuffedAllies[0];
 				if (unbuffedAlly) {
 					if (u.maxMana && u.mana !== undefined) {
 						u.mana = Math.max(0, u.mana - bloodlustCost);
@@ -358,7 +366,7 @@ export class CombatSystem {
 				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
 				(!u.maxMana || (u.mana ?? 0) >= slowCost)
 			) {
-				const enemyTarget = this.sim.units.find(
+				const enemyCandidates = this.sim.units.filter(
 					(other) =>
 						other.team !== u.team &&
 						other.lane === u.lane &&
@@ -366,6 +374,10 @@ export class CombatSystem {
 						!other.buffs?.some((b) => b.type === 'slow') &&
 						Math.hypot(other.x - u.x, other.y - u.y) <= 450
 				);
+				enemyCandidates.sort(
+					(a, b) => (b.damageMax || b.damageMin || 10) - (a.damageMax || a.damageMin || 10)
+				);
+				const enemyTarget = enemyCandidates[0];
 				if (enemyTarget) {
 					if (u.maxMana && u.mana !== undefined) {
 						u.mana = Math.max(0, u.mana - slowCost);
@@ -385,7 +397,7 @@ export class CombatSystem {
 				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
 				(!u.maxMana || (u.mana ?? 0) >= curseCost)
 			) {
-				const enemyTarget = this.sim.units.find(
+				const enemyCandidates = this.sim.units.filter(
 					(other) =>
 						other.team !== u.team &&
 						other.lane === u.lane &&
@@ -393,6 +405,10 @@ export class CombatSystem {
 						!other.buffs?.some((b) => b.type === 'curse') &&
 						Math.hypot(other.x - u.x, other.y - u.y) <= 450
 				);
+				enemyCandidates.sort(
+					(a, b) => (b.damageMax || b.damageMin || 10) - (a.damageMax || a.damageMin || 10)
+				);
+				const enemyTarget = enemyCandidates[0];
 				if (enemyTarget) {
 					if (u.maxMana && u.mana !== undefined) {
 						u.mana = Math.max(0, u.mana - curseCost);
@@ -413,7 +429,7 @@ export class CombatSystem {
 				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
 				(!u.maxMana || (u.mana ?? 0) >= innerFireCost)
 			) {
-				const unbuffedAlly = this.sim.units.find(
+				const unbuffedAllies = this.sim.units.filter(
 					(other) =>
 						other.team === u.team &&
 						other.lane === u.lane &&
@@ -422,6 +438,8 @@ export class CombatSystem {
 						!other.buffs?.some((b) => b.type === 'inner_fire') &&
 						Math.hypot(other.x - u.x, other.y - u.y) <= 400
 				);
+				unbuffedAllies.sort((a, b) => b.maxHp - a.maxHp);
+				const unbuffedAlly = unbuffedAllies[0];
 				if (unbuffedAlly) {
 					if (u.maxMana && u.mana !== undefined) {
 						u.mana = Math.max(0, u.mana - innerFireCost);
@@ -752,15 +770,21 @@ export class CombatSystem {
 				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
 				(!u.maxMana || (u.mana ?? 0) >= polyCost)
 			) {
-				const enemy = this.sim.units.find(
+				const enemies = this.sim.units.filter(
 					(other) =>
 						other.team !== u.team &&
 						other.lane === u.lane &&
 						other.state !== 'DEAD' &&
 						!other.isBoss &&
-						!other.buffs?.some((b) => b.type === 'polymorph' || b.type === 'cyclone') &&
+						!other.buffs?.some(
+							(b) => b.type === 'polymorph' || b.type === 'cyclone' || b.type === 'banish'
+						) &&
 						Math.hypot(other.x - u.x, other.y - u.y) <= 450
 				);
+				enemies.sort(
+					(a, b) => (b.damageMax || b.damageMin || 10) - (a.damageMax || a.damageMin || 10)
+				);
+				const enemy = enemies[0];
 				if (enemy) {
 					if (u.maxMana && u.mana !== undefined) {
 						u.mana = Math.max(0, u.mana - polyCost);
@@ -783,15 +807,21 @@ export class CombatSystem {
 				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
 				(!u.maxMana || (u.mana ?? 0) >= cycCost)
 			) {
-				const enemy = this.sim.units.find(
+				const enemies = this.sim.units.filter(
 					(other) =>
 						other.team !== u.team &&
 						other.lane === u.lane &&
 						other.state !== 'DEAD' &&
 						!other.isBoss &&
-						!other.buffs?.some((b) => b.type === 'cyclone' || b.type === 'polymorph') &&
+						!other.buffs?.some(
+							(b) => b.type === 'cyclone' || b.type === 'polymorph' || b.type === 'banish'
+						) &&
 						Math.hypot(other.x - u.x, other.y - u.y) <= 500
 				);
+				enemies.sort(
+					(a, b) => (b.damageMax || b.damageMin || 10) - (a.damageMax || a.damageMin || 10)
+				);
+				const enemy = enemies[0];
 				if (enemy) {
 					if (u.maxMana && u.mana !== undefined) {
 						u.mana = Math.max(0, u.mana - cycCost);
@@ -814,15 +844,21 @@ export class CombatSystem {
 				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
 				(!u.maxMana || (u.mana ?? 0) >= banishCost)
 			) {
-				const enemy = this.sim.units.find(
+				const enemies = this.sim.units.filter(
 					(other) =>
 						other.team !== u.team &&
 						other.lane === u.lane &&
 						other.state !== 'DEAD' &&
 						!other.isBoss &&
-						!other.buffs?.some((b) => b.type === 'banish' || b.type === 'cyclone') &&
+						!other.buffs?.some(
+							(b) => b.type === 'banish' || b.type === 'cyclone' || b.type === 'polymorph'
+						) &&
 						Math.hypot(other.x - u.x, other.y - u.y) <= 450
 				);
+				enemies.sort(
+					(a, b) => (b.damageMax || b.damageMin || 10) - (a.damageMax || a.damageMin || 10)
+				);
+				const enemy = enemies[0];
 				if (enemy) {
 					if (u.maxMana && u.mana !== undefined) {
 						u.mana = Math.max(0, u.mana - banishCost);
