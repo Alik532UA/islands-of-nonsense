@@ -410,16 +410,33 @@ export function getBuildingVisualRank(defId: string, race?: string): BuildingVis
 
 /**
  * Calculates train/spawn time for a building.
- * Defaults to 14-22s depending on cost if not specified in raw_fields.ubld.
+ * Authentic WC3 Castle Fight values from unit raw_fields.ubld (12s to 65s).
  */
 export function getSpawnCooldown(building: BuildingDefinition, unit?: UnitDefinition): number {
-	if (unit?.raw_fields?.ubld) {
-		const val = Number(unit.raw_fields.ubld);
-		if (val > 0) return Math.min(30, Math.max(8, val));
+	const ubldVal = unit?.raw_fields?.ubld ?? unit?.ubld;
+	if (ubldVal !== undefined) {
+		const val = Number(ubldVal);
+		if (val > 0) return Math.min(65, Math.max(8, val));
 	}
 	// Fallback dynamic calculation based on building cost
 	const cost = building.gold_cost || 200;
 	return Math.round(10 + (cost / 400) * 8);
+}
+
+/**
+ * Calculates authentic initial spawn delay upon building construction completion.
+ * In WC3, newly constructed spawners take their authentic ubld training time before first spawn.
+ */
+export function getInitialSpawnDelay(building: BuildingDefinition, unit?: UnitDefinition): number {
+	if (building.initialSpawnDelay !== undefined) {
+		return building.initialSpawnDelay;
+	}
+	const ubldVal = unit?.raw_fields?.ubld ?? unit?.ubld;
+	if (ubldVal !== undefined) {
+		const val = Number(ubldVal);
+		if (val > 0) return Math.min(65, Math.max(8, val));
+	}
+	return getSpawnCooldown(building, unit);
 }
 
 export const UNIT_ABILITY_CATALOG: Record<UnitAbilityType, Omit<UnitAbilityDef, 'id'>> = {

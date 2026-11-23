@@ -148,6 +148,7 @@ export interface UnitDefinition {
 	move_type: string | null;
 	flying: boolean;
 	canHitAir?: boolean;
+	ubld?: number;
 	mana?: number;
 	maxMana?: number;
 	manaRegen?: number;
@@ -173,6 +174,7 @@ export interface BuildingDefinition {
 	upgrade_extra_cost: number;
 	race?: string | null;
 	specialType?: 'treasure' | 'repair' | 'recycler' | 'tower' | 'special';
+	initialSpawnDelay?: number;
 	cooldown?: number | null;
 	range?: number | null;
 	damage_base?: number | null;
@@ -372,6 +374,7 @@ export interface Building {
 	spawnUnitId: string;
 	spawnCooldown: number;
 	spawnTimer: number;
+	initialSpawnDelay?: number;
 	lane: Lane;
 	upgradeFrom: string | null;
 	race: string;

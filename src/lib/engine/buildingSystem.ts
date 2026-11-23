@@ -28,6 +28,7 @@ import {
 	getBuilding,
 	getUnit,
 	getSpawnCooldown,
+	getInitialSpawnDelay,
 	resolveUnitAbility,
 	getUnitAbilities,
 	isLegendaryBuilding
@@ -356,6 +357,7 @@ export class BuildingSystem {
 		}
 
 		const spawnCd = getSpawnCooldown(bDef, getUnit(bDef.unit));
+		const initialDelay = getInitialSpawnDelay(bDef, getUnit(bDef.unit));
 
 		const isBot = player.isBot;
 		const buildTime = isBot ? 2.5 : 3.5;
@@ -383,7 +385,8 @@ export class BuildingSystem {
 			lumberCost,
 			spawnUnitId: bDef.unit,
 			spawnCooldown: spawnCd,
-			spawnTimer: bDef.specialType === 'repair' ? 0 : spawnCd,
+			initialSpawnDelay: initialDelay,
+			spawnTimer: bDef.specialType === 'repair' ? 0 : initialDelay,
 			lane: resolvedLane,
 			upgradeFrom: bDef.upgrade_from,
 			race: bDef.race || player.race,
@@ -582,9 +585,12 @@ export class BuildingSystem {
 		building.playerId = player.id;
 		building.playerSlot = player.slot;
 		building.spawnUnitId = targetDef.unit;
-		const newSpawnCd = getSpawnCooldown(targetDef, getUnit(targetDef.unit));
+		const targetUnit = getUnit(targetDef.unit);
+		const newSpawnCd = getSpawnCooldown(targetDef, targetUnit);
+		const newInitialDelay = getInitialSpawnDelay(targetDef, targetUnit);
 		building.spawnCooldown = newSpawnCd;
-		building.spawnTimer = Math.min(building.spawnTimer, newSpawnCd);
+		building.initialSpawnDelay = newInitialDelay;
+		building.spawnTimer = Math.min(building.spawnTimer, newInitialDelay);
 		building.upgradeFrom = targetDef.upgrade_from;
 		if (targetDef.race) {
 			building.race = targetDef.race;

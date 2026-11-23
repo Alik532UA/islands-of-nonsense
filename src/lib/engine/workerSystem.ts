@@ -1443,7 +1443,8 @@ export class WorkerSystem {
 					if (targetBld.buildProgress >= maxProg) {
 						targetBld.isUnderConstruction = false;
 						targetBld.hp = targetBld.maxHp;
-						targetBld.spawnTimer = targetBld.specialType === 'repair' ? 0 : targetBld.spawnCooldown;
+						const initialDelay = targetBld.initialSpawnDelay ?? targetBld.spawnCooldown;
+						targetBld.spawnTimer = targetBld.specialType === 'repair' ? 0 : initialDelay;
 						w.isBuilding = false;
 						w.targetBuildingId = null;
 						p.lumber += 25;
