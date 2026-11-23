@@ -709,7 +709,28 @@ export class EntityRenderer {
 			const unitColor = isNeutral
 				? 0x7e22ce
 				: (unitPlayer?.color?.num ?? (isWest ? westPlayerColor : eastPlayerColor));
-			const dir = isNeutral ? 1 : isWest ? 1 : -1;
+			let dir = isNeutral ? 1 : isWest ? 1 : -1;
+			if (u.currentTargetId) {
+				const enemy = this.sim.units.find(
+					(candidate) => candidate.instanceId === u.currentTargetId
+				);
+				if (enemy && Math.abs(enemy.x - u.x) > 6) {
+					dir = enemy.x > u.x ? 1 : -1;
+				}
+			} else if (u.targetBuildingId) {
+				let targetX: number | null = null;
+				if (u.targetBuildingId === 'castle_west') targetX = this.sim.castles.west.x;
+				else if (u.targetBuildingId === 'castle_east') targetX = this.sim.castles.east.x;
+				else {
+					const b = this.sim.buildings.find((bld) => bld.instanceId === u.targetBuildingId);
+					if (b) targetX = b.x + CELL_SIZE / 2;
+				}
+				if (targetX !== null && Math.abs(targetX - u.x) > 6) {
+					dir = targetX > u.x ? 1 : -1;
+				}
+			} else if (u.targetX !== undefined && Math.abs(u.targetX - u.x) > 8) {
+				dir = u.targetX > u.x ? 1 : -1;
+			}
 
 			const isSelected =
 				(selectedEntity?.type === 'unit' && selectedEntity.instanceId === u.instanceId) ||
@@ -937,8 +958,10 @@ export class EntityRenderer {
 			g.circle(u.x, renderY, radius * 0.55);
 			g.fill({ color: 0x78716c });
 			g.stroke({ color: 0xd97706, width: 2 });
+			const barrelW = 14;
+			const barrelX = dir > 0 ? u.x + radius * 0.2 : u.x - radius * 0.2 - barrelW;
 			g.beginPath();
-			g.rect(u.x + dir * (radius * 0.2), renderY - 4, dir * 13, 8);
+			g.rect(barrelX, renderY - 4, barrelW, 8);
 			g.fill({ color: 0x1e293b });
 		} else if (
 			u.attackType === 'magic' ||
@@ -979,23 +1002,42 @@ export class EntityRenderer {
 			]);
 			g.fill({ color: 0x065f46 }); // Deep forest green hood
 
-			// Drawn bow facing movement (ensure clean path without lingering (0,0) from previous fill)
+			// Drawn recurve bow facing target/movement direction
 			g.beginPath();
-			const bowStartAngle = -Math.PI / 2.5;
-			const bowEndAngle = Math.PI / 2.5;
-			const bowRadius = radius * 0.8;
-			const bowX = u.x + dir * (radius * 0.6);
-			const bowStartX = bowX + Math.cos(bowStartAngle) * bowRadius;
-			const bowStartY = renderY + Math.sin(bowStartAngle) * bowRadius;
-			g.moveTo(bowStartX, bowStartY);
-			g.arc(bowX, renderY, bowRadius, bowStartAngle, bowEndAngle, false);
+			const bowRadius = radius * 0.85;
+			const bowCenterX = u.x + dir * (radius * 0.35);
+			const bowAngleSpread = Math.PI / 2.3;
+			const bowStartAngle = dir > 0 ? -bowAngleSpread : Math.PI - bowAngleSpread;
+			const bowEndAngle = dir > 0 ? bowAngleSpread : Math.PI + bowAngleSpread;
+
+			const bowTopX = bowCenterX + Math.cos(bowStartAngle) * bowRadius;
+			const bowTopY = renderY + Math.sin(bowStartAngle) * bowRadius;
+			const bowBotX = bowCenterX + Math.cos(bowEndAngle) * bowRadius;
+			const bowBotY = renderY + Math.sin(bowEndAngle) * bowRadius;
+
+			g.moveTo(bowTopX, bowTopY);
+			g.arc(bowCenterX, renderY, bowRadius, bowStartAngle, bowEndAngle, false);
 			g.stroke({ color: 0xb45309, width: 2.2 });
 
-			// Arrow shaft
+			// Bowstring drawn taut from bow tips to arrow nock
+			const nockX = u.x - dir * (radius * 0.25);
 			g.beginPath();
-			g.moveTo(u.x - dir * 2, renderY);
-			g.lineTo(u.x + dir * (radius + 6), renderY);
+			g.moveTo(bowTopX, bowTopY);
+			g.lineTo(nockX, renderY);
+			g.lineTo(bowBotX, bowBotY);
+			g.stroke({ color: 0xd4d4d8, width: 1, alpha: 0.65 });
+
+			// Arrow shaft & silver arrowhead pointing towards enemy/target
+			const tipX = u.x + dir * (radius + 8);
+			g.beginPath();
+			g.moveTo(nockX, renderY);
+			g.lineTo(tipX, renderY);
 			g.stroke({ color: 0xfef08a, width: 1.8 });
+
+			// Distinct arrowhead triangle pointing in dir
+			g.beginPath();
+			g.poly([tipX, renderY, tipX - dir * 5, renderY - 3, tipX - dir * 5, renderY + 3]);
+			g.fill({ color: 0xe2e8f0 });
 		} else if (u.armorType === 'fort' || u.armorType === 'large' || u.hp >= 800) {
 			// COLOSSUS / TANK (Heavy horned battle helm & colossal war hammer)
 			g.beginPath();
@@ -1010,15 +1052,17 @@ export class EntityRenderer {
 			g.fill({ color: 0x64748b });
 			g.stroke({ color: 0x334155, width: 2 });
 
-			// Colossal war hammer
+			// Colossal war hammer facing target/movement direction
 			const hx = u.x + dir * (radius * 0.7);
 			const hy = renderY - radius * 0.7;
 			g.beginPath();
 			g.moveTo(u.x + dir * 2, renderY);
 			g.lineTo(hx + dir * 6, hy - 4);
 			g.stroke({ color: 0x78350f, width: 3 });
+			const hammerHeadW = 10;
+			const hammerHeadX = dir > 0 ? hx + 2 : hx - 2 - hammerHeadW;
 			g.beginPath();
-			g.roundRect(hx + (dir > 0 ? 2 : -12), hy - 10, 10, 8, 2);
+			g.roundRect(hammerHeadX, hy - 10, hammerHeadW, 8, 2);
 			g.fill({ color: 0x94a3b8 });
 			g.stroke({ color: 0xfbbf24, width: 1.5 });
 		} else if (
