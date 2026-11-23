@@ -73,6 +73,15 @@ class LogService {
 	#mirror = browser;
 	/** Фасад сховища сам пише в журнал про збій запису — без цього прапорця це була б рекурсія. */
 	#persisting = false;
+	#sessionUid: string | null = null;
+
+	get sessionUid(): string | null {
+		return this.#sessionUid;
+	}
+
+	set sessionUid(uid: string | null) {
+		this.#sessionUid = uid;
+	}
 
 	info(category: string, message: string, ...data: unknown[]): void {
 		this.#write('info', category, message, data);

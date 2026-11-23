@@ -1,6 +1,6 @@
 {
 	"name": "islands-of-nonsense",
-	"version": "0.0.62",
+	"version": "0.0.63",
 	"private": true,
 	"type": "module",
 	"imports": {
@@ -54,7 +54,11 @@
 		"vitest": "^4.1.12"
 	},
 	"dependencies": {
+		"firebase": "^13.4.0",
 		"lucide-svelte": "^1.0.1",
 		"pixi.js": "^8.23.0"
+	},
+	"overrides": {
+		"@grpc/grpc-js": "^1.14.0"
 	}
 }
