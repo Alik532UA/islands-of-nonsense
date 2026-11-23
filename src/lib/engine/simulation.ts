@@ -360,16 +360,17 @@ export class Simulation {
 		const eastRace = eastChoice.race;
 		const eastIsRandom = eastChoice.isRandom;
 
+		const isBotVsBot = !!config.botVsBot;
+
 		const westGold = westIsRandom ? Math.round(config.startGold * 1.3) : config.startGold;
 		const eastGold = eastIsRandom ? Math.round(config.startGold * 1.3) : config.startGold;
-
-		const isBotVsBot = !!config.botVsBot;
 
 		const p1: PlayerState = {
 			id: 'p1',
 			slot: 1,
 			team: 'west',
 			isBot: isBotVsBot,
+			botDifficulty: isBotVsBot ? config.botDifficulty : 0,
 			name: isBotVsBot ? 'Бот (Захід)' : 'Гравець',
 			color: WC3_PLAYER_COLORS[0],
 			race: westRace,
@@ -411,6 +412,7 @@ export class Simulation {
 			slot: 2,
 			team: 'east',
 			isBot: true,
+			botDifficulty: config.botDifficulty,
 			name: 'Бот v37',
 			color: WC3_PLAYER_COLORS[1],
 			race: eastRace,
@@ -469,6 +471,7 @@ export class Simulation {
 				slot: 3,
 				team: 'west',
 				isBot: true,
+				botDifficulty: config.botDifficulty,
 				name: 'Бот-союзник v37',
 				color: WC3_PLAYER_COLORS[2],
 				race: p3Choice.race,
@@ -510,6 +513,7 @@ export class Simulation {
 				slot: 4,
 				team: 'east',
 				isBot: true,
+				botDifficulty: config.botDifficulty,
 				name: 'Бот v38',
 				color: WC3_PLAYER_COLORS[3],
 				race: p4Choice.race,
@@ -562,6 +566,7 @@ export class Simulation {
 				slot: 5,
 				team: 'west',
 				isBot: true,
+				botDifficulty: config.botDifficulty,
 				name: 'Бот-союзник v38',
 				color: WC3_PLAYER_COLORS[4],
 				race: p5Choice.race,
@@ -603,6 +608,7 @@ export class Simulation {
 				slot: 6,
 				team: 'east',
 				isBot: true,
+				botDifficulty: config.botDifficulty,
 				name: 'Бот v39',
 				color: WC3_PLAYER_COLORS[5],
 				race: p6Choice.race,

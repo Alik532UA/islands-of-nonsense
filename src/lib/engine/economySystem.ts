@@ -72,6 +72,12 @@ export class EconomySystem {
 			multiplier += cfM * 0.12;
 		}
 
+		// CF_BD bot income bonus: docs/04 § 1.2 & docs/05 § 3.B
+		const cfBd = player.botDifficulty ?? (player.isBot ? this.sim.config.botDifficulty : 0);
+		if (player.isBot && cfBd > 0) {
+			multiplier += (cfM * cfBd) / 100;
+		}
+
 		const myCastle = this.sim.castles[team];
 		if (myCastle && myCastle.hp / myCastle.maxHp <= 0.7) {
 			multiplier *= 1.15;

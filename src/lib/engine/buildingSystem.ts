@@ -756,6 +756,13 @@ export class BuildingSystem {
 		// Commander 4 (Dan): +24% attack speed
 		if (player.commander === 4) attackSpeedMult *= 1.24;
 
+		// Bot difficulty damage bonus: docs/04 § 5 & docs/05 § 3.B
+		const cfBd = player.botDifficulty ?? (player.isBot ? this.sim.config.botDifficulty : 0);
+		if (player.isBot && cfBd > 0) {
+			const steps = Math.floor((cfBd + 2) / 4);
+			damageBonusPct += steps * 0.04;
+		}
+
 		const baseMin = unitDef.damage_base ?? 10;
 		const dice = unitDef.damage_dice ?? 1;
 		const sides = unitDef.damage_sides ?? 6;

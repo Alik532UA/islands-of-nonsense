@@ -483,6 +483,7 @@ export interface PlayerState {
 	slot?: number;
 	team: MatchTeam;
 	isBot: boolean;
+	botDifficulty?: number;
 	name: string;
 	race: string;
 	color: PlayerColorDef;
