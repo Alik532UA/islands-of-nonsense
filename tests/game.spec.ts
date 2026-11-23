@@ -114,4 +114,22 @@ test.describe('Castle Fight Web — Smoke and Interaction E2E', () => {
 		await page.getByTestId('window-back-btn').click();
 		await expect(page.getByTestId('online-join-code-btn')).toBeVisible();
 	});
+
+	test('navigates to Account page and switches tabs', async ({ page }) => {
+		await page.goto(`${BASE}/account`);
+		await expect(page.getByTestId('tab-profile')).toBeVisible();
+		await expect(page.getByTestId('tab-stats')).toBeVisible();
+		await expect(page.getByTestId('tab-leaders')).toBeVisible();
+
+		// Switch to stats
+		await page.getByTestId('tab-stats').click();
+		await expect(page.getByText('Загальний рахунок')).toBeVisible();
+
+		// Switch to leaders
+		await page.getByTestId('tab-leaders').click();
+
+		// Switch back to profile
+		await page.getByTestId('tab-profile').click();
+		await expect(page.getByTestId('input-name')).toBeVisible();
+	});
 });
