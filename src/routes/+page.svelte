@@ -4,7 +4,8 @@
 	import { BotAI } from '../lib/engine/botAI';
 	import { ArenaRenderer, type SelectedEntity } from '../lib/renderer/ArenaRenderer';
 	import { sound } from '../lib/services/audio';
-	import { RACES_LIST, getBuilderNameForRace } from '../lib/engine/gameData';
+	import { attachAudioBridge } from '../lib/services/audioBridge';
+	import { RACES_LIST } from '../lib/engine/gameData';
 	import TopBar from '../lib/components/TopBar.svelte';
 	import BottomBar from '../lib/components/BottomBar.svelte';
 	import ForgeModal from '../lib/components/ForgeModal.svelte';
@@ -48,6 +49,7 @@
 
 	let animFrameId: number;
 	let unlistenSequences: (() => void) | null = null;
+	let unlistenAudio: (() => void) | null = null;
 
 	function handleKeyDown(e: KeyboardEvent) {
 		if (isEditableTarget(e.target)) return;
@@ -180,77 +182,10 @@
 		}
 	}
 
-	function attachAudioHandlers(s: Simulation) {
-		s.onSoundEffect = (type: string) => {
-			switch (type) {
-				case 'sword':
-				case 'attack_normal':
-					sound.playSwordClash();
-					break;
-				case 'bow':
-				case 'attack_pierce':
-					sound.playBowShot();
-					break;
-				case 'magic':
-				case 'attack_magic':
-					sound.playMagicCast();
-					break;
-				case 'hit':
-				case 'attack_siege':
-					sound.playHit();
-					break;
-				case 'death':
-				case 'unit_death':
-					sound.playUnitDeath();
-					break;
-				case 'buildingDestroyed':
-				case 'building_destroyed':
-					sound.playBuildingDestroyed();
-					break;
-				case 'building_repair':
-					sound.playRepair();
-					break;
-				case 'upgrade':
-					sound.playUpgrade();
-					break;
-				case 'coin':
-					sound.playCoin();
-					break;
-				case 'buildingComplete':
-					sound.playBuildingComplete();
-					break;
-				case 'castleUnderAttack':
-					sound.playCastleUnderAttack();
-					break;
-				case 'bossSpawn':
-					sound.playBossSpawn();
-					break;
-				case 'victory':
-					sound.playVictory();
-					break;
-				case 'defeat':
-					sound.playDefeat();
-					break;
-				case 'errorResource':
-					sound.playErrorResource();
-					break;
-				case 'lowCastleHp':
-					sound.playLowCastleHp();
-					break;
-				case 'horn':
-					sound.playHorn();
-					break;
-				case 'rescueStrike':
-					sound.playRescueStrike();
-					break;
-			}
-		};
-	}
-
 	onMount(async () => {
 		perfMonitor.attachSim(sim);
 		botAI = new BotAI(sim);
-		attachAudioHandlers(sim);
+		unlistenAudio = attachAudioBridge(sim, sound);
 		const skipStartModal = storage.getJSON<boolean>('skip_start_modal', false);
 		if (skipStartModal) {
 			isSettingsOpen = false;
@@ -399,6 +334,7 @@
 		if (animFrameId) cancelAnimationFrame(animFrameId);
 		if (countdownTimer) clearInterval(countdownTimer);
 		if (unlistenSequences) unlistenSequences();
+		if (unlistenAudio) unlistenAudio();
 		renderer?.destroy();
 	});
 
@@ -513,7 +449,8 @@
 		sim = new Simulation(newConfig);
 		sim.isRunning = false;
 		perfMonitor.attachSim(sim);
-		attachAudioHandlers(sim);
+		if (unlistenAudio) unlistenAudio();
+		unlistenAudio = attachAudioBridge(sim, sound);
 		botAI = new BotAI(sim);
 		renderer?.setSimulation(sim);
 		uiTick = sim.stateVersion;
