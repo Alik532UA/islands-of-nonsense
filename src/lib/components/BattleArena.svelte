@@ -364,7 +364,7 @@
 				fogOfWar: true,
 				botVsBot: false
 			});
-		} else {
+		} else if (skipStartModal) {
 			isSettingsOpen = false;
 			const saved = storage.getJSON<Partial<SimulationConfig>>('match_settings', {});
 			handleStartNewMatch({
@@ -376,8 +376,12 @@
 				coinMode: (saved.coinMode as 'none' | 'normal' | 'crazy') ?? 'normal',
 				fogOfWar: saved.fogOfWar ?? true,
 				botVsBot: saved.botVsBot ?? false,
-				westRace: saved.westRace
+				westRace: saved.westRace,
+				eastRace: saved.eastRace
 			});
+		} else {
+			isSettingsOpen = true;
+			sim.isRunning = false;
 		}
 
 		renderer = new ArenaRenderer({
@@ -671,11 +675,7 @@
 	}
 
 	function confirmLeave(): boolean {
-		if (
-			matchPhase === 'BATTLE' &&
-			sim.castles.west.hp > 0 &&
-			sim.castles.east.hp > 0
-		) {
+		if (matchPhase === 'BATTLE' && sim.castles.west.hp > 0 && sim.castles.east.hp > 0) {
 			return confirm('Ви дійсно хочете покинути бій? Прогрес поточного матчу буде втрачено.');
 		}
 		return true;
@@ -683,11 +683,7 @@
 
 	$effect(() => {
 		const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-			if (
-				matchPhase === 'BATTLE' &&
-				sim.castles.west.hp > 0 &&
-				sim.castles.east.hp > 0
-			) {
+			if (matchPhase === 'BATTLE' && sim.castles.west.hp > 0 && sim.castles.east.hp > 0) {
 				e.preventDefault();
 				e.returnValue = '';
 				return '';

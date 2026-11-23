@@ -4,7 +4,6 @@
 	import { onMount } from 'svelte';
 	import {
 		CircleUser,
-		ArrowLeft,
 		Trophy,
 		BarChart3,
 		User,
@@ -102,9 +101,6 @@
 					<p class="text-xs text-slate-400">{t('account.subtitle')}</p>
 				</div>
 			</div>
-			<a href={resolve('/')} class="menu-btn menu-btn--link p-2" title={t('menu.back')}>
-				<ArrowLeft class="w-5 h-5 text-slate-300" />
-			</a>
 		</div>
 
 		<!-- Tabs -->
