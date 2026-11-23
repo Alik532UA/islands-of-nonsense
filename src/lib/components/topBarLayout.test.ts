@@ -120,4 +120,17 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 		// The castle floating income text must float well above castle center (>= 100px)
 		expect(economyContent).toContain('myCastle.y - 130');
 	});
+
+	it('TopBar includes full ARIA accessibility attributes and shortcut keys', () => {
+		const updatedContent = fs.readFileSync(topBarPath, 'utf-8');
+		expect(updatedContent).toContain('aria-keyshortcuts="F9"');
+		expect(updatedContent).toContain('aria-keyshortcuts="f"');
+		expect(updatedContent).toContain('aria-keyshortcuts="b"');
+		expect(updatedContent).toContain('aria-keyshortcuts="r"');
+		expect(updatedContent).toContain('aria-keyshortcuts="e"');
+		expect(updatedContent).toContain('aria-keyshortcuts="Space"');
+		expect(updatedContent).toContain('role="meter"');
+		expect(updatedContent).toContain('aria-label="Здоров\'я Західного Замку (Гравець)"');
+		expect(updatedContent).toContain('aria-label="Здоров\'я Східного Замку (Ворог)"');
+	});
 });

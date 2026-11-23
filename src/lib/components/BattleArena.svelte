@@ -15,6 +15,8 @@
 	import StartMatchModal from '$lib/components/StartMatchModal.svelte';
 	import PauseMenuModal from '$lib/components/PauseMenuModal.svelte';
 	import HotkeysHelpModal from '$lib/components/HotkeysHelpModal.svelte';
+	import A11yAnnouncer from '$lib/components/ui/A11yAnnouncer.svelte';
+	import { battleAnnouncer } from '$lib/services/battleAnnouncer.svelte';
 	import { ZoomIn, ZoomOut, Compass, HelpCircle } from 'lucide-svelte';
 	import { storage } from '$lib/services/storage';
 	import { createKeySequence, listenForSequences } from '$lib/debug/keySequence';
@@ -147,6 +149,7 @@
 			) {
 				e.preventDefault();
 				sim.isRunning = !sim.isRunning;
+				battleAnnouncer.announce(sim.isRunning ? 'Гру відновлено' : 'Гру призупинено', 'polite');
 				uiTick = sim.stateVersion;
 			} else if (letter === 'f' && !e.repeat && (!isWorkerGridActive || e.altKey)) {
 				isForgeOpen = !isForgeOpen;
@@ -154,7 +157,11 @@
 				isCommanderOpen = !isCommanderOpen;
 			} else if (letter === 'b' && !e.repeat && (!isWorkerGridActive || e.altKey)) {
 				isShopOpen = !isShopOpen;
-			} else if ((letter === 'h' || e.key === '?') && !e.repeat && (!isWorkerGridActive || e.altKey)) {
+			} else if (
+				(letter === 'h' || e.key === '?') &&
+				!e.repeat &&
+				(!isWorkerGridActive || e.altKey)
+			) {
 				isHelpOpen = !isHelpOpen;
 			} else if (letter === 'r' && !e.repeat && !isForgeOpen && !isCommanderOpen && !isShopOpen) {
 				if (selectedPlacedBuildingId) {
@@ -496,6 +503,7 @@
 					}
 				}
 				if (stepsCount > 0) {
+					battleAnnouncer.updateFromSimulation(sim);
 					const stateChanged = sim.stateVersion !== lastStateVersion;
 					if (stateChanged || now - lastUiTickTime >= 80) {
 						lastUiTickTime = now;
@@ -741,11 +749,11 @@
 						? 'bg-emerald-400 animate-pulse'
 						: 'bg-amber-400'}"
 				></span>
-				<span
-					>{peerOnline
+				<span>
+					{peerOnline
 						? `Онлайн PvP: ${matchSync.localTeam === 'west' ? 'Захід (Ви)' : 'Схід (Ви)'} vs Суперник`
-						: (networkNotice ?? 'Очікування суперника...')}</span
-				>
+						: (networkNotice ?? 'Очікування суперника...')}
+				</span>
 			</div>
 		{/if}
 
@@ -965,4 +973,5 @@
 		onSurrender={handleSurrender}
 	/>
 	<HotkeysHelpModal isOpen={isHelpOpen} onClose={() => (isHelpOpen = false)} />
+	<A11yAnnouncer />
 </main>

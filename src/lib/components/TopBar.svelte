@@ -162,6 +162,8 @@
 			onclick={onOpenCommander}
 			class="flex items-center gap-1 bg-[#251e16] hover:bg-[#382d21] border border-[#8c7456] px-2 py-1 rounded text-xs font-semibold text-[#fef08a] transition cursor-pointer active:scale-95 shadow shrink-0"
 			title="Довідник гри та командир: {commander.name} ({commander.nickname})"
+			aria-label="Довідник гри та командир: {commander.name} ({commander.nickname})"
+			aria-keyshortcuts="F9"
 		>
 			<BookOpen class="w-3.5 h-3.5 text-amber-400 shrink-0" />
 			<span class="hidden md:inline">Довідник</span>
@@ -173,6 +175,7 @@
 			onclick={onOpenSettings}
 			class="flex items-center gap-1 bg-[#251e16] hover:bg-[#382d21] border border-[#8c7456] px-2 py-1 rounded text-xs font-semibold text-[#fef08a] transition cursor-pointer active:scale-95 shadow shrink-0"
 			title="Меню налаштувань матчу"
+			aria-label="Меню налаштувань матчу"
 		>
 			<Sliders class="w-3.5 h-3.5 text-amber-400 shrink-0" />
 			<span class="hidden sm:inline">Меню</span>
@@ -183,6 +186,8 @@
 			onclick={onOpenForge}
 			class="flex items-center gap-1 bg-[#2a241b] hover:bg-[#3d3427] border border-[#8c7456] px-2 py-1 rounded text-xs font-semibold text-amber-200 transition cursor-pointer active:scale-95 shadow shrink-0"
 			title="Військова Кузня (Гаряча клавіша: F)"
+			aria-label="Військова Кузня (Гаряча клавіша: F)"
+			aria-keyshortcuts="f"
 		>
 			<Hammer class="w-3.5 h-3.5 text-amber-400 shrink-0" />
 			<span class="hidden md:inline">Кузня</span>
@@ -198,6 +203,8 @@
 			onclick={onOpenShop}
 			class="flex items-center gap-1 bg-[#172e21] hover:bg-[#1e3d2c] border border-emerald-600/70 px-2 py-1 rounded text-xs font-semibold text-emerald-200 transition cursor-pointer active:scale-95 shadow shrink-0"
 			title="Магазин замку: припаси та захист (Гаряча клавіша: B)"
+			aria-label="Магазин замку: припаси та захист (Гаряча клавіша: B)"
+			aria-keyshortcuts="b"
 		>
 			<ShoppingBag class="w-3.5 h-3.5 text-emerald-400 shrink-0" />
 			<span class="hidden md:inline">Магазин</span>
@@ -220,6 +227,8 @@
 				? 'bg-purple-900/90 hover:bg-purple-800 border border-purple-400 text-purple-100 ring-2 ring-purple-400/50 animate-pulse'
 				: 'bg-[#181d28] border border-slate-700 text-slate-500 cursor-not-allowed opacity-60'}"
 			title="{raceAbility.nameUk}: {raceAbility.descriptionUk} (Гаряча клавіша: R)"
+			aria-label="{raceAbility.nameUk}: {raceAbility.descriptionUk} (Гаряча клавіша: R)"
+			aria-keyshortcuts="r"
 		>
 			<Sparkles
 				class="w-3.5 h-3.5 shrink-0 {canCastRaceSkill ? 'text-purple-300' : 'text-slate-500'}"
@@ -248,6 +257,8 @@
 				? 'bg-rose-950/90 hover:bg-rose-900 border border-rose-500 text-rose-100 ring-2 ring-rose-500/50'
 				: 'bg-[#181d28] border border-slate-700 text-slate-500 cursor-not-allowed opacity-60'}"
 			title="Рятівний Удар навколо замку (-950 шкоди, Гаряча клавіша: E)"
+			aria-label="Рятівний Удар навколо замку (-950 шкоди, Гаряча клавіша: E)"
+			aria-keyshortcuts="e"
 		>
 			<Flame
 				class="w-3.5 h-3.5 shrink-0 {canUseRescue
@@ -352,6 +363,8 @@
 				}}
 				class="p-1 rounded hover:bg-[#2a241b] text-slate-300 transition cursor-pointer shrink-0"
 				title={isRunning ? 'Пауза (Пробіл)' : 'Продовжити (Пробіл)'}
+				aria-label={isRunning ? 'Пауза (Пробіл)' : 'Продовжити (Пробіл)'}
+				aria-keyshortcuts="Space"
 			>
 				{#if isRunning}
 					<Pause class="w-3.5 h-3.5 text-amber-400" />
@@ -377,6 +390,7 @@
 								? 'text-cyan-400/80 hover:text-cyan-200 hover:bg-[#2a241b] text-[9px] px-1'
 								: 'text-slate-400 hover:text-slate-200 hover:bg-[#2a241b]'}"
 						title={sp >= 10 ? `DEV турбо швидкість x${sp}` : `Швидкість гри x${sp}`}
+						aria-label={sp >= 10 ? `DEV турбо швидкість x${sp}` : `Швидкість гри x${sp}`}
 					>
 						{sp >= 10 ? `x${sp}` : `${sp}x`}
 					</button>
@@ -385,7 +399,9 @@
 		</div>
 
 		<!-- Sound & Fullscreen controls -->
-		<div class="flex items-center gap-0.5 shrink-0 bg-[#0c1017] p-0.5 rounded border border-[#544738]">
+		<div
+			class="flex items-center gap-0.5 shrink-0 bg-[#0c1017] p-0.5 rounded border border-[#544738]"
+		>
 			<!-- Sound toggle -->
 			<button
 				type="button"
@@ -494,6 +510,11 @@
 			<!-- West Castle HP (Player) -->
 			<div
 				class="w-24 xl:w-28 2xl:w-32 shrink-0"
+				role="meter"
+				aria-label="Здоров'я Західного Замку (Гравець)"
+				aria-valuenow={westHp}
+				aria-valuemin={0}
+				aria-valuemax={westMaxHp}
 				title="Західний Замок (Гравець): {westHp} / {westMaxHp}"
 			>
 				<div
@@ -516,6 +537,11 @@
 			<!-- East Castle HP (Enemy Bot) -->
 			<div
 				class="w-24 xl:w-28 2xl:w-32 shrink-0"
+				role="meter"
+				aria-label="Здоров'я Східного Замку (Ворог)"
+				aria-valuenow={eastHp}
+				aria-valuemin={0}
+				aria-valuemax={eastMaxHp}
 				title="Східний Замок ({sim.players.east.race} Бот): {eastHp} / {eastMaxHp}"
 			>
 				<div
