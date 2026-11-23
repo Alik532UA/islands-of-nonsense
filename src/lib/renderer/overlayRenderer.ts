@@ -291,8 +291,40 @@ export class OverlayRenderer {
 		}
 	}
 
-	public drawDayNight(g: Graphics, _cycle?: 'day' | 'night'): void {
+	public drawCastleLighting(g: Graphics): void {
 		g.clear();
+		const alpha = this.sim.dayNightAmbientAlpha;
+		if (alpha <= 0.005) return;
+
+		// Peak intensity scales with nighttime darkness
+		const maxIntensity = Math.min(0.24, alpha * 0.7);
+
+		// A. Castles: Grand Warm Hearth Light (R = 600, ultra-soft feathering)
+		// Rendered under castlesLayer to illuminate surrounding terrain without casting a veil over the castle image
+		this.drawSoftRadialLight(
+			g,
+			this.sim.castles.west.x,
+			this.sim.castles.west.y,
+			600,
+			0xfbbf24,
+			maxIntensity
+		);
+		this.drawSoftRadialLight(
+			g,
+			this.sim.castles.east.x,
+			this.sim.castles.east.y,
+			600,
+			0xfbbf24,
+			maxIntensity
+		);
+	}
+
+	public drawDayNight(g: Graphics, _cycle?: 'day' | 'night', castleLightLayer?: Graphics): void {
+		g.clear();
+		if (castleLightLayer) {
+			this.drawCastleLighting(castleLightLayer);
+		}
+
 		const alpha = this.sim.dayNightAmbientAlpha;
 		if (alpha <= 0.005) return;
 
@@ -310,23 +342,25 @@ export class OverlayRenderer {
 		// Peak intensity scales with nighttime darkness
 		const maxIntensity = Math.min(0.24, alpha * 0.7);
 
-		// A. Castles: Grand Warm Hearth Light (R = 600, ultra-soft feathering)
-		this.drawSoftRadialLight(
-			g,
-			this.sim.castles.west.x,
-			this.sim.castles.west.y,
-			600,
-			0xfbbf24,
-			maxIntensity
-		);
-		this.drawSoftRadialLight(
-			g,
-			this.sim.castles.east.x,
-			this.sim.castles.east.y,
-			600,
-			0xfbbf24,
-			maxIntensity
-		);
+		// If no separate castleLightLayer is provided (e.g. standalone tests), draw to g as fallback
+		if (!castleLightLayer) {
+			this.drawSoftRadialLight(
+				g,
+				this.sim.castles.west.x,
+				this.sim.castles.west.y,
+				600,
+				0xfbbf24,
+				maxIntensity
+			);
+			this.drawSoftRadialLight(
+				g,
+				this.sim.castles.east.x,
+				this.sim.castles.east.y,
+				600,
+				0xfbbf24,
+				maxIntensity
+			);
+		}
 
 		// B. Roadside Stone Braziers (Warm firelight) & Crystals (Ethereal luminescence)
 		if (this.sim.decorations) {

@@ -263,4 +263,46 @@ describe('Point 10: Smooth Day/Night Transition, FPS Optimization & UI Dial Veri
 		expect(outerCircle).toBeDefined();
 		expect(outerCircle!.alpha).toBeLessThan(0.005);
 	});
+
+	it('renders castle lighting strictly to castleLightLayer beneath castle sprites, avoiding veil overlay', () => {
+		const overlayRenderer = new OverlayRenderer(sim);
+		sim.gameTime = 80; // Full night
+
+		const ambientCircles: { x: number; y: number; r: number }[] = [];
+		const castleCircles: { x: number; y: number; r: number }[] = [];
+
+		const mockAmbientLayer = {
+			clear: () => {},
+			rect: () => {},
+			beginPath: () => {},
+			fill: () => {},
+			circle: (x: number, y: number, r: number) => {
+				ambientCircles.push({ x, y, r });
+			}
+		} as unknown as Graphics;
+
+		const mockCastleLightLayer = {
+			clear: () => {},
+			rect: () => {},
+			beginPath: () => {},
+			fill: () => {},
+			circle: (x: number, y: number, r: number) => {
+				castleCircles.push({ x, y, r });
+			}
+		} as unknown as Graphics;
+
+		overlayRenderer.drawDayNight(mockAmbientLayer, 'night', mockCastleLightLayer);
+
+		// Castle light layer must receive the concentric hearth circles
+		const westCastleLightCircles = castleCircles.filter(
+			(c) => Math.hypot(c.x - sim.castles.west.x, c.y - sim.castles.west.y) < 5
+		);
+		expect(westCastleLightCircles.length).toBeGreaterThanOrEqual(20);
+
+		// Ambient layer (drawn above castles) must NOT have castle circles (no foggy veil over castles)
+		const westAmbientCircles = ambientCircles.filter(
+			(c) => Math.hypot(c.x - sim.castles.west.x, c.y - sim.castles.west.y) < 5
+		);
+		expect(westAmbientCircles.length).toBe(0);
+	});
 });

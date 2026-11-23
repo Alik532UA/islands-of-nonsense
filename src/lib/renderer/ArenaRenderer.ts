@@ -78,6 +78,7 @@ export class ArenaRenderer {
 	private waterLayer: Graphics;
 	private terrainLayer: Graphics;
 	private gridLayer: Graphics;
+	private castleGlowLayer: Graphics;
 	private castlesLayer: Container;
 	private castleShadowGraphics: Graphics;
 	private buildingsLayer: Graphics;
@@ -136,6 +137,7 @@ export class ArenaRenderer {
 		this.waterLayer = new Graphics();
 		this.terrainLayer = new Graphics();
 		this.gridLayer = new Graphics();
+		this.castleGlowLayer = new Graphics();
 		this.castlesLayer = new Container();
 		this.castleShadowGraphics = new Graphics();
 		this.buildingsLayer = new Graphics();
@@ -215,6 +217,7 @@ export class ArenaRenderer {
 		this.rootContainer.addChild(this.waterLayer);
 		this.rootContainer.addChild(this.terrainLayer);
 		this.rootContainer.addChild(this.gridLayer);
+		this.rootContainer.addChild(this.castleGlowLayer);
 		this.rootContainer.addChild(this.castlesLayer);
 		this.rootContainer.addChild(this.buildingsLayer);
 		this.rootContainer.addChild(this.coinsLayer);
@@ -744,7 +747,11 @@ export class ArenaRenderer {
 		this.entityRenderer.drawProjectilesLayer(this.projectilesLayer, this.enableFog);
 		this.entityRenderer.drawRescueStrikeEffects(this.projectilesLayer);
 		this.entityRenderer.drawLightningEffects(this.projectilesLayer);
-		this.overlayRenderer.drawDayNight(this.dayNightLayer, this.sim.dayNightCycle);
+		this.overlayRenderer.drawDayNight(
+			this.dayNightLayer,
+			this.sim.dayNightCycle,
+			this.castleGlowLayer
+		);
 		this.overlayRenderer.drawOrderMarkers(this.markersLayer, this.moveMarkers);
 		this.overlayRenderer.drawFogOfWar(this.fogLayer, this.enableFog);
 		this.overlayRenderer.drawFloatingTexts(this.floatingTextsLayer, this.sim.floatingTexts);
