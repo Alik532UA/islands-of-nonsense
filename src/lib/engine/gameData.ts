@@ -648,6 +648,38 @@ export const UNIT_ABILITY_CATALOG: Record<UnitAbilityType, Omit<UnitAbilityDef, 
 		descriptionUk: 'Спалює до 50 мани у ворожого кастера і завдає еквівалентної магічної шкоди.',
 		descriptionEn: 'Burns up to 50 mana from an enemy caster and deals equivalent magic damage.',
 		icon: 'Flame'
+	},
+	raise_dead: {
+		nameUk: 'Підняття мерців',
+		nameEn: 'Raise Dead',
+		type: 'raise_dead',
+		isPassive: false,
+		cooldown: 8.0,
+		manaCost: 45,
+		descriptionUk: 'Піднімає полеглого воїна у вигляді Скелета-воїна (240 HP) на 25 с.',
+		descriptionEn: 'Raises a fallen corpse as a Skeleton Warrior (240 HP) for 25s.',
+		icon: 'Skull'
+	},
+	corpse_explosion: {
+		nameUk: 'Вибух трупа',
+		nameEn: 'Corpse Explosion',
+		type: 'corpse_explosion',
+		isPassive: false,
+		cooldown: 9.0,
+		manaCost: 35,
+		descriptionUk: 'Підриває труп ворога або союзника, завдаючи 100 шкоди всім ворогам навколо.',
+		descriptionEn: 'Detonates a nearby corpse dealing 100 AoE damage to nearby foes.',
+		icon: 'Bomb'
+	},
+	cannibalize: {
+		nameUk: 'Канібалізм',
+		nameEn: 'Cannibalize',
+		type: 'cannibalize',
+		isPassive: false,
+		cooldown: 8.0,
+		descriptionUk: 'Пожирає сусідній труп, відновлюючи 35% від максимального здоров’я.',
+		descriptionEn: 'Consumes a nearby corpse to restore 35% of max HP.',
+		icon: 'Utensils'
 	}
 };
 
@@ -890,6 +922,34 @@ export function getUnitAbilities(def?: UnitDefinition): UnitAbilityDef[] {
 		matchedTypes.add('aura_speed');
 	}
 
+	// 23. Raise Dead
+	if (
+		codes.some((c) => ['A05O', 'Acrs', 'A09Y', 'A02N', 'A05R'].includes(c)) ||
+		name.includes('некромант') ||
+		id === 'u009'
+	) {
+		matchedTypes.add('raise_dead');
+	}
+
+	// 24. Corpse Explosion
+	if (
+		codes.some((c) => ['A00L', 'A073', 'A034'].includes(c)) ||
+		name.includes('чумна мортира') ||
+		name.includes('підривник')
+	) {
+		matchedTypes.add('corpse_explosion');
+	}
+
+	// 25. Cannibalize
+	if (
+		codes.some((c) => ['Acan', 'A00K'].includes(c)) ||
+		name.includes('вурдалак') ||
+		name.includes('гуль') ||
+		id === 'u005'
+	) {
+		matchedTypes.add('cannibalize');
+	}
+
 	return Array.from(matchedTypes).map((type) => ({
 		id: `abil_${type}`,
 		...UNIT_ABILITY_CATALOG[type]
@@ -909,6 +969,12 @@ export function resolveUnitAbility(def?: UnitDefinition): UnitAbilityType {
 	if (!def) return 'none';
 	const name = (def.name || '').toLowerCase();
 
+	if (name.includes('некромант') || def.id === 'u009') {
+		return 'raise_dead';
+	}
+	if (name.includes('вурдалак') || name.includes('гуль') || def.id === 'u005') {
+		return 'cannibalize';
+	}
 	if (
 		name.includes('капкан') ||
 		name.includes('павук') ||

@@ -24,7 +24,9 @@ export const SPELL_MANA_COSTS: Record<string, number> = {
 	chain_lightning: 100,
 	stomp: 65,
 	ensnare: 50,
-	mana_burn: 35
+	mana_burn: 35,
+	raise_dead: 45,
+	corpse_explosion: 35
 };
 
 /**
@@ -168,6 +170,16 @@ export class CombatSystem {
 				}
 				u.buffs = u.buffs.filter((b) => b.timer > 0);
 				if (u.hp <= 0) {
+					u.state = 'DEAD';
+					continue;
+				}
+			}
+
+			// Timed life check (for summoned units like Skeletons)
+			if (u.timedLife !== undefined) {
+				u.timedLife -= dt;
+				if (u.timedLife <= 0) {
+					u.hp = 0;
 					u.state = 'DEAD';
 					continue;
 				}
@@ -590,6 +602,107 @@ export class CombatSystem {
 							ally.buffs.push({ type: 'as', timer: 1.5, value: 0.2 });
 						}
 					}
+				}
+			}
+
+			// 13. Raise Dead (Некромантія)
+			const hasRaiseDead =
+				u.abilityType === 'raise_dead' || u.abilities?.some((a) => a.type === 'raise_dead');
+			const rdCost = SPELL_MANA_COSTS.raise_dead ?? 45;
+			if (
+				hasRaiseDead &&
+				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
+				(!u.maxMana || (u.mana ?? 0) >= rdCost)
+			) {
+				const corpseIdx = this.sim.corpses.findIndex(
+					(c) => c.lane === u.lane && Math.hypot(c.x - u.x, c.y - u.y) <= 450
+				);
+				if (corpseIdx !== -1) {
+					const corpse = this.sim.corpses.splice(corpseIdx, 1)[0];
+					if (u.maxMana && u.mana !== undefined) {
+						u.mana = Math.max(0, u.mana - rdCost);
+					}
+					u.abilityCooldownTimer = 8.0;
+					this.sim.spawnUnitDirectly({
+						team: u.team,
+						lane: u.lane,
+						x: corpse.x,
+						y: corpse.y,
+						name: 'Скелет-воїн',
+						hp: 240,
+						maxHp: 240,
+						armor: 1,
+						armorType: 'large',
+						attackType: 'normal',
+						damage: 18,
+						range: 100,
+						attackCooldown: 1.1,
+						speed: 130,
+						flying: false,
+						timedLife: 25.0,
+						isSummoned: true
+					});
+					this.sim.addFloatingText('Підняття мерця! 💀', corpse.x, corpse.y - 20, '#a855f7');
+				}
+			}
+
+			// 14. Corpse Explosion (Вибух трупа)
+			const hasCorpseExplosion =
+				u.abilityType === 'corpse_explosion' ||
+				u.abilities?.some((a) => a.type === 'corpse_explosion');
+			const ceCost = SPELL_MANA_COSTS.corpse_explosion ?? 35;
+			if (
+				hasCorpseExplosion &&
+				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
+				(!u.maxMana || (u.mana ?? 0) >= ceCost)
+			) {
+				const corpseIdx = this.sim.corpses.findIndex((c) => {
+					if (c.lane !== u.lane || Math.hypot(c.x - u.x, c.y - u.y) > 450) return false;
+					return this.sim.units.some(
+						(other) =>
+							other.team !== u.team &&
+							other.lane === u.lane &&
+							other.state !== 'DEAD' &&
+							Math.hypot(other.x - c.x, other.y - c.y) <= 200
+					);
+				});
+				if (corpseIdx !== -1) {
+					const corpse = this.sim.corpses.splice(corpseIdx, 1)[0];
+					if (u.maxMana && u.mana !== undefined) {
+						u.mana = Math.max(0, u.mana - ceCost);
+					}
+					u.abilityCooldownTimer = 9.0;
+					for (const enemy of this.sim.units) {
+						if (
+							enemy.team !== u.team &&
+							enemy.lane === u.lane &&
+							enemy.state !== 'DEAD' &&
+							Math.hypot(enemy.x - corpse.x, enemy.y - corpse.y) <= 200
+						) {
+							this.applyUnitDamage(enemy, 100, 'magic', u.team, false, u);
+						}
+					}
+					this.sim.addFloatingText('Вибух трупа! 💥', corpse.x, corpse.y - 20, '#ef4444');
+				}
+			}
+
+			// 15. Cannibalize (Канібалізм)
+			const hasCannibalize =
+				u.abilityType === 'cannibalize' || u.abilities?.some((a) => a.type === 'cannibalize');
+			if (
+				hasCannibalize &&
+				(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
+				u.hp < u.maxHp * 0.75
+			) {
+				const corpseIdx = this.sim.corpses.findIndex(
+					(c) => c.lane === u.lane && Math.hypot(c.x - u.x, c.y - u.y) <= 150
+				);
+				if (corpseIdx !== -1) {
+					this.sim.corpses.splice(corpseIdx, 1);
+					const healAmount = Math.round(u.maxHp * 0.35);
+					u.hp = Math.min(u.maxHp, u.hp + healAmount);
+					u.abilityCooldownTimer = 8.0;
+					this.sim.addFloatingText(`+${healAmount} HP Пожирання 🍖`, u.x, u.y - 20, '#22c55e');
 				}
 			}
 
@@ -1369,6 +1482,24 @@ export class CombatSystem {
 			}
 
 			target.state = 'DEAD';
+
+			// Corpse generation (for non-summoned units)
+			if (!target.isSummoned && (target.team === 'west' || target.team === 'east')) {
+				this.sim.corpses.push({
+					id: `corpse_${Date.now()}_${Math.random()}`,
+					x: target.x,
+					y: target.y,
+					lane: target.lane,
+					team: target.team,
+					decayTimer: 20.0,
+					unitDefId: target.defId,
+					name: target.name,
+					isFlyer: Boolean(target.flying)
+				});
+				if (this.sim.corpses.length > 80) {
+					this.sim.corpses.shift();
+				}
+			}
 
 			if (attackerUnit?.buildingDefId && (attackerTeam === 'west' || attackerTeam === 'east')) {
 				this.sim.recordBuildingKill(

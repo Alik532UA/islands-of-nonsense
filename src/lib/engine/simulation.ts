@@ -11,9 +11,11 @@ import type {
 	FloatingText,
 	GoldCoin,
 	AttackType,
+	ArmorType,
 	BuildingPerformance,
 	LightningEffect,
-	SoundEffectType
+	SoundEffectType,
+	Corpse
 } from './types';
 import { SpatialHashGrid } from './spatialGrid';
 import { getBuilderNameForRace, RACES_LIST } from './gameData';
@@ -99,6 +101,7 @@ export class Simulation {
 	public projectiles: Projectile[] = [];
 	public floatingTexts: FloatingText[] = [];
 	public debris: DebrisItem[] = [];
+	public corpses: Corpse[] = [];
 	public decorations: DecorationObstacle[] = [];
 
 	public castles: Record<MatchTeam, Castle>;
@@ -795,6 +798,7 @@ export class Simulation {
 		this.units = [];
 		this.buildings = [];
 		this.projectiles = [];
+		this.corpses = [];
 		this.floatingTexts = [];
 		this.spatialGrid.clear();
 
@@ -975,6 +979,14 @@ export class Simulation {
 		// 11. Update Floating texts
 		this.updateFloatingTexts(dt);
 
+		// Update decaying corpses
+		for (let i = this.corpses.length - 1; i >= 0; i--) {
+			this.corpses[i].decayTimer -= dt;
+			if (this.corpses[i].decayTimer <= 0) {
+				this.corpses.splice(i, 1);
+			}
+		}
+
 		// 12. Cleanup dead entities
 		this.units = this.units.filter((u) => u.state !== 'DEAD' || (u.deathTimer ?? 0) > 0);
 		this.projectiles = this.projectiles.filter((p) => p.damage > 0);
@@ -1033,6 +1045,11 @@ export class Simulation {
 		mana?: number;
 		maxMana?: number;
 		manaRegen?: number;
+		name?: string;
+		armorType?: ArmorType;
+		attackType?: AttackType;
+		timedLife?: number;
+		isSummoned?: boolean;
 	}): Unit {
 		const targetLane: Lane = this.gameModeConfig?.singleLane ?? options.lane;
 		const targetY = this.gameModeConfig?.singleLane
@@ -1044,7 +1061,7 @@ export class Simulation {
 		const unit: Unit = {
 			instanceId: `test_unit_${this.nextUnitId++}`,
 			defId: 'test',
-			name: 'Тестовий боєць',
+			name: options.name ?? 'Тестовий боєць',
 			team: options.team,
 			lane: targetLane,
 			x: options.x,
@@ -1054,8 +1071,8 @@ export class Simulation {
 			hp: options.hp ?? 500,
 			maxHp: options.maxHp ?? options.hp ?? 500,
 			armor: options.armor ?? 2,
-			armorType: 'medium',
-			attackType: 'normal',
+			armorType: options.armorType ?? 'medium',
+			attackType: options.attackType ?? 'normal',
 			damageMin: options.damage ?? 50,
 			damageMax: options.damage ?? 50,
 			damageBonusPct: 0,
@@ -1101,7 +1118,9 @@ export class Simulation {
 			hasReincarnated: options.hasReincarnated,
 			mana: options.mana ?? (options.maxMana !== undefined ? options.maxMana : undefined),
 			maxMana: options.maxMana,
-			manaRegen: options.manaRegen
+			manaRegen: options.manaRegen,
+			timedLife: options.timedLife,
+			isSummoned: options.isSummoned
 		};
 		this.units.push(unit);
 		return unit;

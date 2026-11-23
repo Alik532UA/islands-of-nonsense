@@ -180,6 +180,18 @@ export interface BuildingDefinition {
 	abilities?: UnitAbilityDef[];
 }
 
+export interface Corpse {
+	id: string;
+	x: number;
+	y: number;
+	lane: Lane;
+	team: MatchTeam;
+	decayTimer: number; // in seconds, default 20.0
+	unitDefId: string;
+	name: string;
+	isFlyer: boolean;
+}
+
 export type UnitAbilityType =
 	| 'none'
 	| 'ensnare'
@@ -204,7 +216,10 @@ export type UnitAbilityType =
 	| 'thunderbolt'
 	| 'chain_lightning'
 	| 'stomp'
-	| 'mana_burn';
+	| 'mana_burn'
+	| 'raise_dead'
+	| 'corpse_explosion'
+	| 'cannibalize';
 
 export interface UnitAbilityDef {
 	id: string;
@@ -315,6 +330,8 @@ export interface Unit {
 	lastAttackedTime?: number;
 	playerId?: string;
 	playerSlot?: number;
+	timedLife?: number;
+	isSummoned?: boolean;
 }
 
 export interface BuildingPerformance {
