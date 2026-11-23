@@ -161,6 +161,7 @@
 
 <!-- Authentic Warcraft III Bottom Stone Console -->
 <div
+	data-testid="bottom-bar"
 	class="relative w-full bg-[#11141c] border-t-2 border-[#544738] px-3 py-2 shadow-2xl flex items-center justify-center gap-2.5 text-white select-none backdrop-blur z-20 h-44 overflow-visible"
 	style="background: linear-gradient(180deg, #181d28 0%, #0d1017 100%); box-shadow: 0 -8px 24px rgba(0,0,0,0.85);"
 >

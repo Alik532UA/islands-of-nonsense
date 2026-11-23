@@ -19,7 +19,12 @@
 </script>
 
 {#if isOpen}
-	<div class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+	<div
+		role="dialog"
+		aria-modal="true"
+		aria-label="Військова Кузня"
+		class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+	>
 		<div
 			class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl p-6 text-white relative"
 		>

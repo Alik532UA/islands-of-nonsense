@@ -45,7 +45,12 @@
 </script>
 
 {#if isOpen}
-	<div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+	<div
+		role="dialog"
+		aria-modal="true"
+		aria-label="Командири та правила гри"
+		class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+	>
 		<div
 			class="bg-[#121620] border-2 border-[#544738] rounded-2xl w-full max-w-3xl shadow-2xl p-6 text-white relative flex flex-col max-h-[85vh] overflow-hidden"
 			style="box-shadow: 0 10px 40px rgba(0,0,0,0.95);"

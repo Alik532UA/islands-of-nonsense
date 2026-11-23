@@ -1,25 +1,56 @@
 import { test, expect } from '@playwright/test';
 
-const BASE = process.env.BASE_PATH ?? '';
+const BASE = process.env.BASE_PATH ?? '/islands-of-nonsense';
 
 test.describe('Castle Fight Web — Smoke and Interaction E2E', () => {
-	test('renders battle arena, top bar, controls and bottom actions', async ({ page }) => {
+	test('renders main landing menu with Play, Play Online, and Order links', async ({ page }) => {
 		await page.goto(`${BASE}/`);
 
-		// Title and description check
-		await expect(page).toHaveTitle(/Castle Fight Web|Військова Кузня/i);
+		await expect(page).toHaveTitle(/Islands of Nonsense|Castle Fight Web/i);
+
+		const playLink = page.getByTestId('menu-play-link');
+		const onlineLink = page.getByTestId('menu-online-link');
+		const orderLink = page.getByTestId('menu-order-link');
+
+		await expect(playLink).toBeVisible();
+		await expect(onlineLink).toBeVisible();
+		await expect(orderLink).toBeVisible();
+	});
+
+	test('navigates through Play menu to battle arena and renders controls', async ({ page }) => {
+		await page.goto(`${BASE}/`);
+
+		// Click Play
+		await page.getByTestId('menu-play-link').click();
+		await expect(page).toHaveURL(new RegExp(`${BASE}/play`));
+
+		// Click Battle vs AI
+		await page.getByTestId('play-battle-link').click();
+		await expect(page).toHaveURL(new RegExp(`${BASE}/play/battle`));
 
 		// Verify arena container exists
 		const arena = page.locator('main');
 		await expect(arena).toBeVisible();
 
+		// Start match from setup modal if present
+		const startMatchBtn = page.getByRole('button', { name: /почати новий матч/i });
+		if (await startMatchBtn.isVisible()) {
+			await startMatchBtn.click();
+		}
+
+		// Fast-forward countdown if present
+		const startNowBtn = page.getByRole('button', { name: /Розпочати бій зараз/i });
+		if (await startNowBtn.isVisible()) {
+			await startNowBtn.click();
+		}
+
 		// Top bar elements
-		const roundCounter = page.getByText(/Раунд/i);
+		const roundCounter = page.getByText(/Раунд/i).first();
 		await expect(roundCounter).toBeVisible();
 
 		// Bottom control bar with race buildings
-		const bottomBar = page.locator('footer, .fixed.bottom-0');
-		await expect(bottomBar.first()).toBeVisible();
+		const bottomBar = page.locator('[data-testid="bottom-bar"]');
+		await expect(bottomBar).toBeVisible();
 
 		// Modals: Commander modal open and close
 		const cmdButton = page.getByRole('button', { name: /Командир/i });
@@ -40,8 +71,20 @@ test.describe('Castle Fight Web — Smoke and Interaction E2E', () => {
 		}
 	});
 
-	test('supports keyboard hotkeys for modals and actions', async ({ page }) => {
-		await page.goto(`${BASE}/`);
+	test('supports keyboard hotkeys for modals and actions in battle', async ({ page }) => {
+		await page.goto(`${BASE}/play/battle`);
+
+		// Start match from setup modal if present
+		const startMatchBtn = page.getByRole('button', { name: /почати новий матч/i });
+		if (await startMatchBtn.isVisible()) {
+			await startMatchBtn.click();
+		}
+
+		// Fast-forward countdown if present
+		const startNowBtn = page.getByRole('button', { name: /Розпочати бій зараз/i });
+		if (await startNowBtn.isVisible()) {
+			await startNowBtn.click();
+		}
 
 		// Press C for commander
 		await page.keyboard.press('c');

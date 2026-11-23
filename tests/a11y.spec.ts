@@ -1,12 +1,13 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
-const BASE = process.env.BASE_PATH ?? '';
+const BASE = process.env.BASE_PATH ?? '/islands-of-nonsense';
 
 test.describe('Castle Fight Web — Accessibility (WCAG 2.2 AA)', () => {
 	test('main page meets WCAG accessibility guidelines', async ({ page }) => {
 		await page.goto(`${BASE}/`);
 		await page.waitForLoadState('domcontentloaded');
+		await page.waitForTimeout(500);
 
 		const accessibilityScanResults = await new AxeBuilder({ page })
 			.withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
