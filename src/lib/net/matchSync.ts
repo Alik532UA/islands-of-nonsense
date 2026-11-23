@@ -1,5 +1,6 @@
 import type { Simulation } from '$lib/engine/simulation';
 import type { Move, MovePayload, RoomTransport } from './roomTypes';
+import { validatePlayerMove } from './actionValidation';
 
 export interface MatchSyncOptions {
 	sim: Simulation;
@@ -47,7 +48,11 @@ export class MatchSync {
 	private onCommandApplied?: (move: Move) => void;
 	private onPeerStatusChange?: (status: { peerUid: string; online: boolean }) => void;
 	private onPeerPing?: (ping: { peerUid: string; rtt: number }) => void;
-	private onDesync?: (info: { tick: number; localChecksum: string; remoteChecksum: string }) => void;
+	private onDesync?: (info: {
+		tick: number;
+		localChecksum: string;
+		remoteChecksum: string;
+	}) => void;
 	private peerSeen = new Map<string, number>();
 	private peerRtt = new Map<string, number>();
 
@@ -137,8 +142,14 @@ export class MatchSync {
 	private processMoves(moves: Move[]) {
 		const sorted = [...moves].sort((a, b) => a.seq - b.seq);
 
-		for (const move of sorted) {
-			if (move.seq <= this.appliedSeq) continue;
+		for (const rawMove of sorted) {
+			if (rawMove.seq <= this.appliedSeq) continue;
+
+			const validation = validatePlayerMove(rawMove);
+			if (!validation.valid || !validation.sanitized) {
+				continue;
+			}
+			const move = validation.sanitized;
 
 			this.applyMoveToSimulation(move);
 			this.appliedSeq = move.seq;
@@ -150,11 +161,15 @@ export class MatchSync {
 
 	private applyMoveToSimulation(move: Move) {
 		const p = move.payload ?? {};
-		const team = (p.team === 'west' || p.team === 'east') ? p.team : this.localTeam;
+		const team = p.team === 'west' || p.team === 'east' ? p.team : this.localTeam;
 
 		switch (move.type) {
 			case 'BUILD':
-				if (typeof p.buildingType === 'string' && typeof p.x === 'number' && typeof p.y === 'number') {
+				if (
+					typeof p.buildingType === 'string' &&
+					typeof p.x === 'number' &&
+					typeof p.y === 'number'
+				) {
 					this.sim.build(team, p.buildingType, p.x, p.y);
 				}
 				break;
@@ -223,7 +238,11 @@ export class MatchSync {
 				break;
 
 			case 'CHECKSUM':
-				if (typeof p.checksum === 'string' && typeof p.tick === 'number' && move.by !== this.localUid) {
+				if (
+					typeof p.checksum === 'string' &&
+					typeof p.tick === 'number' &&
+					move.by !== this.localUid
+				) {
 					const localChecksum = this.getSimChecksum();
 					if (localChecksum !== p.checksum && Math.abs(this.sim.tick - p.tick) <= 5) {
 						this.onDesync?.({
