@@ -77,6 +77,11 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 		expect(topBarContent).toContain('data-testid="topbar-fullscreen-toggle"');
 	});
 
+	it('supports onBeforeLeave hook to protect against accidental exits', () => {
+		expect(topBarContent).toContain('onBeforeLeave');
+		expect(topBarContent).toContain('if (onBeforeLeave && !onBeforeLeave(');
+	});
+
 	it('formatTime formats seconds into mm:ss without throwing or improper padding', () => {
 		function formatTime(sec: number): string {
 			const m = Math.floor(sec / 60);

@@ -620,6 +620,35 @@
 		}
 	}
 
+	function confirmLeave(): boolean {
+		if (
+			matchPhase === 'BATTLE' &&
+			sim.castles.west.hp > 0 &&
+			sim.castles.east.hp > 0
+		) {
+			return confirm('Ви дійсно хочете покинути бій? Прогрес поточного матчу буде втрачено.');
+		}
+		return true;
+	}
+
+	$effect(() => {
+		const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+			if (
+				matchPhase === 'BATTLE' &&
+				sim.castles.west.hp > 0 &&
+				sim.castles.east.hp > 0
+			) {
+				e.preventDefault();
+				e.returnValue = '';
+				return '';
+			}
+		};
+		window.addEventListener('beforeunload', handleBeforeUnload);
+		return () => {
+			window.removeEventListener('beforeunload', handleBeforeUnload);
+		};
+	});
+
 	function finishCountdownAndStartBattle() {
 		if (countdownTimer) {
 			clearInterval(countdownTimer);
@@ -646,6 +675,7 @@
 		onOpenCommander={() => (isCommanderOpen = true)}
 		onOpenShop={() => (isShopOpen = true)}
 		onOpenSettings={openPauseMenu}
+		onBeforeLeave={confirmLeave}
 	/>
 
 	<!-- Arena Viewport: Fullscreen Responsive with Pan & Zoom -->

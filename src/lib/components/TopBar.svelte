@@ -34,7 +34,8 @@
 		onOpenForge,
 		onOpenCommander,
 		onOpenShop,
-		onOpenSettings
+		onOpenSettings,
+		onBeforeLeave
 	}: {
 		sim: Simulation;
 		uiTick?: number;
@@ -42,6 +43,7 @@
 		onOpenCommander: () => void;
 		onOpenShop?: () => void;
 		onOpenSettings?: () => void;
+		onBeforeLeave?: (targetUrl: string) => boolean;
 	} = $props();
 
 	// Explicitly depend on uiTick so Svelte 5 re-reads properties from the class instance
@@ -120,6 +122,11 @@
 		<!-- Back to Modes -->
 		<a
 			href={resolve('/play')}
+			onclick={(e) => {
+				if (onBeforeLeave && !onBeforeLeave(resolve('/play'))) {
+					e.preventDefault();
+				}
+			}}
 			class="flex items-center justify-center p-1.5 bg-[#181d28] hover:bg-[#252d3d] border border-slate-700 hover:border-amber-500/60 rounded text-slate-300 hover:text-amber-300 transition cursor-pointer active:scale-95 shadow shrink-0"
 			title="Назад до вибору режимів"
 			aria-label="Назад до вибору режимів"
@@ -131,6 +138,11 @@
 		<!-- Main Menu (Home) -->
 		<a
 			href={resolve('/')}
+			onclick={(e) => {
+				if (onBeforeLeave && !onBeforeLeave(resolve('/'))) {
+					e.preventDefault();
+				}
+			}}
 			class="flex items-center justify-center p-1.5 bg-[#181d28] hover:bg-[#252d3d] border border-slate-700 hover:border-amber-500/60 rounded text-slate-300 hover:text-amber-300 transition cursor-pointer active:scale-95 shadow shrink-0"
 			title="Головне меню"
 			aria-label="Головне меню"
