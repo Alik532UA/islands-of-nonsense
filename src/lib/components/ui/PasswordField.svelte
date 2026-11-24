@@ -10,6 +10,8 @@
 		autocomplete?: HTMLInputAttributes['autocomplete'];
 		id?: string;
 		disabled?: boolean;
+		required?: boolean;
+		minlength?: number;
 		class?: string;
 	}
 
@@ -21,6 +23,8 @@
 		autocomplete = 'current-password',
 		id = 'auth-password-input',
 		disabled = false,
+		required = false,
+		minlength = undefined,
 		class: className = ''
 	}: Props = $props();
 
@@ -44,6 +48,8 @@
 			{placeholder}
 			{autocomplete}
 			{disabled}
+			{required}
+			{minlength}
 			type={visible ? 'text' : 'password'}
 			bind:value
 			autocapitalize="none"

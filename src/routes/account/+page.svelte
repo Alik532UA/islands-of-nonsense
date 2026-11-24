@@ -33,6 +33,9 @@
 
 	let authEmail = $state('');
 	let authPassword = $state('');
+	let authMode = $state<'signin' | 'register'>('register');
+	let authErrorMessage = $state('');
+	let authInfoMessage = $state('');
 	let savedSuccess = $state(false);
 
 	onMount(() => {
@@ -71,12 +74,36 @@
 
 	async function handleLink() {
 		if (!authEmail || !authPassword) return;
-		await controller.link(authEmail, authPassword);
+		authErrorMessage = '';
+		authInfoMessage = '';
+		try {
+			const ok = await controller.link(authEmail, authPassword);
+			if (ok) {
+				authInfoMessage = 'Акаунт успішно привʼязано!';
+				authPassword = '';
+			} else {
+				authErrorMessage = controller.error || 'Не вдалося привʼязати акаунт';
+			}
+		} catch (err) {
+			authErrorMessage = (err as Error).message || 'Помилка мережі';
+		}
 	}
 
 	async function handleSignIn() {
 		if (!authEmail || !authPassword) return;
-		await controller.signIn(authEmail, authPassword);
+		authErrorMessage = '';
+		authInfoMessage = '';
+		try {
+			const ok = await controller.signIn(authEmail, authPassword);
+			if (ok) {
+				authInfoMessage = 'Успішний вхід!';
+				authPassword = '';
+			} else {
+				authErrorMessage = controller.error || 'Невірна пошта або пароль';
+			}
+		} catch (err) {
+			authErrorMessage = (err as Error).message || 'Помилка мережі';
+		}
 	}
 
 	async function handleSignOut() {
@@ -305,44 +332,190 @@
 							</button>
 						</div>
 					{:else}
-						<div class="p-5 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-4">
-							<h3 class="text-sm font-bold text-amber-300">{t('account.auth.linkTitle')}</h3>
-							<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-								<input
-									type="email"
-									data-testid="input-auth-email"
-									bind:value={authEmail}
-									placeholder={t('account.auth.email')}
-									autocomplete="email"
-									class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500"
-								/>
-								<PasswordField
-									bind:value={authPassword}
-									placeholder={t('account.auth.password')}
-									testId="input-auth-password"
-									autocomplete="current-password"
-								/>
-							</div>
-							<div class="flex flex-wrap gap-2 pt-1">
-								<button
-									type="button"
-									data-testid="btn-auth-link"
-									onclick={handleLink}
-									disabled={controller.busy || !authEmail || !authPassword}
-									class="flex-1 py-2 px-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition cursor-pointer disabled:opacity-50"
+						<div class="auth-card p-5 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-4">
+							{#if authMode === 'signin'}
+								<form
+									method="post"
+									data-testid="login-form"
+									onsubmit={(e) => {
+										e.preventDefault();
+										void handleSignIn();
+									}}
+									class="space-y-4"
 								>
-									{t('account.auth.saveBtn')}
-								</button>
-								<button
-									type="button"
-									data-testid="btn-auth-signin"
-									onclick={handleSignIn}
-									disabled={controller.busy || !authEmail || !authPassword}
-									class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs transition cursor-pointer disabled:opacity-50"
+									<div class="flex items-center justify-between">
+										<h3 data-testid="login-title" tabindex="-1" class="text-sm font-bold text-amber-300">
+											{t('account.auth.signInTitle')}
+										</h3>
+										<button
+											type="button"
+											data-testid="login-register-btn"
+											onclick={() => {
+												authMode = 'register';
+												authErrorMessage = '';
+												authInfoMessage = '';
+											}}
+											class="text-xs text-amber-400/80 hover:text-amber-300 underline cursor-pointer"
+										>
+											{t('account.auth.needAccount')}
+										</button>
+									</div>
+
+									<div class="space-y-3">
+										<div>
+											<label for="login-email" class="block text-xs font-medium text-slate-400 mb-1">
+												{t('account.auth.email')}
+											</label>
+											<input
+												id="login-email"
+												type="email"
+												required
+												autocomplete="email"
+												data-testid="login-email-input"
+												bind:value={authEmail}
+												placeholder={t('account.auth.email')}
+												class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500"
+											/>
+										</div>
+
+										<div>
+											<label for="login-password" class="block text-xs font-medium text-slate-400 mb-1">
+												{t('account.auth.password')}
+											</label>
+											<PasswordField
+												id="login-password"
+												testId="login-password-input"
+												name="password"
+												autocomplete="current-password"
+												required
+												bind:value={authPassword}
+												placeholder={t('account.auth.password')}
+											/>
+										</div>
+									</div>
+
+									<!-- Permanent accessible live region (AUTH-FORM § 4) -->
+									<div
+										role="status"
+										aria-live="polite"
+										data-testid="login-status"
+										class="min-h-[1.25rem] text-xs font-medium {authErrorMessage
+											? 'text-rose-400'
+											: 'text-emerald-400'}"
+									>
+										{#if authErrorMessage}
+											<span data-testid="login-error">{authErrorMessage}</span>
+										{:else if authInfoMessage}
+											<span data-testid="login-info-message">{authInfoMessage}</span>
+										{/if}
+									</div>
+
+									<div class="flex items-center justify-end pt-1">
+										<button
+											type="submit"
+											data-testid="login-submit-btn"
+											aria-disabled={controller.busy}
+											disabled={controller.busy}
+											class="py-2 px-5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition cursor-pointer disabled:opacity-50"
+										>
+											{t('account.auth.signInBtn')}
+										</button>
+									</div>
+								</form>
+							{:else}
+								<form
+									method="post"
+									data-testid="register-form"
+									onsubmit={(e) => {
+										e.preventDefault();
+										void handleLink();
+									}}
+									class="space-y-4"
 								>
-									{t('account.auth.signInBtn')}
-								</button>
-							</div>
+									<div class="flex items-center justify-between">
+										<h3 data-testid="register-title" tabindex="-1" class="text-sm font-bold text-amber-300">
+											{t('account.auth.linkTitle')}
+										</h3>
+										<button
+											type="button"
+											data-testid="register-login-btn"
+											onclick={() => {
+												authMode = 'signin';
+												authErrorMessage = '';
+												authInfoMessage = '';
+											}}
+											class="text-xs text-amber-400/80 hover:text-amber-300 underline cursor-pointer"
+										>
+											{t('account.auth.haveAccount')}
+										</button>
+									</div>
+
+									<div class="space-y-3">
+										<div>
+											<label for="register-email" class="block text-xs font-medium text-slate-400 mb-1">
+												{t('account.auth.email')}
+											</label>
+											<input
+												id="register-email"
+												type="email"
+												required
+												autocomplete="email"
+												data-testid="register-email-input"
+												bind:value={authEmail}
+												placeholder={t('account.auth.email')}
+												class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500"
+											/>
+										</div>
+
+										<div>
+											<label for="register-password" class="block text-xs font-medium text-slate-400 mb-1">
+												{t('account.auth.password')}
+											</label>
+											<PasswordField
+												id="register-password"
+												testId="register-password-input"
+												name="password"
+												autocomplete="new-password"
+												required
+												minlength={6}
+												bind:value={authPassword}
+												placeholder={t('account.auth.password')}
+											/>
+											<p class="text-[11px] text-slate-400 mt-1">
+												{t('account.auth.passwordHint')}
+											</p>
+										</div>
+									</div>
+
+									<!-- Permanent accessible live region (AUTH-FORM § 4) -->
+									<div
+										role="status"
+										aria-live="polite"
+										data-testid="register-status"
+										class="min-h-[1.25rem] text-xs font-medium {authErrorMessage
+											? 'text-rose-400'
+											: 'text-emerald-400'}"
+									>
+										{#if authErrorMessage}
+											<span data-testid="register-error">{authErrorMessage}</span>
+										{:else if authInfoMessage}
+											<span data-testid="register-info-message">{authInfoMessage}</span>
+										{/if}
+									</div>
+
+									<div class="flex items-center justify-end pt-1">
+										<button
+											type="submit"
+											data-testid="register-submit-btn"
+											aria-disabled={controller.busy}
+											disabled={controller.busy}
+											class="py-2 px-5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition cursor-pointer disabled:opacity-50"
+										>
+											{t('account.auth.saveBtn')}
+										</button>
+									</div>
+								</form>
+							{/if}
 						</div>
 					{/if}
 				</div>
