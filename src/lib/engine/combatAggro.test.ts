@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Simulation } from './simulation';
 import type { Unit } from './types';
-import { TOP_LANE_Y, BOTTOM_LANE_Y } from './constants';
+import { TOP_LANE_Y, MID_LANE_Y, BOTTOM_LANE_Y } from './constants';
 
 describe('Point 6: WC3 Threat, Aggro & Targeting Mechanics', () => {
 	let sim: Simulation;
@@ -215,5 +215,151 @@ describe('Point 6: WC3 Threat, Aggro & Targeting Mechanics', () => {
 
 		const bestTarget = sim.combatSystem.findBestTarget(meleeGround);
 		expect(bestTarget).toBeNull();
+	});
+
+	it('змушує юнітів із різних номінальних ліній битися при збігу через зламаний міст (top -> mid vs mid)', () => {
+		sim.brokenBridge = 'top';
+
+		const eastTopDetour = sim.spawnUnitDirectly({
+			team: 'east',
+			lane: 'top',
+			x: 3750,
+			y: MID_LANE_Y,
+			hp: 400,
+			damage: 40,
+			speed: 150,
+			range: 100
+		});
+
+		const westMidDefender = sim.spawnUnitDirectly({
+			team: 'west',
+			lane: 'mid',
+			x: 3500,
+			y: MID_LANE_Y,
+			hp: 400,
+			damage: 40,
+			speed: 150,
+			range: 100
+		});
+
+		for (let i = 0; i < 60; i++) {
+			sim.step(0.05);
+		}
+
+		// Both must acquire and damage each other rather than walking past to hit castles
+		expect(eastTopDetour.hp).toBeLessThan(400);
+		expect(westMidDefender.hp).toBeLessThan(400);
+		expect(sim.castles.west.hp).toBe(sim.castles.west.maxHp);
+		expect(sim.castles.east.hp).toBe(sim.castles.east.maxHp);
+	});
+
+	it('не змушує обходити по центру справного MID-мосту, коли top-юніти вже зійшлися біля x = 3600', () => {
+		sim.brokenBridge = 'top';
+
+		const westTop = sim.spawnUnitDirectly({
+			team: 'west',
+			lane: 'top',
+			x: 3565,
+			y: MID_LANE_Y,
+			hp: 500,
+			damage: 45,
+			speed: 150,
+			range: 100
+		});
+
+		const eastTop = sim.spawnUnitDirectly({
+			team: 'east',
+			lane: 'top',
+			x: 3635,
+			y: MID_LANE_Y,
+			hp: 500,
+			damage: 45,
+			speed: 150,
+			range: 100
+		});
+
+		for (let i = 0; i < 40; i++) {
+			sim.step(0.05);
+		}
+
+		// Must clash right at the bridge center instead of slipping across x = 3600 past each other
+		expect(westTop.hp).toBeLessThan(500);
+		expect(eastTop.hp).toBeLessThan(500);
+		expect(westTop.x).toBeLessThan(eastTop.x);
+	});
+
+	it('змушує атакувальника у дворі біля замку перехоплювати захисників замість ігнорувати їх через іншу lane', () => {
+		sim.brokenBridge = 'top';
+
+		// Scenario from diagnostic report: east top unit arrives near west castle on MID corridor
+		const eastMurloc = sim.spawnUnitDirectly({
+			team: 'east',
+			lane: 'top',
+			x: 1920,
+			y: MID_LANE_Y,
+			hp: 320,
+			damage: 30,
+			speed: 150,
+			range: 100
+		});
+
+		// West defender from bottom/mid standing in front of west castle
+		const westDefender = sim.spawnUnitDirectly({
+			team: 'west',
+			lane: 'bottom',
+			x: 1780,
+			y: MID_LANE_Y + 40,
+			hp: 500,
+			damage: 45,
+			speed: 150,
+			range: 100
+		});
+
+		const initialWestCastleHp = sim.castles.west.hp;
+		for (let i = 0; i < 40; i++) {
+			sim.step(0.05);
+		}
+
+		expect(eastMurloc.hp).toBeLessThan(320);
+		expect(westDefender.hp).toBeLessThan(500);
+		expect(sim.castles.west.hp).toBe(initialWestCastleHp);
+	});
+
+	it('фізично блокує зустрічних ворожих юнітів, не даючи просочитися крізь стрій (crowdPhysics)', () => {
+		sim.brokenBridge = null;
+
+		const westMob = sim.spawnUnitDirectly({
+			team: 'west',
+			lane: 'mid',
+			x: 3560,
+			y: MID_LANE_Y,
+			hp: 1000,
+			damage: 1,
+			speed: 200,
+			range: 10
+		});
+		// Delay attack slightly so both stay WALKING into contact first
+		westMob.cooldownTimer = 99;
+		westMob.attackType = 'normal';
+
+		const eastMob = sim.spawnUnitDirectly({
+			team: 'east',
+			lane: 'top', // Also cross-lane to confirm physics works across lanes too
+			x: 3600,
+			y: MID_LANE_Y,
+			hp: 1000,
+			damage: 1,
+			speed: 200,
+			range: 10
+		});
+		eastMob.cooldownTimer = 99;
+
+		for (let i = 0; i < 30; i++) {
+			sim.step(0.05);
+		}
+
+		// Opposing ground units must NOT pass straight through each other's X position
+		expect(westMob.x).toBeLessThan(eastMob.x);
+		expect(Math.hypot(eastMob.x - westMob.x, eastMob.y - westMob.y)).toBeGreaterThanOrEqual(20);
 	});
 });

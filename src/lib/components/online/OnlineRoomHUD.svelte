@@ -19,6 +19,7 @@
 	import type { Member, RoomInfo, RoomTransport } from '$lib/net/roomTypes';
 	import { PlayerIdentity } from '$lib/controllers/playerIdentity.svelte';
 	import { settings } from '$lib/services/settings.svelte';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		roomCode: string;
@@ -72,7 +73,7 @@
 
 				const currentInfo = await liveNet.peekRoom(roomCode);
 				if (!currentInfo) {
-					roomError = `Кімната ${roomCode} недоступна`;
+					roomError = t('online.hud.roomUnavailable', { code: roomCode });
 					return;
 				}
 
@@ -104,7 +105,8 @@
 						maxMoveSeq = snap.moves.reduce((acc, m) => Math.max(acc, m.seq), 0);
 					},
 					(why) => {
-						roomError = why === 'closed' ? 'Кімнату закрито' : 'Зʼєднання втрачено';
+						roomError =
+							why === 'closed' ? t('online.hud.roomClosed') : t('online.hud.connectionLost');
 					}
 				);
 
@@ -122,7 +124,7 @@
 						.sort((a, b) => (a.at ?? 0) - (b.at ?? 0));
 				});
 			} catch (err) {
-				roomError = err instanceof Error ? err.message : 'Помилка підключення до кімнати';
+				roomError = err instanceof Error ? err.message : t('online.hud.joinError');
 			}
 		})();
 
@@ -210,7 +212,7 @@
 		<div class="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700 p-6 shadow-2xl">
 			<div class="flex items-center justify-between mb-4">
 				<h2 id="online-lobby-title" class="text-lg font-extrabold text-amber-300">
-					Кімната {roomCode}
+					{t('online.hud.roomTitle', { code: roomCode })}
 				</h2>
 				<button
 					type="button"
@@ -219,10 +221,10 @@
 				>
 					{#if copied}
 						<Check class="w-4 h-4 text-emerald-400" />
-						<span>Скопійовано</span>
+						<span>{t('online.hud.copied')}</span>
 					{:else}
 						<Copy class="w-4 h-4 text-sky-400" />
-						<span>Копіювати код</span>
+						<span>{t('online.hud.copyCode')}</span>
 					{/if}
 				</button>
 			</div>
@@ -232,7 +234,7 @@
 					class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5"
 				>
 					<Users class="w-4 h-4 text-sky-400" />
-					<span>Гравці ({members.length})</span>
+					<span>{t('online.hud.playersTitle', { count: members.length })}</span>
 				</div>
 				{#each members as member (member.uid)}
 					<div
@@ -240,8 +242,8 @@
 					>
 						<span class="font-semibold text-slate-100">{member.name}</span>
 						<span class="text-xs px-2 py-0.5 rounded bg-slate-900 text-slate-300">
-							{member.team === 'east' ? 'Схід' : 'Захід'}
-							{onlineUids.includes(member.uid) ? ' · Онлайн' : ''}
+							{member.team === 'east' ? t('online.hud.teamEast') : t('online.hud.teamWest')}
+							{onlineUids.includes(member.uid) ? ` · ${t('online.hud.onlineBadge')}` : ''}
 						</span>
 					</div>
 				{/each}
@@ -257,13 +259,13 @@
 						data-testid="online-start-battle-btn"
 					>
 						<Play class="w-4 h-4 fill-current" />
-						<span>Почати бій</span>
+						<span>{t('online.hud.startBattle')}</span>
 					</button>
 				{:else}
 					<div
 						class="flex-1 min-h-[44px] py-2.5 px-4 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 text-xs font-semibold flex items-center justify-center"
 					>
-						Очікуємо, поки господар запустить бій...
+						{t('online.hud.waitingHost')}
 					</div>
 				{/if}
 
@@ -271,7 +273,7 @@
 					type="button"
 					onclick={handleLeaveRoom}
 					class="min-h-[44px] min-w-[44px] px-3 rounded-xl bg-slate-800 hover:bg-rose-900/60 border border-slate-700 text-slate-300 hover:text-rose-200 flex items-center justify-center cursor-pointer"
-					aria-label="Вийти з кімнати"
+					aria-label={t('online.hud.leaveRoom')}
 				>
 					<LogOut class="w-4 h-4" />
 				</button>
@@ -290,20 +292,24 @@
 		{:else}
 			<WifiOff class="w-3.5 h-3.5 text-slate-400" />
 		{/if}
-		<span>{isPlaying ? `${members.length} у бою` : 'Лобі'}</span>
+		<span>
+			{isPlaying
+				? t('online.hud.inBattle', { count: members.length })
+				: t('online.hud.lobbyStatus')}
+		</span>
 		<button
 			type="button"
 			onclick={() => (chatOpen = !chatOpen)}
-			class="min-h-[32px] min-w-[32px] p-1 rounded hover:bg-slate-800 text-sky-300 cursor-pointer flex items-center justify-center"
-			aria-label="Чат кімнати"
+			class="min-h-[44px] min-w-[44px] p-2 rounded hover:bg-slate-800 text-sky-300 cursor-pointer flex items-center justify-center"
+			aria-label={t('online.hud.roomChatLabel')}
 		>
 			<MessageSquare class="w-4 h-4" />
 		</button>
 		<button
 			type="button"
 			onclick={handleLeaveRoom}
-			class="min-h-[32px] min-w-[32px] p-1 rounded hover:bg-rose-900/60 text-slate-400 hover:text-rose-200 cursor-pointer flex items-center justify-center"
-			aria-label="Вийти з кімнати"
+			class="min-h-[44px] min-w-[44px] p-2 rounded hover:bg-rose-900/60 text-slate-400 hover:text-rose-200 cursor-pointer flex items-center justify-center"
+			aria-label={t('online.hud.leaveRoom')}
 		>
 			<LogOut class="w-4 h-4" />
 		</button>
@@ -324,7 +330,7 @@
 		>
 			<div class="max-h-44 overflow-y-auto space-y-1.5 text-xs">
 				{#if messages.length === 0}
-					<p class="text-slate-500 text-center py-3">Повідомлень поки немає</p>
+					<p class="text-slate-500 text-center py-3">{t('online.hud.noMessages')}</p>
 				{:else}
 					{#each messages as msg (msg.id)}
 						<div class="text-slate-200 break-words">
@@ -339,13 +345,13 @@
 					type="text"
 					bind:value={chatInput}
 					maxlength={200}
-					placeholder="Написати в чат..."
-					class="flex-1 min-w-0 bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-sky-400"
+					placeholder={t('online.hud.chatPlaceholder')}
+					class="flex-1 min-w-0 min-h-[44px] bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-sky-400"
 				/>
 				<button
 					type="submit"
-					class="min-h-[34px] min-w-[34px] px-2.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white flex items-center justify-center cursor-pointer"
-					aria-label="Надіслати"
+					class="min-h-[44px] min-w-[44px] px-2.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white flex items-center justify-center cursor-pointer"
+					aria-label={t('online.hud.sendMessage')}
 				>
 					<Send class="w-3.5 h-3.5" />
 				</button>

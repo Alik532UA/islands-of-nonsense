@@ -6,7 +6,9 @@ import {
 	BOTTOM_LANE_Y,
 	CELL_SIZE,
 	BRIDGE_SPAN_MIN_X,
-	BRIDGE_SPAN_MAX_X
+	BRIDGE_SPAN_MAX_X,
+	WEST_ROAD_MERGE_X,
+	EAST_ROAD_MERGE_X
 } from './constants';
 import type { Unit, Building, Castle, MatchTeam, Team, Lane, AttackType } from './types';
 import { calculateDamage, getDamageMultiplier } from './damageMatrix';
@@ -58,6 +60,42 @@ export class CombatSystem {
 	}
 
 	/**
+	 * Determines whether `attacker` can engage `candidate` in combat.
+	 * Preserves separation across intact distant corridors (540px apart) while allowing
+	 * units that physically converge — on broken-bridge detours, shared castle courtyards,
+	 * or direct contact — to engage instead of walking past each other.
+	 */
+	public canEngageTarget(attacker: Unit, candidate: Unit): boolean {
+		if (candidate.lane === attacker.lane) return true;
+
+		// Intact lane centers (660, 1200, 1740) are 540px apart: never aggro across distant lanes
+		if (Math.abs(candidate.y - attacker.y) > 240) return false;
+
+		const attackerCrossing = this.navigation.getEffectiveCrossingLane(attacker);
+		const candidateCrossing = this.navigation.getEffectiveCrossingLane(candidate);
+		if (attackerCrossing === candidateCrossing) {
+			return true;
+		}
+
+		// Shared castle courtyard convergence zones on West/East islands
+		const bothInWestCourtyard =
+			attacker.x <= WEST_ROAD_MERGE_X + 120 && candidate.x <= WEST_ROAD_MERGE_X + 120;
+		const bothInEastCourtyard =
+			attacker.x >= EAST_ROAD_MERGE_X - 120 && candidate.x >= EAST_ROAD_MERGE_X - 120;
+		if (bothInWestCourtyard || bothInEastCourtyard) {
+			return true;
+		}
+
+		// Close-range physical interception on the same side of the river or shared bridge
+		const sameSide =
+			(attacker.x <= 3600 && candidate.x <= 3600) || (attacker.x >= 3600 && candidate.x >= 3600);
+		if (!sameSide) return false;
+
+		const dist = Math.hypot(candidate.x - attacker.x, candidate.y - attacker.y);
+		return dist <= Math.max(attacker.range + 110, 260);
+	}
+
+	/**
 	 * Authentic WC3 threat and aggro targeting calculation.
 	 * Evaluates candidate targets based on distance, direct attacker threat,
 	 * ally assist calls, attack-vs-armor tactical affinity, low-HP focus, and stickiness.
@@ -68,7 +106,7 @@ export class CombatSystem {
 
 		const candidates = this.sim.spatialGrid.queryRadius(u.x, u.y, acquisitionRange, (candidate) => {
 			if (candidate.team === u.team) return false;
-			if (candidate.lane !== u.lane) return false;
+			if (!this.canEngageTarget(u, candidate)) return false;
 			if (candidate.state === 'DEAD' || candidate.hp <= 0) return false;
 			if (candidate.flying && !canHitAir) return false;
 			if (candidate.isCycloned || candidate.buffs?.some((b) => b.type === 'cyclone')) return false;
@@ -112,7 +150,7 @@ export class CombatSystem {
 					(a) =>
 						a.instanceId === enemy.currentTargetId &&
 						a.team === u.team &&
-						a.lane === u.lane &&
+						(a.lane === u.lane || Math.abs(a.y - u.y) <= 240) &&
 						a.instanceId !== u.instanceId
 				);
 				if (ally && Math.hypot(ally.x - u.x, ally.y - u.y) <= 350) {
@@ -305,12 +343,13 @@ export class CombatSystem {
 				}
 			}
 
-			if (enemyTarget && enemyTarget.hp > 0 && enemyTarget.lane === u.lane) {
+			if (enemyTarget && enemyTarget.hp > 0 && this.canEngageTarget(u, enemyTarget)) {
 				const isAcrossRiver =
 					(u.x < 3600 && enemyTarget.x > 3600) || (u.x > 3600 && enemyTarget.x < 3600);
 				const bridgeBroken = !u.flying && this.sim.brokenBridge && u.lane === this.sim.brokenBridge;
+				const alreadyOnIntactCrossing = Math.abs(u.y - crossingLaneY) <= 95;
 
-				if (isAcrossRiver && bridgeBroken) {
+				if (isAcrossRiver && bridgeBroken && !alreadyOnIntactCrossing) {
 					// Cannot cross broken bridge in straight line: detour across intact bridge first!
 					const navTarget = this.navigation.getStrategicNavTarget(
 						u,
@@ -581,8 +620,8 @@ export class CombatSystem {
 	}
 
 	public performAttack(attacker: Unit, target: Unit): void {
-		// Double check lane separation
-		if (attacker.lane !== target.lane) return;
+		// Double check lane/corridor engagement rules
+		if (!this.canEngageTarget(attacker, target)) return;
 
 		// Curse check: 33% chance to miss attacks
 		if (attacker.buffs?.some((b) => b.type === 'curse') && Math.random() < 0.33) {
@@ -746,7 +785,7 @@ export class CombatSystem {
 		for (const u of this.sim.units) {
 			if (u.instanceId === primaryTargetId || u.state === 'DEAD' || u.team === attackerTeam)
 				continue;
-			if (lane && u.lane !== lane) continue;
+			if (lane && u.lane !== lane && Math.abs(u.y - y) > 240) continue;
 			const dx = u.x - x;
 			const dy = u.y - y;
 			const distSq = dx * dx + dy * dy;
@@ -851,7 +890,7 @@ export class CombatSystem {
 			if (
 				target.state === 'WALKING' &&
 				!target.currentTargetId &&
-				target.lane === attackerUnit.lane
+				this.canEngageTarget(target, attackerUnit)
 			) {
 				target.currentTargetId = attackerUnit.instanceId;
 			}
@@ -860,7 +899,8 @@ export class CombatSystem {
 			for (const ally of this.sim.units) {
 				if (
 					ally.team === target.team &&
-					ally.lane === target.lane &&
+					(ally.lane === target.lane || Math.abs(ally.y - target.y) <= 240) &&
+					this.canEngageTarget(ally, attackerUnit) &&
 					ally.state === 'WALKING' &&
 					!ally.currentTargetId &&
 					Math.hypot(ally.x - target.x, ally.y - target.y) <= 350

@@ -53,8 +53,8 @@
 								{/if}
 							</div>
 							<div class="text-xs text-slate-400">
-								{room.modeId === 'allRandom' ? 'All Random' : 'Класичний'} · {room.players}/{room.maxPlayers}
-								гравців
+								{room.modeId === 'allRandom' ? 'All Random' : t('online.classicLabel')} · {room.players}/{room.maxPlayers}
+								{t('online.playersCount')}
 							</div>
 						</div>
 					</div>
@@ -62,7 +62,7 @@
 					<button
 						type="button"
 						onclick={() => onJoin(room.code)}
-						class="py-1.5 px-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg shadow transition-transform active:scale-95 flex items-center gap-1.5"
+						class="min-h-[44px] py-2 px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg shadow transition-transform active:scale-95 flex items-center gap-1.5 cursor-pointer"
 					>
 						<LogIn class="w-3.5 h-3.5" />
 						<span>{t('online.join')}</span>

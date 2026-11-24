@@ -23,13 +23,13 @@
 		{t('online.searching')}
 	</h2>
 	<p class="text-xs text-slate-400 mb-6">
-		Підбираємо найкращого супротивника за рейтингом та пінгом...
+		{t('online.searchingHint')}
 	</p>
 
 	<button
 		type="button"
 		onclick={onCancel}
-		class="w-full py-2.5 px-4 bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-xl text-slate-200 font-semibold transition-colors flex items-center justify-center gap-2"
+		class="w-full min-h-[44px] py-2.5 px-4 bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-xl text-slate-200 font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer"
 	>
 		<X class="w-4 h-4" />
 		<span>{t('online.cancel')}</span>

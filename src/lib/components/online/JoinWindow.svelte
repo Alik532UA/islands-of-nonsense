@@ -38,7 +38,7 @@
 		<button
 			type="button"
 			onclick={onBack}
-			class="p-1.5 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-slate-800 transition-colors"
+			class="min-h-[44px] min-w-[44px] p-2 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-slate-800 transition-colors flex items-center justify-center cursor-pointer"
 			aria-label={t('online.back')}
 			data-testid="window-back-btn"
 		>
@@ -46,7 +46,7 @@
 		</button>
 	</div>
 
-	<p class="text-xs text-slate-400 mb-4">Введіть 4-значний код кімнати, наданий вашим другом:</p>
+	<p class="text-xs text-slate-400 mb-4">{t('online.joinCodeHint')}</p>
 
 	<div class="mb-6">
 		<input
@@ -55,7 +55,8 @@
 			oninput={handleInput}
 			maxlength={6}
 			placeholder="CF42"
-			class="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-center text-2xl font-black tracking-widest text-amber-300 focus:outline-none focus:border-sky-400 uppercase"
+			aria-label={t('online.roomCode')}
+			class="w-full min-h-[48px] bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-center text-2xl font-black tracking-widest text-amber-300 focus:outline-none focus:border-sky-400 uppercase"
 		/>
 	</div>
 
@@ -63,7 +64,7 @@
 		type="button"
 		disabled={busy || !isValidRoomCode(code)}
 		onclick={submit}
-		class="w-full py-3 bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-slate-950 font-extrabold rounded-xl shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2"
+		class="w-full min-h-[44px] py-3 bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-slate-950 font-extrabold rounded-xl shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
 	>
 		<LogIn class="w-5 h-5" />
 		<span>{t('online.join')}</span>

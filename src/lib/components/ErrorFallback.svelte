@@ -1,5 +1,7 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { AlertTriangle } from 'lucide-svelte';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		onretry: () => void;
@@ -20,23 +22,23 @@
 		>
 			<AlertTriangle class="w-7 h-7" />
 		</div>
-		<h2 class="text-xl font-bold mb-2">Збій тактичної арени</h2>
+		<h2 class="text-xl font-bold mb-2">{t('errorFallback.title')}</h2>
 		<p class="text-sm text-slate-300 mb-6">
-			Виникла помилка під час рендерингу або розрахунку бою. Ви можете перезапустити бій.
+			{t('errorFallback.description')}
 		</p>
 		<div class="flex gap-3 justify-center">
 			<button
 				type="button"
-				class="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold text-sm transition cursor-pointer"
+				class="min-h-[44px] px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold text-sm transition cursor-pointer"
 				onclick={onretry}
 			>
-				Перезапустити бій
+				{t('errorFallback.retry')}
 			</button>
 			<a
-				href="./"
-				class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-sm transition"
+				href={resolve('/')}
+				class="inline-flex items-center justify-center min-h-[44px] px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-sm transition"
 			>
-				На головну
+				{t('errorFallback.home')}
 			</a>
 		</div>
 	</div>

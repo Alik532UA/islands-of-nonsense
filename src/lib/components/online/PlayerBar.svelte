@@ -30,8 +30,8 @@
 				type="text"
 				bind:value={name}
 				maxlength={20}
-				class="bg-slate-900 border border-slate-600 rounded px-2.5 py-1 text-sm font-semibold text-amber-200 focus:outline-none focus:border-amber-400"
-				placeholder="Гравець"
+				class="min-h-[44px] bg-slate-900 border border-slate-600 rounded px-2.5 py-1 text-sm font-semibold text-amber-200 focus:outline-none focus:border-amber-400"
+				placeholder={t('online.defaultPlayerName')}
 			/>
 		</div>
 	</div>
@@ -40,7 +40,7 @@
 		<button
 			type="button"
 			onclick={onReroll}
-			class="p-2 bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-lg text-slate-200 transition-colors"
+			class="min-h-[44px] min-w-[44px] p-2 bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-lg text-slate-200 transition-colors flex items-center justify-center cursor-pointer"
 			title={t('online.rerollName')}
 			aria-label={t('online.rerollName')}
 		>

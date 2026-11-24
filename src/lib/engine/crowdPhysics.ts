@@ -34,14 +34,9 @@ export function applyCrowdSeparation(sim: Simulation, dt: number): void {
 		const u = sim.units[i];
 		if (u.state === 'DEAD' || u.flying) continue;
 
-		// Spatial grid lookup: only inspect nearby candidates rather than O(N^2) full unit scan
+		// Spatial grid lookup: only inspect nearby physical candidates (cross-lane included when converged)
 		const neighbors = sim.spatialGrid.queryRadius(u.x, u.y, collisionRadius, (other) => {
-			return (
-				other.instanceId > u.instanceId &&
-				other.lane === u.lane &&
-				!other.flying &&
-				other.state !== 'DEAD'
-			);
+			return other.instanceId > u.instanceId && !other.flying && other.state !== 'DEAD';
 		});
 
 		for (let n = 0; n < neighbors.length; n++) {
@@ -65,25 +60,37 @@ export function applyCrowdSeparation(sim: Simulation, dt: number): void {
 			const moveDy = (u.targetY ?? TOP_LANE_Y) - u.y;
 			const isMovingVertical = Math.abs(moveDy) > Math.abs(moveDx) * 1.5;
 
-			const isStuck =
-				(u.stuckTimer !== undefined && u.stuckTimer > 0.3) ||
-				(other.stuckTimer !== undefined && other.stuckTimer > 0.3);
-
-			// Hard non-penetration threshold
-			// Walking units in transit use a compact physical clearance (12px)
-			// Stuck units get soft clearance (6px) so they filter smoothly through 1-tile bottlenecks without wedging
+			const isHostile = u.team !== other.team;
 			const isBothWalking = u.state === 'WALKING' && other.state === 'WALKING';
-			const minPhysicalDist = isStuck ? 6 : isBothWalking ? 12 : (u.size + other.size) * 0.85;
+			const isAlliedStream = isBothWalking && !isHostile;
+
+			const isStuck =
+				!isHostile &&
+				((u.stuckTimer !== undefined && u.stuckTimer > 0.3) ||
+					(other.stuckTimer !== undefined && other.stuckTimer > 0.3));
+
+			// Hard non-penetration threshold:
+			// Opposing units always keep full solid collision body (>= 26px) so they never slip through each other.
+			// Allied walking streams use compact clearance (12px) or soft 6px when unstucking bottlenecks.
+			const minPhysicalDist = isHostile
+				? Math.max((u.size + other.size) * 0.9, 26)
+				: isStuck
+					? 6
+					: isAlliedStream
+						? 12
+						: (u.size + other.size) * 0.85;
 
 			if (dist < minPhysicalDist) {
-				// Smooth positional overlap resolution capped to prevent sudden teleports
-				const overlap = Math.min(minPhysicalDist - dist, isStuck ? 2 : isBothWalking ? 4 : 8);
+				// Smooth positional overlap resolution; hostile fronts enforce full solid blocking
+				const overlap = isHostile
+					? Math.min(minPhysicalDist - dist, 32)
+					: Math.min(minPhysicalDist - dist, isStuck ? 2 : isAlliedStream ? 4 : 8);
 				let nx = dx / dist;
 				let ny = dy / dist;
 
-				// In tight flow between buildings, suppress perpendicular push along the walls
-				// so units don't shove each other into building walls and cause friction deadlocks
-				if (isBothWalking) {
+				// In tight allied flow between buildings, suppress perpendicular push along the walls
+				// so allied units don't shove each other into building walls; never weaken hostile blocking!
+				if (isAlliedStream) {
 					if (isMovingVertical && Math.abs(dx) < 16) {
 						nx *= 0.15;
 					} else if (!isMovingVertical && Math.abs(dy) < 16) {
@@ -105,17 +112,17 @@ export function applyCrowdSeparation(sim: Simulation, dt: number): void {
 				u.y += ny * overlap * uWeight;
 				other.x -= nx * overlap * otherWeight;
 				other.y -= ny * overlap * otherWeight;
-			} else if (dist < (isBothWalking ? 18 : collisionRadius)) {
+			} else if (dist < (isAlliedStream ? 18 : collisionRadius)) {
 				// Soft Boids-style separation to spread the formation across the lane corridor
-				const effRadius = isBothWalking ? 18 : collisionRadius;
+				const effRadius = isAlliedStream ? 18 : collisionRadius;
 				const overlap = (effRadius - dist) / effRadius;
-				const push = Math.min(overlap * 25 * dt, isBothWalking ? 1.5 : 4);
+				const push = Math.min(overlap * 25 * dt, isAlliedStream ? 1.5 : 4);
 				const nx = dx / dist;
 				const ny = dy / dist;
 
-				// In walking single-file transit, only spread laterally across the corridor width,
-				// never push trailing units backwards along their direction of travel!
-				if (isBothWalking) {
+				// In allied walking single-file transit, only spread laterally across the corridor width,
+				// never push trailing allies backwards; hostile units always push back radially.
+				if (isAlliedStream) {
 					if (isMovingVertical) {
 						u.x += nx * push * 0.5;
 						other.x -= nx * push * 0.5;
