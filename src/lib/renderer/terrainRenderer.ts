@@ -451,38 +451,83 @@ export class TerrainRenderer {
 
 	private drawCastlePlaza(g: Graphics, cx: number, cy: number): void {
 		// Plaza drop shadow
-		g.circle(cx + 10, cy + 16, 230);
-		g.fill({ color: 0x000000, alpha: 0.42 });
+		g.circle(cx + 10, cy + 16, 234);
+		g.fill({ color: 0x000000, alpha: 0.44 });
 
-		// Outer carved sandstone rim
-		g.circle(cx, cy, 226);
-		g.fill({ color: 0x8a7153 });
-		g.stroke({ color: 0x4a3b2c, width: 3.5 });
+		// Outer carved sandstone curb blocks
+		g.circle(cx, cy, 230);
+		g.fill({ color: 0x7a6348 });
+		g.stroke({ color: 0x3f3224, width: 3.5 });
 
-		// Inner warm stone pavement
-		g.circle(cx, cy, 210);
-		g.fill({ color: 0xa69076 });
-
-		// Concentric cobblestone paving rings
-		for (let r = 85; r <= 185; r += 25) {
-			g.circle(cx, cy, r);
-			g.stroke({ color: 0x5a4835, width: 1.8, alpha: 0.45 });
-		}
-
-		// Decorative inlaid starburst compass rose
-		for (let ang = 0; ang < Math.PI * 2; ang += Math.PI / 4) {
-			const rx = cx + Math.cos(ang) * 195;
-			const ry = cy + Math.sin(ang) * 195;
+		// Ashlar radial curb joint lines around outer rim
+		for (let i = 0; i < 24; i++) {
+			const ang = (i / 24) * Math.PI * 2;
 			g.beginPath();
-			g.moveTo(cx, cy);
-			g.lineTo(rx, ry);
-			g.stroke({ color: 0xd6c4b2, width: 2.5, alpha: 0.75 });
+			g.moveTo(cx + Math.cos(ang) * 212, cy + Math.sin(ang) * 212);
+			g.lineTo(cx + Math.cos(ang) * 230, cy + Math.sin(ang) * 230);
+			g.stroke({ color: 0x4a3b2c, width: 2, alpha: 0.7 });
 		}
 
-		// Center heraldic ring
-		g.circle(cx, cy, 64);
-		g.fill({ color: 0x6e5538 });
-		g.stroke({ color: 0xfbbf24, width: 2.5, alpha: 0.85 });
+		// Inner warm stone flagstone pavement
+		g.circle(cx, cy, 212);
+		g.fill({ color: 0x9c866d });
+		g.stroke({ color: 0x52402e, width: 2 });
+
+		// Concentric cobblestone ashlar rings with staggered radial stone joints
+		const ringRadii = [88, 118, 148, 178, 212];
+		for (let ri = 0; ri < ringRadii.length - 1; ri++) {
+			const rInner = ringRadii[ri];
+			const rOuter = ringRadii[ri + 1];
+			const segments = 16 + ri * 4;
+			const offset = (ri % 2) * (Math.PI / segments);
+
+			for (let si = 0; si < segments; si++) {
+				const a1 = (si / segments) * Math.PI * 2 + offset;
+				const a2 = ((si + 1) / segments) * Math.PI * 2 + offset;
+				// Alternate subtle stone tint per flagstone
+				if ((si + ri) % 3 === 0) {
+					const midR = (rInner + rOuter) / 2;
+					const midA = (a1 + a2) / 2;
+					g.poly([
+						cx + Math.cos(a1) * (rInner + 2),
+						cy + Math.sin(a1) * (rInner + 2),
+						cx + Math.cos(a2) * (rInner + 2),
+						cy + Math.sin(a2) * (rInner + 2),
+						cx + Math.cos(a2) * (rOuter - 2),
+						cy + Math.sin(a2) * (rOuter - 2),
+						cx + Math.cos(a1) * (rOuter - 2),
+						cy + Math.sin(a1) * (rOuter - 2)
+					]);
+					g.fill({
+						color: (si + ri) % 2 === 0 ? 0x8d775e : 0xab967c,
+						alpha: 0.55
+					});
+					// Subtle stone highlight center
+					g.circle(cx + Math.cos(midA) * midR, cy + Math.sin(midA) * midR, 2);
+					g.fill({ color: 0xb8a38a, alpha: 0.25 });
+				}
+
+				g.beginPath();
+				g.moveTo(cx + Math.cos(a1) * rInner, cy + Math.sin(a1) * rInner);
+				g.lineTo(cx + Math.cos(a1) * rOuter, cy + Math.sin(a1) * rOuter);
+				g.stroke({ color: 0x544332, width: 1.5, alpha: 0.55 });
+			}
+
+			g.circle(cx, cy, rInner);
+			g.stroke({ color: 0x4d3d2d, width: 2, alpha: 0.6 });
+		}
+
+		// Corner inlaid brass & granite compass points (45°, 135°, 225°, 315°)
+		for (let i = 0; i < 4; i++) {
+			const ang = (i * Math.PI) / 2 + Math.PI / 4;
+			const bx = cx + Math.cos(ang) * 194;
+			const by = cy + Math.sin(ang) * 194;
+			g.circle(bx, by, 10);
+			g.fill({ color: 0x475569 });
+			g.stroke({ color: 0x1e293b, width: 2 });
+			g.circle(bx, by, 4.5);
+			g.fill({ color: 0xf59e0b });
+		}
 	}
 
 	private drawIslandRoadFanned(

@@ -1087,17 +1087,19 @@ export class ArenaRenderer {
 			}
 		}
 
-		// 5. Render Selection rings and Tactical Health Bars in overlay layer
+		// 5. Render Selection rings (for HD sprites) and Tactical Health Bars in overlay layer
 		this.castlesOverlayLayer.clear();
-		if (westSelected) {
-			this.castlesOverlayLayer.beginPath();
-			this.castlesOverlayLayer.ellipse(WEST_CASTLE_X, WEST_CASTLE_Y + 30, 195, 82);
-			this.castlesOverlayLayer.stroke({ color: 0xfbbf24, width: 3.5, alpha: 0.95 });
-		}
-		if (eastSelected) {
-			this.castlesOverlayLayer.beginPath();
-			this.castlesOverlayLayer.ellipse(EAST_CASTLE_X, EAST_CASTLE_Y + 25, 200, 78);
-			this.castlesOverlayLayer.stroke({ color: 0xf43f5e, width: 3.5, alpha: 0.95 });
+		if (this.graphicsStyle !== '2.5d') {
+			if (westSelected) {
+				this.castlesOverlayLayer.beginPath();
+				this.castlesOverlayLayer.ellipse(WEST_CASTLE_X, WEST_CASTLE_Y + 30, 195, 82);
+				this.castlesOverlayLayer.stroke({ color: 0xfbbf24, width: 3.5, alpha: 0.95 });
+			}
+			if (eastSelected) {
+				this.castlesOverlayLayer.beginPath();
+				this.castlesOverlayLayer.ellipse(EAST_CASTLE_X, EAST_CASTLE_Y + 25, 200, 78);
+				this.castlesOverlayLayer.stroke({ color: 0xf43f5e, width: 3.5, alpha: 0.95 });
+			}
 		}
 
 		// High-contrast RTS Health Bars hovering directly above each castle

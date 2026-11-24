@@ -166,4 +166,76 @@ describe('Unit Weapon Facing & Attack Direction', () => {
 		const arrowLine = recordedLines.find((l) => l.x1 < l.x2 && l.x2 > eastArcher.x);
 		expect(arrowLine).toBeDefined();
 	});
+
+	it('renders all 7 stylized 2.5D unit archetypes cleanly without throwing', () => {
+		sim.spawnUnitDirectly({ team: 'west', lane: 'mid', x: 2000, y: sim.midLaneY, hp: 400 }); // Warrior
+		sim.spawnUnitDirectly({
+			team: 'west',
+			lane: 'mid',
+			x: 2100,
+			y: sim.midLaneY,
+			hp: 1200,
+			armorType: 'fort'
+		}); // Colossus
+		sim.spawnUnitDirectly({
+			team: 'east',
+			lane: 'mid',
+			x: 2200,
+			y: sim.midLaneY,
+			hp: 300,
+			attackType: 'magic',
+			mana: 80,
+			maxMana: 100
+		}); // Mage with mana bar
+		sim.spawnUnitDirectly({
+			team: 'west',
+			lane: 'top',
+			x: 2300,
+			y: sim.topLaneY,
+			hp: 450,
+			flying: true
+		}); // Flyer
+		sim.spawnUnitDirectly({
+			team: 'east',
+			lane: 'bottom',
+			x: 2400,
+			y: sim.bottomLaneY,
+			hp: 600,
+			attackType: 'siege'
+		}); // Siege
+		sim.spawnUnitDirectly({
+			team: 'west',
+			lane: 'mid',
+			x: 2500,
+			y: sim.midLaneY,
+			hp: 320,
+			name: 'Вовк-Вершник'
+		}); // War beast
+		sim.spawnUnitDirectly({
+			team: 'neutral',
+			lane: 'mid',
+			x: 3600,
+			y: sim.midLaneY,
+			hp: 5000
+		}); // Neutral Boss
+
+		const noop = () => {};
+		const mockGraphics = {
+			clear: noop,
+			beginPath: noop,
+			circle: noop,
+			ellipse: noop,
+			poly: noop,
+			fill: noop,
+			stroke: noop,
+			rect: noop,
+			roundRect: noop,
+			moveTo: noop,
+			lineTo: noop,
+			arc: noop
+		} as unknown as Graphics;
+
+		expect(() => renderer.drawUnitsLayer(mockGraphics, null, false)).not.toThrow();
+		expect(() => renderer.drawWorkersLayer(mockGraphics, true, false)).not.toThrow();
+	});
 });
