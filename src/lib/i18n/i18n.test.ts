@@ -1,14 +1,41 @@
 import { describe, it, expect } from 'vitest';
-import { translations, t, setLocale, getLocale } from './index';
+import { translations, t, setLocale, getLocale, type Locale } from './index';
 
 describe('i18n parity and translation coverage (I18N-v10)', () => {
+	const locales = Object.keys(translations) as Locale[];
+	const ukKeys = Object.keys(translations.uk).sort();
+	const enKeys = Object.keys(translations.en).sort();
+
 	it('має повний паритет ключів між українською та англійською мовами', () => {
-		const ukKeys = Object.keys(translations.uk).sort();
-		const enKeys = Object.keys(translations.en).sort();
 		expect(ukKeys).toEqual(enKeys);
+		expect(ukKeys.length).toBeGreaterThan(50);
 	});
 
-	it('повертає коректний переклад для поточної мови', () => {
+	it('жоден переклад не містить порожнього рядка чи лише пробілів', () => {
+		for (const loc of locales) {
+			const dict = translations[loc];
+			for (const [key, val] of Object.entries(dict)) {
+				expect(val.trim().length, `Key "${key}" in locale "${loc}" should not be empty`).toBeGreaterThan(0);
+			}
+		}
+	});
+
+	it('плейсхолдери {param} у повідомленнях повністю збігаються між мовами', () => {
+		for (const key of ukKeys) {
+			const ukVal = (translations.uk as Record<string, string>)[key] ?? '';
+			const enVal = (translations.en as Record<string, string>)[key] ?? '';
+
+			const ukPlaceholders = (ukVal.match(/\{[a-zA-Z0-9_-]+\}/g) ?? []).sort();
+			const enPlaceholders = (enVal.match(/\{[a-zA-Z0-9_-]+\}/g) ?? []).sort();
+
+			expect(
+				enPlaceholders,
+				`Placeholders for key "${key}" must match between uk and en`
+			).toEqual(ukPlaceholders);
+		}
+	});
+
+	it('повертає коректний переклад для поточної мови та підставляє параметри', () => {
 		setLocale('uk');
 		expect(getLocale()).toBe('uk');
 		expect(t('gold')).toBe('Золото');
@@ -16,5 +43,22 @@ describe('i18n parity and translation coverage (I18N-v10)', () => {
 		setLocale('en');
 		expect(getLocale()).toBe('en');
 		expect(t('gold')).toBe('Gold');
+
+		// Explicit locale override
+		expect(t('gold', 'uk')).toBe('Золото');
+		expect(t('gold', 'en')).toBe('Gold');
+	});
+
+	it('коректно підставляє плейсхолдери {param} у функції t()', () => {
+		// Mock testing interpolation
+		const template = 'Привіт, {name}! У вас {count} золота.';
+		const dict = translations.uk as Record<string, string>;
+		dict['test.greeting'] = template;
+
+		expect(t('test.greeting', { name: 'Командир', count: 100 }, 'uk')).toBe(
+			'Привіт, Командир! У вас 100 золота.'
+		);
+
+		delete dict['test.greeting'];
 	});
 });

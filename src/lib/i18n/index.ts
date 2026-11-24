@@ -419,7 +419,22 @@ export function getLocale(): Locale {
 	return currentLocale;
 }
 
-export function t(key: string, locale: Locale = currentLocale): string {
+export function t(
+	key: string,
+	paramsOrLocale?: Record<string, string | number> | Locale,
+	localeOverride?: Locale
+): string {
+	const locale: Locale =
+		typeof paramsOrLocale === 'string' ? paramsOrLocale : (localeOverride ?? currentLocale);
+	const params =
+		typeof paramsOrLocale === 'object' && paramsOrLocale !== null ? paramsOrLocale : undefined;
+
 	const dict = (translations[locale] || translations.uk) as Record<string, string>;
-	return dict[key] || (translations.uk as Record<string, string>)[key] || key;
+	let text = dict[key] || (translations.uk as Record<string, string>)[key] || key;
+	if (params) {
+		for (const [k, v] of Object.entries(params)) {
+			text = text.replaceAll(`{${k}}`, String(v));
+		}
+	}
+	return text;
 }

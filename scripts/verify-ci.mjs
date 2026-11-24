@@ -34,6 +34,11 @@ step('Verifying Firebase RTDB security rules', () => {
 	execSync('node scripts/rules-stamp.mjs --check', { cwd, stdio: 'pipe' });
 });
 
+// 2. I18N Parity Gate
+step('Verifying i18n translation key & placeholder parity', () => {
+	execSync('node scripts/check-i18n.mjs', { cwd, stdio: 'pipe' });
+});
+
 // 2. Package manifest invariants
 step('Checking package.json script invariants', () => {
 	const pkg = JSON.parse(fs.readFileSync(path.join(cwd, 'package.json'), 'utf-8'));
