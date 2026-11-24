@@ -11,6 +11,7 @@ describe('Point 10: Automated 3-Bridge Lane Routing & Presets', () => {
 			startGold: 1000,
 			isRunning: false
 		});
+		sim.decorations = [];
 		sim.brokenBridge = null;
 	});
 

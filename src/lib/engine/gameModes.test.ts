@@ -105,6 +105,7 @@ describe('Point 9: Game Modes & Random Race Bonus (+30% Gold)', () => {
 			modeId: 'noSpecial',
 			westRace: 'Люди'
 		});
+		sim.decorations = [];
 
 		// cg07_recycler is a special recycler building
 		const builtSpecial = sim.build('west', 'cg07_recycler', 25, 20);

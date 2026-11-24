@@ -7,6 +7,7 @@ describe('Point 5: Stationary Building Passive Auras (Altar, Fountain, Obelisk)'
 
 	beforeEach(() => {
 		sim = new Simulation({ botDifficulty: 0, startGold: 5000 });
+		sim.decorations = [];
 		sim.players.west.lumber = 2000;
 	});
 

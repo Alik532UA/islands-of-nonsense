@@ -33,6 +33,7 @@ describe('Point 4: Food Cap & Legendary Buildings (Golden Cheese I004)', () => {
 
 	beforeEach(() => {
 		sim = new Simulation({ botDifficulty: 0, startGold: 5000 });
+		sim.decorations = [];
 	});
 
 	it('correctly classifies legendary apex buildings', () => {

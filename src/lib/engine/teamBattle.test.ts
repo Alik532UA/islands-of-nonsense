@@ -123,6 +123,7 @@ describe('Point 9: Authentic WC3 Team Battle (2v2 and 3v3)', () => {
 			westRace: 'Люди',
 			eastRace: 'Орки'
 		});
+		sim.decorations = [];
 
 		const p1 = sim.players.west;
 		const p3 = sim.teamMembers.west[1];
@@ -165,6 +166,7 @@ describe('Point 9: Authentic WC3 Team Battle (2v2 and 3v3)', () => {
 			westRace: 'Люди',
 			eastRace: 'Орки'
 		});
+		sim.decorations = [];
 
 		const p3 = sim.teamMembers.west[1]; // West Bot Ally
 		sim.build('west', 'h003', 25, 20, 'top', p3);

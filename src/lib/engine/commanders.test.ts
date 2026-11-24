@@ -82,6 +82,7 @@ describe('Commanders System ([AC-CMD-1])', () => {
 
 	it('забороняє вибір командира на початку гри без завершеного "Дому командира" (250g + 250w)', () => {
 		const sim = new Simulation({ botDifficulty: 0, startGold: 1000 });
+		sim.decorations = [];
 		expect(sim.players.west.commander).toBe(0);
 		expect(sim.hasCommanderHall('west')).toBe(false);
 

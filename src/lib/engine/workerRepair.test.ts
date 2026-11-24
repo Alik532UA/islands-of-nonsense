@@ -7,6 +7,7 @@ describe('Point 8: Worker Building & Castle Repair Mechanic', () => {
 
 	beforeEach(() => {
 		sim = new Simulation({ botDifficulty: 0, startGold: 1000 });
+		sim.decorations = [];
 	});
 
 	it('наказує робітнику відремонтувати пошкоджену союзну споруду', () => {

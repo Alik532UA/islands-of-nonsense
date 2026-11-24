@@ -159,7 +159,8 @@ describe('Point 10: Crowd Physics & Unit Separation (Boids Collision Repulsion)'
 		const canBuildWater = sim.canBuild('west', 0, 0);
 		expect(canBuildWater).toBe(false);
 
-		// Valid slot (25, 20) in courtyard meadow must be buildable
+		// Valid slot (25, 20) in courtyard meadow must be buildable when no random decoration occupies it
+		sim.decorations = [];
 		const canBuildValid = sim.canBuild('west', 25, 20);
 		expect(canBuildValid).toBe(true);
 	});

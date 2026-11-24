@@ -102,6 +102,7 @@ describe('Point 9: Initial Spawn Timers (ubld) & Authentic Spawner Cooldowns', (
 
 	it('assigns authentic ubld as initialSpawnDelay and spawnTimer on newly built structures', () => {
 		const sim = new Simulation({ botDifficulty: 0, startGold: 1000, westRace: 'Люди' });
+		sim.decorations = [];
 		sim.isRunning = true;
 
 		// Church (h037) trains Knight (h03B, ubld = 29)
@@ -118,6 +119,7 @@ describe('Point 9: Initial Spawn Timers (ubld) & Authentic Spawner Cooldowns', (
 
 	it('applies initialSpawnDelay upon worker completing construction and recurses to spawnCooldown', () => {
 		const sim = new Simulation({ botDifficulty: 0, startGold: 1000, westRace: 'Люди' });
+		sim.decorations = [];
 		sim.isRunning = true;
 
 		// Build Church (h037)
@@ -152,6 +154,7 @@ describe('Point 9: Initial Spawn Timers (ubld) & Authentic Spawner Cooldowns', (
 
 	it('updates spawnCooldown and initialSpawnDelay when upgrading a building', () => {
 		const sim = new Simulation({ botDifficulty: 0, startGold: 1000, westRace: 'Люди' });
+		sim.decorations = [];
 		sim.isRunning = true;
 		sim.players.west.lumber = 200;
 

@@ -67,6 +67,8 @@ describe('Point 10: Post-Match Detailed Combat Log & Graph Analytics Export', ()
 	});
 
 	it('computes unit DPS, EHP and power efficiency matching analyze.py formulas', () => {
+		// Clear random decorations so fixed courtyard slots (25, 20) & (25, 24) are buildable
+		sim.decorations = [];
 		// Build 2 buildings for west
 		sim.build('west', 'h037', 25, 20); // Church (Церква)
 		sim.build('west', 'h006', 25, 24); // Guard Tower (Вартова вежа)

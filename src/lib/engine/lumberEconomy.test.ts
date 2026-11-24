@@ -11,6 +11,7 @@ describe('Point 5: Full Lumber (Wood) Economy & Tech Tiers', () => {
 			startGold: 1500,
 			westRace: 'Люди'
 		});
+		sim.decorations = [];
 	});
 
 	it('гравці починають матч з автентичним запасом деревини 125', () => {

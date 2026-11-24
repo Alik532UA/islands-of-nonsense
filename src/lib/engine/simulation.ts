@@ -54,18 +54,12 @@ import {
 	WEST_CASTLE_Y,
 	EAST_CASTLE_X,
 	EAST_CASTLE_Y,
-	WEST_ISLAND_CENTER_X,
-	WEST_ISLAND_CENTER_Y,
-	EAST_ISLAND_CENTER_X,
-	EAST_ISLAND_CENTER_Y,
-	ISLAND_RADIUS_X,
-	ISLAND_RADIUS_Y,
 	CELL_SIZE,
 	WORKER_MOVE_SPEED,
 	type CoinMode,
-	type DecorationObstacle,
-	type DecorationType
+	type DecorationObstacle
 } from './constants';
+import { createRandomDecorationSeed, generateDecorations } from './decorationGenerator';
 export * from './constants';
 
 export interface DebrisItem {
@@ -130,6 +124,7 @@ export class Simulation {
 	public debris: DebrisItem[] = [];
 	public corpses: Corpse[] = [];
 	public decorations: DecorationObstacle[] = [];
+	public decorationSeed = 0;
 
 	public castles: Record<MatchTeam, Castle>;
 	public players: Record<MatchTeam, PlayerState>;
@@ -752,8 +747,8 @@ export class Simulation {
 		this.combatSystem = new CombatSystem(this);
 		this.economySystem = new EconomySystem(this);
 
-		// Initialize procedural decorations across both islands
-		this.initDecorations(config.seed ?? 1337);
+		// Initialize procedural decorations across both islands (fresh random layout per match unless seed is pinned)
+		this.initDecorations(config.seed ?? createRandomDecorationSeed());
 	}
 
 	public randomizePlayerColors(fixed = false): void {
@@ -1151,7 +1146,11 @@ export class Simulation {
 		this.brokenBridge = bridges[Math.floor(Math.random() * 3)];
 		this.bridgeRepairProgress = 0;
 		this.lastBotBridgeRepairTime = { west: -180, east: -180 };
-		this.initDecorations((this.config.seed ?? 1337) + this.round * 31);
+		this.initDecorations(
+			this.config.seed !== undefined
+				? (this.config.seed + this.round * 31) >>> 0
+				: createRandomDecorationSeed()
+		);
 		this.winner = null;
 		this.roundWinner = null;
 		this.buildingStats = {};
@@ -1876,73 +1875,13 @@ export class Simulation {
 		return false;
 	}
 
-	public initDecorations(seed = 1337): void {
-		this.decorations = [];
-
-		let s = seed;
-		const nextRand = () => {
-			s = (s * 1664525 + 1013904223) % 4294967296;
-			return s / 4294967296;
-		};
-
-		const teams: MatchTeam[] = ['west', 'east'];
-		const types: DecorationType[] = ['mushroom', 'crystal', 'monolith', 'bush', 'brazier'];
-		const typeRadii: Record<DecorationType, number> = {
-			mushroom: 16,
-			crystal: 18,
-			monolith: 22,
-			bush: 18,
-			brazier: 18
-		};
-
-		let decorId = 1;
-		for (const team of teams) {
-			const cx = team === 'west' ? WEST_ISLAND_CENTER_X : EAST_ISLAND_CENTER_X;
-			const cy = team === 'west' ? WEST_ISLAND_CENTER_Y : EAST_ISLAND_CENTER_Y;
-
-			let attempts = 0;
-			let placedCount = 0;
-			const targetCount = 65;
-
-			while (placedCount < targetCount && attempts < 400) {
-				attempts++;
-				const angle = nextRand() * Math.PI * 2;
-				const distNorm = 0.22 + nextRand() * 0.68;
-				const rx = (ISLAND_RADIUS_X - 140) * distNorm;
-				const ry = (ISLAND_RADIUS_Y - 110) * distNorm;
-
-				const x = Math.round(cx + Math.cos(angle) * rx);
-				const y = Math.round(cy + Math.sin(angle) * ry);
-
-				// 1. Must be on island meadow
-				if (!this.buildingSystem.isPointOnIsland(team, x, y, 70)) continue;
-
-				// 2. Must not be on castle plaza
-				if (Math.hypot(x - cx, y - cy) < 260) continue;
-
-				// 3. Must not be on road or within 1 cell (32px) margin from road
-				// Road half-width = 75px, 1 grid step margin = 32px, max decoration radius = 22px
-				// Clearance 145px guarantees: dist to road surface >= 145 - 75 - 22 = 48px (> 1 cell)
-				if (this.buildingSystem.isPointNearRoad(x, y, 145)) continue;
-
-				// 4. Must not overlap existing decorations
-				const tooClose = this.decorations.some((d) => Math.hypot(d.x - x, d.y - y) < 64);
-				if (tooClose) continue;
-
-				const type = types[Math.floor(nextRand() * types.length)];
-				const variant = Math.floor(nextRand() * 4);
-
-				this.decorations.push({
-					id: `decor_${team}_${decorId++}`,
-					x,
-					y,
-					radius: typeRadii[type],
-					type,
-					team,
-					variant
-				});
-				placedCount++;
-			}
-		}
+	public initDecorations(seed?: number): void {
+		const effectiveSeed = (seed ?? createRandomDecorationSeed()) >>> 0 || 1;
+		this.decorationSeed = effectiveSeed;
+		this.decorations = generateDecorations(effectiveSeed, {
+			isPointOnIsland: (team, x, y, margin) =>
+				this.buildingSystem.isPointOnIsland(team, x, y, margin),
+			isPointNearRoad: (x, y, clearance) => this.buildingSystem.isPointNearRoad(x, y, clearance)
+		});
 	}
 }

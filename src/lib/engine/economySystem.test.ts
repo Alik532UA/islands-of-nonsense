@@ -12,6 +12,7 @@ describe('Point 1: Weighted Building Value (Dx, ea, To) and Diminishing Returns'
 
 	beforeEach(() => {
 		sim = new Simulation({ botDifficulty: 0, startGold: 2000 });
+		sim.decorations = [];
 	});
 
 	it('applies correct relative weights for regular, siege, and special buildings', () => {

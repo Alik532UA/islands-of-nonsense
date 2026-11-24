@@ -21,6 +21,7 @@ describe('Canonical Building Race Ownership & Display Resolution', () => {
 			westRace: 'Тварини',
 			eastRace: 'Небожителі'
 		});
+		sim.decorations = [];
 		sim.players.west.lumber = 1000;
 		sim.players.east.lumber = 1000;
 

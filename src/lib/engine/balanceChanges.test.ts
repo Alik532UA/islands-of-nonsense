@@ -7,6 +7,7 @@ describe('Balance Changes and Anti-Air Sync (changes.txt & power.json)', () => {
 
 	beforeEach(() => {
 		sim = new Simulation();
+		sim.decorations = [];
 	});
 
 	it('h06T (Легкий танк) has air in ua1g and can target flying enemies', () => {

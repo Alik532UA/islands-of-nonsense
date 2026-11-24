@@ -7,6 +7,7 @@ describe('Point 5: Defensive Guard Towers for Each Race', () => {
 
 	beforeEach(() => {
 		sim = new Simulation({ botDifficulty: 0, startGold: 3000 });
+		sim.decorations = [];
 		sim.players.west.lumber = 2000;
 	});
 

@@ -6,6 +6,7 @@ describe('Point 2: Full Scavenger Race Debris and Great Assembly Mechanics', () 
 
 	beforeEach(() => {
 		sim = new Simulation({ botDifficulty: 0, startGold: 2000 });
+		sim.decorations = [];
 	});
 
 	it('drops debris when a Scavenger unit dies and buffs up to 2 nearest allies', () => {

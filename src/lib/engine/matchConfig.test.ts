@@ -135,12 +135,14 @@ describe('Quick Settings, Match Config & GameMode Integration', () => {
 			modeId: 'standard',
 			westRace: 'Альянс'
 		});
+		stdSim.decorations = [];
 		const blitzSim = new Simulation({
 			botDifficulty: 0,
 			startGold: 500,
 			modeId: 'blitz',
 			westRace: 'Альянс'
 		});
+		blitzSim.decorations = [];
 
 		stdSim.build('west', 'h000', 25, 20);
 		blitzSim.build('west', 'h000', 25, 20);

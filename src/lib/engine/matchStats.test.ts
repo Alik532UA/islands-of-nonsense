@@ -6,6 +6,7 @@ describe('Point 9: Detailed Post-Round / Match Breakdown & MVP Building', () => 
 
 	beforeEach(() => {
 		sim = new Simulation({ botDifficulty: 0, startGold: 2000 });
+		sim.decorations = [];
 		sim.players.west.lumber = 2000;
 	});
 

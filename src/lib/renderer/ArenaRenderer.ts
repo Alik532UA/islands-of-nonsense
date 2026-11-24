@@ -17,7 +17,8 @@ import {
 	EAST_CASTLE_X,
 	EAST_CASTLE_Y,
 	EAST_GRID_START_X,
-	EAST_GRID_START_Y
+	EAST_GRID_START_Y,
+	type DecorationObstacle
 } from '../engine/constants';
 import { TerrainRenderer } from './terrainRenderer';
 import { EntityRenderer, type SelectedEntity } from './entityRenderer';
@@ -137,6 +138,7 @@ export class ArenaRenderer {
 	private resizeObserver: ResizeObserver | null = null;
 	private canvasEl: HTMLCanvasElement | null = null;
 	private lastDrawnBrokenBridge: 'top' | 'mid' | 'bottom' | null = undefined as unknown as null;
+	private lastDrawnDecorations: DecorationObstacle[] | null = null;
 
 	// Subsystems
 	private terrainRenderer: TerrainRenderer;
@@ -892,10 +894,14 @@ export class ArenaRenderer {
 			this.sim.decorations
 		);
 		this.lastDrawnBrokenBridge = this.sim.brokenBridge;
+		this.lastDrawnDecorations = this.sim.decorations;
 	}
 
 	public render(): void {
-		if (this.lastDrawnBrokenBridge !== this.sim.brokenBridge) {
+		if (
+			this.lastDrawnBrokenBridge !== this.sim.brokenBridge ||
+			this.lastDrawnDecorations !== this.sim.decorations
+		) {
 			this.drawStaticTerrain();
 		}
 
