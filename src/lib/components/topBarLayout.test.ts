@@ -38,6 +38,14 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 		expect(topBarContent).toContain('data-testid="day-night-dial"');
 	});
 
+	it('shows castle HP meters ONLY in spectator botVsBot matches without human players', () => {
+		expect(topBarContent).toContain('let isBotVsBot = $derived.by(');
+		expect(topBarContent).toContain('{#if isBotVsBot}');
+		expect(topBarContent).toContain(
+			'<div class="flex items-center gap-2 2xl:gap-3 shrink-0" data-testid="castle-hp-meters">'
+		);
+	});
+
 	it('speed controls are decoupled from center banner to prevent squeezing round info', () => {
 		// Speed controls must have shrink-0 and reside in the controls/resource section
 		expect(topBarContent).toContain('data-testid="speed-controls"');

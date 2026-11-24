@@ -836,6 +836,7 @@
 	<TopBar
 		{sim}
 		{uiTick}
+		isOnline={Boolean(matchSync)}
 		onOpenForge={() => (isForgeOpen = true)}
 		onOpenCommander={() => (isCommanderOpen = true)}
 		onOpenShop={() => (isShopOpen = true)}

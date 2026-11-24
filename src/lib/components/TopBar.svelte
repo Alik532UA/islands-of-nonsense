@@ -33,6 +33,7 @@
 	let {
 		sim,
 		uiTick = 0,
+		isOnline = false,
 		onOpenForge,
 		onOpenCommander,
 		onOpenShop,
@@ -41,12 +42,22 @@
 	}: {
 		sim: Simulation;
 		uiTick?: number;
+		isOnline?: boolean;
 		onOpenForge: () => void;
 		onOpenCommander: () => void;
 		onOpenShop?: () => void;
 		onOpenSettings?: () => void;
 		onBeforeLeave?: (targetUrl: string) => boolean;
 	} = $props();
+
+	let isBotVsBot = $derived.by(() => {
+		if (isOnline) return false;
+		if (sim.config.botVsBot) return true;
+		if (sim.allPlayers?.length) {
+			return sim.allPlayers.every((p) => p.isBot);
+		}
+		return Boolean(sim.players.west.isBot && sim.players.east.isBot);
+	});
 
 	// Explicitly depend on uiTick so Svelte 5 re-reads properties from the class instance
 	let westCastle = $derived(uiTick >= 0 ? sim.castles.west : sim.castles.west);
@@ -526,61 +537,63 @@
 			</div>
 		</div>
 
-		<!-- Castles HP Meters -->
-		<div class="flex items-center gap-2 2xl:gap-3 shrink-0" data-testid="castle-hp-meters">
-			<!-- West Castle HP (Player) -->
-			<div
-				class="w-24 xl:w-28 2xl:w-32 shrink-0"
-				role="meter"
-				aria-label="Здоров'я Західного Замку (Гравець)"
-				aria-valuenow={westHp}
-				aria-valuemin={0}
-				aria-valuemax={westMaxHp}
-				title="Західний Замок (Гравець): {westHp} / {westMaxHp}"
-			>
+		<!-- Castles HP Meters (Shown only in bot-vs-bot spectator mode without human players) -->
+		{#if isBotVsBot}
+			<div class="flex items-center gap-2 2xl:gap-3 shrink-0" data-testid="castle-hp-meters">
+				<!-- West Castle HP (Player) -->
 				<div
-					class="flex justify-between items-center text-[10px] font-bold mb-0.5 whitespace-nowrap gap-1"
+					class="w-24 xl:w-28 2xl:w-32 shrink-0"
+					role="meter"
+					aria-label="Здоров'я Західного Замку (Гравець)"
+					aria-valuenow={westHp}
+					aria-valuemin={0}
+					aria-valuemax={westMaxHp}
+					title="Західний Замок (Гравець): {westHp} / {westMaxHp}"
 				>
-					<span class="text-blue-400 flex items-center gap-0.5">
-						<Shield class="w-3 h-3 text-blue-400 shrink-0" />
-						Ваш Замок
-					</span>
-					<span class="text-slate-300 font-mono text-[9px]">{westHp}</span>
-				</div>
-				<div class="h-2 w-full bg-[#0c1017] rounded-full overflow-hidden border border-[#3b3226]">
 					<div
-						class="h-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-all duration-200"
-						style="width: {westHpPct}%"
-					></div>
+						class="flex justify-between items-center text-[10px] font-bold mb-0.5 whitespace-nowrap gap-1"
+					>
+						<span class="text-blue-400 flex items-center gap-0.5">
+							<Shield class="w-3 h-3 text-blue-400 shrink-0" />
+							Ваш Замок
+						</span>
+						<span class="text-slate-300 font-mono text-[9px]">{westHp}</span>
+					</div>
+					<div class="h-2 w-full bg-[#0c1017] rounded-full overflow-hidden border border-[#3b3226]">
+						<div
+							class="h-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-all duration-200"
+							style="width: {westHpPct}%"
+						></div>
+					</div>
 				</div>
-			</div>
 
-			<!-- East Castle HP (Enemy Bot) -->
-			<div
-				class="w-24 xl:w-28 2xl:w-32 shrink-0"
-				role="meter"
-				aria-label="Здоров'я Східного Замку (Ворог)"
-				aria-valuenow={eastHp}
-				aria-valuemin={0}
-				aria-valuemax={eastMaxHp}
-				title="Східний Замок ({sim.players.east.race} Бот): {eastHp} / {eastMaxHp}"
-			>
+				<!-- East Castle HP (Enemy Bot) -->
 				<div
-					class="flex justify-between items-center text-[10px] font-bold mb-0.5 whitespace-nowrap gap-1"
+					class="w-24 xl:w-28 2xl:w-32 shrink-0"
+					role="meter"
+					aria-label="Здоров'я Східного Замку (Ворог)"
+					aria-valuenow={eastHp}
+					aria-valuemin={0}
+					aria-valuemax={eastMaxHp}
+					title="Східний Замок ({sim.players.east.race} Бот): {eastHp} / {eastMaxHp}"
 				>
-					<span class="text-slate-300 font-mono text-[9px]">{eastHp}</span>
-					<span class="text-rose-400 flex items-center gap-0.5">
-						Замок Ворога
-						<Shield class="w-3 h-3 text-rose-400 shrink-0" />
-					</span>
-				</div>
-				<div class="h-2 w-full bg-[#0c1017] rounded-full overflow-hidden border border-[#3b3226]">
 					<div
-						class="h-full bg-gradient-to-l from-red-600 to-orange-400 transition-all duration-200"
-						style="width: {eastHpPct}%"
-					></div>
+						class="flex justify-between items-center text-[10px] font-bold mb-0.5 whitespace-nowrap gap-1"
+					>
+						<span class="text-slate-300 font-mono text-[9px]">{eastHp}</span>
+						<span class="text-rose-400 flex items-center gap-0.5">
+							Замок Ворога
+							<Shield class="w-3 h-3 text-rose-400 shrink-0" />
+						</span>
+					</div>
+					<div class="h-2 w-full bg-[#0c1017] rounded-full overflow-hidden border border-[#3b3226]">
+						<div
+							class="h-full bg-gradient-to-l from-red-600 to-orange-400 transition-all duration-200"
+							style="width: {eastHpPct}%"
+						></div>
+					</div>
 				</div>
 			</div>
-		</div>
+		{/if}
 	</div>
 </header>
