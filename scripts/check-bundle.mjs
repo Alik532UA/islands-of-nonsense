@@ -10,6 +10,7 @@ import { gzipSync } from 'node:zlib';
 const BUILD_DIR = process.argv[2] ?? 'build';
 const MAX_JS_KB = 550; // Gzip ceiling for total JS across all pages and chunks
 const MAX_CSS_KB = 60; // Gzip ceiling for CSS
+const MAX_SINGLE_CHUNK_KB = 250; // Max allowed gzip size for any individual JS chunk
 
 if (!existsSync(BUILD_DIR)) {
 	console.error(`❌ Build directory "${BUILD_DIR}" not found. Run "npm run build" first.`);
@@ -61,18 +62,34 @@ if (chunkDetails.length > 0) {
 	});
 }
 
+const isSoft = process.env.BUDGET_SOFT === '1' || process.argv.includes('--warn-only');
+let failed = false;
+
 if (totalJsKb > MAX_JS_KB) {
 	console.error(`\n❌ Total JS exceeds budget (${totalJsKb.toFixed(1)} KB > ${MAX_JS_KB} KB)`);
-	if (process.env.BUDGET_SOFT !== '1' && process.env.CI === 'true') {
-		process.exit(1);
-	}
+	failed = true;
 }
 
 if (totalCssKb > MAX_CSS_KB) {
 	console.error(`\n❌ Total CSS exceeds budget (${totalCssKb.toFixed(1)} KB > ${MAX_CSS_KB} KB)`);
-	if (process.env.BUDGET_SOFT !== '1' && process.env.CI === 'true') {
-		process.exit(1);
-	}
+	failed = true;
 }
 
-console.log('\n✅ Bundle budget passed successfully.');
+const oversizedChunks = chunkDetails.filter((c) => c.gzKb > MAX_SINGLE_CHUNK_KB);
+if (oversizedChunks.length > 0) {
+	console.error(`\n❌ Single chunk exceeds limit (${MAX_SINGLE_CHUNK_KB} KB):`);
+	for (const chunk of oversizedChunks) {
+		console.error(`   - ${chunk.file}: ${chunk.gzKb.toFixed(1)} KB`);
+	}
+	failed = true;
+}
+
+if (failed) {
+	if (!isSoft) {
+		process.exit(1);
+	} else {
+		console.warn('\n⚠️ Budget exceeded but running in soft/warn-only mode.');
+	}
+} else {
+	console.log('\n✅ Bundle budget passed successfully.');
+}

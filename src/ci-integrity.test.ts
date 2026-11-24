@@ -17,7 +17,15 @@ describe('CI & Testing Integrity Invariants (CI-CD-AND-TOOLS-v10)', () => {
 		expect(pkg.scripts['test:unit']).toBeDefined();
 		expect(pkg.scripts['test:e2e']).toBeDefined();
 		expect(pkg.scripts['check:build']).toBeDefined();
+		expect(pkg.scripts['check:bundle']).toBeDefined();
 		expect(pkg.scripts['verify']).toBeDefined();
+	});
+
+	it('enforces bundle budget verification in deploy and budgets CI workflows (CI § 1.18)', () => {
+		const deployContent = fs.readFileSync(path.join(wfDir, 'deploy.yml'), 'utf-8');
+		const budgetsContent = fs.readFileSync(path.join(wfDir, 'budgets.yml'), 'utf-8');
+		expect(deployContent).toContain('npm run check:bundle');
+		expect(budgetsContent).toContain('npm run check:bundle');
 	});
 
 	it('Firebase RTDB rules file exists and contains anti-cheat security assertions', () => {

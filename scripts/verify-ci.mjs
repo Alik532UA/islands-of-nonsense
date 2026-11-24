@@ -47,7 +47,7 @@ step('Verifying test discovery across test runners', () => {
 // 2. Package manifest invariants
 step('Checking package.json script invariants', () => {
 	const pkg = JSON.parse(fs.readFileSync(path.join(cwd, 'package.json'), 'utf-8'));
-	const requiredScripts = ['test', 'check', 'check:rules', 'build', 'verify'];
+	const requiredScripts = ['test', 'check', 'check:rules', 'build', 'verify', 'check:bundle'];
 	for (const s of requiredScripts) {
 		if (!pkg.scripts[s]) {
 			throw new Error(`Missing required script in package.json: "${s}"`);
