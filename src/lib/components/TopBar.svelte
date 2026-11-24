@@ -4,6 +4,7 @@
 	import type { PlayerState } from '../engine/types';
 	import { getCommander } from '../engine/commanders';
 	import { getRaceAbility } from '../engine/raceAbilities';
+	import { toPlayableRace } from '../engine/gameData';
 	import { resolve } from '$app/paths';
 	import { settings } from '$lib/services/settings.svelte';
 	import { fullscreen, canFullscreen } from '$lib/services/fullscreen.svelte';
@@ -724,7 +725,9 @@
 					aria-valuenow={eastHp}
 					aria-valuemin={0}
 					aria-valuemax={eastMaxHp}
-					title="Східний Замок ({sim.players.east.race} Бот): {eastHp} / {eastMaxHp}"
+					title="Східний Замок ({toPlayableRace(
+						sim.players.east.race
+					)} Бот): {eastHp} / {eastMaxHp}"
 				>
 					<div
 						class="flex justify-between items-center text-[10px] font-bold mb-0.5 whitespace-nowrap gap-1"

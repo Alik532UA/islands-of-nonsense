@@ -361,7 +361,7 @@ export class Simulation {
 			.filter((r) => isRaceAvailable(r));
 		const isAllRandom = !!(config.allRandom || this.gameModeConfig.allRandom);
 		const isUniqueRaces = !!(config.uniqueRaces || this.gameModeConfig.uniqueRaces);
-		const isBotVsBot = !!config.botVsBot;
+		const isBotVsBot = !!(config.botVsBot || config.modeId === 'botVsBot');
 		const avoidDuplicateRaces = isUniqueRaces || isBotVsBot;
 
 		const remainingRaces = [...availableRaces];

@@ -6,6 +6,7 @@ import type { Unit, Building, WorkerState, Castle, MatchTeam } from '../engine/t
 import type { Simulation } from '../engine/simulation';
 import type { SelectedEntity } from '../renderer/entityRenderer';
 import { getCastleStageIndex } from '../renderer/castleAssets';
+import { resolveBuildingDisplayRace, toPlayableRace } from '../engine/gameData';
 
 export type Level = 'info' | 'warn' | 'error';
 
@@ -352,13 +353,16 @@ class LogService {
 			(b.playerSlot != null ? sim.allPlayers?.find((p) => p.slot === b.playerSlot) : null) ||
 			sim.players?.[b.team];
 
+		const resolvedRace = resolveBuildingDisplayRace(b, sim.allPlayers, sim.players);
+		const ownerRace = owner?.race ? toPlayableRace(owner.race) : resolvedRace;
+
 		const header = [
 			'=== BUILDING DIAGNOSTIC REPORT ===',
 			`DATE: ${new Date().toISOString()}`,
 			`VERSION: ${appVersion}`,
 			`BUILDING: ${b.name} [${b.defId}] (ID: ${b.instanceId})`,
-			`TEAM: ${b.team.toUpperCase()} | RACE: ${b.race} | LANE: ${b.lane.toUpperCase()}`,
-			`OWNER: ${owner ? `${owner.name} (${owner.id}, slot=${owner.slot ?? '?'}, isBot=${owner.isBot}, gold=${Math.floor(owner.gold)}, lumber=${Math.floor(owner.lumber ?? 0)})` : `${b.playerId ?? 'Unknown'} (slot=${b.playerSlot ?? '?'})`}`,
+			`TEAM: ${b.team.toUpperCase()} | RACE: ${resolvedRace} | LANE: ${b.lane.toUpperCase()}`,
+			`OWNER: ${owner ? `${owner.name} (${owner.id}, slot=${owner.slot ?? '?'}, race=${ownerRace}, isBot=${owner.isBot}, gold=${Math.floor(owner.gold)}, lumber=${Math.floor(owner.lumber ?? 0)})` : `${b.playerId ?? 'Unknown'} (slot=${b.playerSlot ?? '?'})`}`,
 			`GRID TILE: (${b.tileX}, ${b.tileY}) | WORLD POS: (${b.x}, ${b.y})`,
 			`HP: ${Math.round(b.hp)}/${b.maxHp} | ARMOR: ${b.armor} (${b.armorType})`,
 			`STATUS: ${b.isUnderConstruction ? `Under Construction (${(b.buildProgress || 0).toFixed(2)}/${(b.maxBuildProgress || 3.5).toFixed(2)})` : 'Operational'}`,

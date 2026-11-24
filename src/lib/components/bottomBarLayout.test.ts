@@ -280,4 +280,9 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 		expect(bottomBarSrc).toContain("activeEntityType !== 'worker' && activeEntityType !== 'none'");
 		expect(bottomBarSrc).not.toContain('wHp / wMaxHp');
 	});
+
+	it('displays canonical owner race via resolveBuildingDisplayRace instead of raw placedBuilding.race', () => {
+		expect(bottomBarSrc).toContain('resolveBuildingDisplayRace(');
+		expect(bottomBarSrc).not.toContain('{placedBuilding.race}');
+	});
 });

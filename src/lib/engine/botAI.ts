@@ -27,8 +27,7 @@ import {
 	getBuildingVisualRank,
 	UNITS_MAP,
 	SPECIAL_BUILDINGS,
-	GUARD_TOWERS,
-	formatRaceName
+	getGuardTowerForRace
 } from './gameData';
 
 export interface EnemyArmyScan {
@@ -772,12 +771,10 @@ export class BotAI {
 		const towerCount = myBuildings.filter((b) => b.specialType === 'tower').length;
 
 		if (isAirThreat && towerCount < 2) {
-			const raceTower =
-				GUARD_TOWERS.find(
-					(t) => t.race === player.race || t.race === formatRaceName(player.race)
-				) || GUARD_TOWERS.find((t) => t.id === 'h006');
+			const raceTower = getGuardTowerForRace(player.race);
 			if (
 				raceTower &&
+				this.isBuildingAllowedByMode(raceTower) &&
 				(raceTower.lumber_cost || 0) <= (player.lumber ?? 0) &&
 				player.gold >= (raceTower.gold_cost || 150)
 			) {

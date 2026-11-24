@@ -1,14 +1,17 @@
 import rawBuildings from '../data/buildings.json';
 import rawUnits from '../data/units.json';
 import rawRaces from '../data/races.json';
-export { RaceRegistry } from './raceRegistry';
+import { RaceRegistry } from './raceRegistry';
+export { RaceRegistry };
 import type {
 	BuildingDefinition,
 	UnitDefinition,
 	RaceDefinition,
 	Building,
 	UnitAbilityType,
-	UnitAbilityDef
+	UnitAbilityDef,
+	PlayerState,
+	MatchTeam
 } from './types';
 
 export const BUILDINGS_MAP = new Map<string, BuildingDefinition>();
@@ -31,6 +34,15 @@ export const PLAYABLE_RACES = [
 ] as const;
 
 export type PlayableRace = (typeof PLAYABLE_RACES)[number];
+
+/** Returns built-in PLAYABLE_RACES plus any custom races registered in RaceRegistry. */
+export function getAllPlayableRaces(): string[] {
+	const custom = RaceRegistry.getInstance()
+		.list()
+		.map((r) => r.name)
+		.filter((name) => !(PLAYABLE_RACES as readonly string[]).includes(name));
+	return [...PLAYABLE_RACES, ...custom];
+}
 
 export const SPECIAL_BUILDINGS: BuildingDefinition[] = [
 	{
@@ -400,17 +412,97 @@ export function getUnit(id: string): UnitDefinition | undefined {
 
 export function getBuildingsForRace(raceName: string): BuildingDefinition[] {
 	const canonical = formatRaceName(raceName);
+	const seen = new Set<string>();
 	const buildings: BuildingDefinition[] = [];
+	const pushUnique = (b: BuildingDefinition) => {
+		if (!seen.has(b.id)) {
+			seen.add(b.id);
+			buildings.push(b);
+		}
+	};
+
+	const raceEntry =
+		RACES_LIST.find((r) => r.race === raceName) ||
+		RACES_LIST.find((r) => formatRaceName(r.race) === canonical);
+	if (raceEntry?.buildings) {
+		const queue = [...raceEntry.buildings];
+		while (queue.length > 0) {
+			const id = queue.shift()!;
+			if (seen.has(id)) continue;
+			const def = BUILDINGS_MAP.get(id);
+			if (!def) continue;
+			pushUnique(def);
+			for (const up of getUpgradesForBuilding(id)) {
+				if (!seen.has(up.id)) queue.push(up.id);
+			}
+		}
+	}
+
 	for (const b of BUILDINGS_MAP.values()) {
 		if (b.race === raceName || (b.race && formatRaceName(b.race) === canonical)) {
-			buildings.push(b);
+			pushUnique(b);
 		}
 	}
 	return buildings;
 }
 
+function customUnitToBuilding(
+	unit: {
+		id: string;
+		name: string;
+		hp: number;
+		cost: number;
+		lumberCost?: number;
+		armorType: string;
+		attackType: string;
+	},
+	raceName: string,
+	extra?: { is_special?: boolean; is_legendary?: boolean }
+): BuildingDefinition {
+	return {
+		id: unit.id,
+		name: unit.name,
+		hp: unit.hp,
+		armor: 0,
+		armor_type: unit.armorType,
+		attack_type: unit.attackType,
+		gold_cost: unit.cost,
+		lumber_cost: unit.lumberCost,
+		unit: unit.id,
+		upgrade_from: null,
+		upgrade_extra_cost: 0,
+		race: raceName,
+		...extra
+	};
+}
+
 export function getBaseBuildingsForRace(raceName: string): BuildingDefinition[] {
+	const registry = RaceRegistry.getInstance();
 	const canonical = formatRaceName(raceName);
+	const customRace =
+		registry.get(raceName) ??
+		registry.get(canonical) ??
+		registry.list().find((r) => r.name === raceName || r.name === canonical);
+	if (customRace) {
+		const out = [
+			...customRace.buildings.tier1.map((u) => customUnitToBuilding(u, customRace.name)),
+			...(customRace.buildings.tier2 ?? []).map((u) => customUnitToBuilding(u, customRace.name))
+		];
+		if (customRace.buildings.special) {
+			out.push(
+				customUnitToBuilding(customRace.buildings.special, customRace.name, { is_special: true })
+			);
+		}
+		if (customRace.buildings.legendary) {
+			out.push(
+				customUnitToBuilding(customRace.buildings.legendary, customRace.name, {
+					is_legendary: true
+				})
+			);
+		}
+		return out;
+	}
+
 	const validRace = raceName === 'in_game' || !raceName ? 'Альянс' : raceName;
 	const raceEntry =
 		RACES_LIST.find((r) => r.race === validRace) ||
@@ -520,8 +612,8 @@ export function getBuildingVisualRank(defId: string, race?: string): BuildingVis
 		isUpgrade = true;
 	}
 
-	const buildingRace = bDef.race || race;
-	if (buildingRace) {
+	const candidateRaces = [race, bDef.race].filter((r): r is string => Boolean(r));
+	for (const buildingRace of candidateRaces) {
 		const armySpawners = getBuildingsForRace(buildingRace).filter(
 			(b) => !b.upgrade_from && !b.specialType
 		);
@@ -1393,6 +1485,22 @@ export function isSpecialBuilding(def?: BuildingDefinition | Building): boolean 
 }
 
 /**
+ * Returns the canonical Defensive Guard Tower for a playable race (or legacy alias),
+ * preferring the race's own roster in races.json before falling back to GUARD_TOWERS.
+ */
+export function getGuardTowerForRace(raceName: string): BuildingDefinition | undefined {
+	const fromRoster = getBaseBuildingsForRace(raceName).find((b) => b.specialType === 'tower');
+	if (fromRoster) return fromRoster;
+
+	const canonical = toPlayableRace(raceName);
+	return (
+		GUARD_TOWERS.find(
+			(t) => t.race === raceName || (t.race !== null && toPlayableRace(t.race) === canonical)
+		) || GUARD_TOWERS.find((t) => t.id === 'h006')
+	);
+}
+
+/**
  * Checks if a building is a Defensive Guard Tower.
  */
 export function isTowerBuilding(def?: BuildingDefinition | Building): boolean {
@@ -1435,6 +1543,46 @@ export function formatRaceName(race: string): string {
 	return map[race] || race;
 }
 
+const LEGACY_TO_PLAYABLE_RACE: Record<string, PlayableRace> = {
+	Люди: 'Альянс',
+	Хаос: 'Демони',
+	Порча: 'Елементалі',
+	'Нічні ельфи': 'Ельфи',
+	Збирачі: 'Техніки'
+};
+
+/**
+ * Converts any race string (including legacy WC3 reference tags like "Нічні ельфи",
+ * "Порча", "Люди", "Хаос", "Збирачі") into one of the 12 canonical PLAYABLE_RACES.
+ */
+export function toPlayableRace(race?: string | null): PlayableRace {
+	const formatted = formatRaceName(race || '');
+	if ((PLAYABLE_RACES as readonly string[]).includes(formatted)) {
+		return formatted as PlayableRace;
+	}
+	return LEGACY_TO_PLAYABLE_RACE[formatted] ?? 'Альянс';
+}
+
+/**
+ * Resolves the true canonical race of a placed building in a match by preferring its owning
+ * player's canonical race (since races.json composes new races from shared legacy building defs),
+ * falling back to mapping legacy building.race into PLAYABLE_RACES.
+ */
+export function resolveBuildingDisplayRace(
+	building: Pick<Building, 'race' | 'playerId' | 'playerSlot' | 'team'>,
+	allPlayers?: readonly PlayerState[],
+	fallbackPlayers?: Partial<Record<MatchTeam, PlayerState>>
+): PlayableRace {
+	const owner =
+		(building.playerId && allPlayers?.find((p) => p.id === building.playerId)) ||
+		(building.playerSlot != null && allPlayers?.find((p) => p.slot === building.playerSlot)) ||
+		fallbackPlayers?.[building.team];
+	if (owner?.race) {
+		return toPlayableRace(owner.race);
+	}
+	return toPlayableRace(building.race);
+}
+
 /**
  * Formats faction name into canonical Ukrainian display (e.g., Люди -> Альянс, Орки -> Орда).
  */
@@ -1449,6 +1597,7 @@ export function formatFactionName(race: string): string {
 		case 'Нежить':
 			return 'Нежить';
 		case 'Ельфи':
+		case 'Нічні ельфи':
 			return 'Ельфи';
 		case 'Демони':
 		case 'Хаос':
@@ -1458,12 +1607,14 @@ export function formatFactionName(race: string): string {
 		case 'Наги':
 			return 'Наги';
 		case 'Техніки':
+		case 'Збирачі':
 			return 'Техніки';
 		case 'Тролі':
 			return 'Тролі';
 		case 'Тварини':
 			return 'Тварини';
 		case 'Елементалі':
+		case 'Порча':
 			return 'Елементалі';
 		case 'Небожителі':
 			return 'Небожителі';

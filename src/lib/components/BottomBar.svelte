@@ -6,7 +6,8 @@
 		formatRaceName,
 		getBaseBuildingsForRace,
 		getUpgradesForBuilding,
-		getUnit
+		getUnit,
+		resolveBuildingDisplayRace
 	} from '../engine/gameData';
 	import { Shield, Swords, Hammer, Users } from 'lucide-svelte';
 	import Minimap from './Minimap.svelte';
@@ -283,14 +284,20 @@
 			{:else if activeEntityType === 'building' && placedBuilding}
 				<!-- Building Icon Portrait -->
 				{@const isEnemyBld = placedBuilding.team !== localTeam}
+				{@const buildingRace = resolveBuildingDisplayRace(
+					placedBuilding,
+					sim.allPlayers,
+					sim.players
+				)}
 				<div
 					class="flex flex-col items-center justify-center {isEnemyBld
 						? 'text-rose-400'
 						: 'text-amber-300'}"
+					title="{placedBuilding.name} ({buildingRace})"
 				>
 					<Hammer class="w-9 h-9 {isEnemyBld ? 'text-rose-400' : 'text-amber-400'}" />
 					<span class="text-[9px] font-bold uppercase truncate max-w-[70px]">
-						{placedBuilding.race}
+						{buildingRace}
 					</span>
 				</div>
 			{:else if activeEntityType === 'unit' && selectedUnit}

@@ -2,7 +2,12 @@ import type { Graphics } from 'pixi.js';
 import type { Simulation } from '../engine/simulation';
 import type { Castle } from '../engine/types';
 import { CELL_SIZE } from '../engine/constants';
-import { BUILDINGS_MAP, getBuildingVisualRank, isLegendaryBuilding } from '../engine/gameData';
+import {
+	BUILDINGS_MAP,
+	getBuildingVisualRank,
+	isLegendaryBuilding,
+	resolveBuildingDisplayRace
+} from '../engine/gameData';
 import type { SelectedEntity } from './entityRenderer';
 import { drawIndividualBuildingModel, shadeHexColor } from './buildingModels';
 
@@ -58,19 +63,22 @@ export class BuildingRenderer {
 			const isWest = b.team === 'west';
 			const isSelected = selectedPlacedId === b.instanceId;
 
-			const player = b.playerSlot
-				? this.sim.allPlayers.find((p) => p.slot === b.playerSlot)
-				: this.sim.players[b.team];
+			const player =
+				(b.playerId && this.sim.allPlayers.find((p) => p.id === b.playerId)) ||
+				(b.playerSlot ? this.sim.allPlayers.find((p) => p.slot === b.playerSlot) : undefined) ||
+				this.sim.players[b.team];
 			const playerColor = player?.color?.num ?? (isWest ? 0x0042ff : 0xff0303);
+			const resolvedRace = resolveBuildingDisplayRace(b, this.sim.allPlayers, this.sim.players);
+			const renderBuilding = b.race === resolvedRace ? b : { ...b, race: resolvedRace };
 
-			const rankInfo = getBuildingVisualRank(b.defId, b.race);
+			const rankInfo = getBuildingVisualRank(b.defId, resolvedRace);
 			const isUpgraded = rankInfo.isUpgrade;
 			const isLegendary = isLegendaryBuilding(BUILDINGS_MAP.get(b.defId));
 
 			// Individual 2.5D Building Silhouette (no uniform square box slab)
 			drawIndividualBuildingModel(
 				g,
-				b,
+				renderBuilding,
 				playerColor,
 				rankInfo.rank,
 				isUpgraded,

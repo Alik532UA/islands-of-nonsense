@@ -26,6 +26,7 @@ import {
 } from './constants';
 import type { MatchTeam, Lane, Building, Unit, ArmorType, AttackType, PlayerState } from './types';
 import {
+	BUILDINGS_MAP,
 	getBuilding,
 	getUnit,
 	getSpawnCooldown,
@@ -34,7 +35,8 @@ import {
 	getUnitAbilities,
 	isLegendaryBuilding,
 	isSpecialBuilding,
-	isTowerBuilding
+	isTowerBuilding,
+	toPlayableRace
 } from './gameData';
 import { logService } from '../services/logService.svelte';
 
@@ -421,7 +423,7 @@ export class BuildingSystem {
 			spawnTimer: bDef.specialType === 'repair' ? 0 : initialDelay,
 			lane: resolvedLane,
 			upgradeFrom: bDef.upgrade_from,
-			race: bDef.race || player.race,
+			race: toPlayableRace(player.race || bDef.race),
 			width: 2,
 			height: 2,
 			specialType: bDef.specialType,
@@ -711,9 +713,7 @@ export class BuildingSystem {
 		building.upgradeFrom = targetDef.upgrade_from;
 		building.specialType = targetDef.specialType;
 		building.aura = targetDef.aura ? { ...targetDef.aura } : undefined;
-		if (targetDef.race) {
-			building.race = targetDef.race;
-		}
+		building.race = toPlayableRace(player.race || targetDef.race || building.race);
 
 		this.sim.addFloatingText(`-${upgradeCost}g (Апгрейд)`, building.x, building.y - 20, '#38bdf8');
 		this.sim.notifyStateChanged();
@@ -997,7 +997,8 @@ export class BuildingSystem {
 			isScavenger: !!(
 				unitDef.isScavenger ||
 				unitDef.id?.startsWith('cg1') ||
-				building.race === 'Збирачі'
+				building.race === 'Збирачі' ||
+				BUILDINGS_MAP.get(building.defId)?.race === 'Збирачі'
 			),
 			abilityType: resolveUnitAbility(unitDef),
 			abilities,
