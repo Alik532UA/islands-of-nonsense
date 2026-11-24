@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Simulation } from './simulation';
-import { getBaseBuildingsForRace, GUARD_TOWERS, SPECIAL_BUILDINGS } from './gameData';
+import { getBaseBuildingsForRace, GUARD_TOWERS } from './gameData';
 
 describe('Worker Navigation and Building Order (v10 Canon)', () => {
 	describe('Worker Building Order in Command Card', () => {
@@ -32,14 +32,15 @@ describe('Worker Navigation and Building Order (v10 Canon)', () => {
 					expect(costA).toBeLessThanOrEqual(costB);
 				}
 
-				// Check that race tower and core specials exist
+				// Check that race tower, shop, forge, and treasure exist (11 reference + shop + forge = 13 total)
+				expect(buildings.length).toBe(13);
 				const raceTower = GUARD_TOWERS.find((t) => t.race === race);
 				if (raceTower) {
 					expect(specials.some((s) => s.id === raceTower.id)).toBe(true);
 				}
-				for (const sb of SPECIAL_BUILDINGS) {
-					expect(specials.some((s) => s.id === sb.id)).toBe(true);
-				}
+				expect(specials.some((s) => s.id === 'cg10_shop')).toBe(true);
+				expect(specials.some((s) => s.id === 'cg11_forge')).toBe(true);
+				expect(specials.some((s) => s.id === 'h008')).toBe(true);
 			}
 		});
 	});

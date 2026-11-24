@@ -18,7 +18,7 @@
 	} from './CombatMatrixTooltip.svelte';
 
 	let {
-		sim,
+		sim: _sim,
 		activeEntityType,
 		selectedCastle = null,
 		placedBuilding = null,
@@ -277,24 +277,9 @@
 <div class="border-t border-[#3b3226] pt-1 flex items-center justify-between text-[11px]">
 	{#if activeEntityType === 'worker' || activeEntityType === 'none'}
 		<div class="flex items-center justify-between w-full">
-			<div class="flex items-center gap-1.5">
-				<span class="text-[10px] text-amber-300 font-bold">Лінія:</span>
-				{#each ['auto', 'top', 'bottom'] as const as lane}
-					{@const isActive = sim.getPlayerPreferredLane('west') === lane}
-					<button
-						onclick={() => sim.setPlayerPreferredLane('west', lane)}
-						class="px-2 py-0.5 rounded text-[9px] font-bold transition cursor-pointer {isActive
-							? 'bg-blue-600 text-white border border-blue-400'
-							: 'bg-[#181d28] text-slate-400 hover:text-slate-200 border border-slate-700'}"
-						title={lane === 'auto'
-							? 'Автоматичний вибір лінії'
-							: lane === 'top'
-								? 'Направляти бійців на верхню лінію'
-								: 'Направляти бійців на нижню лінію'}
-					>
-						{lane === 'auto' ? 'Авто' : lane === 'top' ? 'Верх' : 'Низ'}
-					</button>
-				{/each}
+			<div class="flex items-center gap-1.5 text-[10px] text-slate-300">
+				<span class="text-amber-300 font-bold">Маршрут:</span>
+				<span class="text-slate-400">Авто (найближчий міст)</span>
 			</div>
 			<span class="text-[10px] text-slate-400 font-mono">
 				{activeEntityType === 'worker' ? 'Робітник' : 'Очікування'}

@@ -220,6 +220,7 @@ export class Simulation {
 	// Three Bridges state: 'top' | 'mid' | 'bottom'. One randomly chosen as broken.
 	public brokenBridge: 'top' | 'mid' | 'bottom' | null = 'mid';
 	public bridgeRepairProgress: number = 0;
+	public lastBotBridgeRepairTime: Record<MatchTeam, number> = { west: -180, east: -180 };
 
 	public repairBridge(bridge?: 'top' | 'mid' | 'bottom'): void {
 		if (!bridge || this.brokenBridge === bridge) {
@@ -336,6 +337,7 @@ export class Simulation {
 		const bridges: ('top' | 'mid' | 'bottom')[] = ['top', 'mid', 'bottom'];
 		this.brokenBridge = bridges[Math.floor(Math.random() * 3)];
 		this.bridgeRepairProgress = 0;
+		this.lastBotBridgeRepairTime = { west: -180, east: -180 };
 		const castleHp = Math.round(14000 * (this.gameModeConfig.castleHpMultiplier || 1.0));
 		this.castles = {
 			west: { team: 'west', x: WEST_CASTLE_X, y: WEST_CASTLE_Y, hp: castleHp, maxHp: castleHp },
@@ -368,7 +370,12 @@ export class Simulation {
 				}
 				return { race: requested, isRandom: false };
 			}
-			if (requested && !this.bannedRaces.includes(requested)) {
+			if (
+				requested &&
+				requested !== 'in_game' &&
+				!this.bannedRaces.includes(requested) &&
+				availableRaces.includes(requested)
+			) {
 				return { race: requested, isRandom: false };
 			}
 			const idx = Math.floor(Math.random() * remainingRaces.length);
@@ -380,7 +387,11 @@ export class Simulation {
 		};
 
 		const initialWestReq =
-			config.westRace && !this.bannedRaces.includes(config.westRace) ? config.westRace : undefined;
+			config.westRace &&
+			config.westRace !== 'in_game' &&
+			!this.bannedRaces.includes(config.westRace)
+				? config.westRace
+				: undefined;
 		const westChoice = takeRace(
 			initialWestReq ||
 				(isAllRandom || config.westRace === 'random' ? undefined : availableRaces[0]),
@@ -389,7 +400,11 @@ export class Simulation {
 		const eastIsRandomReq =
 			isAllRandom || config.eastRace === 'random' || (!config.eastRace && config.botDifficulty > 0);
 		const initialEastReq =
-			config.eastRace && !this.bannedRaces.includes(config.eastRace) ? config.eastRace : undefined;
+			config.eastRace &&
+			config.eastRace !== 'in_game' &&
+			!this.bannedRaces.includes(config.eastRace)
+				? config.eastRace
+				: undefined;
 		const eastChoice = takeRace(
 			initialEastReq ||
 				(!config.eastRace && config.botDifficulty > 0
@@ -807,6 +822,10 @@ export class Simulation {
 		}
 
 		// Direct race selection
+		if (race === 'in_game' || !availableRaces.includes(race)) {
+			return false;
+		}
+
 		if (this.bannedRaces.includes(race)) {
 			this.addFloatingText(
 				'Раса заблокована (-ban)!',
@@ -936,6 +955,7 @@ export class Simulation {
 		const bridges: ('top' | 'mid' | 'bottom')[] = ['top', 'mid', 'bottom'];
 		this.brokenBridge = bridges[Math.floor(Math.random() * 3)];
 		this.bridgeRepairProgress = 0;
+		this.lastBotBridgeRepairTime = { west: -180, east: -180 };
 		this.initDecorations((this.config.seed ?? 1337) + this.round * 31);
 		this.winner = null;
 		this.roundWinner = null;

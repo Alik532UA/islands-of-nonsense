@@ -9,7 +9,8 @@ import {
 	EAST_CASTLE_X,
 	GRID_STEP,
 	CELL_SIZE,
-	BRIDGE_REPAIR_LUMBER_COST
+	BRIDGE_REPAIR_LUMBER_COST,
+	BOT_BRIDGE_REPAIR_COOLDOWN
 } from './constants';
 import type {
 	MatchTeam,
@@ -529,18 +530,35 @@ export class BotAI {
 			castleHpRatio
 		);
 		if (!chosenBuilding) {
-			// 8. Auxiliary engineering: repair broken bridge if lumber is available and bot is established
+			// 8. Auxiliary engineering: repair broken bridge ONLY if:
+			// - Match duration meets 3-minute cooldown (gameTime >= 180s)
+			// - Cooldown since last bot bridge repair is at least 3 minutes (180s)
+			// - Bot team is SIGNIFICANTLY winning ("ЗНАЧНО перемагає") to accelerate unit throughput and victory
+			// - Worker is free, no enemies in courtyard, and bot has 50 lumber
+			const cooldownMet =
+				this.sim.gameTime >= BOT_BRIDGE_REPAIR_COOLDOWN &&
+				this.sim.gameTime -
+					(this.sim.lastBotBridgeRepairTime?.[this.team] ?? -BOT_BRIDGE_REPAIR_COOLDOWN) >=
+					BOT_BRIDGE_REPAIR_COOLDOWN;
+
 			if (
 				botWorker &&
 				this.sim.brokenBridge &&
 				!isWorkerBusy &&
 				(player.lumber ?? 0) >= BRIDGE_REPAIR_LUMBER_COST &&
-				myBuildings.length >= 2 &&
-				enemiesInCourtyard.length === 0
+				enemiesInCourtyard.length === 0 &&
+				cooldownMet &&
+				this.isTeamSignificantlyWinning()
 			) {
-				const broken = this.sim.brokenBridge;
-				if (player.preferredLane === broken || broken === 'mid' || Math.random() < 0.5) {
-					this.sim.orderBridgeRepair(this.team, player);
+				const success = this.sim.orderBridgeRepair(this.team, player);
+				if (success) {
+					if (!this.sim.lastBotBridgeRepairTime) {
+						this.sim.lastBotBridgeRepairTime = {
+							west: -BOT_BRIDGE_REPAIR_COOLDOWN,
+							east: -BOT_BRIDGE_REPAIR_COOLDOWN
+						};
+					}
+					this.sim.lastBotBridgeRepairTime[this.team] = this.sim.gameTime;
 				}
 			}
 			return;
@@ -568,6 +586,62 @@ export class BotAI {
 			player,
 			shiftKey
 		);
+	}
+
+	/**
+	 * Determines whether the bot's team is significantly winning ("ЗНАЧНО перемагає").
+	 * Bots only repair broken bridges when significantly winning to open an extra lane,
+	 * accelerate unit march throughput, and hasten victory.
+	 */
+	public isTeamSignificantlyWinning(): boolean {
+		const enemyTeam: MatchTeam = this.team === 'west' ? 'east' : 'west';
+		const myCastle = this.sim.castles[this.team];
+		const enemyCastle = this.sim.castles[enemyTeam];
+
+		// 1. Base security: Own castle must be healthy (>70% HP)
+		if (myCastle.hp < myCastle.maxHp * 0.7) {
+			return false;
+		}
+
+		// 2. Courtyard clearance: No enemies in our team's courtyard
+		const courtyardBoundary = this.team === 'west' ? 2000 : ARENA_WIDTH - 2000;
+		const enemiesInCourtyard = this.sim.units.filter(
+			(u) =>
+				u.team === enemyTeam &&
+				u.state !== 'DEAD' &&
+				(this.team === 'west' ? u.x <= courtyardBoundary : u.x >= courtyardBoundary)
+		);
+		if (enemiesInCourtyard.length > 0) {
+			return false;
+		}
+
+		// 3. Army population & superiority
+		const myUnits = this.sim.units.filter((u) => u.team === this.team && u.state !== 'DEAD');
+		const enemyUnits = this.sim.units.filter((u) => u.team === enemyTeam && u.state !== 'DEAD');
+
+		const hasArmyAdvantage =
+			myUnits.length >= 6 &&
+			(myUnits.length >= enemyUnits.length * 1.5 || enemyUnits.length <= 2);
+
+		if (!hasArmyAdvantage) {
+			return false;
+		}
+
+		// 4. Frontline offensive push: friendly troops are deep in enemy territory
+		const unitsInEnemyTerritory = myUnits.filter((u) =>
+			this.team === 'west' ? u.x > ARENA_WIDTH / 2 : u.x < ARENA_WIDTH / 2
+		);
+		if (unitsInEnemyTerritory.length < 3) {
+			return false;
+		}
+
+		// 5. Castle HP advantage: Enemy castle is damaged or significantly lower than ours
+		const hasCastleAdvantage =
+			enemyCastle.hp < myCastle.hp &&
+			(enemyCastle.hp <= enemyCastle.maxHp * 0.85 || myCastle.hp - enemyCastle.hp >= 500);
+
+		// Either damaged enemy castle + frontline push, or heavy frontline siege (6+ units deep)
+		return hasCastleAdvantage || unitsInEnemyTerritory.length >= 6;
 	}
 
 	/**

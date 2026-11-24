@@ -33,10 +33,10 @@
 		aria-label="Гарячі клавіші"
 	>
 		<div
-			class="relative w-full max-w-lg bg-[#0d111a] border border-amber-500/40 rounded-2xl shadow-2xl p-5 text-slate-200 overflow-hidden"
+			class="relative w-full max-w-lg max-h-[90vh] flex flex-col bg-[#0d111a] border border-amber-500/40 rounded-2xl shadow-2xl p-5 text-slate-200 overflow-hidden"
 		>
 			<!-- Header -->
-			<div class="flex items-center justify-between pb-3 border-b border-slate-800">
+			<div class="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
 				<div class="flex items-center gap-2.5">
 					<div class="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
 						<Keyboard class="w-5 h-5" />
@@ -58,7 +58,7 @@
 			</div>
 
 			<!-- Shortcuts list -->
-			<div class="mt-4 max-h-[60vh] overflow-y-auto space-y-2 pr-1">
+			<div class="mt-4 flex-1 overflow-y-auto space-y-2 pr-1">
 				{#each shortcuts as s}
 					<div
 						class="flex items-center justify-between py-1.5 px-3 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-slate-700 transition"
@@ -74,7 +74,7 @@
 			</div>
 
 			<!-- Footer -->
-			<div class="mt-5 pt-3 border-t border-slate-800 flex justify-end">
+			<div class="mt-4 pt-3 border-t border-slate-800 flex justify-end shrink-0">
 				<button
 					type="button"
 					onclick={onClose}

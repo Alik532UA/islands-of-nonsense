@@ -30,18 +30,18 @@
 		class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
 	>
 		<div
-			class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl p-6 text-white relative"
+			class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl p-6 text-white relative overflow-hidden"
 		>
 			<!-- Close button -->
 			<button
 				onclick={() => (isOpen = false)}
-				class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+				class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition z-10"
 			>
 				<X class="w-5 h-5" />
 			</button>
 
 			<!-- Header -->
-			<div class="flex items-center gap-3 mb-5 border-b border-slate-800 pb-3">
+			<div class="flex items-center gap-3 mb-4 border-b border-slate-800 pb-3 shrink-0">
 				<div class="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl">
 					<Hammer class="w-6 h-6 text-amber-400" />
 				</div>
@@ -58,7 +58,7 @@
 
 			{#if !hasForge}
 				<div
-					class="mb-4 px-3 py-2 bg-amber-950/80 border border-amber-500/80 rounded-xl text-amber-200 text-xs flex items-center gap-2"
+					class="mb-4 px-3 py-2 bg-amber-950/80 border border-amber-500/80 rounded-xl text-amber-200 text-xs flex items-center gap-2 shrink-0"
 				>
 					<Hammer class="w-4 h-4 text-amber-400 shrink-0" />
 					<span>
@@ -68,7 +68,7 @@
 			{/if}
 
 			<!-- Upgrade Cards -->
-			<div class="flex flex-col gap-3.5">
+			<div class="flex flex-col gap-3.5 flex-1 overflow-y-auto pr-1">
 				<!-- 1. Attack Upgrade -->
 				<div
 					class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex items-center justify-between"

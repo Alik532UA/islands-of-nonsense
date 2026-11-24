@@ -811,13 +811,11 @@ export class BuildingSystem {
 			this.sim.players[building.team];
 		player.stats.unitsSpawned++;
 
-		// Determine lane
-		let lane: Lane;
-		if (player.preferredLane !== 'auto') {
-			lane = player.preferredLane;
-		} else {
-			lane = building.y < ARENA_HEIGHT / 2 ? 'top' : 'bottom';
-		}
+		// Determine lane automatically: route to nearest of 3 bridges (400, 1200, 2000)
+		const dTop = Math.abs(building.y - TOP_LANE_Y);
+		const dMid = Math.abs(building.y - MID_LANE_Y);
+		const dBottom = Math.abs(building.y - BOTTOM_LANE_Y);
+		const lane: Lane = dTop <= dMid && dTop <= dBottom ? 'top' : dMid <= dBottom ? 'mid' : 'bottom';
 
 		const laneY = lane === 'top' ? TOP_LANE_Y : lane === 'mid' ? MID_LANE_Y : BOTTOM_LANE_Y;
 		const isWest = building.team === 'west';

@@ -27,6 +27,7 @@
 		Package
 	} from 'lucide-svelte';
 	import { CASTLE_ITEMS_LIST, type CastleItem } from '../engine/items';
+	import { settings } from '../services/settings.svelte';
 
 	let {
 		sim,
@@ -75,8 +76,11 @@
 	let hoveredUnit = $derived(hoveredBuilding ? getUnit(hoveredBuilding.unit) : null);
 
 	const HOTKEYS = ['Q', 'W', 'E', 'R', 'A', 'S', 'D', 'F', 'Z', 'X', 'C', 'Esc'];
+	const WC3_HOTKEYS = ['Q', 'W', 'E', 'R', 'T', 'A', 'S', 'D', 'F', 'G', 'Z', 'X', 'C'];
+	const ION_HOTKEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', 'V'];
 
 	function shortenName(name: string): string {
+		if (name.includes('Магазин')) return 'Магазин';
 		if (name.includes('Скриня')) return 'Скриня';
 		if (name.includes('Снігове')) return 'Снігове';
 		if (name.includes('Іглу')) return 'Іглу';
@@ -113,7 +117,10 @@
 
 	function getHotkeyForBuilding(bld: BuildingDefinition, index: number): string {
 		if (bld.id === 'h008') return 'D';
-		return HOTKEYS[index] || '';
+		if (settings.controlPreset === 'islands-of-nonsense') {
+			return ION_HOTKEYS[index] || String(index + 1);
+		}
+		return WC3_HOTKEYS[index] || HOTKEYS[index] || '';
 	}
 </script>
 
@@ -598,34 +605,9 @@
 			</div>
 		</div>
 	{:else}
-		<!-- Authentic Warcraft III 4x3 Command Card Grid (12 slots) -->
-		{#if sim.brokenBridge}
-			<div class="flex items-center justify-between mb-1 px-0.5">
-				<span class="text-[9px] text-amber-300 font-semibold flex items-center gap-1">
-					<Wrench class="w-2.5 h-2.5 text-amber-400" />
-					Зламано: {sim.brokenBridge === 'top'
-						? 'верхній'
-						: sim.brokenBridge === 'mid'
-							? 'центральний'
-							: 'нижній'} міст
-				</span>
-				<button
-					type="button"
-					onclick={() => sim.orderBridgeRepair('west')}
-					disabled={(player.lumber ?? 0) < 50}
-					data-testid="hud-worker-repair-bridge-btn"
-					class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition {(player.lumber ??
-						0) >= 50
-						? 'bg-amber-950/80 hover:bg-amber-900 border-amber-500/70 text-amber-200 cursor-pointer shadow'
-						: 'bg-slate-900/60 border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
-					title="Наказати робітникові відбудувати зламаний міст (50 деревини)"
-				>
-					Відбудувати (50🪵)
-				</button>
-			</div>
-		{/if}
-		<div class="grid grid-cols-4 gap-1.5 w-[280px]">
-			{#each availableBuildings.slice(0, 11) as bld, idx}
+		<!-- 5x3 Grid for 13 Base Buildings + Bridge Repair / Spacer + Cancel Button (15 slots) -->
+		<div class="grid grid-cols-5 gap-1 w-[310px]">
+			{#each availableBuildings as bld, idx}
 				{@const isSelected = selectedBuildingId === bld.id}
 				{@const bldLumber = bld.lumber_cost || 0}
 				{@const isAffordable =
@@ -640,7 +622,7 @@
 					onmouseenter={() => (hoveredBuilding = bld)}
 					onmouseleave={() => (hoveredBuilding = null)}
 					data-testid="hud-build-btn-{bld.id}"
-					class="relative w-16 h-10 rounded border p-0.5 transition-all flex flex-col justify-between items-center cursor-pointer touch-manipulation {isSelected
+					class="relative w-[58px] h-[38px] rounded border p-0.5 transition-all flex flex-col justify-between items-center cursor-pointer touch-manipulation {isSelected
 						? 'bg-blue-600/90 border-amber-300 shadow-lg ring-2 ring-amber-400 shadow-blue-500/50'
 						: lacksFood
 							? 'bg-red-950/40 border-red-800/80 hover:border-red-600'
@@ -653,7 +635,7 @@
 				>
 					<!-- Hotkey in top-right corner -->
 					<span
-						class="absolute top-0.5 right-1 text-[8px] font-mono font-bold {isSelected
+						class="absolute top-0.5 right-1 text-[7.5px] font-mono font-bold {isSelected
 							? 'text-white'
 							: isAffordable
 								? 'text-[#fef08a]'
@@ -664,7 +646,11 @@
 
 					<!-- Visual archetype icon / glyph -->
 					<div class="mt-0.5 flex items-center justify-center">
-						{#if bld.id === 'h008'}
+						{#if bld.specialType === 'shop'}
+							<ShoppingBag class="w-3.5 h-3.5 text-amber-300 drop-shadow" />
+						{:else if bld.specialType === 'forge'}
+							<Hammer class="w-3.5 h-3.5 text-cyan-300 drop-shadow" />
+						{:else if bld.id === 'h008'}
 							<Package class="w-3.5 h-3.5 text-amber-400 drop-shadow" />
 						{:else if isLeg}
 							<Crown class="w-3.5 h-3.5 text-amber-300 drop-shadow animate-pulse" />
@@ -685,7 +671,7 @@
 
 					<!-- Short building name label -->
 					<span
-						class="text-[8px] font-bold truncate max-w-[50px] leading-tight {isSelected
+						class="text-[7.5px] font-bold truncate max-w-[48px] leading-tight {isSelected
 							? 'text-white'
 							: isAffordable
 								? 'text-slate-200'
@@ -695,7 +681,7 @@
 					</span>
 
 					<!-- Cost badges at bottom -->
-					<div class="flex items-center gap-1 text-[7.5px] font-mono font-bold leading-none mb-0.5">
+					<div class="flex items-center gap-1 text-[7px] font-mono font-bold leading-none mb-0.5">
 						<span class={playerGold >= (bld.gold_cost || 200) ? 'text-amber-300' : 'text-red-400'}>
 							🪙{bld.gold_cost}
 						</span>
@@ -708,19 +694,40 @@
 				</button>
 			{/each}
 
-			<!-- Slot 12: Authentic Warcraft III Cancel Button (🚫 Red crossed circle, [Esc]) -->
+			<!-- Slot 14: Bridge Repair or Spacer -->
+			{#if sim.brokenBridge}
+				<button
+					type="button"
+					onclick={() => sim.orderBridgeRepair('west')}
+					disabled={(player.lumber ?? 0) < 50}
+					data-testid="hud-worker-repair-bridge-btn"
+					class="relative w-[58px] h-[38px] rounded border transition flex flex-col justify-between items-center p-0.5 cursor-pointer {(player.lumber ??
+						0) >= 50
+						? 'bg-amber-950/80 hover:bg-amber-900 border-amber-500/70 text-amber-200 cursor-pointer shadow'
+						: 'bg-slate-900/60 border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
+					title="Наказати робітникові відбудувати зламаний міст (50 деревини)"
+				>
+					<span class="text-[7.5px] font-mono text-amber-300 font-bold">50🪵</span>
+					<Wrench class="w-3 h-3 text-amber-400" />
+					<span class="text-[7.5px] font-bold text-amber-200">Міст</span>
+				</button>
+			{:else}
+				<div class="w-[58px] h-[38px]"></div>
+			{/if}
+
+			<!-- Slot 15: Authentic Warcraft III Cancel Button (🚫 Red crossed circle, [Esc]) -->
 			<button
 				onclick={() => {
 					onSelectBuilding(null);
 					onClearSelection?.();
 				}}
 				data-testid="hud-clear-selection-btn"
-				class="relative w-16 h-10 rounded border border-rose-800/80 bg-gradient-to-b from-rose-950/80 to-[#180a0a] hover:from-rose-900 hover:to-rose-950 text-rose-300 flex flex-col items-center justify-center p-1 transition cursor-pointer shadow group touch-manipulation"
+				class="relative w-[58px] h-[38px] rounded border border-rose-800/80 bg-gradient-to-b from-rose-950/80 to-[#180a0a] hover:from-rose-900 hover:to-rose-950 text-rose-300 flex flex-col items-center justify-center p-0.5 transition cursor-pointer shadow group touch-manipulation"
 				title="Скасувати / Очистити вибір (Esc / B)"
 			>
-				<div class="relative w-5 h-5 flex items-center justify-center">
+				<div class="relative w-4 h-4 flex items-center justify-center">
 					<svg
-						class="w-5 h-5 text-rose-500 drop-shadow-[0_0_4px_rgba(244,63,94,0.6)] group-hover:scale-110 transition-transform"
+						class="w-4 h-4 text-rose-500 drop-shadow-[0_0_4px_rgba(244,63,94,0.6)] group-hover:scale-110 transition-transform"
 						viewBox="0 0 24 24"
 						fill="none"
 						stroke="currentColor"
@@ -730,7 +737,7 @@
 						<line x1="5.7" y1="5.7" x2="18.3" y2="18.3" />
 					</svg>
 				</div>
-				<span class="text-[8px] font-mono font-bold text-rose-400 group-hover:text-rose-200">
+				<span class="text-[7.5px] font-mono font-bold text-rose-400 group-hover:text-rose-200">
 					Esc
 				</span>
 			</button>
@@ -814,6 +821,20 @@
 							{hoveredBuilding.range ?? 500} px / {hoveredBuilding.cooldown ?? 1.0} с
 						</span>
 					</div>
+				</div>
+			{:else if hoveredBuilding.specialType === 'shop'}
+				<div class="space-y-1 text-[11px] text-slate-300">
+					<div class="text-amber-300 font-bold">Магазин артефактів</div>
+					<p class="text-[11px] leading-relaxed text-slate-300">
+						Дозволяє купувати корисні зілля, сувої та предмети в бою (золото / дерево).
+					</p>
+				</div>
+			{:else if hoveredBuilding.specialType === 'forge'}
+				<div class="space-y-1 text-[11px] text-slate-300">
+					<div class="text-cyan-300 font-bold">Кузня покращень</div>
+					<p class="text-[11px] leading-relaxed text-slate-300">
+						Дослідження технологій: покращення сили атаки, міцності броні та видобутку золота.
+					</p>
 				</div>
 			{:else if hoveredBuilding.raw_fields?.utub}
 				<p class="text-[11px] leading-relaxed text-slate-300 whitespace-pre-line">

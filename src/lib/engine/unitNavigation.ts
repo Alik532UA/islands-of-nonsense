@@ -20,7 +20,10 @@ export class UnitNavigation {
 
 	public getEffectiveCrossingLane(u: Unit): 'top' | 'mid' | 'bottom' {
 		if (!u.flying && this.sim.brokenBridge && u.lane === this.sim.brokenBridge) {
-			return this.sim.brokenBridge === 'mid' ? 'top' : 'mid';
+			if (this.sim.brokenBridge === 'mid') {
+				return u.y < MID_LANE_Y ? 'top' : 'bottom';
+			}
+			return 'mid';
 		}
 		return u.lane;
 	}

@@ -7,9 +7,10 @@
 	import { ArenaRenderer, type SelectedEntity } from '$lib/renderer/ArenaRenderer';
 	import { sound } from '$lib/services/audio';
 	import { attachAudioBridge } from '$lib/services/audioBridge';
-	import { RACES_LIST } from '$lib/engine/gameData';
+	import { RACES_LIST, getBaseBuildingsForRace } from '$lib/engine/gameData';
 	import TopBar from '$lib/components/TopBar.svelte';
 	import BottomBar from '$lib/components/BottomBar.svelte';
+	import RadialMenu from '$lib/components/RadialMenu.svelte';
 	import ForgeModal from '$lib/components/ForgeModal.svelte';
 	import CommanderModal from '$lib/components/CommanderModal.svelte';
 	import VictoryModal from '$lib/components/VictoryModal.svelte';
@@ -44,7 +45,19 @@
 	let selectedBuildingId = $state<string | null>(null);
 	let selectedPlacedBuildingId = $state<string | null>(null);
 	let selectedUnitId = $state<string | null>(null);
-	let selectedEntity = $state<SelectedEntity>({ type: 'worker' });
+	let selectedEntity = $state<SelectedEntity>(null);
+	let lastSpaceTime = 0;
+	let isRadialOpen = $state(false);
+	let radialCategory = $state<'army' | 'special' | 'abilities'>('army');
+
+	function toggleRadial(category: 'army' | 'special' | 'abilities') {
+		if (isRadialOpen && radialCategory === category) {
+			isRadialOpen = false;
+		} else {
+			radialCategory = category;
+			isRadialOpen = true;
+		}
+	}
 
 	// RTS Camera Viewport state
 	let cameraX = $state(800);
@@ -108,6 +121,10 @@
 		const letter = shortcutLetter(e);
 
 		if (e.key === 'Escape') {
+			if (isRadialOpen) {
+				isRadialOpen = false;
+				return;
+			}
 			if (isHelpOpen) {
 				isHelpOpen = false;
 				return;
@@ -120,6 +137,7 @@
 				selectedBuildingId !== null ||
 				selectedPlacedBuildingId !== null ||
 				selectedUnitId !== null ||
+				selectedEntity !== null ||
 				isForgeOpen ||
 				isCommanderOpen ||
 				isShopOpen ||
@@ -129,7 +147,7 @@
 			selectedBuildingId = null;
 			selectedPlacedBuildingId = null;
 			selectedUnitId = null;
-			selectedEntity = { type: 'worker' };
+			selectedEntity = null;
 			isForgeOpen = false;
 			isCommanderOpen = false;
 			isShopOpen = false;
@@ -160,6 +178,29 @@
 				!isSettingsOpen
 			) {
 				e.preventDefault();
+				selectedBuildingId = null;
+				selectedPlacedBuildingId = null;
+				selectedUnitId = null;
+				selectedEntity = { type: 'worker' };
+
+				const now = Date.now();
+				if (now - lastSpaceTime < 350) {
+					const w = sim.players.west.worker;
+					if (w) {
+						renderer?.setCamera(w.x, w.y);
+					}
+				}
+				lastSpaceTime = now;
+				uiTick = sim.stateVersion;
+			} else if (
+				letter === 'p' &&
+				!e.repeat &&
+				!isForgeOpen &&
+				!isCommanderOpen &&
+				!isShopOpen &&
+				!isSettingsOpen
+			) {
+				e.preventDefault();
 				sim.isRunning = !sim.isRunning;
 				battleAnnouncer.announce(sim.isRunning ? 'Гру відновлено' : 'Гру призупинено', 'polite');
 				uiTick = sim.stateVersion;
@@ -175,75 +216,95 @@
 				(!isWorkerGridActive || e.altKey)
 			) {
 				isHelpOpen = !isHelpOpen;
-			} else if (letter === 'r' && !e.repeat && !isForgeOpen && !isCommanderOpen && !isShopOpen) {
-				if (selectedPlacedBuildingId) {
-					const bld = sim.buildings.find((b) => b.instanceId === selectedPlacedBuildingId);
-					if (bld && bld.team === 'west' && bld.hp < bld.maxHp) {
-						const success = sim.repairBuilding('west', selectedPlacedBuildingId);
-						if (success) {
-							sound.playRepair();
-							uiTick = sim.stateVersion;
-						}
-						return;
-					}
+			} else if (settings.controlPreset === 'islands-of-nonsense') {
+				if (letter === 'w' && !e.ctrlKey && !e.altKey) {
+					renderer?.setCamera(cameraX, cameraY - 240);
+				} else if (letter === 'a' && !e.ctrlKey && !e.altKey) {
+					renderer?.setCamera(cameraX - 240, cameraY);
+				} else if (letter === 's' && !e.ctrlKey && !e.altKey) {
+					renderer?.setCamera(cameraX, cameraY + 240);
+				} else if (letter === 'd' && !e.ctrlKey && !e.altKey) {
+					renderer?.setCamera(cameraX + 240, cameraY);
+				} else if (letter === 'e' && !e.repeat && !e.ctrlKey && !e.altKey) {
+					toggleRadial('army');
+				} else if (letter === 'r' && !e.repeat && !e.ctrlKey && !e.altKey) {
+					toggleRadial('special');
+				} else if (letter === 'q' && !e.repeat && !e.ctrlKey && !e.altKey) {
+					toggleRadial('abilities');
 				}
-				if (selectedEntity?.type === 'castle' && selectedEntity.team === 'west') {
-					if (sim.castles.west.hp < sim.castles.west.maxHp) {
-						const success = sim.repairBuilding('west', 'castle_west');
-						if (success) {
-							sound.playRepair();
-							uiTick = sim.stateVersion;
-						}
-						return;
-					}
-				}
-				if (!isWorkerGridActive || e.altKey) {
-					const activeTeam = matchSync?.localTeam ?? 'west';
-					if (matchSync) {
-						if (sim.canUseRaceSkill(activeTeam)) {
-							void matchSync.dispatch('USE_ABILITY');
-							sound.playUpgrade();
-							uiTick = sim.stateVersion;
-						} else {
-							sound.playErrorResource();
-						}
-					} else {
-						if (sim.canUseRaceSkill('west')) {
-							const success = sim.useRaceSkill('west');
+			} else {
+				if (letter === 'r' && !e.repeat && !isForgeOpen && !isCommanderOpen && !isShopOpen) {
+					if (selectedPlacedBuildingId) {
+						const bld = sim.buildings.find((b) => b.instanceId === selectedPlacedBuildingId);
+						if (bld && bld.team === 'west' && bld.hp < bld.maxHp) {
+							const success = sim.repairBuilding('west', selectedPlacedBuildingId);
 							if (success) {
-								sound.playUpgrade();
+								sound.playRepair();
 								uiTick = sim.stateVersion;
 							}
-						} else {
-							sound.playErrorResource();
+							return;
 						}
 					}
-				}
-			} else if (
-				letter === 'e' &&
-				!e.repeat &&
-				!isForgeOpen &&
-				!isCommanderOpen &&
-				!isShopOpen &&
-				(!isWorkerGridActive || e.altKey)
-			) {
-				const activeTeam = matchSync?.localTeam ?? 'west';
-				if (matchSync) {
-					if (sim.canUseRescueStrike(activeTeam)) {
-						void matchSync.dispatch('RESCUE_STRIKE');
-						sound.playRescueStrike();
-						uiTick = sim.stateVersion;
+					if (selectedEntity?.type === 'castle' && selectedEntity.team === 'west') {
+						if (sim.castles.west.hp < sim.castles.west.maxHp) {
+							const success = sim.repairBuilding('west', 'castle_west');
+							if (success) {
+								sound.playRepair();
+								uiTick = sim.stateVersion;
+							}
+							return;
+						}
 					}
-				} else {
-					if (sim.canUseRescueStrike('west')) {
-						const res = sim.triggerRescueStrike('west');
-						if (res) {
+					if (!isWorkerGridActive || e.altKey) {
+						const activeTeam = matchSync?.localTeam ?? 'west';
+						if (matchSync) {
+							if (sim.canUseRaceSkill(activeTeam)) {
+								void matchSync.dispatch('USE_ABILITY');
+								sound.playUpgrade();
+								uiTick = sim.stateVersion;
+							} else {
+								sound.playErrorResource();
+							}
+						} else {
+							if (sim.canUseRaceSkill('west')) {
+								const success = sim.useRaceSkill('west');
+								if (success) {
+									sound.playUpgrade();
+									uiTick = sim.stateVersion;
+								}
+							} else {
+								sound.playErrorResource();
+							}
+						}
+					}
+				} else if (
+					letter === 'e' &&
+					!e.repeat &&
+					!isForgeOpen &&
+					!isCommanderOpen &&
+					!isShopOpen &&
+					(!isWorkerGridActive || e.altKey)
+				) {
+					const activeTeam = matchSync?.localTeam ?? 'west';
+					if (matchSync) {
+						if (sim.canUseRescueStrike(activeTeam)) {
+							void matchSync.dispatch('RESCUE_STRIKE');
 							sound.playRescueStrike();
 							uiTick = sim.stateVersion;
 						}
+					} else {
+						if (sim.canUseRescueStrike('west')) {
+							const res = sim.triggerRescueStrike('west');
+							if (res) {
+								sound.playRescueStrike();
+								uiTick = sim.stateVersion;
+							}
+						}
 					}
 				}
-			} else if (e.key === 'ArrowLeft') {
+			}
+
+			if (e.key === 'ArrowLeft') {
 				renderer?.setCamera(cameraX - 240, cameraY);
 			} else if (e.key === 'ArrowRight') {
 				renderer?.setCamera(cameraX + 240, cameraY);
@@ -450,9 +511,7 @@
 				} else {
 					const existing = sim.buildings.find((b) => b.tileX === tileX && b.tileY === tileY);
 					selectedPlacedBuildingId = existing ? existing.instanceId : null;
-					selectedEntity = existing
-						? { type: 'building', instanceId: existing.instanceId }
-						: { type: 'worker' };
+					selectedEntity = existing ? { type: 'building', instanceId: existing.instanceId } : null;
 					uiTick = sim.stateVersion;
 				}
 			},
@@ -644,7 +703,7 @@
 		selectedBuildingId = null;
 		selectedPlacedBuildingId = null;
 		selectedUnitId = null;
-		selectedEntity = { type: 'worker' };
+		selectedEntity = null;
 		isCommanderOpen = false;
 		isForgeOpen = false;
 		isShopOpen = false;
@@ -656,7 +715,7 @@
 		selectedBuildingId = null;
 		selectedPlacedBuildingId = null;
 		selectedUnitId = null;
-		selectedEntity = { type: 'worker' };
+		selectedEntity = null;
 		isSettingsOpen = false;
 
 		sim = new Simulation(newConfig);
@@ -683,7 +742,10 @@
 			sound.playHorn();
 		} else {
 			matchPhase = 'COUNTDOWN';
-			chosenWestRace = sim.players.west.race;
+			chosenWestRace =
+				sim.players.west.race && sim.players.west.race !== 'in_game'
+					? sim.players.west.race
+					: 'Люди';
 			countdownSeconds = 15;
 			if (countdownTimer) clearInterval(countdownTimer);
 			countdownTimer = setInterval(() => {
@@ -972,11 +1034,39 @@
 		onContinueConstruction={handleContinueConstruction}
 		onMinimapClick={(ax: number, ay: number) => renderer?.setCamera(ax, ay)}
 		onClearSelection={() => {
-			selectedEntity = { type: 'worker' };
+			selectedEntity = null;
 			selectedBuildingId = null;
 			selectedPlacedBuildingId = null;
 			selectedUnitId = null;
 			uiTick = sim.stateVersion;
+		}}
+	/>
+
+	<!-- Radial Action Menu (E / R / Q) -->
+	<RadialMenu
+		isOpen={isRadialOpen}
+		category={radialCategory}
+		{sim}
+		armyBuildings={getBaseBuildingsForRace(sim.players.west.race).filter((b) => !b.specialType)}
+		specialBuildings={getBaseBuildingsForRace(sim.players.west.race).filter((b) =>
+			Boolean(b.specialType)
+		)}
+		onSelectBuilding={(defId) => {
+			selectedBuildingId = defId;
+			selectedPlacedBuildingId = null;
+			selectedUnitId = null;
+			selectedEntity = { type: 'worker' };
+			isRadialOpen = false;
+			uiTick = sim.stateVersion;
+		}}
+		onOpenShop={() => {
+			isShopOpen = true;
+		}}
+		onOpenForge={() => {
+			isForgeOpen = true;
+		}}
+		onClose={() => {
+			isRadialOpen = false;
 		}}
 	/>
 

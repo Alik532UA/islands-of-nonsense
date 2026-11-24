@@ -392,35 +392,63 @@ export function getBuildingsForRace(raceName: string): BuildingDefinition[] {
 }
 
 export function getBaseBuildingsForRace(raceName: string): BuildingDefinition[] {
-	// 1. Army spawners for this race (base non-upgrades, up to 6), sorted by gold cost ascending
-	const armySpawners = getBuildingsForRace(raceName).filter(
-		(b) => !b.upgrade_from && !b.specialType
-	);
+	const validRace = raceName === 'in_game' || !raceName ? 'Люди' : raceName;
+	const raceEntry = RACES_LIST.find((r) => r.race === validRace) || RACES_LIST[0];
+
+	// 1. Reference buildings for this race (11 buildings from races.json)
+	const refBuildings: BuildingDefinition[] = [];
+	const refIds = raceEntry.buildings || [];
+	for (const id of refIds) {
+		const b = BUILDINGS_MAP.get(id);
+		if (b && !b.upgrade_from && !refBuildings.some((x) => x.id === b.id)) {
+			refBuildings.push(b);
+		}
+		if (refBuildings.length >= 11) break;
+	}
+
+	// Fallback if custom race has fewer than 11 non-upgrade buildings in races.json
+	if (refBuildings.length < 11) {
+		const raceBuildings = getBuildingsForRace(raceEntry.race).filter(
+			(b) => !b.upgrade_from && !refBuildings.some((r) => r.id === b.id)
+		);
+		for (const b of raceBuildings) {
+			refBuildings.push(b);
+			if (refBuildings.length >= 11) break;
+		}
+	}
+
+	// If still fewer than 11 (e.g. Збирачі), fill from SPECIAL_BUILDINGS (treasure, repair, recycler, etc.)
+	if (refBuildings.length < 11) {
+		for (const sb of SPECIAL_BUILDINGS) {
+			if (
+				sb.id !== 'cg10_shop' &&
+				sb.id !== 'cg11_forge' &&
+				!refBuildings.some((x) => x.id === sb.id)
+			) {
+				refBuildings.push(sb);
+			}
+			if (refBuildings.length >= 11) break;
+		}
+	}
+
+	// Separate into army spawners (without specialType) and specials (with specialType)
+	const armySpawners = refBuildings.filter((b) => !b.specialType);
 	armySpawners.sort((a, b) => (a.gold_cost || 0) - (b.gold_cost || 0));
-	const top6Army = armySpawners.slice(0, 6);
 
-	// 2. Special buildings (defensive guard tower, treasure chest, repair center, recycler, and race specials) sorted by price ascending
-	const raceTower = GUARD_TOWERS.find((t) => t.race === raceName);
-	const specials: BuildingDefinition[] = [];
-	if (raceTower) {
-		specials.push(raceTower);
-	}
-	const raceSpecials = getBuildingsForRace(raceName).filter(
-		(b) => !b.upgrade_from && b.specialType && b.specialType !== 'tower'
-	);
-	for (const rs of raceSpecials) {
-		if (!specials.some((s) => s.id === rs.id)) {
-			specials.push(rs);
-		}
-	}
-	for (const sb of SPECIAL_BUILDINGS) {
-		if (!specials.some((s) => s.id === sb.id)) {
-			specials.push(sb);
-		}
-	}
-	specials.sort((a, b) => (a.gold_cost || 0) - (b.gold_cost || 0));
+	const refSpecials = refBuildings.filter((b) => Boolean(b.specialType));
 
-	return [...top6Army, ...specials];
+	// 2. Aux buildings: shop (cg10_shop, 50g/50w) and forge (cg11_forge, 100g/100w)
+	const shop = BUILDINGS_MAP.get('cg10_shop');
+	const forge = BUILDINGS_MAP.get('cg11_forge');
+	const aux: BuildingDefinition[] = [];
+	if (shop && !refSpecials.some((x) => x.id === shop.id)) aux.push(shop);
+	if (forge && !refSpecials.some((x) => x.id === forge.id)) aux.push(forge);
+
+	// Sort specials by gold cost ascending
+	const allSpecials = [...refSpecials, ...aux];
+	allSpecials.sort((a, b) => (a.gold_cost || 0) - (b.gold_cost || 0));
+
+	return [...armySpawners, ...allSpecials];
 }
 
 export function getUpgradesForBuilding(buildingId: string): BuildingDefinition[] {
@@ -1353,6 +1381,7 @@ export function isTowerBuilding(def?: BuildingDefinition | Building): boolean {
  * Localizes and formats race names into standard Ukrainian canon.
  */
 export function formatRaceName(race: string): string {
+	if (!race || race.toLowerCase() === 'in_game') return 'Люди';
 	const map: Record<string, string> = {
 		Север: 'Північ',
 		Північ: 'Північ',

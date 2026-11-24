@@ -21,6 +21,34 @@ export const GRAPHICS_STYLES: readonly GraphicsStyle[] = ['2.5d', 'hd-webp'] as 
 export type BuildQueueMode = 'convenient' | 'classic';
 export const BUILD_QUEUE_MODES: readonly BuildQueueMode[] = ['convenient', 'classic'] as const;
 
+export type ControlPreset = 'islands-of-nonsense' | 'warcraft3';
+export const CONTROL_PRESETS: readonly ControlPreset[] = [
+	'islands-of-nonsense',
+	'warcraft3'
+] as const;
+
+export type UiLayoutPreset = 'islands-of-nonsense' | 'warcraft3';
+export const UI_LAYOUT_PRESETS: readonly UiLayoutPreset[] = [
+	'islands-of-nonsense',
+	'warcraft3'
+] as const;
+
+function detectInitialControlPreset(): ControlPreset {
+	const saved = storage.getJSON<ControlPreset>('settings_control_preset', 'islands-of-nonsense');
+	if (CONTROL_PRESETS.includes(saved)) {
+		return saved;
+	}
+	return 'islands-of-nonsense';
+}
+
+function detectInitialUiLayoutPreset(): UiLayoutPreset {
+	const saved = storage.getJSON<UiLayoutPreset>('settings_ui_layout_preset', 'islands-of-nonsense');
+	if (UI_LAYOUT_PRESETS.includes(saved)) {
+		return saved;
+	}
+	return 'islands-of-nonsense';
+}
+
 function detectInitialBuildQueueMode(): BuildQueueMode {
 	const saved = storage.getJSON<BuildQueueMode>('settings_build_queue_mode', 'convenient');
 	if (BUILD_QUEUE_MODES.includes(saved)) {
@@ -97,6 +125,8 @@ class SettingsService {
 	#theme = $state<AppTheme>(detectInitialTheme());
 	#graphicsStyle = $state<GraphicsStyle>(detectInitialGraphicsStyle());
 	#buildQueueMode = $state<BuildQueueMode>(detectInitialBuildQueueMode());
+	#controlPreset = $state<ControlPreset>(detectInitialControlPreset());
+	#uiLayoutPreset = $state<UiLayoutPreset>(detectInitialUiLayoutPreset());
 	#isSettingsOpen = $state(false);
 
 	constructor() {
@@ -141,6 +171,14 @@ class SettingsService {
 
 	get buildQueueMode(): BuildQueueMode {
 		return this.#buildQueueMode;
+	}
+
+	get controlPreset(): ControlPreset {
+		return this.#controlPreset;
+	}
+
+	get uiLayoutPreset(): UiLayoutPreset {
+		return this.#uiLayoutPreset;
 	}
 
 	get isSettingsOpen(): boolean {
@@ -189,6 +227,20 @@ class SettingsService {
 		if (BUILD_QUEUE_MODES.includes(mode)) {
 			this.#buildQueueMode = mode;
 			storage.setJSON('settings_build_queue_mode', mode);
+		}
+	}
+
+	setControlPreset(preset: ControlPreset): void {
+		if (CONTROL_PRESETS.includes(preset)) {
+			this.#controlPreset = preset;
+			storage.setJSON('settings_control_preset', preset);
+		}
+	}
+
+	setUiLayoutPreset(preset: UiLayoutPreset): void {
+		if (UI_LAYOUT_PRESETS.includes(preset)) {
+			this.#uiLayoutPreset = preset;
+			storage.setJSON('settings_ui_layout_preset', preset);
 		}
 	}
 

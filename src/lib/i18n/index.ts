@@ -61,6 +61,21 @@ export const translations = {
 		'settings.buildQueueModeDesc': 'Поведінка робітника під час замовлення нової будівлі',
 		'settings.buildQueueMode.convenient': 'Зручний',
 		'settings.buildQueueMode.classic': 'Класичний',
+		'settings.controlPreset': 'Розкладка керування',
+		'settings.controlPresetDesc': 'Гарячі клавіші для будівництва, камери та радіального меню',
+		'settings.controlPreset.islands-of-nonsense': 'Islands of Nonsense',
+		'settings.controlPreset.islands-of-nonsense.desc':
+			'WASD камера, 1-7 будівництво, Space вибір робітника, E/R/Q радіальне меню',
+		'settings.controlPreset.warcraft3': 'Warcraft III',
+		'settings.controlPreset.warcraft3.desc':
+			'Стрілки камера, Q/W/E/R... сітка будівництва, класичні хоткеї',
+		'settings.uiLayoutPreset': 'Стиль інтерфейсу (HUD)',
+		'settings.uiLayoutPresetDesc': 'Розташування та поведінка нижньої панелі команд',
+		'settings.uiLayoutPreset.islands-of-nonsense': 'Плавучий мінімалізм',
+		'settings.uiLayoutPreset.islands-of-nonsense.desc':
+			'Мінікарта по центру, контекстне меню виїжджає знизу лише при виборі',
+		'settings.uiLayoutPreset.warcraft3': 'Класичний Warcraft III',
+		'settings.uiLayoutPreset.warcraft3.desc': 'Суцільна камʼяна панель знизу з мінікартою ліворуч',
 		'settings.uiScale': 'Масштаб інтерфейсу (UI Scale)',
 		'settings.uiScaleDesc': 'Масштабування панелей керування, шрифтів та вікон',
 		'settings.scaleSmall': 'Компактний (85%)',
@@ -281,6 +296,21 @@ export const translations = {
 		'settings.buildQueueModeDesc': 'Worker behavior when placing a new building',
 		'settings.buildQueueMode.convenient': 'Convenient',
 		'settings.buildQueueMode.classic': 'Classic',
+		'settings.controlPreset': 'Control Preset',
+		'settings.controlPresetDesc': 'Hotkeys for building, camera, and radial menus',
+		'settings.controlPreset.islands-of-nonsense': 'Islands of Nonsense',
+		'settings.controlPreset.islands-of-nonsense.desc':
+			'WASD camera, 1-7 building, Space worker select, E/R/Q radial menus',
+		'settings.controlPreset.warcraft3': 'Warcraft III',
+		'settings.controlPreset.warcraft3.desc':
+			'Arrow keys camera, Q/W/E/R... building grid, classic hotkeys',
+		'settings.uiLayoutPreset': 'HUD Layout Style',
+		'settings.uiLayoutPresetDesc': 'Arrangement and behavior of the bottom action bar',
+		'settings.uiLayoutPreset.islands-of-nonsense': 'Floating Modern',
+		'settings.uiLayoutPreset.islands-of-nonsense.desc':
+			'Centered minimap, contextual sliding panels when selected',
+		'settings.uiLayoutPreset.warcraft3': 'Classic Warcraft III',
+		'settings.uiLayoutPreset.warcraft3.desc': 'Solid bottom console with minimap on the left',
 		'settings.uiScale': 'Interface Scale (UI Scale)',
 		'settings.uiScaleDesc': 'Scale HUD panels, typography, and windows',
 		'settings.scaleSmall': 'Compact (85%)',

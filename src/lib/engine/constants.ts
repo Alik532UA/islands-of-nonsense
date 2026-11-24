@@ -93,3 +93,4 @@ export const SOLID_MAP_OBSTACLES: MapObstacle[] = [
 ];
 
 export const BRIDGE_REPAIR_LUMBER_COST = 50;
+export const BOT_BRIDGE_REPAIR_COOLDOWN = 180; // 3 minutes cooldown for bot bridge repairs
