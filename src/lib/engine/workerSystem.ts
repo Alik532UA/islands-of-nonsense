@@ -344,7 +344,7 @@ export class WorkerSystem {
 
 		const cost = BRIDGE_REPAIR_LUMBER_COST;
 		if ((p.lumber ?? 0) < cost) {
-			this.sim.addFloatingText(`Потрібно ${cost}🪵 для ремонту!`, w.x, w.y - 20, '#ef4444');
+			this.sim.addFloatingText(`Потрібно ${cost} деревини для ремонту!`, w.x, w.y - 20, '#ef4444');
 			return false;
 		}
 
@@ -427,7 +427,7 @@ export class WorkerSystem {
 							p.lumber = (p.lumber ?? 0) + lumberReward;
 							p.stats.lumberEarned = (p.stats.lumberEarned || 0) + lumberReward;
 							this.sim.addFloatingText(
-								`+${lumberReward} 🪵`,
+								`+${lumberReward} Деревини`,
 								targetBld.x + CELL_SIZE / 2,
 								targetBld.y - 15,
 								'#22c55e'

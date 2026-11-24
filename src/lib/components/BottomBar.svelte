@@ -472,7 +472,17 @@
 						: 'Порожній слот торби'}
 				>
 					{#if slotIdx === 0 && player.maxFood > 0}
-						<span class="text-sm drop-shadow">🧀</span>
+						<!-- Golden Cheese SVG Icon (Food Cap Item) -->
+						<svg class="w-4 h-4 text-amber-400 drop-shadow" viewBox="0 0 24 24" fill="currentColor">
+							<path d="M2.5 12.5c4-2 15-4 19-2v6c0 1.1-.9 2-2 2H4.5c-1.1 0-2-.9-2-2v-4z" />
+							<path
+								d="M11 6c-2 0-3 1.5-3 2.5 0 1 .5 1.5 1.5 2 2.5-1 6.5-1.5 9-1.5C18 7.5 15.5 6 11 6z"
+								opacity="0.8"
+							/>
+							<circle cx="8" cy="15" r="1.2" fill="#18130d" />
+							<circle cx="14" cy="14" r="1.5" fill="#18130d" />
+							<circle cx="17" cy="16.5" r="1" fill="#18130d" />
+						</svg>
 					{:else}
 						<!-- Authentic leather satchel / pouch silhouette -->
 						<svg class="w-4 h-4 text-[#4a3a28] opacity-70" viewBox="0 0 24 24" fill="currentColor">

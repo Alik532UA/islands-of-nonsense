@@ -16,7 +16,8 @@
 		Volume2,
 		Sparkles,
 		ShieldAlert,
-		Swords
+		Swords,
+		AlertTriangle
 	} from 'lucide-svelte';
 
 	let {
@@ -86,9 +87,10 @@
 				<div
 					class="mb-3 px-3 py-2 bg-amber-950/80 border border-amber-500/80 rounded-xl text-amber-200 text-xs flex items-center gap-2 shrink-0"
 				>
-					<ShoppingBag class="w-4 h-4 text-amber-400 shrink-0" />
+					<AlertTriangle class="w-4 h-4 text-amber-400 shrink-0" />
 					<span>
-						⚠️ Магазин ще не збудовано! Накажіть робітникові збудувати Магазин (50 🪙, 50 🪵).
+						Магазин ще не збудовано! Накажіть робітникові збудувати Магазин (50 золота, 50
+						деревини).
 					</span>
 				</div>
 			{/if}

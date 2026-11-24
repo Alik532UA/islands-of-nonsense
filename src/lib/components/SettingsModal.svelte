@@ -9,7 +9,11 @@
 		Maximize2,
 		Minimize2,
 		Sparkles,
-		Check
+		Check,
+		Swords,
+		Castle,
+		Zap,
+		Scroll
 	} from 'lucide-svelte';
 	import {
 		settings,
@@ -350,7 +354,11 @@
 														? 'bg-amber-500/30 text-amber-300'
 														: 'bg-slate-800/80 text-slate-400'}"
 												>
-													{presetId === 'islands-of-nonsense' ? '🏝️' : '⚔️'}
+													{#if presetId === 'islands-of-nonsense'}
+														<Sparkles class="w-4 h-4 text-amber-300" />
+													{:else}
+														<Swords class="w-4 h-4 text-slate-300" />
+													{/if}
 												</div>
 												<div>
 													<div class="text-xs font-bold text-slate-200">
@@ -399,7 +407,11 @@
 														? 'bg-amber-500/30 text-amber-300'
 														: 'bg-slate-800/80 text-slate-400'}"
 												>
-													{layoutId === 'islands-of-nonsense' ? '✨' : '🏰'}
+													{#if layoutId === 'islands-of-nonsense'}
+														<Sparkles class="w-4 h-4 text-amber-300" />
+													{:else}
+														<Castle class="w-4 h-4 text-slate-300" />
+													{/if}
 												</div>
 												<div>
 													<div class="text-xs font-bold text-slate-200">
@@ -484,7 +496,11 @@
 														? 'bg-amber-500/30 text-amber-300'
 														: 'bg-slate-800/80 text-slate-400'}"
 												>
-													{modeId === 'convenient' ? '⚡' : '📜'}
+													{#if modeId === 'convenient'}
+														<Zap class="w-4 h-4 text-amber-300" />
+													{:else}
+														<Scroll class="w-4 h-4 text-slate-300" />
+													{/if}
 												</div>
 												<div>
 													<div class="text-xs font-bold text-slate-200">

@@ -495,7 +495,7 @@ export class UnitSpellSystem {
 					timedLife: 25.0,
 					isSummoned: true
 				});
-				this.sim.addFloatingText('Підняття мерця! 💀', corpse.x, corpse.y - 20, '#a855f7');
+				this.sim.addFloatingText('Підняття мерця!', corpse.x, corpse.y - 20, '#a855f7');
 			}
 		}
 
@@ -535,7 +535,7 @@ export class UnitSpellSystem {
 						this.applyDamage(enemy, 100, 'magic', u.team, false, u);
 					}
 				}
-				this.sim.addFloatingText('Вибух трупа! 💥', corpse.x, corpse.y - 20, '#ef4444');
+				this.sim.addFloatingText('Вибух трупа!', corpse.x, corpse.y - 20, '#ef4444');
 			}
 		}
 
@@ -555,7 +555,7 @@ export class UnitSpellSystem {
 				const healAmount = Math.round(u.maxHp * 0.35);
 				u.hp = Math.min(u.maxHp, u.hp + healAmount);
 				u.abilityCooldownTimer = 8.0;
-				this.sim.addFloatingText(`+${healAmount} HP Пожирання 🍖`, u.x, u.y - 20, '#22c55e');
+				this.sim.addFloatingText(`+${healAmount} HP Пожирання`, u.x, u.y - 20, '#22c55e');
 			}
 		}
 
@@ -592,7 +592,7 @@ export class UnitSpellSystem {
 				enemy.buffs = enemy.buffs || [];
 				enemy.buffs.push({ type: 'polymorph', timer: 5.5, value: 0 });
 				enemy.currentTargetId = null;
-				this.sim.addFloatingText('Перетворення! 🐑', enemy.x, enemy.y - 25, '#e879f9');
+				this.sim.addFloatingText('Перетворення!', enemy.x, enemy.y - 25, '#e879f9');
 			}
 		}
 
@@ -629,7 +629,7 @@ export class UnitSpellSystem {
 				enemy.buffs = enemy.buffs || [];
 				enemy.buffs.push({ type: 'cyclone', timer: 4.5, value: 0 });
 				enemy.currentTargetId = null;
-				this.sim.addFloatingText('Смерч! 🌪️', enemy.x, enemy.y - 25, '#94a3b8');
+				this.sim.addFloatingText('Смерч!', enemy.x, enemy.y - 25, '#94a3b8');
 			}
 		}
 
@@ -665,7 +665,7 @@ export class UnitSpellSystem {
 				u.abilityCooldownTimer = 11.0;
 				enemy.buffs = enemy.buffs || [];
 				enemy.buffs.push({ type: 'banish', timer: 6.0, value: 0 });
-				this.sim.addFloatingText('Астрал! 👻', enemy.x, enemy.y - 25, '#2dd4bf');
+				this.sim.addFloatingText('Астрал!', enemy.x, enemy.y - 25, '#2dd4bf');
 			}
 		}
 
@@ -704,7 +704,7 @@ export class UnitSpellSystem {
 							!['slow', 'curse', 'poison', 'infect', 'weakness', 'frost', 'banish'].includes(b.type)
 					);
 				}
-				this.sim.addFloatingText('Розвіювання! ✨', debuffedAlly.x, debuffedAlly.y - 25, '#22d3ee');
+				this.sim.addFloatingText('Розвіювання!', debuffedAlly.x, debuffedAlly.y - 25, '#22d3ee');
 			} else {
 				// 2. Search for buffed enemy or summoned unit in range 450
 				const buffedEnemy = this.sim.units.find(
@@ -733,7 +733,7 @@ export class UnitSpellSystem {
 					if (buffedEnemy.isSummoned) {
 						this.applyDamage(buffedEnemy, 150, 'magic', u.team, false, u);
 					}
-					this.sim.addFloatingText('Очищення! ⚡', buffedEnemy.x, buffedEnemy.y - 25, '#38bdf8');
+					this.sim.addFloatingText('Очищення!', buffedEnemy.x, buffedEnemy.y - 25, '#38bdf8');
 				}
 			}
 		}

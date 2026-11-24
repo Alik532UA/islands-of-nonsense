@@ -91,7 +91,7 @@
 		{
 			id: 'repair_bridge',
 			name: 'Відбудувати міст',
-			costText: '50🪵',
+			costText: '50 деревини',
 			hotkey: '3',
 			icon: 'bridge',
 			enabled: Boolean(sim.brokenBridge) && lumber >= 50,
@@ -169,7 +169,7 @@
 					return {
 						id: b.id,
 						name: b.name,
-						subtitle: `${gCost}🟡${lCost > 0 ? ` ${lCost}🪵` : ''}`,
+						subtitle: `${gCost}g${lCost > 0 ? ` ${lCost}w` : ''}`,
 						hotkey: String(idx + 1),
 						enabled: canAfford,
 						action: () => {
@@ -188,7 +188,7 @@
 						return {
 							id: b.id,
 							name: b.name,
-							subtitle: `${gCost}🟡${lCost > 0 ? ` ${lCost}🪵` : ''}`,
+							subtitle: `${gCost}g${lCost > 0 ? ` ${lCost}w` : ''}`,
 							hotkey: String(idx + 1),
 							enabled: canAfford,
 							action: () => {

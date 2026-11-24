@@ -367,7 +367,7 @@ export class BuildingSystem {
 		const lumberCost = bDef.lumber_cost || 0;
 		if (lumberCost > 0 && player.lumber < lumberCost) {
 			this.sim.addFloatingText(
-				`Потрібна Деревина! (${lumberCost}🪵)`,
+				`Потрібна Деревина! (${lumberCost})`,
 				worldX,
 				worldY - 20,
 				'#10b981'
@@ -586,7 +586,7 @@ export class BuildingSystem {
 		const upgradeLumber = targetDef.lumber_cost || 0;
 		if (upgradeLumber > 0 && player.lumber < upgradeLumber) {
 			this.sim.addFloatingText(
-				`Потрібна Деревина! (${upgradeLumber}🪵)`,
+				`Потрібна Деревина! (${upgradeLumber})`,
 				building.x,
 				building.y - 20,
 				'#10b981'
@@ -634,7 +634,7 @@ export class BuildingSystem {
 			player.lumber = (player.lumber ?? 0) + upgradeLumberReward;
 			player.stats.lumberEarned = (player.stats.lumberEarned || 0) + upgradeLumberReward;
 			this.sim.addFloatingText(
-				`+${upgradeLumberReward} 🪵`,
+				`+${upgradeLumberReward} Деревини`,
 				building.x,
 				building.y - 35,
 				'#22c55e'

@@ -17,7 +17,12 @@
 		Ban,
 		Shield,
 		Check,
-		Settings2
+		Settings2,
+		Target,
+		Dices,
+		Sprout,
+		Flame,
+		CircleSlash
 	} from 'lucide-svelte';
 
 	let {
@@ -273,9 +278,15 @@
 			</div>
 			<div class="text-[10px] text-cyan-300 font-bold font-mono truncate px-0.5">
 				{#if westRace === 'in_game'}
-					🎯 Обрати в грі (15с)
+					<span class="inline-flex items-center gap-1">
+						<Target class="w-3 h-3 text-cyan-400" />
+						<span>Обрати в грі (15с)</span>
+					</span>
 				{:else if westRace === 'random'}
-					🎲 Випадкова (+30%)
+					<span class="inline-flex items-center gap-1">
+						<Dices class="w-3 h-3 text-purple-400" />
+						<span>Випадкова (+30%)</span>
+					</span>
 				{:else}
 					{westRace}
 				{/if}
@@ -292,7 +303,10 @@
 						: 'bg-[#181d28] border-slate-800 hover:border-slate-700 text-slate-400'}"
 					data-testid="race-option-in_game"
 				>
-					<span class="text-[11px] font-bold truncate">🎯 В грі (15с)</span>
+					<span class="text-[11px] font-bold truncate flex items-center gap-1">
+						<Target class="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+						<span>В грі (15с)</span>
+					</span>
 					{#if westRace === 'in_game'}
 						<Check class="w-3.5 h-3.5 text-cyan-400 shrink-0 ml-1" />
 					{/if}
@@ -308,7 +322,10 @@
 						: 'bg-[#181d28] border-slate-800 hover:border-slate-700 text-slate-400'}"
 					data-testid="race-option-random"
 				>
-					<span class="text-[11px] font-bold truncate">🎲 Випадкова</span>
+					<span class="text-[11px] font-bold truncate flex items-center gap-1">
+						<Dices class="w-3.5 h-3.5 text-purple-400 shrink-0" />
+						<span>Випадкова</span>
+					</span>
 					{#if westRace === 'random'}
 						<Check class="w-3.5 h-3.5 text-purple-400 shrink-0 ml-1" />
 					{/if}
@@ -340,11 +357,17 @@
 				<div class="text-[11px] font-bold text-slate-400 mb-2 flex items-center justify-between">
 					<span>Шаблони конфігурації (Пресети):</span>
 					<span
-						class="text-[10px] font-mono {activePreset === 'custom'
+						class="text-[10px] font-mono flex items-center gap-1 {activePreset === 'custom'
 							? 'text-amber-400 font-bold'
 							: 'text-cyan-400'}"
 					>
-						{activePreset === 'custom' ? '⚙️ Користувацькі правила' : '✓ Стандартний пресет'}
+						{#if activePreset === 'custom'}
+							<Settings2 class="w-3 h-3 shrink-0" />
+							<span>Користувацькі правила</span>
+						{:else}
+							<Check class="w-3 h-3 shrink-0" />
+							<span>Стандартний пресет</span>
+						{/if}
 					</span>
 				</div>
 				<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -420,7 +443,8 @@
 								<span>Складність бота:</span>
 							</label>
 							<span
-								class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full {botDifficulty === 0
+								class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full flex items-center gap-1 {botDifficulty ===
+								0
 									? 'text-emerald-300 bg-emerald-950/70 border border-emerald-500/40'
 									: botDifficulty <= 20
 										? 'text-amber-300 bg-amber-950/70 border border-amber-500/40'
@@ -429,13 +453,17 @@
 											: 'text-red-300 bg-red-950/70 border border-red-500/40'}"
 							>
 								{#if botDifficulty === 0}
-									🌱 0% (Легкий)
+									<Sprout class="w-3 h-3 text-emerald-400 shrink-0" />
+									<span>0% (Легкий)</span>
 								{:else if botDifficulty <= 20}
-									⚔️ {botDifficulty}% (Звичайний)
+									<Swords class="w-3 h-3 text-amber-400 shrink-0" />
+									<span>{botDifficulty}% (Звичайний)</span>
 								{:else if botDifficulty <= 50}
-									🛡️ {botDifficulty}% (Складний)
+									<Shield class="w-3 h-3 text-orange-400 shrink-0" />
+									<span>{botDifficulty}% (Складний)</span>
 								{:else}
-									🔥 {botDifficulty}% (Божевільний)
+									<Flame class="w-3 h-3 text-red-400 shrink-0" />
+									<span>{botDifficulty}% (Божевільний)</span>
 								{/if}
 							</span>
 						</div>
@@ -453,17 +481,26 @@
 
 						<!-- Quick Preset Buttons -->
 						<div class="grid grid-cols-4 gap-1 pt-0.5">
-							{#each [{ val: 0, label: '0%', icon: '🌱' }, { val: 15, label: '15%', icon: '⚔️' }, { val: 30, label: '30%', icon: '🛡️' }, { val: 80, label: '80%', icon: '🔥' }] as diff}
+							{#each [{ val: 0, label: '0%', type: 'easy' }, { val: 15, label: '15%', type: 'normal' }, { val: 30, label: '30%', type: 'hard' }, { val: 80, label: '80%', type: 'insane' }] as diff}
 								<button
 									type="button"
 									onclick={() => (botDifficulty = diff.val)}
-									class="py-1 px-1 rounded-lg border text-center transition cursor-pointer text-[10px] {botDifficulty ===
+									class="py-1 px-1 rounded-lg border text-center transition cursor-pointer text-[10px] flex items-center justify-center gap-1 {botDifficulty ===
 									diff.val
 										? 'bg-amber-500/25 border-amber-500 text-amber-200 font-bold ring-1 ring-amber-500/40 shadow-sm'
 										: 'bg-[#181d28] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
 									data-testid="difficulty-btn-{diff.val}"
 								>
-									<span>{diff.icon} {diff.label}</span>
+									{#if diff.type === 'easy'}
+										<Sprout class="w-3 h-3 text-emerald-400 shrink-0" />
+									{:else if diff.type === 'normal'}
+										<Swords class="w-3 h-3 text-amber-400 shrink-0" />
+									{:else if diff.type === 'hard'}
+										<Shield class="w-3 h-3 text-orange-400 shrink-0" />
+									{:else}
+										<Flame class="w-3 h-3 text-red-400 shrink-0" />
+									{/if}
+									<span>{diff.label}</span>
 								</button>
 							{/each}
 						</div>
@@ -477,9 +514,14 @@
 								<span>Стартове золото:</span>
 							</label>
 							<span
-								class="text-[11px] font-mono font-bold text-amber-300 px-2 py-0.5 rounded-full bg-amber-950/70 border border-amber-500/40"
+								class="text-[11px] font-mono font-bold text-amber-300 px-2 py-0.5 rounded-full bg-amber-950/70 border border-amber-500/40 flex items-center gap-1"
 							>
-								{startGold >= 90000 ? '∞ Безкінечно' : `${startGold} 🪙`}
+								{#if startGold >= 90000}
+									<span>∞ Безкінечно</span>
+								{:else}
+									<Coins class="w-3 h-3 text-amber-400 shrink-0" />
+									<span>{startGold}</span>
+								{/if}
 							</span>
 						</div>
 
@@ -503,13 +545,14 @@
 								<button
 									type="button"
 									onclick={() => (startGold = gold.val)}
-									class="py-1 px-0.5 rounded-lg border text-center transition cursor-pointer text-[10px] {startGold ===
+									class="py-1 px-0.5 rounded-lg border text-center transition cursor-pointer text-[10px] flex items-center justify-center gap-0.5 {startGold ===
 									gold.val
 										? 'bg-amber-500/25 border-amber-500 text-amber-200 font-bold ring-1 ring-amber-500/40 shadow-sm'
 										: 'bg-[#181d28] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
 									data-testid="gold-btn-{gold.val}"
 								>
-									<span>{gold.label}🪙</span>
+									<Coins class="w-2.5 h-2.5 text-amber-400 shrink-0" />
+									<span>{gold.label}</span>
 								</button>
 							{/each}
 							<button
@@ -570,7 +613,14 @@
 								<span>•</span>
 								<span>До {targetWins}</span>
 								<span>•</span>
-								<span>{startGold >= 90000 ? '∞ Золота' : `${startGold}🪙`}</span>
+								<span class="flex items-center gap-0.5">
+									{#if startGold >= 90000}
+										<span>∞ Золота</span>
+									{:else}
+										<Coins class="w-3 h-3 text-slate-900 inline shrink-0" />
+										<span>{startGold}</span>
+									{/if}
+								</span>
 							</span>
 						</div>
 
@@ -838,11 +888,19 @@
 			</div>
 
 			<div class="flex items-center justify-between px-0.5 text-[10px] text-rose-300 font-mono">
-				<span class="font-bold truncate">
-					{eastRace === 'random' ? '🎲 Випадкова' : eastRace}
+				<span class="font-bold truncate flex items-center gap-1">
+					{#if eastRace === 'random'}
+						<Dices class="w-3 h-3 text-rose-400 shrink-0" />
+						<span>Випадкова</span>
+					{:else}
+						<span>{eastRace}</span>
+					{/if}
 				</span>
 				{#if bannedRaces.length > 0}
-					<span class="text-red-400 font-bold">🚫 {bannedRaces.length} забан.</span>
+					<span class="text-red-400 font-bold flex items-center gap-0.5">
+						<CircleSlash class="w-2.5 h-2.5 shrink-0" />
+						<span>{bannedRaces.length} забан.</span>
+					</span>
 				{/if}
 			</div>
 
@@ -857,7 +915,10 @@
 						: 'bg-[#181d28] border-slate-800 hover:border-slate-700 text-slate-400'}"
 					data-testid="bot-race-random"
 				>
-					<span class="text-[11px] font-bold truncate">🎲 Випадкова</span>
+					<span class="text-[11px] font-bold truncate flex items-center gap-1">
+						<Dices class="w-3.5 h-3.5 text-rose-400 shrink-0" />
+						<span>Випадкова</span>
+					</span>
 					{#if eastRace === 'random'}
 						<Check class="w-3.5 h-3.5 text-rose-400 shrink-0 ml-1" />
 					{/if}

@@ -343,9 +343,10 @@
 			</div>
 			{#if activeBossInstanceId}
 				<div
-					class="text-[9px] font-bold text-amber-400 animate-pulse whitespace-nowrap leading-tight"
+					class="text-[9px] font-bold text-amber-400 animate-pulse whitespace-nowrap leading-tight flex items-center justify-center gap-1"
 				>
-					👑 БОС НА АРЕНІ!
+					<Crown class="w-3 h-3 text-amber-400 shrink-0 inline" />
+					<span>БОС НА АРЕНІ!</span>
 				</div>
 			{:else}
 				<div class="text-[9px] text-slate-400 font-mono whitespace-nowrap leading-tight">
@@ -473,13 +474,13 @@
 			class="flex items-center gap-2.5 2xl:gap-3 bg-[#0c1017] px-2.5 2xl:px-3 py-1 rounded-md border border-[#544738] shadow-inner shrink-0"
 			data-testid="resource-boxes"
 		>
-			<!-- 🪙 Gold -->
+			<!-- Gold -->
 			<div class="flex items-center gap-1 font-bold text-amber-400 shrink-0" title="Золото гравця">
 				<Coins class="w-4 h-4 text-amber-400 shrink-0" />
 				<span class="text-sm font-mono tracking-tight">{playerGold}</span>
 			</div>
 
-			<!-- 💰 Gold Income -->
+			<!-- Gold Income -->
 			<div
 				class="flex items-center gap-1 text-xs text-amber-300 border-l border-[#3b3226] pl-2 shrink-0"
 				title="Періодичний дохід золота: +{westIncome} кожні {sim.incomeInterval}с"
@@ -497,7 +498,7 @@
 				<span class="text-[9px] text-amber-400/90 font-mono">{incomeTimer}с</span>
 			</div>
 
-			<!-- 🌲 Lumber (Wood) Reserve -->
+			<!-- Lumber (Wood) Reserve -->
 			<div
 				class="flex items-center gap-1 text-xs {westLumber > 0
 					? 'text-emerald-300'
@@ -510,7 +511,7 @@
 				<span class="font-mono font-bold">{westLumber}</span>
 			</div>
 
-			<!-- 🥩 Food Cap (Legendary Building Limit) -->
+			<!-- Food Cap (Legendary Building Limit) -->
 			<div
 				class="flex items-center gap-1 text-xs border-l border-[#3b3226] pl-2 shrink-0 {player.maxFood >
 				0

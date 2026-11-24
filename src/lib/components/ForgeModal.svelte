@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Simulation } from '../engine/simulation';
-	import { Hammer, Sword, Shield, TrendingUp, X } from 'lucide-svelte';
+	import { Hammer, Sword, Shield, TrendingUp, X, AlertTriangle } from 'lucide-svelte';
 
 	let {
 		sim,
@@ -60,9 +60,9 @@
 				<div
 					class="mb-4 px-3 py-2 bg-amber-950/80 border border-amber-500/80 rounded-xl text-amber-200 text-xs flex items-center gap-2 shrink-0"
 				>
-					<Hammer class="w-4 h-4 text-amber-400 shrink-0" />
+					<AlertTriangle class="w-4 h-4 text-amber-400 shrink-0" />
 					<span>
-						⚠️ Кузню ще не збудовано! Накажіть робітникові збудувати Кузню (100 🪙, 100 🪵).
+						Кузню ще не збудовано! Накажіть робітникові збудувати Кузню (100 золота, 100 деревини).
 					</span>
 				</div>
 			{/if}

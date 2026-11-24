@@ -21,7 +21,7 @@
 	import HotkeysHelpModal from '$lib/components/HotkeysHelpModal.svelte';
 	import A11yAnnouncer from '$lib/components/ui/A11yAnnouncer.svelte';
 	import { battleAnnouncer } from '$lib/services/battleAnnouncer.svelte';
-	import { ZoomIn, ZoomOut, Compass, HelpCircle } from 'lucide-svelte';
+	import { ZoomIn, ZoomOut, Compass, HelpCircle, Dices, CircleSlash, Check } from 'lucide-svelte';
 	import { storage } from '$lib/services/storage';
 	import { createKeySequence, listenForSequences } from '$lib/debug/keySequence';
 	import { shortcutLetter, isEditableTarget } from '$lib/hotkeys/hotkeys';
@@ -891,7 +891,7 @@
 							: 'bg-gradient-to-r from-purple-950/70 via-purple-900/50 to-[#181e2b] border-purple-500/60 hover:border-purple-400 hover:bg-purple-900/60 text-purple-200 active:scale-[0.99]'}"
 					>
 						<div class="flex items-center gap-2.5">
-							<span class="text-xl">🎲</span>
+							<Dices class="w-6 h-6 text-purple-300 shrink-0" />
 							<span class="text-sm font-bold tracking-wide">Випадкова раса</span>
 						</div>
 						<div class="flex items-center gap-2">
@@ -937,11 +937,21 @@
 									{raceDef.race}
 								</span>
 								{#if isBanned}
-									<span class="text-[9px] text-red-400 font-bold">🚫 Бан (-ban)</span>
+									<span
+										class="text-[9px] text-red-400 font-bold flex items-center justify-center gap-1"
+									>
+										<CircleSlash class="w-3 h-3 text-red-400 shrink-0" />
+										<span>Бан (-ban)</span>
+									</span>
 								{:else if isOpponentOccupied}
 									<span class="text-[9px] text-amber-400/80 font-bold">Зайнято (-ur)</span>
 								{:else if isSelected}
-									<span class="text-[9px] text-emerald-400 font-bold">✓ Обрано</span>
+									<span
+										class="text-[9px] text-emerald-400 font-bold flex items-center justify-center gap-1"
+									>
+										<Check class="w-3 h-3 text-emerald-400 shrink-0" />
+										<span>Обрано</span>
+									</span>
 								{/if}
 							</button>
 						{/each}

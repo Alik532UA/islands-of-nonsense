@@ -599,13 +599,15 @@
 					>
 						{#each controller.leaders as leader, i}
 							<div class="flex items-center gap-3 p-3.5 hover:bg-slate-900/40 transition">
-								<div class="w-7 text-center font-black text-xs text-slate-400">
+								<div
+									class="w-7 text-center font-black text-xs text-slate-400 flex items-center justify-center"
+								>
 									{#if i === 0}
-										🥇
+										<Trophy class="w-4 h-4 text-amber-400 mx-auto" />
 									{:else if i === 1}
-										🥈
+										<Trophy class="w-4 h-4 text-slate-300 mx-auto" />
 									{:else if i === 2}
-										🥉
+										<Trophy class="w-4 h-4 text-amber-700 mx-auto" />
 									{:else}
 										#{i + 1}
 									{/if}

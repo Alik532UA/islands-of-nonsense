@@ -24,7 +24,12 @@
 		Feather,
 		Zap,
 		ShoppingBag,
-		Package
+		Package,
+		Coins,
+		TreePine,
+		Shield,
+		Lightbulb,
+		CircleSlash
 	} from 'lucide-svelte';
 	import { CASTLE_ITEMS_LIST, type CastleItem } from '../engine/items';
 	import { settings } from '../services/settings.svelte';
@@ -235,7 +240,12 @@
 									<span class="text-[8px] font-bold text-slate-200 truncate max-w-[55px]">
 										{item.nameUk}
 									</span>
-									<span class="text-[8px] text-amber-300 font-mono font-bold">🪙{item.cost}</span>
+									<span
+										class="text-[8px] text-amber-300 font-mono font-bold flex items-center gap-0.5"
+									>
+										<Coins class="w-2.5 h-2.5 text-amber-400 shrink-0" />
+										<span>{item.cost}</span>
+									</span>
 								</button>
 							{/each}
 						</div>
@@ -245,7 +255,12 @@
 							>
 								<div class="flex items-center justify-between font-bold text-amber-300">
 									<span>{hoveredItem.nameUk}</span>
-									<span class="font-mono">🪙{hoveredItem.cost} | КД: {hoveredItem.cooldown}с</span>
+									<span class="font-mono flex items-center gap-1">
+										<Coins class="w-3 h-3 text-amber-400 shrink-0" />
+										<span>{hoveredItem.cost}</span>
+										<span class="text-slate-400">|</span>
+										<span>КД: {hoveredItem.cooldown}с</span>
+									</span>
 								</div>
 								<p class="text-slate-300 text-[8.5px] mt-0.5">{hoveredItem.descriptionUk}</p>
 							</div>
@@ -308,11 +323,29 @@
 									: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
 								title="Атака: +8% шкоди всім військам"
 							>
-								<span class="text-[9.5px] font-bold text-rose-300">⚔️ Атака {atkLvl}/5</span>
-								<span class="text-[8px] text-slate-400">+8% шкоди</span>
-								<span class="text-[8.5px] font-mono font-bold text-amber-300">
-									{atkLvl >= 5 ? 'МАКС' : `🪙${atkCost}${atkLum > 0 ? ` 🪵${atkLum}` : ''}`}
+								<span class="text-[9.5px] font-bold text-rose-300 flex items-center gap-1">
+									<Swords class="w-3 h-3 text-rose-400 shrink-0" />
+									<span>Атака {atkLvl}/5</span>
 								</span>
+								<span class="text-[8px] text-slate-400">+8% шкоди</span>
+								<div
+									class="text-[8.5px] font-mono font-bold text-amber-300 flex items-center gap-1"
+								>
+									{#if atkLvl >= 5}
+										<span>МАКС</span>
+									{:else}
+										<span class="flex items-center gap-0.5">
+											<Coins class="w-2.5 h-2.5 text-amber-400 shrink-0" />
+											<span>{atkCost}</span>
+										</span>
+										{#if atkLum > 0}
+											<span class="flex items-center gap-0.5 text-emerald-400">
+												<TreePine class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+												<span>{atkLum}</span>
+											</span>
+										{/if}
+									{/if}
+								</div>
 							</button>
 
 							<button
@@ -323,11 +356,29 @@
 									: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
 								title="Броня: +1 броні всім військам"
 							>
-								<span class="text-[9.5px] font-bold text-blue-300">🛡️ Броня {armLvl}/5</span>
-								<span class="text-[8px] text-slate-400">+1 броня</span>
-								<span class="text-[8.5px] font-mono font-bold text-amber-300">
-									{armLvl >= 5 ? 'МАКС' : `🪙${armCost}${armLum > 0 ? ` 🪵${armLum}` : ''}`}
+								<span class="text-[9.5px] font-bold text-blue-300 flex items-center gap-1">
+									<Shield class="w-3 h-3 text-blue-400 shrink-0" />
+									<span>Броня {armLvl}/5</span>
 								</span>
+								<span class="text-[8px] text-slate-400">+1 броня</span>
+								<div
+									class="text-[8.5px] font-mono font-bold text-amber-300 flex items-center gap-1"
+								>
+									{#if armLvl >= 5}
+										<span>МАКС</span>
+									{:else}
+										<span class="flex items-center gap-0.5">
+											<Coins class="w-2.5 h-2.5 text-amber-400 shrink-0" />
+											<span>{armCost}</span>
+										</span>
+										{#if armLum > 0}
+											<span class="flex items-center gap-0.5 text-emerald-400">
+												<TreePine class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+												<span>{armLum}</span>
+											</span>
+										{/if}
+									{/if}
+								</div>
 							</button>
 
 							<button
@@ -338,11 +389,29 @@
 									: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
 								title="Економіка: +10% до доходу золота"
 							>
-								<span class="text-[9.5px] font-bold text-emerald-300">💰 Дохід {ecoLvl}/3</span>
-								<span class="text-[8px] text-slate-400">+10% доходу</span>
-								<span class="text-[8.5px] font-mono font-bold text-amber-300">
-									{ecoLvl >= 3 ? 'МАКС' : `🪙${ecoCost}${ecoLum > 0 ? ` 🪵${ecoLum}` : ''}`}
+								<span class="text-[9.5px] font-bold text-emerald-300 flex items-center gap-1">
+									<Coins class="w-3 h-3 text-emerald-400 shrink-0" />
+									<span>Дохід {ecoLvl}/3</span>
 								</span>
+								<span class="text-[8px] text-slate-400">+10% доходу</span>
+								<div
+									class="text-[8.5px] font-mono font-bold text-amber-300 flex items-center gap-1"
+								>
+									{#if ecoLvl >= 3}
+										<span>МАКС</span>
+									{:else}
+										<span class="flex items-center gap-0.5">
+											<Coins class="w-2.5 h-2.5 text-amber-400 shrink-0" />
+											<span>{ecoCost}</span>
+										</span>
+										{#if ecoLum > 0}
+											<span class="flex items-center gap-0.5 text-emerald-400">
+												<TreePine class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+												<span>{ecoLum}</span>
+											</span>
+										{/if}
+									{/if}
+								</div>
 							</button>
 						</div>
 					</div>
@@ -365,13 +434,19 @@
 							<span
 								class="absolute top-0.5 right-1 text-[8px] font-mono font-bold text-amber-300 drop-shadow"
 							>
-								[{uIdx + 1}]
+								{uIdx + 1}
 							</span>
 							<span class="text-[10px] font-bold truncate max-w-[50px]">{up.name}</span>
-							<div class="flex items-center gap-1 text-[8px] font-mono font-bold">
-								<span class="text-amber-300">🪙{upCost}</span>
+							<div class="flex items-center gap-1.5 text-[8px] font-mono font-bold mt-0.5">
+								<span class="text-amber-300 flex items-center gap-0.5">
+									<Coins class="w-2.5 h-2.5 text-amber-400 shrink-0" />
+									<span>{upCost}</span>
+								</span>
 								{#if upLumber > 0}
-									<span class="text-emerald-400">🪵{upLumber}</span>
+									<span class="text-emerald-400 flex items-center gap-0.5">
+										<TreePine class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+										<span>{upLumber}</span>
+									</span>
 								{/if}
 							</div>
 						</button>
@@ -486,10 +561,15 @@
 						<span class="text-slate-400">Гармата цитаделі:</span>
 						<span class="font-mono text-amber-300 font-bold">120-150 (Облога)</span>
 					</div>
-					<div class="text-[9px] text-slate-400 border-t border-slate-800 pt-1">
-						💡 Припаси доступні в окремій будівлі <span class="text-amber-300 font-bold">
-							Магазин
-						</span>.
+					<div
+						class="text-[9px] text-slate-400 border-t border-slate-800 pt-1 flex items-center gap-1"
+					>
+						<Lightbulb class="w-3.5 h-3.5 text-amber-400 shrink-0 inline" />
+						<span>
+							Припаси доступні в окремій будівлі <span class="text-amber-300 font-bold">
+								Магазин
+							</span>.
+						</span>
 					</div>
 				</div>
 				<div class="grid grid-cols-4 gap-1.5 pt-1">
@@ -520,7 +600,10 @@
 								<Wrench class="w-3 h-3 text-amber-400" />
 								Міст
 							</span>
-							<span class="text-[8px] font-mono text-amber-300 font-bold">50🪵</span>
+							<span class="text-[8px] font-mono text-amber-300 font-bold flex items-center gap-0.5">
+								<TreePine class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+								<span>50</span>
+							</span>
 						</button>
 					{/if}
 				</div>
@@ -606,7 +689,7 @@
 		</div>
 	{:else if activeEntityType === 'worker'}
 		<!-- 5x3 Grid for 13 Base Buildings + Bridge Repair / Spacer + Cancel Button (15 slots) -->
-		<div class="grid grid-cols-5 gap-1 w-[310px]">
+		<div class="grid grid-cols-5 gap-1.5 w-[325px]">
 			{#each availableBuildings as bld, idx}
 				{@const isSelected = selectedBuildingId === bld.id}
 				{@const bldLumber = bld.lumber_cost || 0}
@@ -622,7 +705,7 @@
 					onmouseenter={() => (hoveredBuilding = bld)}
 					onmouseleave={() => (hoveredBuilding = null)}
 					data-testid="hud-build-btn-{bld.id}"
-					class="relative w-[58px] h-[38px] rounded border p-0.5 transition-all flex flex-col justify-between items-center cursor-pointer touch-manipulation {isSelected
+					class="relative w-[61px] h-[39px] rounded-md border p-0.5 transition-all flex flex-col justify-center items-center overflow-hidden cursor-pointer touch-manipulation {isSelected
 						? 'bg-blue-600/90 border-amber-300 shadow-lg ring-2 ring-amber-400 shadow-blue-500/50'
 						: lacksFood
 							? 'bg-red-950/40 border-red-800/80 hover:border-red-600'
@@ -631,65 +714,81 @@
 								: 'bg-[#12161f] border-[#2d3748] opacity-50 grayscale cursor-not-allowed'}"
 					aria-label="{bld.name} ({bld.gold_cost}g{bldLumber > 0
 						? `, ${bldLumber}w`
-						: ''}) [{hotkey}]"
+						: ''}) {hotkey}"
 				>
-					<!-- Hotkey in top-right corner -->
+					<!-- Hotkey in top-right corner (no square brackets) -->
 					<span
-						class="absolute top-0.5 right-1 text-[7.5px] font-mono font-bold {isSelected
-							? 'text-white'
+						class="absolute top-0 right-0 px-1 py-0.2 rounded-bl text-[7.5px] font-mono font-bold leading-none select-none {isSelected
+							? 'bg-amber-400 text-black'
 							: isAffordable
-								? 'text-[#fef08a]'
-								: 'text-slate-500'}"
+								? 'bg-black/70 text-[#fef08a] border-l border-b border-[#544738]/60'
+								: 'bg-black/50 text-slate-500'}"
 					>
-						[{hotkey}]
+						{hotkey}
 					</span>
 
-					<!-- Visual archetype icon / glyph -->
-					<div class="mt-0.5 flex items-center justify-center">
-						{#if bld.specialType === 'shop'}
-							<ShoppingBag class="w-3.5 h-3.5 text-amber-300 drop-shadow" />
-						{:else if bld.specialType === 'forge'}
-							<Hammer class="w-3.5 h-3.5 text-cyan-300 drop-shadow" />
-						{:else if bld.id === 'h008'}
-							<Package class="w-3.5 h-3.5 text-amber-400 drop-shadow" />
-						{:else if isLeg}
-							<Crown class="w-3.5 h-3.5 text-amber-300 drop-shadow animate-pulse" />
-						{:else if bld.specialType === 'tower'}
-							<ShieldAlert class="w-3.5 h-3.5 text-cyan-400 drop-shadow" />
-						{:else if bld.specialType === 'special' || bld.specialType === 'repair' || bld.specialType === 'recycler'}
-							<Zap class="w-3.5 h-3.5 text-purple-400 drop-shadow" />
-						{:else if bUnit?.flying}
-							<Feather class="w-3.5 h-3.5 text-sky-300 drop-shadow" />
-						{:else if bUnit?.attack_type === 'pierce'}
-							<Crosshair class="w-3.5 h-3.5 text-emerald-400 drop-shadow" />
-						{:else if bUnit?.attack_type === 'magic'}
-							<Sparkles class="w-3.5 h-3.5 text-indigo-300 drop-shadow" />
-						{:else}
-							<Swords class="w-3.5 h-3.5 text-amber-200 drop-shadow" />
-						{/if}
+					<!-- Gold cost in bottom-left corner with Coins SVG icon -->
+					<div
+						class="absolute bottom-0 left-0 flex items-center gap-0.5 px-0.5 py-0.2 rounded-tr text-[7.5px] font-mono font-bold leading-none select-none {isSelected
+							? 'bg-black/70 text-amber-300'
+							: playerGold >= (bld.gold_cost || 200)
+								? 'bg-black/70 text-amber-300 border-t border-r border-[#544738]/60'
+								: 'bg-red-950/90 text-red-400 border-t border-r border-red-800/60'}"
+					>
+						<Coins class="w-2.5 h-2.5 text-amber-400 shrink-0" />
+						<span>{bld.gold_cost}</span>
 					</div>
 
-					<!-- Short building name label -->
-					<span
-						class="text-[7.5px] font-bold truncate max-w-[48px] leading-tight {isSelected
-							? 'text-white'
-							: isAffordable
-								? 'text-slate-200'
-								: 'text-slate-500'}"
-					>
-						{shortenName(bld.name)}
-					</span>
+					<!-- Lumber cost in bottom-right corner with TreePine SVG icon (if applicable) -->
+					{#if bldLumber > 0}
+						<div
+							class="absolute bottom-0 right-0 flex items-center gap-0.5 px-0.5 py-0.2 rounded-tl text-[7.5px] font-mono font-bold leading-none select-none {isSelected
+								? 'bg-black/70 text-emerald-300'
+								: (player.lumber ?? 0) >= bldLumber
+									? 'bg-black/70 text-emerald-400 border-t border-l border-[#544738]/60'
+									: 'bg-red-950/90 text-red-400 border-t border-l border-red-800/60'}"
+						>
+							<TreePine class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+							<span>{bldLumber}</span>
+						</div>
+					{/if}
 
-					<!-- Cost badges at bottom -->
-					<div class="flex items-center gap-1 text-[7px] font-mono font-bold leading-none mb-0.5">
-						<span class={playerGold >= (bld.gold_cost || 200) ? 'text-amber-300' : 'text-red-400'}>
-							🪙{bld.gold_cost}
+					<!-- Visual archetype icon / glyph and name in center (unclipped, comfortable breathing room) -->
+					<div class="flex flex-col items-center justify-center -mt-0.5 pointer-events-none">
+						<div class="flex items-center justify-center">
+							{#if bld.specialType === 'shop'}
+								<ShoppingBag class="w-3.5 h-3.5 text-amber-300 drop-shadow" />
+							{:else if bld.specialType === 'forge'}
+								<Hammer class="w-3.5 h-3.5 text-cyan-300 drop-shadow" />
+							{:else if bld.id === 'h008'}
+								<Package class="w-3.5 h-3.5 text-amber-400 drop-shadow" />
+							{:else if isLeg}
+								<Crown class="w-3.5 h-3.5 text-amber-300 drop-shadow animate-pulse" />
+							{:else if bld.specialType === 'tower'}
+								<ShieldAlert class="w-3.5 h-3.5 text-cyan-400 drop-shadow" />
+							{:else if bld.specialType === 'special' || bld.specialType === 'repair' || bld.specialType === 'recycler'}
+								<Zap class="w-3.5 h-3.5 text-purple-400 drop-shadow" />
+							{:else if bUnit?.flying}
+								<Feather class="w-3.5 h-3.5 text-sky-300 drop-shadow" />
+							{:else if bUnit?.attack_type === 'pierce'}
+								<Crosshair class="w-3.5 h-3.5 text-emerald-400 drop-shadow" />
+							{:else if bUnit?.attack_type === 'magic'}
+								<Sparkles class="w-3.5 h-3.5 text-indigo-300 drop-shadow" />
+							{:else}
+								<Swords class="w-3.5 h-3.5 text-amber-200 drop-shadow" />
+							{/if}
+						</div>
+
+						<!-- Short building name label -->
+						<span
+							class="text-[8px] font-bold truncate max-w-[54px] leading-tight mt-0.5 {isSelected
+								? 'text-white'
+								: isAffordable
+									? 'text-slate-200'
+									: 'text-slate-500'}"
+						>
+							{shortenName(bld.name)}
 						</span>
-						{#if bldLumber > 0}
-							<span class={(player.lumber ?? 0) >= bldLumber ? 'text-emerald-400' : 'text-red-400'}>
-								🪵{bldLumber}
-							</span>
-						{/if}
 					</div>
 				</button>
 			{/each}
@@ -701,45 +800,48 @@
 					onclick={() => sim.orderBridgeRepair(player.team)}
 					disabled={(player.lumber ?? 0) < 50}
 					data-testid="hud-worker-repair-bridge-btn"
-					class="relative w-[58px] h-[38px] rounded border transition flex flex-col justify-between items-center p-0.5 cursor-pointer {(player.lumber ??
+					class="relative w-[61px] h-[39px] rounded-md border transition flex flex-col justify-center items-center overflow-hidden cursor-pointer touch-manipulation {(player.lumber ??
 						0) >= 50
-						? 'bg-amber-950/80 hover:bg-amber-900 border-amber-500/70 text-amber-200 cursor-pointer shadow'
+						? 'bg-amber-950/80 hover:bg-amber-900 border-amber-500/70 text-amber-200 shadow'
 						: 'bg-slate-900/60 border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
 					title="Наказати робітникові відбудувати зламаний міст (50 деревини)"
 				>
-					<span class="text-[7.5px] font-mono text-amber-300 font-bold">50🪵</span>
-					<Wrench class="w-3 h-3 text-amber-400" />
-					<span class="text-[7.5px] font-bold text-amber-200">Міст</span>
+					<div
+						class="absolute bottom-0 right-0 flex items-center gap-0.5 px-0.5 py-0.2 rounded-tl text-[7.5px] font-mono font-bold leading-none bg-black/70 text-amber-300 border-t border-l border-amber-700/60"
+					>
+						<TreePine class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+						<span>50</span>
+					</div>
+					<div class="flex flex-col items-center justify-center -mt-0.5 pointer-events-none">
+						<Wrench class="w-3.5 h-3.5 text-amber-400 drop-shadow" />
+						<span class="text-[8px] font-bold text-amber-200 leading-tight mt-0.5">Міст</span>
+					</div>
 				</button>
 			{:else}
-				<div class="w-[58px] h-[38px]"></div>
+				<div class="w-[61px] h-[39px]"></div>
 			{/if}
 
-			<!-- Slot 15: Authentic Warcraft III Cancel Button (🚫 Red crossed circle, [Esc]) -->
+			<!-- Slot 15: Authentic Warcraft III Cancel Button (Red crossed circle, Esc) -->
 			<button
 				onclick={() => {
 					onSelectBuilding(null);
 					onClearSelection?.();
 				}}
 				data-testid="hud-clear-selection-btn"
-				class="relative w-[58px] h-[38px] rounded border border-rose-800/80 bg-gradient-to-b from-rose-950/80 to-[#180a0a] hover:from-rose-900 hover:to-rose-950 text-rose-300 flex flex-col items-center justify-center p-0.5 transition cursor-pointer shadow group touch-manipulation"
+				class="relative w-[61px] h-[39px] rounded-md border border-rose-800/80 bg-gradient-to-b from-rose-950/80 to-[#180a0a] hover:from-rose-900 hover:to-rose-950 text-rose-300 flex flex-col items-center justify-center overflow-hidden transition cursor-pointer shadow group touch-manipulation"
 				title="Скасувати / Очистити вибір (Esc / B)"
 			>
-				<div class="relative w-4 h-4 flex items-center justify-center">
-					<svg
-						class="w-4 h-4 text-rose-500 drop-shadow-[0_0_4px_rgba(244,63,94,0.6)] group-hover:scale-110 transition-transform"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.5"
-					>
-						<circle cx="12" cy="12" r="9" />
-						<line x1="5.7" y1="5.7" x2="18.3" y2="18.3" />
-					</svg>
-				</div>
-				<span class="text-[7.5px] font-mono font-bold text-rose-400 group-hover:text-rose-200">
+				<span
+					class="absolute top-0 right-0 px-1 py-0.2 rounded-bl text-[7.5px] font-mono font-bold leading-none bg-black/70 text-rose-400 border-l border-b border-rose-900/60"
+				>
 					Esc
 				</span>
+				<div class="flex flex-col items-center justify-center pointer-events-none">
+					<CircleSlash
+						class="w-4 h-4 text-rose-500 drop-shadow-[0_0_4px_rgba(244,63,94,0.6)] group-hover:scale-110 transition-transform"
+					/>
+					<span class="text-[7.5px] font-bold text-rose-300 leading-tight mt-0.5"> Скасувати </span>
+				</div>
 			</button>
 		</div>
 	{/if}
@@ -754,19 +856,23 @@
 			style="box-shadow: 0 10px 30px rgba(0,0,0,0.95);"
 		>
 			<!-- Gold Title + Hotkey -->
-			<div class="text-[#fef08a] font-bold text-sm leading-tight">
-				Збудувати {bld.name}
-				{bHotkey ? `[${bHotkey}]` : ''}
+			<div class="text-[#fef08a] font-bold text-sm leading-tight flex items-center justify-between">
+				<span>Збудувати {bld.name}</span>
+				{#if bHotkey}
+					<span class="text-xs font-mono font-bold text-amber-400">{bHotkey}</span>
+				{/if}
 			</div>
 
 			<!-- Resource Cost Line -->
 			<div class="flex items-center gap-3 font-mono font-bold text-xs mt-1">
 				<span class="text-amber-300 flex items-center gap-1">
-					🪙 {hoveredBuilding.gold_cost}
+					<Coins class="w-3.5 h-3.5 text-amber-400" />
+					<span>{hoveredBuilding.gold_cost}</span>
 				</span>
 				{#if hoveredBuilding.lumber_cost}
 					<span class="text-emerald-400 flex items-center gap-1">
-						🪵 {hoveredBuilding.lumber_cost}
+						<TreePine class="w-3.5 h-3.5 text-emerald-400" />
+						<span>{hoveredBuilding.lumber_cost}</span>
 					</span>
 				{/if}
 			</div>

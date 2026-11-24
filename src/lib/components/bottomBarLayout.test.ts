@@ -103,8 +103,8 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 		// Tooltip hotkey lookup must use findIndex by id, not indexOf on volatile arrays
 		expect(commandCardSrc).toContain('availableBuildings.findIndex((b) => b.id === bld.id)');
 
-		// Title must only render brackets when hotkey is non-empty
-		expect(commandCardSrc).toContain("bHotkey ? `[${bHotkey}]` : ''");
+		// Title renders hotkey directly without brackets
+		expect(commandCardSrc).toContain('bHotkey');
 
 		// Test resolution for each race building
 		const races = ['Люди', 'Орки', 'Нежить', 'Ельфи', 'Хаос', 'Північ'];
@@ -117,6 +117,36 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 				expect(bIdx).toBe(idx);
 			}
 		}
+	});
+
+	it('configures command card buttons with corner badges for hotkey and costs, using SVG icons with zero emojis', () => {
+		// Top-right corner hotkey badge without square brackets
+		expect(commandCardSrc).toContain('absolute top-0 right-0');
+		expect(commandCardSrc).toContain('{hotkey}');
+		expect(commandCardSrc).not.toContain('[{hotkey}]');
+
+		// Bottom-left corner gold cost with Coins SVG icon
+		expect(commandCardSrc).toContain('absolute bottom-0 left-0');
+		expect(commandCardSrc).toContain('<Coins');
+		expect(commandCardSrc).toContain('{bld.gold_cost}');
+
+		// Bottom-right corner lumber cost with TreePine SVG icon
+		expect(commandCardSrc).toContain('absolute bottom-0 right-0');
+		expect(commandCardSrc).toContain('<TreePine');
+		expect(commandCardSrc).toContain('{bldLumber}');
+
+		// Center content has unclipped building name
+		expect(commandCardSrc).toContain('shortenName(bld.name)');
+		expect(commandCardSrc).toContain('truncate max-w-[54px]');
+
+		// Authentic cancel button uses CircleSlash SVG icon without square brackets
+		expect(commandCardSrc).toContain('<CircleSlash');
+		expect(commandCardSrc).toContain('data-testid="hud-clear-selection-btn"');
+
+		// Zero emojis in CommandCard and BottomBar
+		const emojiRegex = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u;
+		expect(commandCardSrc).not.toMatch(emojiRegex);
+		expect(bottomBarSrc).not.toMatch(emojiRegex);
 	});
 
 	it('formats minimap controls with seamless top alignment and zero dark stripe gaps', () => {

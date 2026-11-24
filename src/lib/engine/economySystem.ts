@@ -333,7 +333,7 @@ export class EconomySystem {
 		}
 		if (lumberPrice > 0 && player.lumber < lumberPrice) {
 			this.sim.addFloatingText(
-				`Потрібна Деревина! (${lumberPrice}🪵)`,
+				`Потрібна Деревина! (${lumberPrice})`,
 				this.sim.castles[team].x,
 				this.sim.castles[team].y - 50,
 				'#10b981'
@@ -806,7 +806,7 @@ export class EconomySystem {
 				}
 				enemyCastle.hp = Math.max(0, enemyCastle.hp - 800);
 				this.sim.addFloatingText(
-					'⚠️ ТАКТИЧНИЙ ЯДЕРНИЙ УДАР!',
+					'ТАКТИЧНИЙ ЯДЕРНИЙ УДАР!',
 					enemyCastle.x,
 					enemyCastle.y - 70,
 					'#ef4444'
@@ -869,7 +869,7 @@ export class EconomySystem {
 		}
 
 		this.sim.addFloatingText(
-			`⚠️ РЯТІВНИЙ УДАР! (-${strikeDamage})`,
+			`РЯТІВНИЙ УДАР! (-${strikeDamage})`,
 			castle.x,
 			castle.y - 75,
 			'#f97316'
