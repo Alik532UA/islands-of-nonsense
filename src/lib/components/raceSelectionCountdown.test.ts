@@ -11,14 +11,21 @@ describe('Race Selection Countdown Overlay Invariants', () => {
 		expect(arenaContent).not.toContain('{sim.players.east.race}');
 	});
 
-	it('does NOT have wordy redundant explanation text', () => {
+	it('does NOT have redundant title or explanation text', () => {
+		expect(arenaContent).not.toContain('Вибір раси королівства');
 		expect(arenaContent).not.toContain('Оберіть расу або випадковий вибір');
 	});
 
-	it('features separate top button for random race with +30% gold bonus', () => {
+	it('does NOT have misleading separate start battle button', () => {
+		expect(arenaContent).not.toContain('РОЗПОЧАТИ БІЙ ЗАРАЗ');
+		expect(arenaContent).not.toContain('Розпочати бій зараз');
+	});
+
+	it('features separate top button for random race with countdown timer and +30% gold bonus', () => {
 		expect(arenaContent).toContain('🎲');
 		expect(arenaContent).toContain('Випадкова раса');
 		expect(arenaContent).toContain('+30% золота');
+		expect(arenaContent).toContain('{countdownSeconds}');
 		expect(arenaContent).toContain("selectRaceAndStart('random')");
 	});
 

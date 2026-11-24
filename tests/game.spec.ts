@@ -49,7 +49,7 @@ test.describe('Castle Fight Web — Smoke and Interaction E2E', () => {
 		}
 
 		// Fast-forward countdown if present
-		const startNowBtn = page.getByRole('button', { name: /Розпочати бій зараз/i });
+		const startNowBtn = page.getByRole('button', { name: /Випадкова раса|Розпочати бій зараз/i });
 		if (await startNowBtn.isVisible()) {
 			await startNowBtn.click();
 		}
