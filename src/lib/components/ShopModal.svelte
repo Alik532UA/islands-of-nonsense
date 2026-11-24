@@ -28,6 +28,7 @@
 	} = $props();
 
 	let player = $derived(sim.players.west);
+	let hasShop = $derived(sim.hasShop('west'));
 
 	function handleBuy(itemId: string) {
 		const success = sim.buyCastleItem('west', itemId);
@@ -81,12 +82,23 @@
 				</div>
 			</div>
 
+			{#if !hasShop}
+				<div
+					class="mb-3 px-3 py-2 bg-amber-950/80 border border-amber-500/80 rounded-xl text-amber-200 text-xs flex items-center gap-2 shrink-0"
+				>
+					<ShoppingBag class="w-4 h-4 text-amber-400 shrink-0" />
+					<span>
+						⚠️ Магазин ще не збудовано! Накажіть робітникові збудувати Магазин (50 🪙, 50 🪵).
+					</span>
+				</div>
+			{/if}
+
 			<!-- Item Cards (Scrollable) -->
 			<div class="flex flex-col gap-2.5 overflow-y-auto pr-1.5 flex-1 min-h-0">
-				{#each CASTLE_ITEMS_LIST as item, _idx}
+				{#each CASTLE_ITEMS_LIST.filter((it) => (it.id !== 'I00B' && it.id !== 'I00N') || sim.gameModeConfig?.nuclearWarheads) as item, _idx}
 					{@const cd = sim.getItemCooldown('west', item.id)}
 					{@const canAfford = player.gold >= item.cost}
-					{@const canBuy = canAfford && cd <= 0}
+					{@const canBuy = hasShop && canAfford && cd <= 0}
 					<div
 						class="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 flex items-center justify-between gap-3.5 hover:border-slate-700 transition"
 					>

@@ -10,6 +10,7 @@ import {
 } from './constants';
 import type { MatchTeam, WorkerState, PlayerState } from './types';
 import { GroundNavigation } from './groundNavigation';
+import { getBuilding, getUnit, isSpecialBuilding, isTowerBuilding } from './gameData';
 
 export { SOLID_MAP_OBSTACLES } from './constants';
 
@@ -406,13 +407,39 @@ export class WorkerSystem {
 						targetBld.spawnTimer = targetBld.specialType === 'repair' ? 0 : initialDelay;
 						w.isBuilding = false;
 						w.targetBuildingId = null;
-						p.lumber += 25;
-						this.sim.addFloatingText(
-							'+Готово! (+25🪵)',
-							targetBld.x + CELL_SIZE / 2,
-							targetBld.y - 15,
-							'#22c55e'
-						);
+
+						const bDef = getBuilding(targetBld.defId);
+						const spawnedUnit = targetBld.spawnUnitId ? getUnit(targetBld.spawnUnitId) : null;
+						const isSpecial =
+							targetBld.specialType || isSpecialBuilding(bDef) || isTowerBuilding(bDef);
+						const isSiege =
+							targetBld.isArtillery ||
+							targetBld.attackType === 'siege' ||
+							spawnedUnit?.attack_type === 'siege';
+
+						const lumberReward = isSpecial
+							? 0
+							: isSiege
+								? Math.floor(targetBld.goldCost * 0.75)
+								: targetBld.goldCost;
+
+						if (lumberReward > 0) {
+							p.lumber = (p.lumber ?? 0) + lumberReward;
+							p.stats.lumberEarned = (p.stats.lumberEarned || 0) + lumberReward;
+							this.sim.addFloatingText(
+								`+${lumberReward} 🪵`,
+								targetBld.x + CELL_SIZE / 2,
+								targetBld.y - 15,
+								'#22c55e'
+							);
+						} else {
+							this.sim.addFloatingText(
+								'+Готово!',
+								targetBld.x + CELL_SIZE / 2,
+								targetBld.y - 15,
+								'#22c55e'
+							);
+						}
 						this.sim.onSoundEffect?.('buildingComplete');
 						this.sim.onBuildingComplete?.(targetBld);
 						this.processNextQueuedBuilding(team, w, p);

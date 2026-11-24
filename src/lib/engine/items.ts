@@ -10,6 +10,18 @@ export interface CastleItem {
 }
 
 export const CASTLE_ITEMS: Record<string, CastleItem> = {
+	I000: {
+		id: 'I000',
+		nameUk: 'Дисперсійний Жезл',
+		nameEn: 'Wand of Negation',
+		cost: 350,
+		descriptionUk:
+			'Розсіює всі чари (Dispel): миттєво знімає позитивні та негативні магічні ефекти з усіх бійців на полі бою.',
+		descriptionEn:
+			'Dispel magic: instantly removes all positive and negative magical effects from all units on the battlefield.',
+		icon: 'Wand2',
+		cooldown: 35
+	},
 	I001: {
 		id: 'I001',
 		nameUk: 'Бойові Барабани',
@@ -41,18 +53,6 @@ export const CASTLE_ITEMS: Record<string, CastleItem> = {
 		descriptionEn: 'All enemy troops in 1400 radius for 15s: -40% attack speed, -25% move speed.',
 		icon: 'Scroll',
 		cooldown: 45
-	},
-	I000: {
-		id: 'I000',
-		nameUk: 'Дисперсійний Жезл',
-		nameEn: 'Wand of Negation',
-		cost: 350,
-		descriptionUk:
-			'Розсіює всі чари (Dispel): миттєво знімає позитивні та негативні магічні ефекти з усіх бійців на полі бою.',
-		descriptionEn:
-			'Dispel magic: instantly removes all positive and negative magical effects from all units on the battlefield.',
-		icon: 'Wand2',
-		cooldown: 35
 	},
 	I009: {
 		id: 'I009',
@@ -124,23 +124,42 @@ export const CASTLE_ITEMS: Record<string, CastleItem> = {
 		nameUk: 'Золотий сир',
 		nameEn: 'Golden Cheese',
 		cost: 1500,
-		descriptionUk: 'Легендарний припас: лагодить замок на +2500 HP та виплачує +100 золота.',
-		descriptionEn: 'Legendary snack: repairs castle for +2500 HP and grants +100 gold bonus.',
+		descriptionUk: 'Легендарний припас: збільшує ліміт легендарних споруд на +1 Їжу.',
+		descriptionEn: 'Legendary ration: increases Legendary building limit by +1 Food Cap.',
 		icon: 'Crown',
 		cooldown: 120
 	},
 	I00N: {
-		id: 'I00N',
+		id: 'I00B',
 		nameUk: 'Ядерна Боєголовка',
 		nameEn: 'Nuclear Warhead',
 		cost: 650,
 		descriptionUk:
-			'Спустошливий тактичний ядерний удар по ворожих позиціях (900 шкоди в радіусі 900 px).',
+			'Спеціальний режим (Ядерна битва): тактичний ядерний удар по ворожих позиціях (900 шкоди в радіусі 900 px).',
 		descriptionEn:
-			'Devastating tactical nuclear strike on enemy positions (900 damage in 900 px radius).',
+			'Special mode (Nuclear Battle): tactical nuclear strike on enemy positions (900 damage in 900 px radius).',
 		icon: 'Radiation',
 		cooldown: 60
 	}
 };
 
-export const CASTLE_ITEMS_LIST: CastleItem[] = Object.values(CASTLE_ITEMS);
+// Alias I00B as a non-enumerable property for backward/forward compatibility
+Object.defineProperty(CASTLE_ITEMS, 'I00B', {
+	value: CASTLE_ITEMS.I00N,
+	enumerable: false,
+	writable: true,
+	configurable: true
+});
+
+export const CASTLE_ITEMS_LIST: CastleItem[] = [
+	CASTLE_ITEMS.I001,
+	CASTLE_ITEMS.I005,
+	CASTLE_ITEMS.I00E,
+	CASTLE_ITEMS.I009,
+	CASTLE_ITEMS.I00A,
+	CASTLE_ITEMS.I008,
+	CASTLE_ITEMS.I003,
+	CASTLE_ITEMS.I00F,
+	CASTLE_ITEMS.I007,
+	CASTLE_ITEMS.I004
+];

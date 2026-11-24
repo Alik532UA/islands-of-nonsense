@@ -180,10 +180,12 @@ export interface BuildingDefinition {
 	upgrade_from: string | null;
 	upgrade_extra_cost: number;
 	race?: string | null;
-	specialType?: 'treasure' | 'repair' | 'recycler' | 'tower' | 'special';
+	specialType?: 'treasure' | 'repair' | 'recycler' | 'tower' | 'special' | 'shop' | 'forge';
 	aura?: BuildingAuraDef;
 	initialSpawnDelay?: number;
 	isArtillery?: boolean;
+	is_legendary?: boolean;
+	is_special?: boolean;
 	cooldown?: number | null;
 	range?: number | null;
 	damage_base?: number | null;
@@ -392,7 +394,7 @@ export interface Building {
 	isUnderConstruction?: boolean;
 	buildProgress?: number;
 	maxBuildProgress?: number;
-	specialType?: 'treasure' | 'repair' | 'recycler' | 'tower' | 'special';
+	specialType?: 'treasure' | 'repair' | 'recycler' | 'tower' | 'special' | 'shop' | 'forge';
 	aura?: BuildingAuraDef;
 	attackCooldown?: number;
 	attackTimer?: number;

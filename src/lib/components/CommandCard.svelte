@@ -8,6 +8,7 @@
 		PlayerState
 	} from '../engine/types';
 	import { getUnit, isLegendaryBuilding } from '../engine/gameData';
+	import { sound } from '../services/audio';
 	import {
 		Trash2,
 		X,
@@ -22,9 +23,10 @@
 		Crosshair,
 		Feather,
 		Zap,
+		ShoppingBag,
 		Package
 	} from 'lucide-svelte';
-	import { CASTLE_ITEMS } from '../engine/items';
+	import { CASTLE_ITEMS_LIST, type CastleItem } from '../engine/items';
 
 	let {
 		sim,
@@ -69,6 +71,7 @@
 	} = $props();
 
 	let hoveredBuilding = $state<BuildingDefinition | null>(null);
+	let hoveredItem = $state<CastleItem | null>(null);
 	let hoveredUnit = $derived(hoveredBuilding ? getUnit(hoveredBuilding.unit) : null);
 
 	const HOTKEYS = ['Q', 'W', 'E', 'R', 'A', 'S', 'D', 'F', 'Z', 'X', 'C', 'Esc'];
@@ -151,6 +154,191 @@
 						<X class="w-4 h-4 text-slate-300" />
 						<span class="text-[8px] font-mono">Esc</span>
 					</button>
+				{:else if placedBuilding.specialType === 'shop'}
+					{@const shopItems = CASTLE_ITEMS_LIST.filter(
+						(it) => (it.id !== 'I00B' && it.id !== 'I00N') || sim.gameModeConfig?.nuclearWarheads
+					)}
+					<!-- Placed Shop Building: Consumables Roster -->
+					<div class="col-span-4 flex flex-col justify-between w-[280px] h-full py-0.5">
+						<div class="flex items-center justify-between border-b border-[#3b3226] pb-1 shrink-0">
+							<span class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
+								<ShoppingBag class="w-3.5 h-3.5 text-amber-400" />
+								Магазин
+							</span>
+							<div class="flex items-center gap-1">
+								{#if placedBuilding.hp < placedBuilding.maxHp}
+									<button
+										onclick={() => sim.repairBuilding('west', placedBuilding.instanceId)}
+										data-testid="hud-repair-btn"
+										class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-emerald-950/80 hover:bg-emerald-900 border-emerald-500/70 text-emerald-200 cursor-pointer shadow flex items-center gap-0.5"
+									>
+										<Wrench class="w-2.5 h-2.5 text-emerald-400" />
+										<span>Ремонт [R]</span>
+									</button>
+								{/if}
+								<button
+									onclick={() => onSellBuilding?.(placedBuilding.instanceId)}
+									data-testid="hud-sell-btn"
+									class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-rose-950/70 hover:bg-rose-900 border-rose-600/70 text-rose-200 cursor-pointer shadow flex items-center gap-0.5"
+								>
+									<Trash2 class="w-2.5 h-2.5 text-rose-400" />
+									<span>Знести (+25g)</span>
+								</button>
+								<button
+									onclick={() => onCloseBuilding?.()}
+									data-testid="hud-close-building-btn"
+									class="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 bg-[#1e2433] rounded border border-slate-700 cursor-pointer"
+								>
+									Esc
+								</button>
+							</div>
+						</div>
+						<div class="grid grid-cols-4 gap-1 max-h-[105px] overflow-y-auto pr-0.5 pt-0.5">
+							{#each shopItems as item}
+								{@const cd = sim.getItemCooldown('west', item.id)}
+								{@const canAfford = playerGold >= item.cost}
+								{@const canBuy = canAfford && cd <= 0}
+								<button
+									onclick={() => {
+										if (sim.canBuyCastleItem('west', item.id)) {
+											const success = sim.buyCastleItem('west', item.id);
+											if (success) sound.playCoin();
+										}
+									}}
+									onmouseenter={() => (hoveredItem = item)}
+									onmouseleave={() => (hoveredItem = null)}
+									disabled={!canBuy}
+									data-testid="hud-shop-item-btn-{item.id}"
+									class="relative w-16 h-[32px] rounded border flex flex-col justify-between items-center p-0.5 transition cursor-pointer touch-manipulation {canBuy
+										? 'bg-[#1b263b] hover:bg-[#253959] border-amber-500/60 text-white shadow'
+										: cd > 0
+											? 'bg-[#151a24] border-cyan-800/60 text-cyan-400 cursor-not-allowed'
+											: 'bg-[#12161f] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
+									title="{item.nameUk} ({item.cost}g) - {item.descriptionUk}"
+								>
+									{#if cd > 0}
+										<div
+											class="absolute inset-0 bg-black/75 rounded flex items-center justify-center z-10"
+										>
+											<span class="text-[9px] font-mono font-bold text-cyan-300">
+												{Math.ceil(cd)}с
+											</span>
+										</div>
+									{/if}
+									<span class="text-[8px] font-bold text-slate-200 truncate max-w-[55px]">
+										{item.nameUk}
+									</span>
+									<span class="text-[8px] text-amber-300 font-mono font-bold">🪙{item.cost}</span>
+								</button>
+							{/each}
+						</div>
+						{#if hoveredItem}
+							<div
+								class="absolute -top-14 left-2 right-2 bg-[#0c1017] border border-amber-500/80 rounded p-1.5 z-30 shadow-2xl text-[9px] pointer-events-none"
+							>
+								<div class="flex items-center justify-between font-bold text-amber-300">
+									<span>{hoveredItem.nameUk}</span>
+									<span class="font-mono">🪙{hoveredItem.cost} | КД: {hoveredItem.cooldown}с</span>
+								</div>
+								<p class="text-slate-300 text-[8.5px] mt-0.5">{hoveredItem.descriptionUk}</p>
+							</div>
+						{/if}
+					</div>
+				{:else if placedBuilding.specialType === 'forge'}
+					{@const atkLvl = player.forge.attack}
+					{@const armLvl = player.forge.armor}
+					{@const ecoLvl = player.forge.econ}
+					{@const atkCost = sim.getForgePrice('west', 'attack')}
+					{@const armCost = sim.getForgePrice('west', 'armor')}
+					{@const ecoCost = sim.getForgePrice('west', 'econ')}
+					{@const atkLum = sim.getForgeLumberPrice('west', 'attack')}
+					{@const armLum = sim.getForgeLumberPrice('west', 'armor')}
+					{@const ecoLum = sim.getForgeLumberPrice('west', 'econ')}
+					{@const canAtk = atkLvl < 5 && playerGold >= atkCost && (player.lumber ?? 0) >= atkLum}
+					{@const canArm = armLvl < 5 && playerGold >= armCost && (player.lumber ?? 0) >= armLum}
+					{@const canEco = ecoLvl < 3 && playerGold >= ecoCost && (player.lumber ?? 0) >= ecoLum}
+					<!-- Placed Forge Building: Upgrades -->
+					<div class="col-span-4 flex flex-col justify-between w-[280px] h-full py-0.5">
+						<div class="flex items-center justify-between border-b border-[#3b3226] pb-1 shrink-0">
+							<span class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
+								<Hammer class="w-3.5 h-3.5 text-amber-400" />
+								Військова Кузня
+							</span>
+							<div class="flex items-center gap-1">
+								{#if placedBuilding.hp < placedBuilding.maxHp}
+									<button
+										onclick={() => sim.repairBuilding('west', placedBuilding.instanceId)}
+										data-testid="hud-repair-btn"
+										class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-emerald-950/80 hover:bg-emerald-900 border-emerald-500/70 text-emerald-200 cursor-pointer shadow flex items-center gap-0.5"
+									>
+										<Wrench class="w-2.5 h-2.5 text-emerald-400" />
+										<span>Ремонт [R]</span>
+									</button>
+								{/if}
+								<button
+									onclick={() => onSellBuilding?.(placedBuilding.instanceId)}
+									data-testid="hud-sell-btn"
+									class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-rose-950/70 hover:bg-rose-900 border-rose-600/70 text-rose-200 cursor-pointer shadow flex items-center gap-0.5"
+								>
+									<Trash2 class="w-2.5 h-2.5 text-rose-400" />
+									<span>Знести (+50g)</span>
+								</button>
+								<button
+									onclick={() => onCloseBuilding?.()}
+									data-testid="hud-close-building-btn"
+									class="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 bg-[#1e2433] rounded border border-slate-700 cursor-pointer"
+								>
+									Esc
+								</button>
+							</div>
+						</div>
+						<div class="grid grid-cols-3 gap-1.5 pt-1">
+							<button
+								onclick={() => sim.upgradeForge('west', 'attack')}
+								disabled={!canAtk}
+								class="h-16 rounded border flex flex-col items-center justify-between p-1 transition cursor-pointer {canAtk
+									? 'bg-rose-950/60 hover:bg-rose-900/80 border-rose-500/70 text-white shadow'
+									: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
+								title="Атака: +8% шкоди всім військам"
+							>
+								<span class="text-[9.5px] font-bold text-rose-300">⚔️ Атака {atkLvl}/5</span>
+								<span class="text-[8px] text-slate-400">+8% шкоди</span>
+								<span class="text-[8.5px] font-mono font-bold text-amber-300">
+									{atkLvl >= 5 ? 'МАКС' : `🪙${atkCost}${atkLum > 0 ? ` 🪵${atkLum}` : ''}`}
+								</span>
+							</button>
+
+							<button
+								onclick={() => sim.upgradeForge('west', 'armor')}
+								disabled={!canArm}
+								class="h-16 rounded border flex flex-col items-center justify-between p-1 transition cursor-pointer {canArm
+									? 'bg-blue-950/60 hover:bg-blue-900/80 border-blue-500/70 text-white shadow'
+									: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
+								title="Броня: +1 броні всім військам"
+							>
+								<span class="text-[9.5px] font-bold text-blue-300">🛡️ Броня {armLvl}/5</span>
+								<span class="text-[8px] text-slate-400">+1 броня</span>
+								<span class="text-[8.5px] font-mono font-bold text-amber-300">
+									{armLvl >= 5 ? 'МАКС' : `🪙${armCost}${armLum > 0 ? ` 🪵${armLum}` : ''}`}
+								</span>
+							</button>
+
+							<button
+								onclick={() => sim.upgradeForge('west', 'econ')}
+								disabled={!canEco}
+								class="h-16 rounded border flex flex-col items-center justify-between p-1 transition cursor-pointer {canEco
+									? 'bg-emerald-950/60 hover:bg-emerald-900/80 border-emerald-500/70 text-white shadow'
+									: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
+								title="Економіка: +10% до доходу золота"
+							>
+								<span class="text-[9.5px] font-bold text-emerald-300">💰 Дохід {ecoLvl}/3</span>
+								<span class="text-[8px] text-slate-400">+10% доходу</span>
+								<span class="text-[8.5px] font-mono font-bold text-amber-300">
+									{ecoLvl >= 3 ? 'МАКС' : `🪙${ecoCost}${ecoLum > 0 ? ` 🪵${ecoLum}` : ''}`}
+								</span>
+							</button>
+						</div>
+					</div>
 				{:else}
 					{#each availableUpgrades as up, uIdx}
 						{@const upCost = up.upgrade_from
@@ -264,12 +452,12 @@
 			</div>
 		{/if}
 	{:else if activeEntityType === 'castle' && selectedCastle}
-		<!-- Castle Command Card: Shop & Defense Items -->
+		<!-- Castle Command Card: Status & Defense Repair (Consumable shop items moved to built Shop building) -->
 		<div class="flex flex-col justify-between w-[280px] h-full py-1">
 			<div class="flex items-center justify-between border-b border-[#3b3226] pb-1">
 				<span class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
 					<Castle class="w-3.5 h-3.5 text-amber-400" />
-					{selectedCastle.team === 'west' ? 'Магазин Замку' : 'Ворожа База'}
+					{selectedCastle.team === 'west' ? 'Головна Цитадель' : 'Ворожа База'}
 				</span>
 				<button
 					onclick={() => onClearSelection?.()}
@@ -280,15 +468,32 @@
 				</button>
 			</div>
 			{#if selectedCastle.team === 'west'}
-				<div class="grid grid-cols-4 gap-1.5">
+				<div
+					class="flex flex-col gap-1 text-[10px] text-slate-300 bg-[#0d1017] p-2 rounded border border-[#2d3748]"
+				>
+					<div class="flex justify-between">
+						<span class="text-slate-400">Статус:</span>
+						<span class="font-bold text-emerald-400">Цитадель захищена</span>
+					</div>
+					<div class="flex justify-between">
+						<span class="text-slate-400">Гармата цитаделі:</span>
+						<span class="font-mono text-amber-300 font-bold">120-150 (Облога)</span>
+					</div>
+					<div class="text-[9px] text-slate-400 border-t border-slate-800 pt-1">
+						💡 Припаси доступні в окремій будівлі <span class="text-amber-300 font-bold">
+							Магазин
+						</span>.
+					</div>
+				</div>
+				<div class="grid grid-cols-4 gap-1.5 pt-1">
 					{#if selectedCastle.hp < selectedCastle.maxHp}
 						<button
 							onclick={() => sim.repairBuilding('west', 'castle_west')}
 							data-testid="hud-castle-repair-btn"
-							class="w-16 h-11 rounded border border-emerald-500/70 bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-200 flex flex-col items-center justify-center p-0.5 transition cursor-pointer shadow"
+							class="w-16 h-10 rounded border border-emerald-500/70 bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-200 flex flex-col items-center justify-center p-0.5 transition cursor-pointer shadow"
 							title="Наказати робітникові ремонтувати цитадель (R)"
 						>
-							<span class="text-[10px] font-bold flex items-center gap-0.5">
+							<span class="text-[9.5px] font-bold flex items-center gap-0.5">
 								<Wrench class="w-3 h-3 text-emerald-400" />
 								Ремонт
 							</span>
@@ -301,37 +506,16 @@
 							onclick={() => sim.orderBridgeRepair('west')}
 							disabled={(player.lumber ?? 0) < 50}
 							data-testid="hud-repair-bridge-btn"
-							class="w-16 h-11 rounded border border-amber-500/70 bg-amber-950/70 hover:bg-amber-900/90 disabled:opacity-40 text-amber-200 flex flex-col items-center justify-center p-0.5 transition cursor-pointer shadow"
+							class="w-16 h-10 rounded border border-amber-500/70 bg-amber-950/70 hover:bg-amber-900/90 disabled:opacity-40 text-amber-200 flex flex-col items-center justify-center p-0.5 transition cursor-pointer shadow"
 							title="Наказати робітникові відбудувати зламаний міст (50 деревини)"
 						>
-							<span class="text-[10px] font-bold flex items-center gap-0.5">
+							<span class="text-[9.5px] font-bold flex items-center gap-0.5">
 								<Wrench class="w-3 h-3 text-amber-400" />
 								Міст
 							</span>
 							<span class="text-[8px] font-mono text-amber-300 font-bold">50🪵</span>
 						</button>
 					{/if}
-					{#each Object.values(CASTLE_ITEMS).slice(0, selectedCastle.hp < selectedCastle.maxHp ? 3 : 4) as item}
-						{@const canAfford = playerGold >= item.cost}
-						<button
-							onclick={() => {
-								if (sim.canBuyCastleItem('west', item.id)) {
-									sim.buyCastleItem('west', item.id);
-								}
-							}}
-							disabled={!canAfford}
-							data-testid="hud-shop-item-btn-{item.id}"
-							class="w-16 h-11 rounded border flex flex-col items-center justify-center p-0.5 transition cursor-pointer {canAfford
-								? 'bg-[#1b263b] hover:bg-[#253959] border-amber-500/60 text-white shadow'
-								: 'bg-[#12161f] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
-							title="{item.nameUk} ({item.cost}g) - {item.descriptionUk}"
-						>
-							<span class="text-xs font-bold text-slate-200 truncate max-w-[55px]">
-								{item.nameUk}
-							</span>
-							<span class="text-[8px] text-amber-300 font-mono font-bold">🪙{item.cost}</span>
-						</button>
-					{/each}
 				</div>
 			{:else}
 				<div

@@ -73,10 +73,28 @@ describe('Play Modes (/play) & MatchConfigModal Presets Architecture', () => {
 		expect(modalContent).toContain('data-testid="targetwins-btn-');
 	});
 
-	it('MatchConfigModal implements a balanced 3-column command layout (West, Center, East)', () => {
+	it('MatchConfigModal implements a balanced 3-column command layout (West, Center, East) with central hero button', () => {
 		expect(modalContent).toContain('lg:grid-cols-[190px_1fr_190px]');
 		expect(modalContent).toContain('Захід (Гравець)');
 		expect(modalContent).toContain('Схід (Бот)');
 		expect(modalContent).toContain('max-w-6xl');
+		expect(modalContent).toContain('data-testid="config-modal-apply-btn"');
+		expect(playContent).toContain('max-w-[96vw]');
+	});
+
+	it('MatchConfigModal provides fine sliders for bot difficulty, start gold (with infinite sandbox) and coin rules', () => {
+		expect(modalContent).toContain('data-testid="bot-difficulty-slider"');
+		expect(modalContent).toContain('data-testid="start-gold-slider"');
+		expect(modalContent).toContain('data-testid="gold-btn-infinite"');
+		expect(modalContent).toContain('data-testid="setup-coins"');
+		expect(modalContent).toContain('data-testid="toggle-custom-coins-btn"');
+		expect(modalContent).toContain('data-testid="coin-interval-slider"');
+		expect(modalContent).toContain('data-testid="coin-count-slider"');
+	});
+
+	it('MatchConfigModal integrates race banning directly into Bot selection and features full-width modes grid', () => {
+		expect(modalContent).toContain('data-testid="ban-race-');
+		expect(modalContent).toContain('data-testid="mode-card-');
+		expect(modalContent).not.toContain('Бан рас (до 2):');
 	});
 });

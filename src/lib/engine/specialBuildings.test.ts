@@ -7,6 +7,7 @@ describe('Point 6: Special Non-Spawning Buildings (Treasure Box, Repair, Recycle
 
 	beforeEach(() => {
 		sim = new Simulation({ botDifficulty: 0, startGold: 2000 });
+		sim.players.west.lumber = 2000;
 	});
 
 	it('defines special non-spawning buildings with correct properties', () => {

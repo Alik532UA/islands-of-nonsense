@@ -18,7 +18,7 @@ describe('Point 5: Full Lumber (Wood) Economy & Tech Tiers', () => {
 		expect(sim.players.east.lumber).toBe(125);
 	});
 
-	it('завершення будівництва споруди приносить робітником +25 деревини', () => {
+	it('завершення будівництва споруди приносить робітником деревину згідно з WC3 каноном (100% ціни золота)', () => {
 		sim.players.west.gold = 500;
 		sim.players.west.lumber = 100;
 		const buildSuccess = sim.build('west', 'h003', 25, 20, 'top');
@@ -26,6 +26,7 @@ describe('Point 5: Full Lumber (Wood) Economy & Tech Tiers', () => {
 
 		const bld = sim.buildings[0];
 		expect(bld.isUnderConstruction).toBe(true);
+		const expectedLumberReward = bld.goldCost;
 
 		// Worker arrives and finishes construction
 		if (sim.players.west.worker) {
@@ -37,17 +38,18 @@ describe('Point 5: Full Lumber (Wood) Economy & Tech Tiers', () => {
 		sim.workerSystem.updateWorkers(0.1);
 
 		expect(bld.isUnderConstruction).toBe(false);
-		expect(sim.players.west.lumber).toBe(125); // 100 + 25
+		expect(sim.players.west.lumber).toBe(100 + expectedLumberReward);
 	});
 
-	it('періодичний цикл доходу нараховує базовий приплив деревини (+5 + активні споруди)', () => {
+	it('періодичний цикл доходу виплачує золото і НЕ нараховує пасивну деревину (канон WC3)', () => {
 		sim.players.west.lumber = 100;
 		const initialLumber = sim.players.west.lumber;
 
 		// Trigger economic cycle
 		sim.economySystem.updateEconomy(sim.incomeInterval + 0.1);
 
-		expect(sim.players.west.lumber).toBeGreaterThanOrEqual(initialLumber + 5);
+		// Lumber does NOT increase on income tick
+		expect(sim.players.west.lumber).toBe(initialLumber);
 	});
 
 	it('забороняє апгрейд до вищого тиру при нестачі деревини та списує деревину при успіху', () => {
@@ -76,8 +78,9 @@ describe('Point 5: Full Lumber (Wood) Economy & Tech Tiers', () => {
 		const successUpgrade = sim.upgradeBuilding('west', parentBld.instanceId, 'h055');
 		expect(successUpgrade).toBe(true);
 		expect(parentBld.defId).toBe('h055');
-		expect(sim.players.west.lumber).toBe(25); // 400 - 375
-		expect(parentBld.lumberCost).toBe(435);
+		// 400 - 375 (spent) + 370 (awarded for upgrade completion in WC3 Db) = 395
+		expect(sim.players.west.lumber).toBe(395);
+		expect(parentBld.lumberCost).toBe(375);
 	});
 
 	it('повертає 50% витраченої деревини при знесенні споруди та 75% при скасуванні', () => {
@@ -99,6 +102,29 @@ describe('Point 5: Full Lumber (Wood) Economy & Tech Tiers', () => {
 	it('апгрейди кузні вищих рівнів (2+) потребують та списують деревину', () => {
 		sim.players.west.gold = 1000;
 		sim.players.west.lumber = 0; // zero lumber
+		sim.buildings.push({
+			instanceId: 'test_forge_west',
+			defId: 'cg11_forge',
+			name: 'Кузня',
+			team: 'west',
+			specialType: 'forge',
+			tileX: 10,
+			tileY: 10,
+			x: 1600,
+			y: 1200,
+			hp: 1000,
+			maxHp: 1000,
+			armor: 5,
+			armorType: 'fort',
+			goldCost: 100,
+			lumberCost: 100,
+			spawnUnitId: '',
+			spawnCooldown: 0,
+			spawnTimer: 0,
+			lane: 'mid',
+			upgradeFrom: null,
+			race: 'Люди'
+		});
 
 		// Upgrade 0 -> 1 (lumberPrice is 0)
 		const up1 = sim.upgradeForge('west', 'attack');

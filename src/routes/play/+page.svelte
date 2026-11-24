@@ -1,15 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
-	import {
-		Bot,
-		Sparkles,
-		Eye,
-		Sliders,
-		ChevronLeft,
-		ChevronRight,
-		Play
-	} from 'lucide-svelte';
+	import { Bot, Sparkles, Eye, Sliders, ChevronLeft, ChevronRight, Play } from 'lucide-svelte';
 	import { t } from '$lib/i18n';
 	import { settings } from '$lib/services/settings.svelte';
 	import { storage } from '$lib/services/storage';
@@ -253,8 +245,8 @@
 
 <div
 	class="menu-page fill min-h-[calc(100dvh-56px)] {isConfigOpen
-		? 'h-auto py-4'
-		: 'h-auto lg:h-[calc(100dvh-56px)]'} px-4 flex flex-col items-center relative overflow-y-auto overflow-x-hidden"
+		? 'h-auto py-3 px-1 sm:px-3'
+		: 'h-auto lg:h-[calc(100dvh-56px)] px-4'} flex flex-col items-center relative overflow-y-auto overflow-x-hidden"
 >
 	{#if !isConfigOpen}
 		<!-- Top Spacer: 1 part for ~20% above-center placement -->
@@ -1346,9 +1338,9 @@
 		<!-- Bottom Spacer: 2.5 parts so drawer fits below without screen overflow -->
 		<div class="flex-[2.5] min-h-[32px] pointer-events-none shrink-0"></div>
 	{:else}
-		<!-- In-Place Configuration (Morphs / Expands on Page, No Modal Window) -->
+		<!-- In-Place Configuration (Full Page Width >90%, Seamlessly Integrated) -->
 		<div
-			class="w-full flex justify-center px-2 animate-in fade-in slide-in-from-top-4 duration-300"
+			class="w-full max-w-[96vw] 2xl:max-w-[94vw] flex justify-center px-1 animate-in fade-in slide-in-from-top-2 duration-300"
 		>
 			<MatchConfigModal
 				isOpen={true}

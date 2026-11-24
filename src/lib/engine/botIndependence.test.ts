@@ -271,6 +271,31 @@ describe('Bot Independence & Courtyard Isolation (2v2 and 3v3)', () => {
 		p2.forge.armor = 2;
 		p2.forge.econ = 2;
 		p2.gold = 3000;
+		p2.lumber = 500;
+		sim.buildings.push({
+			instanceId: 'b_forge_p2',
+			defId: 'cg11_forge',
+			name: 'Військова Кузня',
+			team: 'east',
+			playerId: 'p2',
+			specialType: 'forge',
+			tileX: 100,
+			tileY: 30,
+			x: 6500,
+			y: 1200,
+			hp: 1000,
+			maxHp: 1000,
+			armor: 5,
+			armorType: 'fort',
+			goldCost: 100,
+			lumberCost: 100,
+			spawnUnitId: '',
+			spawnCooldown: 0,
+			spawnTimer: 0,
+			lane: 'mid',
+			upgradeFrom: null,
+			race: 'Орки'
+		});
 
 		botP2.makeDecision();
 		expect(p2.forge.attack).toBe(3);

@@ -12,6 +12,7 @@ describe('Point 10: Post-Match Detailed Combat Log & Graph Analytics Export', ()
 
 	beforeEach(() => {
 		sim = new Simulation({ botDifficulty: 15, startGold: 2000 });
+		sim.players.west.lumber = 2000;
 	});
 
 	it('generates detailed match analytics with damage breakdown by attack and armor type', () => {

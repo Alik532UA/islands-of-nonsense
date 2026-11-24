@@ -218,6 +218,7 @@ describe('Point 2: Full Scavenger Race Debris and Great Assembly Mechanics', () 
 	});
 
 	it('Recycler buildings stack salvage bonus up to cap of 2 buildings', () => {
+		sim.players.west.lumber = 2000;
 		// Build 3 recyclers for west
 		sim.build('west', 'cg07_recycler', 25, 20);
 		sim.build('west', 'cg07_recycler', 25, 24);

@@ -49,6 +49,29 @@ describe('Castle Fight Simulation - Economy & Gold', () => {
 	it('should deduct gold on forge upgrades and apply Alik 50% discount', () => {
 		sim.players.west.commander = 2; // Alik: 50% forge discount
 		sim.players.west.gold = 500;
+		sim.buildings.push({
+			instanceId: 'test_forge_west',
+			defId: 'cg11_forge',
+			name: 'Кузня',
+			team: 'west',
+			specialType: 'forge',
+			tileX: 10,
+			tileY: 10,
+			x: 1600,
+			y: 1200,
+			hp: 1000,
+			maxHp: 1000,
+			armor: 5,
+			armorType: 'fort',
+			goldCost: 100,
+			lumberCost: 100,
+			spawnUnitId: '',
+			spawnCooldown: 0,
+			spawnTimer: 0,
+			lane: 'mid',
+			upgradeFrom: null,
+			race: 'Люди'
+		});
 
 		const basePrice = 200;
 		const discountedPrice = Math.round(basePrice * 0.5); // 100

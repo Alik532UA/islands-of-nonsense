@@ -71,6 +71,7 @@ export interface SimulationConfig {
 	botDifficulty: number; // 0, 15, 30, 80
 	startGold: number;
 	modeId?: string;
+	gameModeConfig?: Partial<GameModeConfig>;
 	uniqueRaces?: boolean;
 	allRandom?: boolean;
 	bannedRaces?: string[];
@@ -81,6 +82,8 @@ export interface SimulationConfig {
 	targetWins?: number;
 	fogOfWar?: boolean;
 	coinMode?: CoinMode;
+	coinSpawnInterval?: number;
+	coinCount?: number;
 	teamSize?: 1 | 2 | 3;
 	teamSizeWest?: 1 | 2 | 3;
 	teamSizeEast?: 1 | 2 | 3;
@@ -309,7 +312,10 @@ export class Simulation {
 			this.isRunning = config.isRunning;
 		}
 		this.teamSize = config.teamSize ?? 1;
-		this.gameModeConfig = getGameMode(config.modeId || 'standard');
+		this.gameModeConfig = {
+			...getGameMode(config.modeId || 'standard'),
+			...(config.gameModeConfig || {})
+		};
 		if (config.allRandom !== undefined) {
 			this.gameModeConfig.allRandom = config.allRandom;
 		}
@@ -321,6 +327,10 @@ export class Simulation {
 		if (this.coinMode === 'crazy') {
 			this.coinSpawnTimer = 20.0;
 			this.coinSpawnInterval = 20.0;
+		}
+		if (config.coinSpawnInterval !== undefined) {
+			this.coinSpawnInterval = Math.max(1, config.coinSpawnInterval);
+			this.coinSpawnTimer = this.coinSpawnInterval;
 		}
 		this.targetWins = config.targetWins ?? 2;
 		const bridges: ('top' | 'mid' | 'bottom')[] = ['top', 'mid', 'bottom'];
@@ -397,6 +407,8 @@ export class Simulation {
 
 		const westGold = westIsRandom ? Math.round(config.startGold * 1.3) : config.startGold;
 		const eastGold = eastIsRandom ? Math.round(config.startGold * 1.3) : config.startGold;
+		const startingMaxFood =
+			this.gameModeConfig?.noSpecialBuildings || this.gameModeConfig?.noLegendaries ? 0 : 1;
 
 		const p1: PlayerState = {
 			id: 'p1',
@@ -412,7 +424,7 @@ export class Simulation {
 			gold: westGold,
 			lumber: 125,
 			food: 0,
-			maxFood: 0,
+			maxFood: startingMaxFood,
 			commander: 2, // Alik
 			forge: { attack: 0, armor: 0, econ: 0 },
 			preferredLane: 'auto',
@@ -454,7 +466,7 @@ export class Simulation {
 			gold: eastGold,
 			lumber: 125,
 			food: 0,
-			maxFood: 0,
+			maxFood: startingMaxFood,
 			commander: 3, // Dima
 			forge: { attack: 0, armor: 0, econ: 0 },
 			preferredLane: 'auto',
@@ -516,16 +528,16 @@ export class Simulation {
 				gold: p3Gold,
 				lumber: 125,
 				food: 0,
-				maxFood: 0,
+				maxFood: startingMaxFood,
 				commander: 1, // Sasha
 				forge: { attack: 0, armor: 0, econ: 0 },
 				preferredLane: 'auto',
 				worker: {
 					name: getBuilderNameForRace(p3Choice.race),
 					x: WEST_CASTLE_X + 160,
-					y: 700,
+					y: WEST_CASTLE_Y - 80,
 					targetX: WEST_CASTLE_X + 160,
-					targetY: 700,
+					targetY: WEST_CASTLE_Y - 80,
 					hp: 220,
 					maxHp: 220,
 					armor: 'Неуразливий',
@@ -558,16 +570,16 @@ export class Simulation {
 				gold: p4Gold,
 				lumber: 125,
 				food: 0,
-				maxFood: 0,
+				maxFood: startingMaxFood,
 				commander: 4, // Dan
 				forge: { attack: 0, armor: 0, econ: 0 },
 				preferredLane: 'auto',
 				worker: {
 					name: getBuilderNameForRace(p4Choice.race),
 					x: EAST_CASTLE_X - 160,
-					y: 700,
+					y: EAST_CASTLE_Y - 80,
 					targetX: EAST_CASTLE_X - 160,
-					targetY: 700,
+					targetY: EAST_CASTLE_Y - 80,
 					hp: 220,
 					maxHp: 220,
 					armor: 'Неуразливий',
@@ -611,16 +623,16 @@ export class Simulation {
 				gold: p5Gold,
 				lumber: 125,
 				food: 0,
-				maxFood: 0,
+				maxFood: startingMaxFood,
 				commander: 5, // Yura
 				forge: { attack: 0, armor: 0, econ: 0 },
 				preferredLane: 'auto',
 				worker: {
 					name: getBuilderNameForRace(p5Choice.race),
 					x: WEST_CASTLE_X + 160,
-					y: 1700,
+					y: WEST_CASTLE_Y + 80,
 					targetX: WEST_CASTLE_X + 160,
-					targetY: 1700,
+					targetY: WEST_CASTLE_Y + 80,
 					hp: 220,
 					maxHp: 220,
 					armor: 'Неуразливий',
@@ -653,16 +665,16 @@ export class Simulation {
 				gold: p6Gold,
 				lumber: 125,
 				food: 0,
-				maxFood: 0,
+				maxFood: startingMaxFood,
 				commander: 6, // Valera
 				forge: { attack: 0, armor: 0, econ: 0 },
 				preferredLane: 'auto',
 				worker: {
 					name: getBuilderNameForRace(p6Choice.race),
 					x: EAST_CASTLE_X - 160,
-					y: 1700,
+					y: EAST_CASTLE_Y + 80,
 					targetX: EAST_CASTLE_X - 160,
-					targetY: 1700,
+					targetY: EAST_CASTLE_Y + 80,
 					hp: 220,
 					maxHp: 220,
 					armor: 'Неуразливий',
@@ -943,7 +955,8 @@ export class Simulation {
 			p.randomGoldGranted = !p.isBot && !!p.isRandomRace;
 			p.lumber = 125;
 			p.food = 0;
-			p.maxFood = 0;
+			p.maxFood =
+				this.gameModeConfig?.noSpecialBuildings || this.gameModeConfig?.noLegendaries ? 0 : 1;
 			p.stats = {
 				unitsSpawned: 0,
 				unitsKilled: 0,
@@ -971,8 +984,8 @@ export class Simulation {
 				p.worker.name = getBuilderNameForRace(p.race);
 				const isWest = p.team === 'west';
 				let defaultY = 1200;
-				if (p.slot === 3 || p.slot === 4) defaultY = 700;
-				else if (p.slot === 5 || p.slot === 6) defaultY = 1700;
+				if (p.slot === 3 || p.slot === 4) defaultY = 1120;
+				else if (p.slot === 5 || p.slot === 6) defaultY = 1280;
 				const defaultX = isWest ? WEST_CASTLE_X + 160 : EAST_CASTLE_X - 160;
 				p.worker.x = defaultX;
 				p.worker.y = defaultY;
@@ -1491,6 +1504,14 @@ export class Simulation {
 
 	public spawnCoinDirectly(lane: Lane, x: number, y: number, value = 50): GoldCoin {
 		return this.economySystem.spawnCoinDirectly(lane, x, y, value);
+	}
+
+	public hasShop(team: MatchTeam, player?: PlayerState): boolean {
+		return this.economySystem.hasShop(team, player);
+	}
+
+	public hasForge(team: MatchTeam, player?: PlayerState): boolean {
+		return this.economySystem.hasForge(team, player);
 	}
 
 	public upgradeForge(

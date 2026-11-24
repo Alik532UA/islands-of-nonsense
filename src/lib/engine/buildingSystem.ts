@@ -31,7 +31,9 @@ import {
 	getInitialSpawnDelay,
 	resolveUnitAbility,
 	getUnitAbilities,
-	isLegendaryBuilding
+	isLegendaryBuilding,
+	isSpecialBuilding,
+	isTowerBuilding
 } from './gameData';
 
 /**
@@ -334,6 +336,33 @@ export class BuildingSystem {
 			return false;
 		}
 
+		// Check 1-shop and 1-forge per player limit
+		if (bDef.specialType === 'shop') {
+			const existingShop = this.sim.buildings.some(
+				(b) =>
+					b.team === team &&
+					b.specialType === 'shop' &&
+					(!player || !b.playerId || b.playerId === player.id)
+			);
+			if (existingShop) {
+				this.sim.addFloatingText('Магазин вже збудовано!', worldX, worldY - 20, '#ef4444');
+				return false;
+			}
+		}
+
+		if (bDef.specialType === 'forge') {
+			const existingForge = this.sim.buildings.some(
+				(b) =>
+					b.team === team &&
+					b.specialType === 'forge' &&
+					(!player || !b.playerId || b.playerId === player.id)
+			);
+			if (existingForge) {
+				this.sim.addFloatingText('Кузня вже збудована!', worldX, worldY - 20, '#ef4444');
+				return false;
+			}
+		}
+
 		// Check lumber requirements
 		const lumberCost = bDef.lumber_cost || 0;
 		if (lumberCost > 0 && player.lumber < lumberCost) {
@@ -587,13 +616,37 @@ export class BuildingSystem {
 		}
 		this.sim.onSoundEffect?.('upgrade');
 
+		const targetUnit = getUnit(targetDef.unit);
+		const isTargetSpecial =
+			targetDef.specialType || isSpecialBuilding(targetDef) || isTowerBuilding(targetDef);
+		const isTargetSiege =
+			targetDef.isArtillery ||
+			targetDef.attack_type === 'siege' ||
+			targetUnit?.attack_type === 'siege';
+
+		const upgradeLumberReward = isTargetSpecial
+			? 0
+			: isTargetSiege
+				? Math.floor(upgradeCost * 0.75)
+				: upgradeCost;
+
+		if (upgradeLumberReward > 0) {
+			player.lumber = (player.lumber ?? 0) + upgradeLumberReward;
+			player.stats.lumberEarned = (player.stats.lumberEarned || 0) + upgradeLumberReward;
+			this.sim.addFloatingText(
+				`+${upgradeLumberReward} 🪵`,
+				building.x,
+				building.y - 35,
+				'#22c55e'
+			);
+		}
+
 		building.defId = targetDef.id;
 		building.name = targetDef.name;
 		building.goldCost += upgradeCost;
 		building.playerId = player.id;
 		building.playerSlot = player.slot;
 		building.spawnUnitId = targetDef.unit;
-		const targetUnit = getUnit(targetDef.unit);
 		const newSpawnCd = getSpawnCooldown(targetDef, targetUnit);
 		const newInitialDelay = getInitialSpawnDelay(targetDef, targetUnit);
 		building.spawnCooldown = newSpawnCd;

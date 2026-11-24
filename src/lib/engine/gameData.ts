@@ -17,6 +17,36 @@ export const RACES_LIST: RaceDefinition[] = rawRaces as RaceDefinition[];
 
 export const SPECIAL_BUILDINGS: BuildingDefinition[] = [
 	{
+		id: 'cg10_shop',
+		name: 'Магазин',
+		hp: 850,
+		armor: 5,
+		armor_type: 'fort',
+		attack_type: 'normal',
+		gold_cost: 50,
+		lumber_cost: 50,
+		unit: '',
+		upgrade_from: null,
+		upgrade_extra_cost: 0,
+		race: null,
+		specialType: 'shop'
+	},
+	{
+		id: 'cg11_forge',
+		name: 'Кузня',
+		hp: 950,
+		armor: 5,
+		armor_type: 'fort',
+		attack_type: 'normal',
+		gold_cost: 100,
+		lumber_cost: 100,
+		unit: '',
+		upgrade_from: null,
+		upgrade_extra_cost: 0,
+		race: null,
+		specialType: 'forge'
+	},
+	{
 		id: 'h008',
 		name: 'Скриня зі Скарбами',
 		hp: 650,
@@ -24,7 +54,7 @@ export const SPECIAL_BUILDINGS: BuildingDefinition[] = [
 		armor_type: 'fort',
 		attack_type: 'normal',
 		gold_cost: 160,
-		lumber_cost: 0,
+		lumber_cost: 400,
 		unit: '',
 		upgrade_from: null,
 		upgrade_extra_cost: 0,
@@ -39,6 +69,7 @@ export const SPECIAL_BUILDINGS: BuildingDefinition[] = [
 		armor_type: 'fort',
 		attack_type: 'normal',
 		gold_cost: 180,
+		lumber_cost: 300,
 		unit: '',
 		upgrade_from: null,
 		upgrade_extra_cost: 0,
@@ -53,6 +84,7 @@ export const SPECIAL_BUILDINGS: BuildingDefinition[] = [
 		armor_type: 'fort',
 		attack_type: 'normal',
 		gold_cost: 210,
+		lumber_cost: 300,
 		unit: '',
 		upgrade_from: null,
 		upgrade_extra_cost: 0,
@@ -67,6 +99,7 @@ export const SPECIAL_BUILDINGS: BuildingDefinition[] = [
 		armor_type: 'fort',
 		attack_type: 'normal',
 		gold_cost: 220,
+		lumber_cost: 330,
 		unit: '',
 		upgrade_from: null,
 		upgrade_extra_cost: 0,
@@ -86,6 +119,7 @@ export const SPECIAL_BUILDINGS: BuildingDefinition[] = [
 		armor_type: 'fort',
 		attack_type: 'normal',
 		gold_cost: 240,
+		lumber_cost: 480,
 		unit: '',
 		upgrade_from: null,
 		upgrade_extra_cost: 0,
@@ -105,6 +139,7 @@ export const SPECIAL_BUILDINGS: BuildingDefinition[] = [
 		armor_type: 'fort',
 		attack_type: 'normal',
 		gold_cost: 200,
+		lumber_cost: 350,
 		unit: '',
 		upgrade_from: null,
 		upgrade_extra_cost: 0,
@@ -311,11 +346,6 @@ export const GUARD_TOWERS: BuildingDefinition[] = [
 for (const b of rawBuildings as BuildingDefinition[]) {
 	if (b.raw_fields && typeof b.raw_fields.ulum === 'number' && b.raw_fields.ulum > 0) {
 		b.lumber_cost = b.raw_fields.ulum;
-	} else if (!b.lumber_cost && b.upgrade_from) {
-		const extraCost = b.upgrade_extra_cost || 0;
-		if (extraCost >= 200 || (b.gold_cost || 0) >= 280) {
-			b.lumber_cost = 60;
-		}
 	}
 	BUILDINGS_MAP.set(b.id, b);
 }
@@ -325,6 +355,9 @@ for (const sb of SPECIAL_BUILDINGS) {
 }
 
 for (const t of GUARD_TOWERS) {
+	if (!t.lumber_cost) {
+		t.lumber_cost = 300;
+	}
 	BUILDINGS_MAP.set(t.id, t);
 }
 
@@ -403,7 +436,7 @@ export function getUpgradesForBuilding(buildingId: string): BuildingDefinition[]
 export interface BuildingVisualRank {
 	rank: number; // 1 to 6 (dice pips), or 0 for specials
 	isUpgrade: boolean;
-	specialType?: 'tower' | 'treasure' | 'repair' | 'recycler' | 'special';
+	specialType?: 'tower' | 'treasure' | 'repair' | 'recycler' | 'special' | 'shop' | 'forge';
 }
 
 /**
@@ -1263,6 +1296,7 @@ export function resolveUnitAbility(def?: UnitDefinition): UnitAbilityType {
  */
 export function isLegendaryBuilding(def?: BuildingDefinition): boolean {
 	if (!def) return false;
+	if (def.is_legendary) return true;
 	if (Number(def.raw_fields?.ufoo) > 0) return true;
 	if (def.gold_cost >= 450) return true;
 	const name = (def.name || '').toLowerCase();
@@ -1286,6 +1320,25 @@ export function isLegendaryBuilding(def?: BuildingDefinition): boolean {
 		name.includes('брама демонів') ||
 		name.includes('врата демонов')
 	);
+}
+
+/**
+ * Checks if a building is a Special non-unit auxiliary structure.
+ */
+export function isSpecialBuilding(def?: BuildingDefinition | Building): boolean {
+	if (!def) return false;
+	if ('is_special' in def && def.is_special) return true;
+	if (
+		def.specialType === 'special' ||
+		def.specialType === 'treasure' ||
+		def.specialType === 'repair' ||
+		def.specialType === 'recycler' ||
+		def.specialType === 'shop' ||
+		def.specialType === 'forge'
+	) {
+		return true;
+	}
+	return false;
 }
 
 /**

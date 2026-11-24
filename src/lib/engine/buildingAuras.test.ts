@@ -7,6 +7,7 @@ describe('Point 5: Stationary Building Passive Auras (Altar, Fountain, Obelisk)'
 
 	beforeEach(() => {
 		sim = new Simulation({ botDifficulty: 0, startGold: 5000 });
+		sim.players.west.lumber = 2000;
 	});
 
 	it('defines stationary aura buildings in SPECIAL_BUILDINGS', () => {

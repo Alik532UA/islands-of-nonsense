@@ -111,6 +111,7 @@ describe('Point 9: Game Modes & Random Race Bonus (+30% Gold)', () => {
 		expect(builtSpecial).toBe(false);
 
 		// h03Q is Frost Tower - defensive towers are allowed
+		sim.players.west.lumber = 1000;
 		const builtTower = sim.build('west', 'h03Q', 25, 20);
 		expect(builtTower).toBe(true);
 	});
@@ -128,6 +129,7 @@ describe('Point 9: Game Modes & Random Race Bonus (+30% Gold)', () => {
 		expect(builtArtillery).toBe(false);
 
 		// Guard Tower (h006) is allowed
+		sim.players.west.lumber = 1000;
 		const builtNormal = sim.build('west', 'h006', 25, 20);
 		expect(builtNormal).toBe(true);
 	});
@@ -185,6 +187,29 @@ describe('Point 9: Game Modes & Random Race Bonus (+30% Gold)', () => {
 			botDifficulty: 0,
 			startGold: 1000,
 			modeId: 'nuclearWarheads'
+		});
+		sim.buildings.push({
+			instanceId: 'test_shop_west',
+			defId: 'cg10_shop',
+			name: 'Магазин',
+			team: 'west',
+			specialType: 'shop',
+			tileX: 10,
+			tileY: 10,
+			x: 1600,
+			y: 1200,
+			hp: 1000,
+			maxHp: 1000,
+			armor: 5,
+			armorType: 'fort',
+			goldCost: 50,
+			lumberCost: 50,
+			spawnUnitId: '',
+			spawnCooldown: 0,
+			spawnTimer: 0,
+			lane: 'mid',
+			upgradeFrom: null,
+			race: 'Люди'
 		});
 
 		expect(sim.canBuyCastleItem('west', 'I00N')).toBe(true);

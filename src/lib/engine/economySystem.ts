@@ -121,28 +121,12 @@ export class EconomySystem {
 				const myCastle = this.sim.castles[team];
 				const payout = this.calculateIncome(team, player);
 				player.gold += payout;
-				const activeBlds = this.sim.buildings.filter(
-					(b) =>
-						b.team === team && (!b.playerId || b.playerId === player.id) && !b.isUnderConstruction
-				).length;
-				const lumberPayout = 5 + Math.min(20, activeBlds * 2);
-				player.lumber += lumberPayout;
 
 				// Spawn income text above worker or castle
 				if (player === this.sim.players[team]) {
-					this.sim.addFloatingText(
-						`+${payout}g +${lumberPayout}🪵`,
-						myCastle.x,
-						myCastle.y - 130,
-						'#fbbf24'
-					);
+					this.sim.addFloatingText(`+${payout}g`, myCastle.x, myCastle.y - 130, '#fbbf24');
 				} else if (player.worker) {
-					this.sim.addFloatingText(
-						`+${payout}g +${lumberPayout}🪵`,
-						player.worker.x,
-						player.worker.y - 30,
-						'#fbbf24'
-					);
+					this.sim.addFloatingText(`+${payout}g`, player.worker.x, player.worker.y - 30, '#fbbf24');
 				}
 			}
 
@@ -195,7 +179,8 @@ export class EconomySystem {
 			const isCrazy = this.sim.coinMode === 'crazy';
 			this.sim.coinSpawnTimer = isCrazy ? 20.0 : this.sim.coinSpawnInterval;
 
-			const coinsToSpawn = isCrazy ? 5 : 1;
+			const coinsToSpawn =
+				this.sim.config.coinCount !== undefined ? this.sim.config.coinCount : isCrazy ? 5 : 1;
 			for (let c = 0; c < coinsToSpawn; c++) {
 				const lane: Lane = Math.random() < 0.5 ? 'top' : 'bottom';
 				const laneY = lane === 'top' ? TOP_LANE_Y : BOTTOM_LANE_Y;
@@ -286,12 +271,41 @@ export class EconomySystem {
 		return coin;
 	}
 
+	public hasForge(team: MatchTeam, player?: PlayerState): boolean {
+		return this.sim.buildings.some(
+			(b) =>
+				b.team === team &&
+				b.specialType === 'forge' &&
+				!b.isUnderConstruction &&
+				(!player || !b.playerId || b.playerId === player.id)
+		);
+	}
+
+	public hasShop(team: MatchTeam, player?: PlayerState): boolean {
+		return this.sim.buildings.some(
+			(b) =>
+				b.team === team &&
+				b.specialType === 'shop' &&
+				!b.isUnderConstruction &&
+				(!player || !b.playerId || b.playerId === player.id)
+		);
+	}
+
 	public upgradeForge(
 		team: MatchTeam,
 		type: 'attack' | 'armor' | 'econ',
 		playerInput?: PlayerState
 	): boolean {
 		const player = playerInput || this.sim.players[team];
+		if (!this.hasForge(team, player)) {
+			this.sim.addFloatingText(
+				'Спочатку збудуйте Кузню!',
+				this.sim.castles[team].x,
+				this.sim.castles[team].y - 50,
+				'#ef4444'
+			);
+			return false;
+		}
 		const currentLevel = player.forge[type];
 		const isAlik = player.commander === 2;
 
@@ -557,8 +571,17 @@ export class EconomySystem {
 	}
 
 	public canBuyCastleItem(team: MatchTeam, itemId: string): boolean {
+		if (!this.hasShop(team)) return false;
 		if (this.sim.gameModeConfig?.noItems) return false;
-		if (itemId === 'I00N' && !this.sim.gameModeConfig?.nuclearWarheads) return false;
+		if ((itemId === 'I00B' || itemId === 'I00N') && !this.sim.gameModeConfig?.nuclearWarheads) {
+			return false;
+		}
+		if (
+			itemId === 'I004' &&
+			(this.sim.gameModeConfig?.noSpecialBuildings || this.sim.gameModeConfig?.noLegendaries)
+		) {
+			return false;
+		}
 		const item = CASTLE_ITEMS[itemId];
 		if (!item) return false;
 		const player = this.sim.players[team];
@@ -729,7 +752,6 @@ export class EconomySystem {
 				break;
 			}
 			case 'I000': {
-				// Wand of Negation: mass dispel of positive and negative buffs on all living units
 				let dispelled = 0;
 				for (const u of this.sim.units) {
 					if (u.state === 'DEAD') continue;
@@ -758,17 +780,11 @@ export class EconomySystem {
 				break;
 			}
 			case 'I004': {
-				myCastle.hp = Math.min(myCastle.maxHp, myCastle.hp + 2500);
-				player.gold += 100;
 				player.maxFood += 1;
-				this.sim.addFloatingText(
-					'+2500 HP Золотий Сир! (+1 Їжа)',
-					myCastle.x,
-					myCastle.y - 60,
-					'#eab308'
-				);
+				this.sim.addFloatingText('+1 Їжа! (Сир)', myCastle.x, myCastle.y - 60, '#eab308');
 				break;
 			}
+			case 'I00B':
 			case 'I00N': {
 				const enemyCastle = this.sim.castles[enemyTeam];
 				this.sim.rescueStrikeEffects.push({

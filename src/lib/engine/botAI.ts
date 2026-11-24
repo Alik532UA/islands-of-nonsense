@@ -375,15 +375,25 @@ export class BotAI {
 		}
 
 		// 2. Castle Emergency Defense & Shop
-		if (castleHpRatio < 0.4) {
-			if (this.sim.canBuyCastleItem(this.team, 'I00F')) {
+		if (castleHpRatio < 0.5) {
+			if (castleHpRatio < 0.3 && this.sim.canBuyCastleItem(this.team, 'I00F')) {
 				this.sim.buyCastleItem(this.team, 'I00F');
 				return;
 			}
-			if (castleHpRatio < 0.3 && this.sim.canBuyCastleItem(this.team, 'I004')) {
-				this.sim.buyCastleItem(this.team, 'I004');
+			if (this.sim.canBuyCastleItem(this.team, 'I009')) {
+				this.sim.buyCastleItem(this.team, 'I009');
 				return;
 			}
+		}
+
+		// Unlock additional food cap if rich and cap is reached
+		if (
+			player.food >= player.maxFood &&
+			player.gold >= 1800 &&
+			this.sim.canBuyCastleItem(this.team, 'I004')
+		) {
+			this.sim.buyCastleItem(this.team, 'I004');
+			return;
 		}
 
 		if (this.sim.canBuyCastleItem(this.team, 'I00E')) {
@@ -400,23 +410,13 @@ export class BotAI {
 			}
 		}
 
-		if (this.sim.canBuyCastleItem(this.team, 'I000')) {
-			const buffedUnits = this.sim.units.filter(
-				(u) => u.state !== 'DEAD' && u.buffs && u.buffs.length > 0
-			);
-			if (buffedUnits.length >= 4) {
-				this.sim.buyCastleItem(this.team, 'I000');
-				return;
-			}
-		}
-
 		// 3. Forge decision: Team BotSmith vs standard bots (WC3 CF_BotForge)
 		const isSmith = this.isBotSmith(player);
 		const maxAttack = isSmith ? 5 : 2;
 		const maxArmor = isSmith ? 5 : 1;
 		const maxEcon = isSmith ? 2 : 1;
 
-		if (player.gold > 350) {
+		if (this.sim.hasForge(this.team, player) && player.gold > 350) {
 			// Economy upgrade: first 5 minutes (gameTime < 300)
 			if (this.sim.gameTime < 300 && player.forge.econ < maxEcon) {
 				const cost = this.sim.getForgePrice(this.team, 'econ', player);
@@ -694,6 +694,31 @@ export class BotAI {
 					priority: castleHpRatio < 0.4 ? 6500 : 3500,
 					cost: repair.gold_cost || 180
 				});
+			}
+		}
+
+		// Forge & Shop construction when bot has economy and lumber
+		if (
+			player.gold >= 250 &&
+			(player.lumber ?? 0) >= 100 &&
+			!this.sim.hasForge(this.team, player) &&
+			myBuildings.length >= 2
+		) {
+			const forge = SPECIAL_BUILDINGS.find((b) => b.specialType === 'forge');
+			if (forge) {
+				specialCandidates.push({ building: forge, priority: 4600, cost: forge.gold_cost || 100 });
+			}
+		}
+
+		if (
+			player.gold >= 250 &&
+			(player.lumber ?? 0) >= 50 &&
+			!this.sim.hasShop(this.team, player) &&
+			myBuildings.length >= 2
+		) {
+			const shop = SPECIAL_BUILDINGS.find((b) => b.specialType === 'shop');
+			if (shop) {
+				specialCandidates.push({ building: shop, priority: 4400, cost: shop.gold_cost || 50 });
 			}
 		}
 

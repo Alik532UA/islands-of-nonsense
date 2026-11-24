@@ -49,7 +49,7 @@ describe('Point 9: Authentic WC3 Team Battle (2v2 and 3v3)', () => {
 		expect(p3.color.num).toBe(WC3_PLAYER_COLORS[2].num);
 		expect(p3.worker).toBeDefined();
 		expect(p3.worker?.x).toBe(sim.castles.west.x + 160);
-		expect(p3.worker?.y).toBe(700);
+		expect(p3.worker?.y).toBe(1120);
 
 		// East Slot 4 (Purple, Enemy Bot 2)
 		const p4 = sim.teamMembers.east[1];
@@ -60,7 +60,7 @@ describe('Point 9: Authentic WC3 Team Battle (2v2 and 3v3)', () => {
 		expect(p4.color.num).toBe(WC3_PLAYER_COLORS[3].num);
 		expect(p4.worker).toBeDefined();
 		expect(p4.worker?.x).toBe(sim.castles.east.x - 160);
-		expect(p4.worker?.y).toBe(700);
+		expect(p4.worker?.y).toBe(1120);
 
 		// Check bots instantiated for bot players
 		expect(sim.bots.length).toBe(3); // p2, p3, p4 are bots
@@ -88,7 +88,7 @@ describe('Point 9: Authentic WC3 Team Battle (2v2 and 3v3)', () => {
 		expect(p5.team).toBe('west');
 		expect(p5.isBot).toBe(true);
 		expect(p5.color.num).toBe(WC3_PLAYER_COLORS[4].num);
-		expect(p5.worker?.y).toBe(1700);
+		expect(p5.worker?.y).toBe(1280);
 
 		// East Slot 6 (Orange, Enemy Bot 3)
 		const p6 = sim.teamMembers.east[2];
@@ -97,7 +97,7 @@ describe('Point 9: Authentic WC3 Team Battle (2v2 and 3v3)', () => {
 		expect(p6.team).toBe('east');
 		expect(p6.isBot).toBe(true);
 		expect(p6.color.num).toBe(WC3_PLAYER_COLORS[5].num);
-		expect(p6.worker?.y).toBe(1700);
+		expect(p6.worker?.y).toBe(1280);
 
 		expect(sim.bots.length).toBe(5); // 5 bots (p2, p3, p4, p5, p6)
 	});
@@ -143,11 +143,18 @@ describe('Point 9: Authentic WC3 Team Battle (2v2 and 3v3)', () => {
 		sim.incomeTimer = 0.05;
 		sim.step(0.1);
 
-		// Both players receive independent payouts
+		// Both players receive independent gold payouts
 		expect(p1.gold).toBeGreaterThan(0);
 		expect(p3.gold).toBeGreaterThan(0);
-		expect(p1.lumber).toBeGreaterThan(125);
-		expect(p3.lumber).toBeGreaterThan(125);
+
+		// Worker finishes P1 building -> awards lumber exclusively to P1
+		const bld1 = sim.buildings[0];
+		p1.worker!.x = bld1.x;
+		p1.worker!.y = bld1.y;
+		bld1.buildProgress = bld1.maxBuildProgress || 3.5;
+		sim.workerSystem.updateWorkers(0.1);
+		expect(p1.lumber).toBe(125 + bld1.goldCost);
+		expect(p3.lumber).toBe(125);
 	});
 
 	it('should tag spawned units with their respective player owner and slot', () => {
@@ -243,7 +250,7 @@ describe('Point 9: Authentic WC3 Team Battle (2v2 and 3v3)', () => {
 		expect(p3.gold).toBe(500);
 		expect(p3.lumber).toBe(125);
 		expect(p3.worker?.x).toBe(sim.castles.west.x + 160);
-		expect(p3.worker?.y).toBe(700);
+		expect(p3.worker?.y).toBe(1120);
 	});
 
 	it('assigns random WC3 colors to all players and bots by default, and random team color to castles', () => {

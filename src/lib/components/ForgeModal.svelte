@@ -12,10 +12,14 @@
 
 	let player = $derived(sim.players.west);
 	let isAlik = $derived(player.commander === 2);
+	let hasForge = $derived(sim.hasForge('west'));
 
 	let attackPrice = $derived(sim.getForgePrice('west', 'attack'));
 	let armorPrice = $derived(sim.getForgePrice('west', 'armor'));
 	let econPrice = $derived(sim.getForgePrice('west', 'econ'));
+	let attackLumber = $derived(sim.getForgeLumberPrice('west', 'attack'));
+	let armorLumber = $derived(sim.getForgeLumberPrice('west', 'armor'));
+	let econLumber = $derived(sim.getForgeLumberPrice('west', 'econ'));
 </script>
 
 {#if isOpen}
@@ -52,6 +56,17 @@
 				</div>
 			</div>
 
+			{#if !hasForge}
+				<div
+					class="mb-4 px-3 py-2 bg-amber-950/80 border border-amber-500/80 rounded-xl text-amber-200 text-xs flex items-center gap-2"
+				>
+					<Hammer class="w-4 h-4 text-amber-400 shrink-0" />
+					<span>
+						⚠️ Кузню ще не збудовано! Накажіть робітникові збудувати Кузню (100 🪙, 100 🪵).
+					</span>
+				</div>
+			{/if}
+
 			<!-- Upgrade Cards -->
 			<div class="flex flex-col gap-3.5">
 				<!-- 1. Attack Upgrade -->
@@ -78,13 +93,16 @@
 					{#if player.forge.attack < 5}
 						<button
 							onclick={() => sim.upgradeForge('west', 'attack')}
-							disabled={player.gold < attackPrice}
-							class="px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer {player.gold >=
-							attackPrice
+							disabled={!hasForge ||
+								player.gold < attackPrice ||
+								(player.lumber ?? 0) < attackLumber}
+							class="px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer {hasForge &&
+							player.gold >= attackPrice &&
+							(player.lumber ?? 0) >= attackLumber
 								? 'bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/30'
 								: 'bg-slate-800 text-slate-500 cursor-not-allowed'}"
 						>
-							Покращити ({attackPrice}g)
+							Покращити ({attackPrice}g{attackLumber > 0 ? ` ${attackLumber}w` : ''})
 						</button>
 					{:else}
 						<span
@@ -119,13 +137,14 @@
 					{#if player.forge.armor < 5}
 						<button
 							onclick={() => sim.upgradeForge('west', 'armor')}
-							disabled={player.gold < armorPrice}
-							class="px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer {player.gold >=
-							armorPrice
+							disabled={!hasForge || player.gold < armorPrice || (player.lumber ?? 0) < armorLumber}
+							class="px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer {hasForge &&
+							player.gold >= armorPrice &&
+							(player.lumber ?? 0) >= armorLumber
 								? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30'
 								: 'bg-slate-800 text-slate-500 cursor-not-allowed'}"
 						>
-							Покращити ({armorPrice}g)
+							Покращити ({armorPrice}g{armorLumber > 0 ? ` ${armorLumber}w` : ''})
 						</button>
 					{:else}
 						<span
@@ -160,13 +179,14 @@
 					{#if player.forge.econ < 3}
 						<button
 							onclick={() => sim.upgradeForge('west', 'econ')}
-							disabled={player.gold < econPrice}
-							class="px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer {player.gold >=
-							econPrice
+							disabled={!hasForge || player.gold < econPrice || (player.lumber ?? 0) < econLumber}
+							class="px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer {hasForge &&
+							player.gold >= econPrice &&
+							(player.lumber ?? 0) >= econLumber
 								? 'bg-amber-600 hover:bg-amber-500 text-white shadow-lg shadow-amber-600/30'
 								: 'bg-slate-800 text-slate-500 cursor-not-allowed'}"
 						>
-							Покращити ({econPrice}g)
+							Покращити ({econPrice}g{econLumber > 0 ? ` ${econLumber}w` : ''})
 						</button>
 					{:else}
 						<span

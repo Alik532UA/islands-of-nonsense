@@ -8,6 +8,29 @@ describe('Point 1: Castle Shop & Complete Consumables Roster', () => {
 
 	beforeEach(() => {
 		sim = new Simulation({ botDifficulty: 0, startGold: 5000 });
+		sim.buildings.push({
+			instanceId: 'test_shop_west',
+			defId: 'cg10_shop',
+			name: 'Магазин',
+			team: 'west',
+			specialType: 'shop',
+			tileX: 10,
+			tileY: 10,
+			x: 1600,
+			y: 1200,
+			hp: 1000,
+			maxHp: 1000,
+			armor: 5,
+			armorType: 'fort',
+			goldCost: 50,
+			lumberCost: 50,
+			spawnUnitId: '',
+			spawnCooldown: 0,
+			spawnTimer: 0,
+			lane: 'mid',
+			upgradeFrom: null,
+			race: 'Люди'
+		});
 	});
 
 	it('defines complete 12-item WC3 castle shop roster with correct costs and cooldowns', () => {
@@ -244,14 +267,16 @@ describe('Point 1: Castle Shop & Complete Consumables Roster', () => {
 		expect(westCastle.hp).toBeLessThan(initialHp);
 	});
 
-	it('Golden Cheese (I004) heals castle for +2500 HP and gives +100 gold bonus', () => {
+	it('Golden Cheese (I004) grants +1 Food Cap without healing castle or cash refund', () => {
 		const westCastle = sim.castles.west;
 		westCastle.hp = 8000;
 		sim.players.west.gold = 1500;
+		expect(sim.players.west.maxFood).toBe(1);
 
 		const bought = sim.buyCastleItem('west', 'I004');
 		expect(bought).toBe(true);
-		expect(westCastle.hp).toBe(10500);
-		expect(sim.players.west.gold).toBe(100);
+		expect(westCastle.hp).toBe(8000); // Castle HP is NOT healed (WC3 canon)
+		expect(sim.players.west.gold).toBe(0); // 1500 spent, no +100 refund
+		expect(sim.players.west.maxFood).toBe(2); // +1 Food Cap granted
 	});
 });

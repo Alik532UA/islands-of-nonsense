@@ -809,62 +809,6 @@
 			</div>
 		{/if}
 
-		<!-- Floating On-Screen Viewport & Help Controls (Touch & Quick Ergonomics - WCAG 44px min target) -->
-		<div
-			class="absolute right-4 bottom-6 z-20 flex flex-col gap-2.5 select-none"
-			data-testid="arena-touch-controls"
-		>
-			<button
-				type="button"
-				onclick={() => {
-					const nz = Math.min(1.5, zoom + 0.15);
-					renderer?.setCamera(cameraX, cameraY, nz);
-				}}
-				class="w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 text-amber-300 flex items-center justify-center backdrop-blur-md shadow-lg transition active:scale-95 cursor-pointer touch-manipulation"
-				title="Наблизити (Zoom In)"
-				aria-label="Наблизити"
-				data-testid="arena-zoom-in"
-			>
-				<ZoomIn class="w-5 h-5" />
-			</button>
-			<button
-				type="button"
-				onclick={() => {
-					const nz = Math.max(0.4, zoom - 0.15);
-					renderer?.setCamera(cameraX, cameraY, nz);
-				}}
-				class="w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 text-amber-300 flex items-center justify-center backdrop-blur-md shadow-lg transition active:scale-95 cursor-pointer touch-manipulation"
-				title="Віддалити (Zoom Out)"
-				aria-label="Віддалити"
-				data-testid="arena-zoom-out"
-			>
-				<ZoomOut class="w-5 h-5" />
-			</button>
-			<button
-				type="button"
-				onclick={() => {
-					const isWest = (matchSync?.localTeam ?? 'west') === 'west';
-					renderer?.setCamera(isWest ? 800 : 6400, 1200);
-				}}
-				class="w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 text-amber-300 flex items-center justify-center backdrop-blur-md shadow-lg transition active:scale-95 cursor-pointer touch-manipulation"
-				title="Центрувати на замку"
-				aria-label="Центрувати на замку"
-				data-testid="arena-center-base"
-			>
-				<Compass class="w-5 h-5" />
-			</button>
-			<button
-				type="button"
-				onclick={() => (isHelpOpen = true)}
-				class="w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 text-amber-300 flex items-center justify-center backdrop-blur-md shadow-lg transition active:scale-95 cursor-pointer touch-manipulation"
-				title="Гарячі клавіші та довідка"
-				aria-label="Гарячі клавіші"
-				data-testid="arena-help-btn"
-			>
-				<HelpCircle class="w-5 h-5" />
-			</button>
-		</div>
-
 		<!-- Pre-Match 10s Countdown & Race Selection Overlay -->
 		{#if matchPhase === 'COUNTDOWN'}
 			<div
@@ -944,6 +888,64 @@
 		{/if}
 	</div>
 
+	{#snippet touchControls()}
+		<!-- Viewport & Help Controls under minimap (WCAG 44px touch target) -->
+		<div
+			class="flex items-center gap-1 select-none touch-manipulation min-w-[44px] min-h-[44px]"
+			data-testid="arena-touch-controls"
+		>
+			<button
+				type="button"
+				onclick={() => {
+					const nz = Math.min(1.5, zoom + 0.15);
+					renderer?.setCamera(cameraX, cameraY, nz);
+				}}
+				class="w-6 h-6 rounded bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] text-[#d4af37] flex items-center justify-center shadow transition active:scale-95 cursor-pointer touch-manipulation"
+				title="Наблизити (Zoom In)"
+				aria-label="Наблизити"
+				data-testid="arena-zoom-in"
+			>
+				<ZoomIn class="w-3.5 h-3.5" />
+			</button>
+			<button
+				type="button"
+				onclick={() => {
+					const nz = Math.max(0.4, zoom - 0.15);
+					renderer?.setCamera(cameraX, cameraY, nz);
+				}}
+				class="w-6 h-6 rounded bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] text-[#d4af37] flex items-center justify-center shadow transition active:scale-95 cursor-pointer touch-manipulation"
+				title="Віддалити (Zoom Out)"
+				aria-label="Віддалити"
+				data-testid="arena-zoom-out"
+			>
+				<ZoomOut class="w-3.5 h-3.5" />
+			</button>
+			<button
+				type="button"
+				onclick={() => {
+					const isWest = (matchSync?.localTeam ?? 'west') === 'west';
+					renderer?.setCamera(isWest ? 800 : 6400, 1200);
+				}}
+				class="w-6 h-6 rounded bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] text-[#d4af37] flex items-center justify-center shadow transition active:scale-95 cursor-pointer touch-manipulation"
+				title="Центрувати на замку"
+				aria-label="Центрувати на замку"
+				data-testid="arena-center-base"
+			>
+				<Compass class="w-3.5 h-3.5" />
+			</button>
+			<button
+				type="button"
+				onclick={() => (isHelpOpen = true)}
+				class="w-6 h-6 rounded bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] text-[#d4af37] flex items-center justify-center shadow transition active:scale-95 cursor-pointer touch-manipulation"
+				title="Гарячі клавіші та довідка"
+				aria-label="Гарячі клавіші"
+				data-testid="arena-help-btn"
+			>
+				<HelpCircle class="w-3.5 h-3.5" />
+			</button>
+		</div>
+	{/snippet}
+
 	<!-- Bottom Bar: Buildings Grid 4x3, Tooltip, Race & Lane Selectors -->
 	<BottomBar
 		{sim}
@@ -952,6 +954,7 @@
 		{cameraY}
 		{zoom}
 		{selectedEntity}
+		{touchControls}
 		selectedGroup={selectedEntity?.type === 'group' ? selectedEntity.unitIds : null}
 		bind:selectedBuildingId
 		bind:selectedPlacedBuildingId

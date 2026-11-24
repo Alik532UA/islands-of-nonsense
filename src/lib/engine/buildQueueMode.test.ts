@@ -7,6 +7,7 @@ describe('Build Queue Mode (Зручний vs Класичний)', () => {
 
 	beforeEach(() => {
 		sim = new Simulation({ botDifficulty: 0, startGold: 2000 });
+		sim.players.west.lumber = 2000;
 		sim.brokenBridge = null;
 		settings.setBuildQueueMode('convenient');
 	});

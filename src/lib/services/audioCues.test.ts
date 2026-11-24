@@ -289,8 +289,8 @@ describe('Point 10: Authentic WC3 Ambient Audio Cues and Voice Alerts', () => {
 
 			// Not enough food for legendary building
 			sim.players.west.gold = 5000;
-			sim.players.west.food = 0;
-			sim.players.west.maxFood = 0;
+			sim.players.west.food = 1;
+			sim.players.west.maxFood = 1;
 			soundEvents.length = 0;
 
 			const builtLeg = sim.build('west', 'h05F', 25, 20);

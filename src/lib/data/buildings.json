@@ -56,7 +56,8 @@
 		"unit": "h03C",
 		"upgrade_from": "h037",
 		"upgrade_extra_cost": 280,
-		"race": "Люди"
+		"race": "Люди",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h0A1",
@@ -113,7 +114,8 @@
 		"unit": "h05C",
 		"upgrade_from": "h003",
 		"upgrade_extra_cost": 140,
-		"race": "Люди"
+		"race": "Люди",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h05D",
@@ -172,7 +174,8 @@
 		"unit": "h0A2",
 		"upgrade_from": "h003",
 		"upgrade_extra_cost": 140,
-		"race": "Люди"
+		"race": "Люди",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h05F",
@@ -236,7 +239,10 @@
 		"unit": "n01P",
 		"upgrade_from": "h00J",
 		"upgrade_extra_cost": 175,
-		"race": "Наги"
+		"race": "Наги",
+		"lumber_cost": 450,
+		"is_legendary": true,
+		"food_cost": 1
 	},
 	{
 		"id": "h021",
@@ -296,7 +302,8 @@
 		"unit": "n00J",
 		"upgrade_from": "h020",
 		"upgrade_extra_cost": 250,
-		"race": null
+		"race": null,
+		"lumber_cost": 0
 	},
 	{
 		"id": "h022",
@@ -355,7 +362,8 @@
 		"unit": "n00K",
 		"upgrade_from": "h021",
 		"upgrade_extra_cost": 400,
-		"race": null
+		"race": null,
+		"lumber_cost": 0
 	},
 	{
 		"id": "h032",
@@ -413,7 +421,8 @@
 		"unit": "n00X",
 		"upgrade_from": "h00F",
 		"upgrade_extra_cost": 250,
-		"race": "Наги"
+		"race": "Наги",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h03G",
@@ -473,7 +482,8 @@
 		"unit": "n00Z",
 		"upgrade_from": "h01D",
 		"upgrade_extra_cost": 160,
-		"race": "Хаос"
+		"race": "Хаос",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h00X",
@@ -532,7 +542,10 @@
 		"unit": "h00W",
 		"upgrade_from": "h09X",
 		"upgrade_extra_cost": 360,
-		"race": "Ельфи"
+		"race": "Ельфи",
+		"lumber_cost": 400,
+		"is_legendary": true,
+		"food_cost": 1
 	},
 	{
 		"id": "h03F",
@@ -590,7 +603,8 @@
 		"unit": "n00Y",
 		"upgrade_from": "h00T",
 		"upgrade_extra_cost": 220,
-		"race": "Ельфи"
+		"race": "Ельфи",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h08Y",
@@ -648,7 +662,8 @@
 		"unit": "n023",
 		"upgrade_from": "h08X",
 		"upgrade_extra_cost": 180,
-		"race": "Ельфи"
+		"race": "Ельфи",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h04B",
@@ -710,7 +725,8 @@
 		"unit": "u009",
 		"upgrade_from": "h01K",
 		"upgrade_extra_cost": 210,
-		"race": "Нежить"
+		"race": "Нежить",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h055",
@@ -771,7 +787,10 @@
 		"unit": "u00D",
 		"upgrade_from": "h04B",
 		"upgrade_extra_cost": 380,
-		"race": "Нежить"
+		"race": "Нежить",
+		"lumber_cost": 375,
+		"is_legendary": true,
+		"food_cost": 1
 	},
 	{
 		"id": "h054",
@@ -830,7 +849,8 @@
 		"unit": "h05H",
 		"upgrade_from": "h01N",
 		"upgrade_extra_cost": 230,
-		"race": "Нежить"
+		"race": "Нежить",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h03M",
@@ -888,7 +908,8 @@
 		"unit": "u007",
 		"upgrade_from": "h04Z",
 		"upgrade_extra_cost": 220,
-		"race": null
+		"race": null,
+		"lumber_cost": 0
 	},
 	{
 		"id": "h092",
@@ -946,7 +967,8 @@
 		"unit": "o00B",
 		"upgrade_from": "h02K",
 		"upgrade_extra_cost": 260,
-		"race": "Орки"
+		"race": "Орки",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h035",
@@ -1005,7 +1027,8 @@
 		"unit": "o008",
 		"upgrade_from": "h02K",
 		"upgrade_extra_cost": 260,
-		"race": "Орки"
+		"race": "Орки",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h036",
@@ -1064,7 +1087,8 @@
 		"unit": "o006",
 		"upgrade_from": "h02K",
 		"upgrade_extra_cost": 260,
-		"race": "Орки"
+		"race": "Орки",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h031",
@@ -1123,7 +1147,8 @@
 		"unit": "o005",
 		"upgrade_from": "h02U",
 		"upgrade_extra_cost": 210,
-		"race": null
+		"race": null,
+		"lumber_cost": 0
 	},
 	{
 		"id": "h05E",
@@ -1181,7 +1206,8 @@
 		"unit": "n01O",
 		"upgrade_from": "h02H",
 		"upgrade_extra_cost": 200,
-		"race": "Орки"
+		"race": "Орки",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h03W",
@@ -1240,7 +1266,8 @@
 		"unit": "n016",
 		"upgrade_from": "h04F",
 		"upgrade_extra_cost": 240,
-		"race": null
+		"race": null,
+		"lumber_cost": 0
 	},
 	{
 		"id": "h043",
@@ -1299,7 +1326,8 @@
 		"unit": "n013",
 		"upgrade_from": "h03T",
 		"upgrade_extra_cost": 275,
-		"race": "Північ"
+		"race": "Північ",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h03J",
@@ -1357,7 +1385,8 @@
 		"unit": "o00A",
 		"upgrade_from": "h03K",
 		"upgrade_extra_cost": 175,
-		"race": "Північ"
+		"race": "Північ",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h09Y",
@@ -1419,7 +1448,10 @@
 		"unit": "n027",
 		"upgrade_from": "h04W",
 		"upgrade_extra_cost": 250,
-		"race": null
+		"race": null,
+		"lumber_cost": 375,
+		"is_legendary": true,
+		"food_cost": 1
 	},
 	{
 		"id": "h04P",
@@ -1480,7 +1512,8 @@
 		"unit": "n01E",
 		"upgrade_from": "h04Q",
 		"upgrade_extra_cost": 300,
-		"race": "Порча"
+		"race": "Порча",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h04M",
@@ -1540,7 +1573,8 @@
 		"unit": "n01B",
 		"upgrade_from": "h04O",
 		"upgrade_extra_cost": 235,
-		"race": "Порча"
+		"race": "Порча",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h04N",
@@ -1603,7 +1637,8 @@
 		"unit": "n01A",
 		"upgrade_from": "h04L",
 		"upgrade_extra_cost": 190,
-		"race": "Порча"
+		"race": "Порча",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h07D",
@@ -1661,7 +1696,8 @@
 		"unit": "e00J",
 		"upgrade_from": "h088",
 		"upgrade_extra_cost": 190,
-		"race": "Нічні ельфи"
+		"race": "Нічні ельфи",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h07L",
@@ -1719,7 +1755,8 @@
 		"unit": "n020",
 		"upgrade_from": "h07M",
 		"upgrade_extra_cost": 200,
-		"race": "Нічні ельфи"
+		"race": "Нічні ельфи",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h07N",
@@ -1777,7 +1814,8 @@
 		"unit": "e00A",
 		"upgrade_from": "h07O",
 		"upgrade_extra_cost": 230,
-		"race": "Нічні ельфи"
+		"race": "Нічні ельфи",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h03D",
@@ -1836,7 +1874,8 @@
 		"unit": "e003",
 		"upgrade_from": "h00S",
 		"upgrade_extra_cost": 150,
-		"race": "Нічні ельфи"
+		"race": "Нічні ельфи",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h03E",
@@ -1895,7 +1934,10 @@
 		"unit": "e004",
 		"upgrade_from": "h03D",
 		"upgrade_extra_cost": 350,
-		"race": "Нічні ельфи"
+		"race": "Нічні ельфи",
+		"lumber_cost": 375,
+		"is_legendary": true,
+		"food_cost": 1
 	},
 	{
 		"id": "h09P",
@@ -1951,7 +1993,8 @@
 		"unit": "z003",
 		"upgrade_from": "h05T",
 		"upgrade_extra_cost": 220,
-		"race": "Техніки"
+		"race": "Техніки",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h09L",
@@ -2009,7 +2052,8 @@
 		"unit": "h06R",
 		"upgrade_from": "h05J",
 		"upgrade_extra_cost": 160,
-		"race": "Техніки"
+		"race": "Техніки",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h097",
@@ -2071,7 +2115,10 @@
 		"unit": "n024",
 		"upgrade_from": "h05V",
 		"upgrade_extra_cost": 270,
-		"race": "Техніки"
+		"race": "Техніки",
+		"lumber_cost": 385,
+		"is_legendary": true,
+		"food_cost": 1
 	},
 	{
 		"id": "h09J",
@@ -2130,7 +2177,8 @@
 		"unit": "h06U",
 		"upgrade_from": "h05X",
 		"upgrade_extra_cost": 180,
-		"race": "Техніки"
+		"race": "Техніки",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h09I",
@@ -2190,7 +2238,8 @@
 		"unit": "h099",
 		"upgrade_from": "h05X",
 		"upgrade_extra_cost": 180,
-		"race": "Техніки"
+		"race": "Техніки",
+		"lumber_cost": 0
 	},
 	{
 		"id": "h09B",
@@ -2251,7 +2300,8 @@
 		"unit": "h06S",
 		"upgrade_from": "h05X",
 		"upgrade_extra_cost": 180,
-		"race": "Техніки"
+		"race": "Техніки",
+		"lumber_cost": 0
 	},
 	{
 		"id": "cg07",
@@ -6177,13 +6227,13 @@
 		"move_type": null,
 		"flying": false,
 		"gold_cost": 700,
-		"lumber_cost": 500,
+		"lumber_cost": 1800,
 		"raw_fields": {
 			"unam": "Храм Героїв",
 			"utip": "Збудувати Храм Героїв [X]",
 			"utub": "Храм Героїв: Легендарна споруда Людей. Прикликає могутніх Архангелів та благословляє союзників. Потребує їжу.",
 			"ugol": 700,
-			"ulum": 500,
+			"ulum": 1800,
 			"uhpm": 1000,
 			"uico": "ReplaceableTextures\\CommandButtons\\BTNAltarOfKings.blp",
 			"uhot": "X"
@@ -6194,7 +6244,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Люди",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h010",
@@ -6228,7 +6279,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Люди",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h008",
@@ -6245,13 +6297,13 @@
 		"move_type": null,
 		"flying": false,
 		"gold_cost": 350,
-		"lumber_cost": 500,
+		"lumber_cost": 400,
 		"raw_fields": {
 			"unam": "Скриня зі Скарбами",
 			"utip": "Збудувати Скриню зі Скарбами [V]",
 			"utub": "Перша збудована вами Скриня збільшує ваш Дохід на 25%. Інші збудовані Скрині дають на 15% менше золота, ніж попередні (наприклад, друга дає 21.25%, третя 18.06% і т.д.).\nОбережно, вона дуже крихка!",
 			"ugol": 350,
-			"ulum": 500,
+			"ulum": 400,
 			"uhpm": 650,
 			"uico": "ReplaceableTextures\\CommandButtons\\BTNMagicVault.blp",
 			"uhot": "V"
@@ -6262,7 +6314,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Техніки",
-		"specialType": "treasure"
+		"specialType": "treasure",
+		"is_special": true
 	},
 	{
 		"id": "h006",
@@ -6296,7 +6349,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Люди",
-		"specialType": "tower"
+		"specialType": "tower",
+		"is_guard_tower": true
 	},
 	{
 		"id": "h000",
@@ -6364,7 +6418,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Люди",
-		"specialType": "tower"
+		"specialType": "tower",
+		"is_special": true
 	},
 	{
 		"id": "h00N",
@@ -6381,13 +6436,13 @@
 		"move_type": null,
 		"flying": false,
 		"gold_cost": 750,
-		"lumber_cost": 500,
+		"lumber_cost": 1500,
 		"raw_fields": {
 			"unam": "Вартовий Припливів",
 			"utip": "Збудувати Вартового Припливів [X]",
 			"utub": "Вартовий Припливів: Легендарна споруда Наг. Створює цунамі та посилює союзників. Потребує їжу.",
 			"ugol": 750,
-			"ulum": 500,
+			"ulum": 1500,
 			"uhpm": 900,
 			"uico": "ReplaceableTextures\\CommandButtons\\BTNTidalGuardian.blp",
 			"uhot": "X"
@@ -6398,7 +6453,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Наги",
-		"specialType": "tower"
+		"specialType": "tower",
+		"is_special": true
 	},
 	{
 		"id": "h00M",
@@ -6432,7 +6488,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Наги",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h00I",
@@ -6466,7 +6523,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Наги",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h00H",
@@ -6534,7 +6592,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Наги",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h05I",
@@ -6568,7 +6627,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Хаос",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h01M",
@@ -6602,7 +6662,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Хаос",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h01I",
@@ -6670,7 +6731,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Хаос",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h01E",
@@ -6687,13 +6749,13 @@
 		"move_type": null,
 		"flying": false,
 		"gold_cost": 850,
-		"lumber_cost": 500,
+		"lumber_cost": 1800,
 		"raw_fields": {
 			"unam": "Храм Знищення",
 			"utip": "Збудувати Храм Знищення [X]",
 			"utub": "Храм Знищення: Легендарна споруда Хаосу. Спричиняє метеоритні дощі та посилює демонів. Потребує їжу.",
 			"ugol": 850,
-			"ulum": 500,
+			"ulum": 1800,
 			"uhpm": 1300,
 			"uico": "ReplaceableTextures\\CommandButtons\\BTNUndeadShrine.blp",
 			"uhot": "X"
@@ -6704,7 +6766,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Хаос",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h059",
@@ -6721,13 +6784,13 @@
 		"move_type": null,
 		"flying": false,
 		"gold_cost": 650,
-		"lumber_cost": 500,
+		"lumber_cost": 1800,
 		"raw_fields": {
 			"unam": "Золотий Храм Правосуддя",
 			"utip": "Збудувати Золотий Храм Правосуддя [X]",
 			"utub": "Золотий Храм Правосуддя: Легендарна споруда Ельфів. Прикликає Аватарів Правосуддя. Потребує їжу.",
 			"ugol": 650,
-			"ulum": 500,
+			"ulum": 1800,
 			"uhpm": 1250,
 			"uico": "ReplaceableTextures\\CommandButtons\\BTNTransmute.blp",
 			"uhot": "X"
@@ -6738,7 +6801,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Ельфи",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h00Z",
@@ -6772,7 +6836,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Ельфи",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h014",
@@ -6806,7 +6871,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Ельфи",
-		"specialType": "tower"
+		"specialType": "tower",
+		"is_guard_tower": true
 	},
 	{
 		"id": "h005",
@@ -6840,7 +6906,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Ельфи",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h01O",
@@ -6874,7 +6941,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Нежить",
-		"specialType": "tower"
+		"specialType": "tower",
+		"is_guard_tower": true
 	},
 	{
 		"id": "h01Q",
@@ -6891,13 +6959,13 @@
 		"move_type": null,
 		"flying": false,
 		"gold_cost": 650,
-		"lumber_cost": 500,
+		"lumber_cost": 1500,
 		"raw_fields": {
 			"unam": "Вежа Розкладу",
 			"utip": "Збудувати Вежу Розкладу [X]",
 			"utub": "Вежа Розкладу: Легендарна споруда Нежиті. Розповсюджує чуму та посилює воскресіння. Потребує їжу.",
 			"ugol": 650,
-			"ulum": 500,
+			"ulum": 1500,
 			"uhpm": 1000,
 			"uico": "ReplaceableTextures\\CommandButtons\\BTNNecropolis.blp",
 			"uhot": "X"
@@ -6908,7 +6976,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Нежить",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h01P",
@@ -6942,7 +7011,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Нежить",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h00A",
@@ -6976,7 +7046,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Нежить",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h01R",
@@ -7044,7 +7115,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Орки",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h02O",
@@ -7061,13 +7133,13 @@
 		"move_type": null,
 		"flying": false,
 		"gold_cost": 475,
-		"lumber_cost": 500,
+		"lumber_cost": 1350,
 		"raw_fields": {
 			"unam": "Тотем Часу",
 			"utip": "Збудувати Тотем Часу [X]",
 			"utub": "Тотем Часу: Легендарна споруда Орків. Прискорює атаку та рух союзної орди. Потребує їжу.",
 			"ugol": 475,
-			"ulum": 500,
+			"ulum": 1350,
 			"uhpm": 1400,
 			"uico": "ReplaceableTextures\\CommandButtons\\BTNStasisTrap.blp",
 			"uhot": "X"
@@ -7078,7 +7150,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Орки",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h02N",
@@ -7112,7 +7185,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Орки",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h029",
@@ -7180,7 +7254,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Орки",
-		"specialType": "tower"
+		"specialType": "tower",
+		"is_guard_tower": true
 	},
 	{
 		"id": "h047",
@@ -7214,7 +7289,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Північ",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h048",
@@ -7248,7 +7324,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Північ",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h03O",
@@ -7265,13 +7342,13 @@
 		"move_type": null,
 		"flying": false,
 		"gold_cost": 600,
-		"lumber_cost": 500,
+		"lumber_cost": 1350,
 		"raw_fields": {
 			"unam": "Світовий Заморожувач",
 			"utip": "Збудувати Світовий Заморожувач [X]",
 			"utub": "Світовий Заморожувач: Легендарна споруда Півночі. Періодично заморожує всіх ворожих юнітів на лінії, уповільнюючи їхній рух та атаку на 50%. Потребує їжу.",
 			"ugol": 600,
-			"ulum": 500,
+			"ulum": 1350,
 			"uhpm": 1400,
 			"uico": "ReplaceableTextures\\CommandButtons\\BTNWellSpring.blp",
 			"uhot": "X"
@@ -7282,7 +7359,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Північ",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h049",
@@ -7350,7 +7428,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Північ",
-		"specialType": "tower"
+		"specialType": "tower",
+		"is_guard_tower": true
 	},
 	{
 		"id": "n01J",
@@ -7384,7 +7463,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Порча",
-		"specialType": "tower"
+		"specialType": "tower",
+		"is_guard_tower": true
 	},
 	{
 		"id": "h04V",
@@ -7435,13 +7515,13 @@
 		"move_type": null,
 		"flying": false,
 		"gold_cost": 500,
-		"lumber_cost": 500,
+		"lumber_cost": 1350,
 		"raw_fields": {
 			"unam": "Око Скверни",
 			"utip": "Збудувати Око Скверни [X]",
 			"utub": "Око Скверни: Легендарна споруда Порчі. Покриває поле бою оскверненням. Потребує їжу.",
 			"ugol": 500,
-			"ulum": 500,
+			"ulum": 1350,
 			"uhpm": 1300,
 			"uico": "ReplaceableTextures\\CommandButtons\\BTNUsedSoulGem.blp",
 			"uhot": "X"
@@ -7452,7 +7532,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Порча",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h04R",
@@ -7486,7 +7567,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Порча",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h04K",
@@ -7520,7 +7602,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Порча",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h07H",
@@ -7554,7 +7637,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Нічні ельфи",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h08P",
@@ -7588,7 +7672,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Нічні ельфи",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h073",
@@ -7622,7 +7707,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Нічні ельфи",
-		"specialType": "tower"
+		"specialType": "tower",
+		"is_guard_tower": true
 	},
 	{
 		"id": "h07I",
@@ -7639,13 +7725,13 @@
 		"move_type": null,
 		"flying": false,
 		"gold_cost": 650,
-		"lumber_cost": 500,
+		"lumber_cost": 1350,
 		"raw_fields": {
 			"unam": "Обеліск Зорепаду",
 			"utip": "Збудувати Обеліск Зорепаду [X]",
 			"utub": "Обеліск Зорепаду: Легендарна споруда Нічних ельфів. Викликає Зорепад на голови ворогів. Потребує їжу.",
 			"ugol": 650,
-			"ulum": 500,
+			"ulum": 1350,
 			"uhpm": 1200,
 			"uico": "ReplaceableTextures\\CommandButtons\\BTNIceCrownObelisk.blp",
 			"uhot": "X"
@@ -7656,7 +7742,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Нічні ельфи",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h09T",
@@ -7690,7 +7777,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Техніки",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h069",
@@ -7724,7 +7812,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Техніки",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h06J",
@@ -7741,13 +7830,13 @@
 		"move_type": null,
 		"flying": false,
 		"gold_cost": 190,
-		"lumber_cost": 500,
+		"lumber_cost": 270,
 		"raw_fields": {
 			"unam": "Синій генератор щитів",
 			"utip": "Збудувати Синій генератор щитів [X]",
 			"utub": "Синій генератор щитів: Легендарна споруда Техніків. Створює непробивне захисне поле. Потребує їжу.",
 			"ugol": 190,
-			"ulum": 500,
+			"ulum": 270,
 			"uhpm": 900,
 			"uico": "ReplaceableTextures\\CommandButtons\\BTNPowerGenerator.blp",
 			"uhot": "X"
@@ -7758,7 +7847,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Техніки",
-		"specialType": "special"
+		"specialType": "special",
+		"is_special": true
 	},
 	{
 		"id": "h05L",
@@ -7792,7 +7882,8 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Техніки",
-		"specialType": "tower"
+		"specialType": "tower",
+		"is_guard_tower": true
 	},
 	{
 		"id": "cg0a",
@@ -7826,6 +7917,7 @@
 		"upgrade_from": null,
 		"upgrade_extra_cost": 0,
 		"race": "Збирачі",
-		"specialType": "tower"
+		"specialType": "tower",
+		"is_guard_tower": true
 	}
 ]

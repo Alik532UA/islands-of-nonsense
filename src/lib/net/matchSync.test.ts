@@ -181,6 +181,8 @@ describe('MatchSync', () => {
 		// Player A builds on west
 		await syncA.dispatch('BUILD', { buildingType: 'h05X', x: 25, y: 20, team: 'west' });
 		// Player B builds on east
+		simA.players.east.lumber = 2000;
+		simB.players.east.lumber = 2000;
 		await syncB.dispatch('BUILD', { buildingType: 'h008', x: 25, y: 20, team: 'east' });
 
 		// Both simulations should contain both buildings in exact same positions

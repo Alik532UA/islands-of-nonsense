@@ -6,6 +6,7 @@ describe('Point 9: Detailed Post-Round / Match Breakdown & MVP Building', () => 
 
 	beforeEach(() => {
 		sim = new Simulation({ botDifficulty: 0, startGold: 2000 });
+		sim.players.west.lumber = 2000;
 	});
 
 	it('tracks totalDamageDealt and damageToCastle when units attack', () => {
@@ -50,6 +51,30 @@ describe('Point 9: Detailed Post-Round / Match Breakdown & MVP Building', () => 
 
 	it('tracks itemsPurchased when buying consumables at castle shop', () => {
 		expect(sim.players.west.stats.itemsPurchased).toBe(0);
+
+		sim.buildings.push({
+			instanceId: 'test_shop_west',
+			defId: 'cg10_shop',
+			name: 'Магазин',
+			team: 'west',
+			specialType: 'shop',
+			tileX: 10,
+			tileY: 10,
+			x: 1600,
+			y: 1200,
+			hp: 1000,
+			maxHp: 1000,
+			armor: 5,
+			armorType: 'fort',
+			goldCost: 50,
+			lumberCost: 50,
+			spawnUnitId: '',
+			spawnCooldown: 0,
+			spawnTimer: 0,
+			lane: 'mid',
+			upgradeFrom: null,
+			race: 'Люди'
+		});
 
 		const success = sim.buyCastleItem('west', 'I001'); // Battle Drums
 		expect(success).toBe(true);

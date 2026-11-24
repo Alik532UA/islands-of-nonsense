@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import type { Simulation } from '../engine/simulation';
 	import { getBaseBuildingsForRace, getUpgradesForBuilding, getUnit } from '../engine/gameData';
 	import { Shield, Swords, Hammer, Users } from 'lucide-svelte';
@@ -29,7 +30,8 @@
 		onSellBuilding,
 		onContinueConstruction,
 		onMinimapClick,
-		onClearSelection
+		onClearSelection,
+		touchControls
 	}: {
 		sim: Simulation;
 		uiTick?: number;
@@ -47,6 +49,7 @@
 		onContinueConstruction?: (instanceId: string) => void;
 		onMinimapClick?: (arenaX: number, arenaY: number) => void;
 		onClearSelection?: () => void;
+		touchControls?: Snippet;
 	} = $props();
 
 	let player = $derived(uiTick >= 0 ? sim.players.west : sim.players.west);
@@ -167,7 +170,7 @@
 >
 	<!-- 1. LEFT: Interactive Real-time Minimap with authentic WC3 buttons -->
 	<div class="flex items-center shrink-0">
-		<Minimap {sim} {uiTick} {cameraX} {cameraY} {zoom} {onMinimapClick} />
+		<Minimap {sim} {uiTick} {cameraX} {cameraY} {zoom} {onMinimapClick} {touchControls} />
 	</div>
 
 	<!-- 2. CENTER-LEFT: Entity Portrait & Health / Mana Vital Bars -->

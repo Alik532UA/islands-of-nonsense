@@ -68,6 +68,29 @@ describe('Rescue Strike Warning & Tactical Audio Cue', () => {
 
 		// Buy I00N (cost 850g)
 		sim.players.west.gold = 1000;
+		sim.buildings.push({
+			instanceId: 'test_shop_west',
+			defId: 'cg10_shop',
+			name: 'Магазин',
+			team: 'west',
+			specialType: 'shop',
+			tileX: 10,
+			tileY: 10,
+			x: 1600,
+			y: 1200,
+			hp: 1000,
+			maxHp: 1000,
+			armor: 5,
+			armorType: 'fort',
+			goldCost: 50,
+			lumberCost: 50,
+			spawnUnitId: '',
+			spawnCooldown: 0,
+			spawnTimer: 0,
+			lane: 'mid',
+			upgradeFrom: null,
+			race: 'Люди'
+		});
 		const bought = sim.buyCastleItem('west', 'I00N');
 		expect(bought).toBe(true);
 

@@ -13,13 +13,16 @@
 	import { Crosshair, Map as MapIcon, Users, Castle } from 'lucide-svelte';
 	import { sound } from '../services/audio';
 
+	import type { Snippet } from 'svelte';
+
 	let {
 		sim,
 		uiTick: _uiTick = 0,
 		cameraX = 800,
 		cameraY = 1200,
 		zoom = 0.85,
-		onMinimapClick
+		onMinimapClick,
+		touchControls
 	}: {
 		sim: Simulation;
 		uiTick?: number;
@@ -27,6 +30,7 @@
 		cameraY?: number;
 		zoom?: number;
 		onMinimapClick?: (arenaX: number, arenaY: number) => void;
+		touchControls?: Snippet;
 	} = $props();
 
 	let canvasEl: HTMLCanvasElement;
@@ -35,8 +39,8 @@
 	let lastPing = $state<{ x: number; y: number; timer: number } | null>(null);
 	let isDragging = $state(false);
 
-	const MAP_WIDTH = 220;
-	const MAP_HEIGHT = 70;
+	const MAP_WIDTH = 270;
+	const MAP_HEIGHT = 90;
 
 	function triggerPing(x: number, y: number) {
 		lastPing = { x, y, timer: 1.5 };
@@ -321,70 +325,76 @@
 </script>
 
 <div
-	class="relative flex items-center justify-between bg-[#131722] px-2.5 py-2 rounded-lg border-2 border-[#544738] shadow-2xl select-none h-[142px] shrink-0"
+	class="relative flex flex-col justify-between bg-[#131722] p-1.5 rounded-lg border-2 border-[#544738] shadow-2xl select-none h-[142px] w-[285px] shrink-0 overflow-hidden"
 	style="box-shadow: inset 0 0 10px rgba(0,0,0,0.8), 0 4px 12px rgba(0,0,0,0.7);"
 >
-	<!-- Minimap Canvas with Ornate WC3 Stone Trim -->
-	<div class="relative overflow-hidden rounded border border-[#3b3226] bg-[#0c1017] my-auto">
+	<!-- Minimap Canvas with Ornate WC3 Stone Trim (Full Width) -->
+	<div
+		class="relative overflow-hidden rounded border border-[#3b3226] bg-[#0c1017] w-full h-[90px] shrink-0"
+	>
 		<canvas
 			bind:this={canvasEl}
 			width={MAP_WIDTH}
 			height={MAP_HEIGHT}
 			onmousedown={handleMouseDown}
 			onmousemove={handleMouseMove}
-			class="cursor-crosshair block"
+			class="cursor-crosshair block w-full h-full"
 			title="Мінікарта арени. Затисніть та ведіть, щоб перемістити камеру!"
 		></canvas>
-
-		<!-- Subtitle overlay indicator -->
-		<div
-			class="absolute bottom-0 left-0 right-0 bg-black/60 px-1 py-0.5 text-[9px] text-[#9ca3af] font-mono text-center pointer-events-none flex justify-between"
-		>
-			<span style="color: {sim.players.west.color?.hex || '#38bdf8'}">Захід (Ви)</span>
-			<span style="color: {sim.players.east.color?.hex || '#ef4444'}">Схід (Бот)</span>
-		</div>
 	</div>
 
-	<!-- Authentic Warcraft III Minimap Side Control Buttons -->
-	<div class="flex flex-col gap-1.5 ml-2.5 justify-center h-full">
-		<!-- Ping / Signal button -->
-		<button
-			onclick={() => triggerPing(cameraX, cameraY)}
-			class="w-6 h-6 rounded bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] flex items-center justify-center text-[#d4af37] transition cursor-pointer active:scale-95 shadow"
-			title="Подати сигнал на карті (Ping)"
-		>
-			<Crosshair class="w-3.5 h-3.5" />
-		</button>
+	<!-- Bottom Controls Row: Authentic Warcraft III Minimap Buttons & Touch Controls -->
+	<div class="flex items-center justify-between w-full pt-1 px-0.5">
+		<!-- Minimap Buttons (Ping, Terrain, Ally colors, Center Base) -->
+		<div class="flex items-center gap-1">
+			<!-- Ping / Signal button -->
+			<button
+				type="button"
+				onclick={() => triggerPing(cameraX, cameraY)}
+				class="w-6 h-6 rounded bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] flex items-center justify-center text-[#d4af37] transition cursor-pointer active:scale-95 shadow"
+				title="Подати сигнал на карті (Ping)"
+			>
+				<Crosshair class="w-3.5 h-3.5" />
+			</button>
 
-		<!-- Toggle Terrain Mode -->
-		<button
-			onclick={() => (simpleTerrainMode = !simpleTerrainMode)}
-			class="w-6 h-6 rounded border flex items-center justify-center transition cursor-pointer active:scale-95 shadow {simpleTerrainMode
-				? 'bg-[#3b82f6]/30 border-blue-400 text-blue-300'
-				: 'bg-[#2a241b] hover:bg-[#3d3427] border-[#78654c] text-[#c5a880]'}"
-			title="Перемкнути детальність рельєфу"
-		>
-			<MapIcon class="w-3.5 h-3.5" />
-		</button>
+			<!-- Toggle Terrain Mode -->
+			<button
+				type="button"
+				onclick={() => (simpleTerrainMode = !simpleTerrainMode)}
+				class="w-6 h-6 rounded border flex items-center justify-center transition cursor-pointer active:scale-95 shadow {simpleTerrainMode
+					? 'bg-[#3b82f6]/30 border-blue-400 text-blue-300'
+					: 'bg-[#2a241b] hover:bg-[#3d3427] border-[#78654c] text-[#c5a880]'}"
+				title="Перемкнути детальність рельєфу"
+			>
+				<MapIcon class="w-3.5 h-3.5" />
+			</button>
 
-		<!-- Toggle Ally Colors -->
-		<button
-			onclick={() => (allyColorsMode = !allyColorsMode)}
-			class="w-6 h-6 rounded border flex items-center justify-center transition cursor-pointer active:scale-95 shadow {allyColorsMode
-				? 'bg-emerald-950/60 border-emerald-500 text-emerald-300'
-				: 'bg-[#2a241b] hover:bg-[#3d3427] border-[#78654c] text-[#c5a880]'}"
-			title="Кольори союзників (Зелений / Ворожий)"
-		>
-			<Users class="w-3.5 h-3.5" />
-		</button>
+			<!-- Toggle Ally Colors -->
+			<button
+				type="button"
+				onclick={() => (allyColorsMode = !allyColorsMode)}
+				class="w-6 h-6 rounded border flex items-center justify-center transition cursor-pointer active:scale-95 shadow {allyColorsMode
+					? 'bg-emerald-950/60 border-emerald-500 text-emerald-300'
+					: 'bg-[#2a241b] hover:bg-[#3d3427] border-[#78654c] text-[#c5a880]'}"
+				title="Кольори союзників (Зелений / Ворожий)"
+			>
+				<Users class="w-3.5 h-3.5" />
+			</button>
 
-		<!-- Center Castle/Base -->
-		<button
-			onclick={() => onMinimapClick?.(sim.castles.west.x + 300, sim.castles.west.y)}
-			class="w-6 h-6 rounded bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] flex items-center justify-center text-[#d4af37] transition cursor-pointer active:scale-95 shadow"
-			title="Центрувати на базу гравця"
-		>
-			<Castle class="w-3.5 h-3.5" />
-		</button>
+			<!-- Center Castle/Base -->
+			<button
+				type="button"
+				onclick={() => onMinimapClick?.(sim.castles.west.x + 300, sim.castles.west.y)}
+				class="w-6 h-6 rounded bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] flex items-center justify-center text-[#d4af37] transition cursor-pointer active:scale-95 shadow"
+				title="Центрувати на базу гравця"
+			>
+				<Castle class="w-3.5 h-3.5" />
+			</button>
+		</div>
+
+		<!-- Arena Viewport & Help Touch Controls transferred under map -->
+		{#if touchControls}
+			{@render touchControls()}
+		{/if}
 	</div>
 </div>

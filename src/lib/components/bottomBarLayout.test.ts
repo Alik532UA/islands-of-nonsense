@@ -117,9 +117,9 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 		}
 	});
 
-	it('formats minimap controls with balanced margins and vertical centering', () => {
-		// Minimap must be h-[142px] and align controls with gap-1.5 ml-2.5
+	it('formats minimap controls with balanced margins and bottom alignment', () => {
+		// Minimap must be h-[142px] and layout controls under map canvas
 		expect(minimapSrc).toMatch(/h-\[142px\]/);
-		expect(minimapSrc).toMatch(/gap-1\.5 ml-2\.5/);
+		expect(minimapSrc).toMatch(/pt-1/);
 	});
 });
