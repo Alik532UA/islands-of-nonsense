@@ -705,7 +705,7 @@
 					onmouseenter={() => (hoveredBuilding = bld)}
 					onmouseleave={() => (hoveredBuilding = null)}
 					data-testid="hud-build-btn-{bld.id}"
-					class="relative w-[61px] h-[39px] rounded-md border p-0.5 transition-all flex flex-col justify-center items-center overflow-hidden cursor-pointer touch-manipulation {isSelected
+					class="relative w-[61px] h-[39px] rounded-[3px] border p-0.5 transition-all flex items-center justify-center overflow-hidden cursor-pointer touch-manipulation {isSelected
 						? 'bg-blue-600/90 border-amber-300 shadow-lg ring-2 ring-amber-400 shadow-blue-500/50'
 						: lacksFood
 							? 'bg-red-950/40 border-red-800/80 hover:border-red-600'
@@ -716,9 +716,34 @@
 						? `, ${bldLumber}w`
 						: ''}) {hotkey}"
 				>
+					<!-- Archetype icon in top-left corner -->
+					<div class="absolute top-1 left-1 flex items-center justify-center pointer-events-none">
+						{#if bld.specialType === 'shop'}
+							<ShoppingBag class="w-3.5 h-3.5 text-amber-300 drop-shadow" />
+						{:else if bld.specialType === 'forge'}
+							<Hammer class="w-3.5 h-3.5 text-cyan-300 drop-shadow" />
+						{:else if bld.id === 'h008'}
+							<Package class="w-3.5 h-3.5 text-amber-400 drop-shadow" />
+						{:else if isLeg}
+							<Crown class="w-3.5 h-3.5 text-amber-300 drop-shadow animate-pulse" />
+						{:else if bld.specialType === 'tower'}
+							<ShieldAlert class="w-3.5 h-3.5 text-cyan-400 drop-shadow" />
+						{:else if bld.specialType === 'special' || bld.specialType === 'repair' || bld.specialType === 'recycler'}
+							<Zap class="w-3.5 h-3.5 text-purple-400 drop-shadow" />
+						{:else if bUnit?.flying}
+							<Feather class="w-3.5 h-3.5 text-sky-300 drop-shadow" />
+						{:else if bUnit?.attack_type === 'pierce'}
+							<Crosshair class="w-3.5 h-3.5 text-emerald-400 drop-shadow" />
+						{:else if bUnit?.attack_type === 'magic'}
+							<Sparkles class="w-3.5 h-3.5 text-indigo-300 drop-shadow" />
+						{:else}
+							<Swords class="w-3.5 h-3.5 text-amber-200 drop-shadow" />
+						{/if}
+					</div>
+
 					<!-- Hotkey in top-right corner (no square brackets) -->
 					<span
-						class="absolute top-0 right-0 px-1 py-0.2 rounded-bl text-[7.5px] font-mono font-bold leading-none select-none {isSelected
+						class="absolute top-0 right-0 px-1 py-0.2 rounded-bl-[3px] text-[7.5px] font-mono font-bold leading-none select-none {isSelected
 							? 'bg-amber-400 text-black'
 							: isAffordable
 								? 'bg-black/70 text-[#fef08a] border-l border-b border-[#544738]/60'
@@ -727,9 +752,9 @@
 						{hotkey}
 					</span>
 
-					<!-- Gold cost in bottom-left corner with Coins SVG icon -->
+					<!-- Gold cost in bottom-left corner: icon then amount -->
 					<div
-						class="absolute bottom-0 left-0 flex items-center gap-0.5 px-0.5 py-0.2 rounded-tr text-[7.5px] font-mono font-bold leading-none select-none {isSelected
+						class="absolute bottom-0 left-0 flex items-center gap-0.5 px-0.5 py-0.2 rounded-tr-[3px] text-[7.5px] font-mono font-bold leading-none select-none {isSelected
 							? 'bg-black/70 text-amber-300'
 							: playerGold >= (bld.gold_cost || 200)
 								? 'bg-black/70 text-amber-300 border-t border-r border-[#544738]/60'
@@ -739,57 +764,30 @@
 						<span>{bld.gold_cost}</span>
 					</div>
 
-					<!-- Lumber cost in bottom-right corner with TreePine SVG icon (if applicable) -->
+					<!-- Lumber cost in bottom-right corner: amount then icon -->
 					{#if bldLumber > 0}
 						<div
-							class="absolute bottom-0 right-0 flex items-center gap-0.5 px-0.5 py-0.2 rounded-tl text-[7.5px] font-mono font-bold leading-none select-none {isSelected
+							class="absolute bottom-0 right-0 flex items-center gap-0.5 px-0.5 py-0.2 rounded-tl-[3px] text-[7.5px] font-mono font-bold leading-none select-none {isSelected
 								? 'bg-black/70 text-emerald-300'
 								: (player.lumber ?? 0) >= bldLumber
 									? 'bg-black/70 text-emerald-400 border-t border-l border-[#544738]/60'
 									: 'bg-red-950/90 text-red-400 border-t border-l border-red-800/60'}"
 						>
-							<TreePine class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
 							<span>{bldLumber}</span>
+							<TreePine class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
 						</div>
 					{/if}
 
-					<!-- Visual archetype icon / glyph and name in center (unclipped, comfortable breathing room) -->
-					<div class="flex flex-col items-center justify-center -mt-0.5 pointer-events-none">
-						<div class="flex items-center justify-center">
-							{#if bld.specialType === 'shop'}
-								<ShoppingBag class="w-3.5 h-3.5 text-amber-300 drop-shadow" />
-							{:else if bld.specialType === 'forge'}
-								<Hammer class="w-3.5 h-3.5 text-cyan-300 drop-shadow" />
-							{:else if bld.id === 'h008'}
-								<Package class="w-3.5 h-3.5 text-amber-400 drop-shadow" />
-							{:else if isLeg}
-								<Crown class="w-3.5 h-3.5 text-amber-300 drop-shadow animate-pulse" />
-							{:else if bld.specialType === 'tower'}
-								<ShieldAlert class="w-3.5 h-3.5 text-cyan-400 drop-shadow" />
-							{:else if bld.specialType === 'special' || bld.specialType === 'repair' || bld.specialType === 'recycler'}
-								<Zap class="w-3.5 h-3.5 text-purple-400 drop-shadow" />
-							{:else if bUnit?.flying}
-								<Feather class="w-3.5 h-3.5 text-sky-300 drop-shadow" />
-							{:else if bUnit?.attack_type === 'pierce'}
-								<Crosshair class="w-3.5 h-3.5 text-emerald-400 drop-shadow" />
-							{:else if bUnit?.attack_type === 'magic'}
-								<Sparkles class="w-3.5 h-3.5 text-indigo-300 drop-shadow" />
-							{:else}
-								<Swords class="w-3.5 h-3.5 text-amber-200 drop-shadow" />
-							{/if}
-						</div>
-
-						<!-- Short building name label -->
-						<span
-							class="text-[8px] font-bold truncate max-w-[54px] leading-tight mt-0.5 {isSelected
-								? 'text-white'
-								: isAffordable
-									? 'text-slate-200'
-									: 'text-slate-500'}"
-						>
-							{shortenName(bld.name)}
-						</span>
-					</div>
+					<!-- Centered building name label: unclipped and cleanly positioned in the center -->
+					<span
+						class="text-[8px] font-bold text-center truncate max-w-[46px] leading-tight select-none pointer-events-none px-0.5 {isSelected
+							? 'text-white'
+							: isAffordable
+								? 'text-slate-200'
+								: 'text-slate-500'}"
+					>
+						{shortenName(bld.name)}
+					</span>
 				</button>
 			{/each}
 
@@ -800,22 +798,27 @@
 					onclick={() => sim.orderBridgeRepair(player.team)}
 					disabled={(player.lumber ?? 0) < 50}
 					data-testid="hud-worker-repair-bridge-btn"
-					class="relative w-[61px] h-[39px] rounded-md border transition flex flex-col justify-center items-center overflow-hidden cursor-pointer touch-manipulation {(player.lumber ??
+					class="relative w-[61px] h-[39px] rounded-[3px] border transition flex items-center justify-center overflow-hidden cursor-pointer touch-manipulation {(player.lumber ??
 						0) >= 50
 						? 'bg-amber-950/80 hover:bg-amber-900 border-amber-500/70 text-amber-200 shadow'
 						: 'bg-slate-900/60 border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
 					title="Наказати робітникові відбудувати зламаний міст (50 деревини)"
 				>
-					<div
-						class="absolute bottom-0 right-0 flex items-center gap-0.5 px-0.5 py-0.2 rounded-tl text-[7.5px] font-mono font-bold leading-none bg-black/70 text-amber-300 border-t border-l border-amber-700/60"
-					>
-						<TreePine class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
-						<span>50</span>
-					</div>
-					<div class="flex flex-col items-center justify-center -mt-0.5 pointer-events-none">
+					<div class="absolute top-1 left-1 flex items-center justify-center pointer-events-none">
 						<Wrench class="w-3.5 h-3.5 text-amber-400 drop-shadow" />
-						<span class="text-[8px] font-bold text-amber-200 leading-tight mt-0.5">Міст</span>
 					</div>
+					<!-- Bottom-right: amount then TreePine icon -->
+					<div
+						class="absolute bottom-0 right-0 flex items-center gap-0.5 px-0.5 py-0.2 rounded-tl-[3px] text-[7.5px] font-mono font-bold leading-none bg-black/70 text-amber-300 border-t border-l border-amber-700/60"
+					>
+						<span>50</span>
+						<TreePine class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+					</div>
+					<span
+						class="text-[8px] font-bold text-amber-200 leading-tight select-none pointer-events-none"
+					>
+						Міст
+					</span>
 				</button>
 			{:else}
 				<div class="w-[61px] h-[39px]"></div>
@@ -828,20 +831,24 @@
 					onClearSelection?.();
 				}}
 				data-testid="hud-clear-selection-btn"
-				class="relative w-[61px] h-[39px] rounded-md border border-rose-800/80 bg-gradient-to-b from-rose-950/80 to-[#180a0a] hover:from-rose-900 hover:to-rose-950 text-rose-300 flex flex-col items-center justify-center overflow-hidden transition cursor-pointer shadow group touch-manipulation"
+				class="relative w-[61px] h-[39px] rounded-[3px] border border-rose-800/80 bg-gradient-to-b from-rose-950/80 to-[#180a0a] hover:from-rose-900 hover:to-rose-950 text-rose-300 flex items-center justify-center overflow-hidden transition cursor-pointer shadow group touch-manipulation"
 				title="Скасувати / Очистити вибір (Esc / B)"
 			>
+				<div class="absolute top-1 left-1 flex items-center justify-center pointer-events-none">
+					<CircleSlash
+						class="w-3.5 h-3.5 text-rose-500 drop-shadow-[0_0_4px_rgba(244,63,94,0.6)] group-hover:scale-110 transition-transform"
+					/>
+				</div>
 				<span
-					class="absolute top-0 right-0 px-1 py-0.2 rounded-bl text-[7.5px] font-mono font-bold leading-none bg-black/70 text-rose-400 border-l border-b border-rose-900/60"
+					class="absolute top-0 right-0 px-1 py-0.2 rounded-bl-[3px] text-[7.5px] font-mono font-bold leading-none bg-black/70 text-rose-400 border-l border-b border-rose-900/60"
 				>
 					Esc
 				</span>
-				<div class="flex flex-col items-center justify-center pointer-events-none">
-					<CircleSlash
-						class="w-4 h-4 text-rose-500 drop-shadow-[0_0_4px_rgba(244,63,94,0.6)] group-hover:scale-110 transition-transform"
-					/>
-					<span class="text-[7.5px] font-bold text-rose-300 leading-tight mt-0.5"> Скасувати </span>
-				</div>
+				<span
+					class="text-[8px] font-bold text-rose-300 leading-tight select-none pointer-events-none"
+				>
+					Скасувати
+				</span>
 			</button>
 		</div>
 	{/if}

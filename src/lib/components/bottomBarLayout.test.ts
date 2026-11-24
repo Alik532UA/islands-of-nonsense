@@ -120,24 +120,30 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 	});
 
 	it('configures command card buttons with corner badges for hotkey and costs, using SVG icons with zero emojis', () => {
+		// Subtle rounded-[3px] border corners (reduced rounding by half)
+		expect(commandCardSrc).toContain('rounded-[3px]');
+
+		// Archetype icon in top-left corner
+		expect(commandCardSrc).toContain('absolute top-1 left-1');
+
 		// Top-right corner hotkey badge without square brackets
 		expect(commandCardSrc).toContain('absolute top-0 right-0');
 		expect(commandCardSrc).toContain('{hotkey}');
 		expect(commandCardSrc).not.toContain('[{hotkey}]');
 
-		// Bottom-left corner gold cost with Coins SVG icon
+		// Bottom-left corner gold cost: Coins SVG icon then amount
 		expect(commandCardSrc).toContain('absolute bottom-0 left-0');
 		expect(commandCardSrc).toContain('<Coins');
 		expect(commandCardSrc).toContain('{bld.gold_cost}');
 
-		// Bottom-right corner lumber cost with TreePine SVG icon
+		// Bottom-right corner lumber cost: amount then TreePine SVG icon
 		expect(commandCardSrc).toContain('absolute bottom-0 right-0');
 		expect(commandCardSrc).toContain('<TreePine');
-		expect(commandCardSrc).toContain('{bldLumber}');
+		expect(commandCardSrc).toContain('<span>{bldLumber}</span>\n\t\t\t\t\t\t\t<TreePine');
 
-		// Center content has unclipped building name
+		// Dead-center building name without overlapping badges
 		expect(commandCardSrc).toContain('shortenName(bld.name)');
-		expect(commandCardSrc).toContain('truncate max-w-[54px]');
+		expect(commandCardSrc).toContain('truncate max-w-[46px]');
 
 		// Authentic cancel button uses CircleSlash SVG icon without square brackets
 		expect(commandCardSrc).toContain('<CircleSlash');
