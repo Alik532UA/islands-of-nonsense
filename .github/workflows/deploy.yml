@@ -57,17 +57,8 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test
 
-      - name: Install Playwright browsers
-        if: ${{ !cancelled() }}
-        run: npx playwright install --with-deps chromium
-
-      - name: Run Playwright E2E tests
-        if: ${{ !cancelled() }}
-        run: npm run test:e2e
-
       - name: Build static site
         id: build
-        if: ${{ !cancelled() }}
         env:
           BUDGET_SOFT: '1'
         run: |
@@ -75,12 +66,14 @@ jobs:
           npm run check:build
           npm run check:bundle
 
-      - name: Run Lighthouse CI
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: npx @lhci/cli@0.14.x autorun
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright E2E tests
+        run: npm run test:e2e
 
       - name: Upload artifact
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        if: ${{ success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}
         uses: actions/upload-pages-artifact@v4
         with:
           path: ./build

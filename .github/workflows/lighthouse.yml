@@ -33,6 +33,8 @@ jobs:
         run: npm ci
 
       - name: Build site for audit
+        env:
+          BASE_PATH: ''
         run: npm run build
 
       - name: Lighthouse Audit
