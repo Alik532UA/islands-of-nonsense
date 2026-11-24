@@ -217,7 +217,8 @@ export const translations = {
 		'install.done': 'Зрозуміло',
 		'pwa.updateAvailable': 'Доступна нова версія гри!',
 		'pwa.updateAction': 'Оновити',
-		'pwa.reloadConfirmBattle': 'Ви перебуваєте в бою. Перезавантаження завершить поточний матч. Продовжити?'
+		'pwa.reloadConfirmBattle':
+			'Ви перебуваєте в бою. Перезавантаження завершить поточний матч. Продовжити?'
 	},
 	en: {
 		app_title: 'Castle Fight Web',
@@ -431,7 +432,8 @@ export const translations = {
 		'install.done': 'Got it',
 		'pwa.updateAvailable': 'A new game update is available!',
 		'pwa.updateAction': 'Update',
-		'pwa.reloadConfirmBattle': 'You are currently in battle. Reloading will abandon the match. Continue?'
+		'pwa.reloadConfirmBattle':
+			'You are currently in battle. Reloading will abandon the match. Continue?'
 	}
 } as const;
 

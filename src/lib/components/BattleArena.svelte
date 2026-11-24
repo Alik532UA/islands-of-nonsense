@@ -868,42 +868,35 @@
 				class="absolute inset-0 bg-black/75 backdrop-blur-sm flex flex-col items-center justify-center z-30 p-4 select-none"
 			>
 				<div
-					class="bg-[#121622] border-2 border-[#8c7456] rounded-3xl p-6 max-w-xl w-full text-center shadow-2xl space-y-4"
+					class="bg-[#121622] border-2 border-[#8c7456] rounded-3xl p-5 max-w-xl w-full text-center shadow-2xl space-y-3"
 					style="box-shadow: 0 10px 40px rgba(0,0,0,0.9);"
 				>
-					<div class="flex items-center justify-between border-b border-[#3b3226] pb-3">
-						<div class="text-left">
-							<h3 class="text-base font-bold text-[#fef08a] uppercase tracking-wide">
-								Вибір раси королівства
-							</h3>
-						</div>
-						<!-- 15-second countdown badge -->
-						<div
-							class="px-3.5 py-1.5 bg-amber-500/20 border-2 border-amber-400/80 rounded-2xl flex items-center gap-1.5 animate-pulse"
-						>
-							<span class="text-xl font-mono font-black text-amber-300">{countdownSeconds}</span>
-							<span class="text-[10px] text-amber-200 font-bold uppercase">сек</span>
-						</div>
-					</div>
-
-					<!-- Prominent Separate Button: Random Race (+30% Gold) -->
+					<!-- Top Button: Random Race (+30% Gold) with countdown timer -->
 					<button
 						type="button"
 						onclick={() => selectRaceAndStart('random')}
-						class="w-full py-2.5 px-4 rounded-xl border transition cursor-pointer flex items-center justify-between gap-3 shadow-md {chosenWestRace ===
+						class="w-full py-2.5 px-4 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 shadow-lg {chosenWestRace ===
 						'random'
 							? 'bg-purple-600/30 border-purple-400 text-purple-200 ring-2 ring-purple-400/50 font-bold shadow-lg'
 							: 'bg-gradient-to-r from-purple-950/70 via-purple-900/50 to-[#181e2b] border-purple-500/60 hover:border-purple-400 hover:bg-purple-900/60 text-purple-200 active:scale-[0.99]'}"
 					>
 						<div class="flex items-center gap-2.5">
-							<span class="text-lg">🎲</span>
-							<span class="text-xs font-bold tracking-wide">Випадкова раса</span>
+							<span class="text-xl">🎲</span>
+							<span class="text-sm font-bold tracking-wide">Випадкова раса</span>
 						</div>
-						<span
-							class="px-2.5 py-0.5 rounded-lg bg-amber-500/20 border border-amber-400/50 text-[11px] text-amber-300 font-black"
-						>
-							+30% золота
-						</span>
+						<div class="flex items-center gap-2">
+							<span
+								class="px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-400/50 text-xs text-amber-300 font-black"
+							>
+								+30% золота
+							</span>
+							<div
+								class="px-2.5 py-1 bg-amber-500/20 border-2 border-amber-400/80 rounded-xl flex items-center gap-1.5 animate-pulse"
+							>
+								<span class="text-base font-mono font-black text-amber-300">{countdownSeconds}</span>
+								<span class="text-[10px] text-amber-200 font-bold uppercase">сек</span>
+							</div>
+						</div>
 					</button>
 
 					<!-- Race pick chips (Only the playable races) -->
@@ -940,17 +933,6 @@
 								{/if}
 							</button>
 						{/each}
-					</div>
-
-					<!-- Bottom Action Area (No spoiler about opponent bot race) -->
-					<div class="pt-2 flex items-center justify-end border-t border-[#3b3226]">
-						<button
-							type="button"
-							onclick={finishCountdownAndStartBattle}
-							class="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition shadow-lg shadow-amber-600/30 cursor-pointer active:scale-95"
-						>
-							Розпочати бій зараз ⚔️
-						</button>
 					</div>
 				</div>
 			</div>

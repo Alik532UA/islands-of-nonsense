@@ -89,7 +89,11 @@ describe('ArenaRenderer Lifecycle Teardown & Memory Cleanup (PERFORMANCE)', () =
 
 		renderer.destroy();
 
-		expect((renderer as unknown as { westCastleTextures: unknown[] }).westCastleTextures).toHaveLength(0);
-		expect((renderer as unknown as { eastCastleTextures: unknown[] }).eastCastleTextures).toHaveLength(0);
+		expect(
+			(renderer as unknown as { westCastleTextures: unknown[] }).westCastleTextures
+		).toHaveLength(0);
+		expect(
+			(renderer as unknown as { eastCastleTextures: unknown[] }).eastCastleTextures
+		).toHaveLength(0);
 	});
 });

@@ -43,7 +43,8 @@ describe('PWA & Fullscreen Install Guides (FULLSCREEN-INSTALL.md & PWA-v10)', ()
 		});
 
 		it('detects desktop Firefox and Edge', () => {
-			const uaFf = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0';
+			const uaFf =
+				'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0';
 			expect(guideFor(uaFf, 0)).toBe('firefox-desktop');
 
 			const uaEdge =

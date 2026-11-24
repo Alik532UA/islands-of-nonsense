@@ -1,40 +1,38 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Database } from 'firebase/database';
 
-const {
-	setMock,
-	removeMock,
-	onDisconnectMock,
-	onValueMock,
-	refMock,
-	connectMock,
-	callbacks
-} = vi.hoisted(() => {
-	const callbacks: { connected?: (snap: { val: () => unknown }) => void; presence?: (snap: { val: () => unknown }) => void } = {};
-	const removeMock = vi.fn().mockResolvedValue(undefined);
-	const onDisconnectMock = vi.fn().mockReturnValue({ remove: removeMock });
-	const setMock = vi.fn().mockResolvedValue(undefined);
-	const onValueMock = vi.fn((refObj: { path: string }, cb: (snap: { val: () => unknown }) => void) => {
-		if (refObj.path === '.info/connected') {
-			callbacks.connected = cb;
-		} else {
-			callbacks.presence = cb;
-		}
-		return vi.fn();
-	});
-	const refMock = vi.fn((_db, path: string) => ({ path }));
-	const connectMock = vi.fn().mockResolvedValue({ db: {}, uid: 'me' });
+const { setMock, removeMock, onDisconnectMock, onValueMock, refMock, connectMock, callbacks } =
+	vi.hoisted(() => {
+		const callbacks: {
+			connected?: (snap: { val: () => unknown }) => void;
+			presence?: (snap: { val: () => unknown }) => void;
+		} = {};
+		const removeMock = vi.fn().mockResolvedValue(undefined);
+		const onDisconnectMock = vi.fn().mockReturnValue({ remove: removeMock });
+		const setMock = vi.fn().mockResolvedValue(undefined);
+		const onValueMock = vi.fn(
+			(refObj: { path: string }, cb: (snap: { val: () => unknown }) => void) => {
+				if (refObj.path === '.info/connected') {
+					callbacks.connected = cb;
+				} else {
+					callbacks.presence = cb;
+				}
+				return vi.fn();
+			}
+		);
+		const refMock = vi.fn((_db, path: string) => ({ path }));
+		const connectMock = vi.fn().mockResolvedValue({ db: {}, uid: 'me' });
 
-	return {
-		setMock,
-		removeMock,
-		onDisconnectMock,
-		onValueMock,
-		refMock,
-		connectMock,
-		callbacks
-	};
-});
+		return {
+			setMock,
+			removeMock,
+			onDisconnectMock,
+			onValueMock,
+			refMock,
+			connectMock,
+			callbacks
+		};
+	});
 
 vi.mock('firebase/database', () => ({
 	ref: refMock,

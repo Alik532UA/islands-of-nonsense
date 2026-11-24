@@ -252,7 +252,10 @@
 	<title>Castle Fight Web — {t('menu.singleplayer')}</title>
 </svelte:head>
 
-<div class="menu-page fill min-h-screen px-4 flex flex-col items-center pt-[15vh] pb-16 relative">
+<div
+	class="menu-page fill min-h-screen px-4 flex flex-col items-center !justify-start pt-4 sm:pt-6 pb-16 relative"
+	style="justify-content: flex-start !important;"
+>
 	{#if !isConfigOpen}
 		<!-- 4 Modes in a Row (Adaptive: 4 in a row on desktop lg, 2 on tablet sm, 1 on mobile) -->
 		<div
@@ -260,17 +263,28 @@
 		>
 			<!-- 1. Classic Battle vs Computer -->
 			<div
-				class="group relative bg-[var(--color-bg-card,#131826)] hover:bg-[var(--color-bg-card-hover,#182033)] border-2 border-[var(--color-border-card,#2e3d5a)] hover:border-amber-400/80 rounded-2xl group-hover:rounded-b-none shadow-xl transition-colors duration-200 flex flex-col"
+				class="group relative bg-[var(--color-bg-card,#131826)] hover:bg-[var(--color-bg-card-hover,#182033)] border-2 border-[var(--color-border-card,#2e3d5a)] hover:border-amber-400/80 rounded-2xl shadow-xl transition-colors duration-200 flex flex-col"
 				style="box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);"
 				data-testid="play-battle-card"
 			>
+				<!-- Top Button: Customize (slides up on hover, no extra wrapper container) -->
+				<button
+					type="button"
+					onclick={() => openConfigFor('classic')}
+					class="absolute bottom-[calc(100%+8px)] left-3 right-3 z-40 opacity-0 -translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-200 py-1.5 px-3 rounded-xl bg-[var(--color-bg-card,#131826)]/95 hover:bg-amber-500/20 backdrop-blur-md border border-amber-400/70 text-[var(--color-heading,#fef08a)] text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+					style="box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);"
+					data-testid="customize-btn-vsBot"
+				>
+					<Sliders class="w-3.5 h-3.5 text-amber-300" />
+					<span>Налаштувати</span>
+				</button>
+
 				<!-- Top Main Click Area (Starts Battle Immediately) -->
 				<button
 					type="button"
 					onclick={startVsBotQuick}
-					class="w-full p-6 text-center flex flex-col items-center justify-center gap-3 cursor-pointer group/btn focus:outline-none"
+					class="w-full p-6 text-center flex flex-col items-center justify-center gap-3 cursor-pointer group/btn focus:outline-none relative"
 					data-testid="play-battle-link"
-					title="Швидкий бій проти комп'ютера"
 				>
 					<!-- Large Rotating Icon morphing to Play button on hover -->
 					<div class="relative w-24 h-24 my-2 flex items-center justify-center">
@@ -308,7 +322,7 @@
 
 				<!-- Quick Settings Drawer (Floats downward without shifting neighboring elements) -->
 				<div
-					class="absolute top-full -left-[2px] -right-[2px] z-40 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-all duration-200 bg-[var(--color-bg-card,#131826)] border-2 border-t-0 border-amber-400/80 rounded-b-2xl shadow-2xl p-3 space-y-1.5"
+					class="absolute top-[calc(100%+8px)] left-3 right-3 z-40 opacity-0 translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-200 bg-[var(--color-bg-card,#131826)]/95 backdrop-blur-md border border-amber-400/70 rounded-xl shadow-2xl p-3 space-y-1.5"
 					style="box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6);"
 				>
 					<!-- 1. Difficulty -->
@@ -324,7 +338,6 @@
 									vsBotDiffIndex = cycle(DIFFICULTIES, vsBotDiffIndex, -1);
 								}}
 								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
-								title="Попередня складність"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
@@ -340,7 +353,6 @@
 									vsBotDiffIndex = cycle(DIFFICULTIES, vsBotDiffIndex, 1);
 								}}
 								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
-								title="Наступна складність"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
 							</button>
@@ -577,33 +589,33 @@
 							</button>
 						</div>
 					</div>
-
-					<!-- Customize Button -->
-					<button
-						type="button"
-						onclick={() => openConfigFor('classic')}
-						class="w-full mt-2 py-1.5 px-2 rounded-lg bg-[var(--color-surface-hover,#182033)] hover:bg-[var(--color-surface,#131826)] border border-[var(--color-border-card,#2e3d5a)] text-[var(--color-heading,#fef08a)] text-[11px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow"
-						data-testid="customize-btn-vsBot"
-					>
-						<Sliders class="w-3.5 h-3.5" />
-						<span>Налаштувати</span>
-					</button>
 				</div>
 			</div>
 
 			<!-- 2. Sandbox Testing Mode -->
 			<div
-				class="group relative bg-[var(--color-bg-card,#131826)] hover:bg-[var(--color-bg-card-hover,#152331)] border-2 border-[var(--color-border-card,#2e3d5a)] hover:border-cyan-400/80 rounded-2xl group-hover:rounded-b-none shadow-xl transition-colors duration-200 flex flex-col"
+				class="group relative bg-[var(--color-bg-card,#131826)] hover:bg-[var(--color-bg-card-hover,#152331)] border-2 border-[var(--color-border-card,#2e3d5a)] hover:border-cyan-400/80 rounded-2xl shadow-xl transition-colors duration-200 flex flex-col"
 				style="box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);"
 				data-testid="play-sandbox-card"
 			>
+				<!-- Top Button: Customize (slides up on hover, no extra wrapper container) -->
+				<button
+					type="button"
+					onclick={() => openConfigFor('sandbox')}
+					class="absolute bottom-[calc(100%+8px)] left-3 right-3 z-40 opacity-0 -translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-200 py-1.5 px-3 rounded-xl bg-[var(--color-bg-card,#131826)]/95 hover:bg-cyan-500/20 backdrop-blur-md border border-cyan-400/70 text-[var(--color-heading,#fef08a)] text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+					style="box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);"
+					data-testid="customize-btn-sandbox"
+				>
+					<Sliders class="w-3.5 h-3.5 text-cyan-300" />
+					<span>Налаштувати</span>
+				</button>
+
 				<!-- Top Main Click Area (Starts Sandbox Immediately) -->
 				<button
 					type="button"
 					onclick={startSandboxQuick}
-					class="w-full p-6 text-center flex flex-col items-center justify-center gap-3 cursor-pointer group/btn focus:outline-none"
+					class="w-full p-6 text-center flex flex-col items-center justify-center gap-3 cursor-pointer group/btn focus:outline-none relative"
 					data-testid="play-sandbox-link"
-					title="Швидкий запуск пісочниці"
 				>
 					<!-- Large Rotating Icon morphing to Play button on hover -->
 					<div class="relative w-24 h-24 my-2 flex items-center justify-center">
@@ -643,7 +655,7 @@
 
 				<!-- Quick Settings Drawer (Floats downward without shifting neighboring elements) -->
 				<div
-					class="absolute top-full -left-[2px] -right-[2px] z-40 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-all duration-200 bg-[var(--color-bg-card,#131826)] border-2 border-t-0 border-cyan-400/80 rounded-b-2xl shadow-2xl p-3 space-y-1.5"
+					class="absolute top-[calc(100%+8px)] left-3 right-3 z-40 opacity-0 translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-200 bg-[var(--color-bg-card,#131826)]/95 backdrop-blur-md border border-cyan-400/70 rounded-xl shadow-2xl p-3 space-y-1.5"
 					style="box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6);"
 				>
 					<!-- 1. Gold -->
@@ -911,33 +923,33 @@
 							</button>
 						</div>
 					</div>
-
-					<!-- Customize Button -->
-					<button
-						type="button"
-						onclick={() => openConfigFor('sandbox')}
-						class="w-full mt-2 py-1.5 px-2 rounded-lg bg-[var(--color-surface-hover,#182033)] hover:bg-[var(--color-surface,#131826)] border border-[var(--color-border-card,#2e3d5a)] text-[var(--color-heading,#fef08a)] text-[11px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow"
-						data-testid="customize-btn-sandbox"
-					>
-						<Sliders class="w-3.5 h-3.5" />
-						<span>Налаштувати</span>
-					</button>
 				</div>
 			</div>
 
 			<!-- 3. AI vs AI Spectator Mode -->
 			<div
-				class="group relative bg-[var(--color-bg-card,#131826)] hover:bg-[var(--color-bg-card-hover,#14241e)] border-2 border-[var(--color-border-card,#2e3d5a)] hover:border-emerald-400/80 rounded-2xl group-hover:rounded-b-none shadow-xl transition-colors duration-200 flex flex-col"
+				class="group relative bg-[var(--color-bg-card,#131826)] hover:bg-[var(--color-bg-card-hover,#14241e)] border-2 border-[var(--color-border-card,#2e3d5a)] hover:border-emerald-400/80 rounded-2xl shadow-xl transition-colors duration-200 flex flex-col"
 				style="box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);"
 				data-testid="play-spectator-card"
 			>
+				<!-- Top Button: Customize (slides up on hover, no extra wrapper container) -->
+				<button
+					type="button"
+					onclick={() => openConfigFor('botVsBot')}
+					class="absolute bottom-[calc(100%+8px)] left-3 right-3 z-40 opacity-0 -translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-200 py-1.5 px-3 rounded-xl bg-[var(--color-bg-card,#131826)]/95 hover:bg-emerald-500/20 backdrop-blur-md border border-emerald-400/70 text-[var(--color-heading,#fef08a)] text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+					style="box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);"
+					data-testid="customize-btn-botVsBot"
+				>
+					<Sliders class="w-3.5 h-3.5 text-emerald-300" />
+					<span>Налаштувати</span>
+				</button>
+
 				<!-- Top Main Click Area (Starts Bot vs Bot Immediately) -->
 				<button
 					type="button"
 					onclick={startBotVsBotQuick}
-					class="w-full p-6 text-center flex flex-col items-center justify-center gap-3 cursor-pointer group/btn focus:outline-none"
+					class="w-full p-6 text-center flex flex-col items-center justify-center gap-3 cursor-pointer group/btn focus:outline-none relative"
 					data-testid="play-spectator-link"
-					title="Швидкий запуск спостереження"
 				>
 					<!-- Large Rotating Icon morphing to Play button on hover -->
 					<div class="relative w-24 h-24 my-2 flex items-center justify-center">
@@ -977,7 +989,7 @@
 
 				<!-- Quick Settings Drawer (Floats downward without shifting neighboring elements) -->
 				<div
-					class="absolute top-full -left-[2px] -right-[2px] z-40 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-all duration-200 bg-[var(--color-bg-card,#131826)] border-2 border-t-0 border-emerald-400/80 rounded-b-2xl shadow-2xl p-3 space-y-1.5"
+					class="absolute top-[calc(100%+8px)] left-3 right-3 z-40 opacity-0 translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-200 bg-[var(--color-bg-card,#131826)]/95 backdrop-blur-md border border-emerald-400/70 rounded-xl shadow-2xl p-3 space-y-1.5"
 					style="box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6);"
 				>
 					<!-- 1. Format -->
@@ -1243,33 +1255,32 @@
 							</button>
 						</div>
 					</div>
-
-					<!-- Customize Button -->
-					<button
-						type="button"
-						onclick={() => openConfigFor('botVsBot')}
-						class="w-full mt-2 py-1.5 px-2 rounded-lg bg-[var(--color-surface-hover,#182033)] hover:bg-[var(--color-surface,#131826)] border border-[var(--color-border-card,#2e3d5a)] text-[var(--color-heading,#fef08a)] text-[11px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow"
-						data-testid="customize-btn-botVsBot"
-					>
-						<Sliders class="w-3.5 h-3.5" />
-						<span>Налаштувати</span>
-					</button>
 				</div>
 			</div>
 
 			<!-- 4. Custom Match Mode -->
 			<div
-				class="group relative bg-[var(--color-bg-card,#131826)] hover:bg-[var(--color-bg-card-hover,#182033)] border-2 border-[var(--color-border-card,#2e3d5a)] hover:border-purple-400/80 rounded-2xl shadow-xl transition-all duration-300 flex flex-col overflow-hidden"
+				class="group relative bg-[var(--color-bg-card,#131826)] hover:bg-[var(--color-bg-card-hover,#182033)] border-2 border-[var(--color-border-card,#2e3d5a)] hover:border-purple-400/80 rounded-2xl shadow-xl transition-all duration-300 flex flex-col"
 				style="box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);"
 				data-testid="play-custom-card"
 			>
+				<!-- Top Button: Customize (slides up on hover, no extra wrapper container) -->
+				<button
+					type="button"
+					onclick={() => openConfigFor('custom')}
+					class="absolute bottom-[calc(100%+8px)] left-3 right-3 z-40 opacity-0 -translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-200 py-1.5 px-3 rounded-xl bg-[var(--color-bg-card,#131826)]/95 hover:bg-purple-500/20 backdrop-blur-md border border-purple-400/70 text-[var(--color-heading,#fef08a)] text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+					style="box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);"
+				>
+					<Sliders class="w-3.5 h-3.5 text-purple-300" />
+					<span>Всі параметри</span>
+				</button>
+
 				<!-- Top Main Click Area (Opens Full Configuration Directly) -->
 				<button
 					type="button"
 					onclick={() => openConfigFor('custom')}
-					class="w-full p-6 text-center flex flex-col items-center justify-center gap-3 cursor-pointer group/btn focus:outline-none"
+					class="w-full p-6 text-center flex flex-col items-center justify-center gap-3 cursor-pointer group/btn focus:outline-none relative"
 					data-testid="open-custom-config-btn"
-					title="Відкрити повну конфігурацію"
 				>
 					<!-- Large Rotating Icon morphing on hover -->
 					<div class="relative w-24 h-24 my-2 flex items-center justify-center">
@@ -1307,27 +1318,24 @@
 					</h2>
 				</button>
 
-				<!-- Quick Settings Drawer -->
+				<!-- Details Drawer (Floats downward without shifting neighboring elements) -->
 				<div
-					class="max-h-0 opacity-0 pointer-events-none group-hover:max-h-[800px] group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:max-h-[800px] group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-all duration-300 ease-in-out overflow-hidden"
+					class="absolute top-[calc(100%+8px)] left-3 right-3 z-40 opacity-0 translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-200 bg-[var(--color-bg-card,#131826)]/95 backdrop-blur-md border border-purple-400/70 rounded-xl shadow-2xl p-3 space-y-2.5"
+					style="box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6);"
 				>
-					<div
-						class="bg-[var(--color-pill-bg,#141b2a)] border-t border-[var(--color-border-card,#2e3d5a)] p-4 space-y-3 shadow-inner"
-					>
-						<p class="text-xs text-[var(--color-text)] text-center leading-relaxed">
-							Повна свобода правил: 12 додаткових модів, бани розширених рас, гнучкий баланс.
-						</p>
+					<p class="text-xs text-[var(--color-text)] text-center leading-relaxed">
+						Повна свобода правил: 12 додаткових модів, бани розширених рас, гнучкий баланс.
+					</p>
 
-						<!-- Big CTA Button to open configuration modal -->
-						<button
-							type="button"
-							onclick={() => openConfigFor('custom')}
-							class="w-full py-2.5 px-3 rounded-lg bg-gradient-to-r from-purple-700 to-purple-600 hover:from-purple-600 hover:to-purple-500 text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-purple-900/40"
-						>
-							<Sliders class="w-4 h-4" />
-							<span>Відкрити конфігурацію</span>
-						</button>
-					</div>
+					<!-- Big CTA Button to open configuration modal -->
+					<button
+						type="button"
+						onclick={() => openConfigFor('custom')}
+						class="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-purple-700 to-purple-600 hover:from-purple-600 hover:to-purple-500 text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-purple-900/40"
+					>
+						<Sliders class="w-3.5 h-3.5" />
+						<span>Відкрити конфігурацію</span>
+					</button>
 				</div>
 			</div>
 		</div>
