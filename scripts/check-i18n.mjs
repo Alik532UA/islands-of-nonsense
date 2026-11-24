@@ -49,7 +49,9 @@ async function run() {
 		// Extraneous in other
 		for (const key of otherKeys) {
 			if (!primaryKeys.has(key)) {
-				problems.push(`[${loc}] Extraneous translation key: "${key}" (missing in ${primaryLocale})`);
+				problems.push(
+					`[${loc}] Extraneous translation key: "${key}" (missing in ${primaryLocale})`
+				);
 			}
 		}
 
@@ -78,7 +80,9 @@ async function run() {
 		process.exit(1);
 	}
 
-	console.log(`✅ check:i18n passed: ${locales.join(', ')} (${primaryKeys.size} keys each, 100% parity).`);
+	console.log(
+		`✅ check:i18n passed: ${locales.join(', ')} (${primaryKeys.size} keys each, 100% parity).`
+	);
 }
 
 run().catch((err) => {

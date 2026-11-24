@@ -114,7 +114,11 @@ function ask(name, command, list) {
 			files = list(config);
 		} catch (error) {
 			findings.push(
-				`❌ ${label}: раннер не віддав переліку — ${String(error.stderr || error.message).trim().split('\n')[0]}`
+				`❌ ${label}: раннер не віддав переліку — ${
+					String(error.stderr || error.message)
+						.trim()
+						.split('\n')[0]
+				}`
 			);
 			continue;
 		}

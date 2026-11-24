@@ -332,7 +332,9 @@
 							</button>
 						</div>
 					{:else}
-						<div class="auth-card p-5 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-4">
+						<div
+							class="auth-card p-5 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-4"
+						>
 							{#if authMode === 'signin'}
 								<form
 									method="post"
@@ -344,7 +346,11 @@
 									class="space-y-4"
 								>
 									<div class="flex items-center justify-between">
-										<h3 data-testid="login-title" tabindex="-1" class="text-sm font-bold text-amber-300">
+										<h3
+											data-testid="login-title"
+											tabindex="-1"
+											class="text-sm font-bold text-amber-300"
+										>
 											{t('account.auth.signInTitle')}
 										</h3>
 										<button
@@ -363,7 +369,10 @@
 
 									<div class="space-y-3">
 										<div>
-											<label for="login-email" class="block text-xs font-medium text-slate-400 mb-1">
+											<label
+												for="login-email"
+												class="block text-xs font-medium text-slate-400 mb-1"
+											>
 												{t('account.auth.email')}
 											</label>
 											<input
@@ -379,7 +388,10 @@
 										</div>
 
 										<div>
-											<label for="login-password" class="block text-xs font-medium text-slate-400 mb-1">
+											<label
+												for="login-password"
+												class="block text-xs font-medium text-slate-400 mb-1"
+											>
 												{t('account.auth.password')}
 											</label>
 											<PasswordField
@@ -433,7 +445,11 @@
 									class="space-y-4"
 								>
 									<div class="flex items-center justify-between">
-										<h3 data-testid="register-title" tabindex="-1" class="text-sm font-bold text-amber-300">
+										<h3
+											data-testid="register-title"
+											tabindex="-1"
+											class="text-sm font-bold text-amber-300"
+										>
 											{t('account.auth.linkTitle')}
 										</h3>
 										<button
@@ -452,7 +468,10 @@
 
 									<div class="space-y-3">
 										<div>
-											<label for="register-email" class="block text-xs font-medium text-slate-400 mb-1">
+											<label
+												for="register-email"
+												class="block text-xs font-medium text-slate-400 mb-1"
+											>
 												{t('account.auth.email')}
 											</label>
 											<input
@@ -468,7 +487,10 @@
 										</div>
 
 										<div>
-											<label for="register-password" class="block text-xs font-medium text-slate-400 mb-1">
+											<label
+												for="register-password"
+												class="block text-xs font-medium text-slate-400 mb-1"
+											>
 												{t('account.auth.password')}
 											</label>
 											<PasswordField

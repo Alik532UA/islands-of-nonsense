@@ -3,10 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 describe('Account Auth Form v10 Standard (AUTH-FORM.md & FORM-INPUTS.md)', () => {
-	const source = readFileSync(
-		resolve(process.cwd(), 'src/routes/account/+page.svelte'),
-		'utf-8'
-	);
+	const source = readFileSync(resolve(process.cwd(), 'src/routes/account/+page.svelte'), 'utf-8');
 
 	it('використовує теги <form method="post"> для відправки авторизаційних дій (§ 1)', () => {
 		expect(source).toContain('method="post"');

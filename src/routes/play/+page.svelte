@@ -258,57 +258,57 @@
 		<div
 			class="w-full max-w-7xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 px-2 items-start animate-in fade-in duration-300"
 		>
-		<!-- 1. Classic Battle vs Computer -->
-		<div
-			class="group relative bg-[var(--color-bg-card,#131826)] hover:bg-[var(--color-bg-card-hover,#182033)] border-2 border-[var(--color-border-card,#2e3d5a)] hover:border-amber-400/80 rounded-2xl group-hover:rounded-b-none shadow-xl transition-colors duration-200 flex flex-col"
-			style="box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);"
-			data-testid="play-battle-card"
-		>
-			<!-- Top Main Click Area (Starts Battle Immediately) -->
-			<button
-				type="button"
-				onclick={startVsBotQuick}
-				class="w-full p-6 text-center flex flex-col items-center justify-center gap-3 cursor-pointer group/btn focus:outline-none"
-				data-testid="play-battle-link"
-				title="Швидкий бій проти комп'ютера"
+			<!-- 1. Classic Battle vs Computer -->
+			<div
+				class="group relative bg-[var(--color-bg-card,#131826)] hover:bg-[var(--color-bg-card-hover,#182033)] border-2 border-[var(--color-border-card,#2e3d5a)] hover:border-amber-400/80 rounded-2xl group-hover:rounded-b-none shadow-xl transition-colors duration-200 flex flex-col"
+				style="box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);"
+				data-testid="play-battle-card"
 			>
-				<!-- Large Rotating Icon morphing to Play button on hover -->
-				<div class="relative w-24 h-24 my-2 flex items-center justify-center">
-					<!-- Ambient glow backlight -->
-					<div
-						class="absolute inset-0 rounded-full bg-amber-500/10 blur-xl group-hover:bg-amber-500/25 transition-all duration-300"
-					></div>
-
-					<!-- Normal state: Large Bot Icon (rotates 90deg and fades out on hover) -->
-					<div
-						class="absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out transform group-hover:rotate-90 group-hover:scale-50 group-hover:opacity-0"
-					>
-						<Bot class="w-20 h-20 text-amber-400 drop-shadow-[0_4px_16px_rgba(245,158,11,0.4)]" />
-					</div>
-
-					<!-- Hover state: Big Play Button (rotates from -90deg to 0deg and fades in) -->
-					<div
-						class="absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out transform -rotate-90 scale-50 opacity-0 group-hover:rotate-0 group-hover:scale-100 group-hover:opacity-100"
-					>
+				<!-- Top Main Click Area (Starts Battle Immediately) -->
+				<button
+					type="button"
+					onclick={startVsBotQuick}
+					class="w-full p-6 text-center flex flex-col items-center justify-center gap-3 cursor-pointer group/btn focus:outline-none"
+					data-testid="play-battle-link"
+					title="Швидкий бій проти комп'ютера"
+				>
+					<!-- Large Rotating Icon morphing to Play button on hover -->
+					<div class="relative w-24 h-24 my-2 flex items-center justify-center">
+						<!-- Ambient glow backlight -->
 						<div
-							class="w-20 h-20 rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center shadow-[0_0_24px_rgba(245,158,11,0.6)] group-hover:scale-105 transition-transform"
+							class="absolute inset-0 rounded-full bg-amber-500/10 blur-xl group-hover:bg-amber-500/25 transition-all duration-300"
+						></div>
+
+						<!-- Normal state: Large Bot Icon (rotates 90deg and fades out on hover) -->
+						<div
+							class="absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out transform group-hover:rotate-90 group-hover:scale-50 group-hover:opacity-0"
 						>
-							<Play class="w-10 h-10 text-amber-300 fill-amber-300 ml-1.5 drop-shadow" />
+							<Bot class="w-20 h-20 text-amber-400 drop-shadow-[0_4px_16px_rgba(245,158,11,0.4)]" />
+						</div>
+
+						<!-- Hover state: Big Play Button (rotates from -90deg to 0deg and fades in) -->
+						<div
+							class="absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out transform -rotate-90 scale-50 opacity-0 group-hover:rotate-0 group-hover:scale-100 group-hover:opacity-100"
+						>
+							<div
+								class="w-20 h-20 rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center shadow-[0_0_24px_rgba(245,158,11,0.6)] group-hover:scale-105 transition-transform"
+							>
+								<Play class="w-10 h-10 text-amber-300 fill-amber-300 ml-1.5 drop-shadow" />
+							</div>
 						</div>
 					</div>
-				</div>
 
-				<!-- Title Only (No Description, No (AI)) -->
-				<h2 class="text-lg font-black text-amber-100 tracking-wide text-center">
-					{t('menu.vsBot')}
-				</h2>
-			</button>
+					<!-- Title Only (No Description, No (AI)) -->
+					<h2 class="text-lg font-black text-amber-100 tracking-wide text-center">
+						{t('menu.vsBot')}
+					</h2>
+				</button>
 
-			<!-- Quick Settings Drawer (Floats downward without shifting neighboring elements) -->
-			<div
-				class="absolute top-full -left-[2px] -right-[2px] z-40 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-all duration-200 bg-[var(--color-bg-card,#131826)] border-2 border-t-0 border-amber-400/80 rounded-b-2xl shadow-2xl p-3 space-y-1.5"
-				style="box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6);"
-			>
+				<!-- Quick Settings Drawer (Floats downward without shifting neighboring elements) -->
+				<div
+					class="absolute top-full -left-[2px] -right-[2px] z-40 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-all duration-200 bg-[var(--color-bg-card,#131826)] border-2 border-t-0 border-amber-400/80 rounded-b-2xl shadow-2xl p-3 space-y-1.5"
+					style="box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6);"
+				>
 					<!-- 1. Difficulty -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
 						<span class="text-slate-400 truncate">Складність:</span>
@@ -578,60 +578,62 @@
 						<Sliders class="w-3.5 h-3.5" />
 						<span>Налаштувати</span>
 					</button>
+				</div>
 			</div>
-		</div>
 
-		<!-- 2. Sandbox Testing Mode -->
-		<div
-			class="group relative bg-[var(--color-bg-card,#131826)] hover:bg-[var(--color-bg-card-hover,#152331)] border-2 border-[var(--color-border-card,#2e3d5a)] hover:border-cyan-400/80 rounded-2xl group-hover:rounded-b-none shadow-xl transition-colors duration-200 flex flex-col"
-			style="box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);"
-			data-testid="play-sandbox-card"
-		>
-			<!-- Top Main Click Area (Starts Sandbox Immediately) -->
-			<button
-				type="button"
-				onclick={startSandboxQuick}
-				class="w-full p-6 text-center flex flex-col items-center justify-center gap-3 cursor-pointer group/btn focus:outline-none"
-				data-testid="play-sandbox-link"
-				title="Швидкий запуск пісочниці"
+			<!-- 2. Sandbox Testing Mode -->
+			<div
+				class="group relative bg-[var(--color-bg-card,#131826)] hover:bg-[var(--color-bg-card-hover,#152331)] border-2 border-[var(--color-border-card,#2e3d5a)] hover:border-cyan-400/80 rounded-2xl group-hover:rounded-b-none shadow-xl transition-colors duration-200 flex flex-col"
+				style="box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);"
+				data-testid="play-sandbox-card"
 			>
-				<!-- Large Rotating Icon morphing to Play button on hover -->
-				<div class="relative w-24 h-24 my-2 flex items-center justify-center">
-					<!-- Ambient glow backlight -->
-					<div
-						class="absolute inset-0 rounded-full bg-cyan-500/10 blur-xl group-hover:bg-cyan-500/25 transition-all duration-300"
-					></div>
-
-					<!-- Normal state: Large Sparkles Icon (rotates 90deg and fades out on hover) -->
-					<div
-						class="absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out transform group-hover:rotate-90 group-hover:scale-50 group-hover:opacity-0"
-					>
-						<Sparkles class="w-20 h-20 text-cyan-400 drop-shadow-[0_4px_16px_rgba(6,182,212,0.4)]" />
-					</div>
-
-					<!-- Hover state: Big Play Button (rotates from -90deg to 0deg and fades in) -->
-					<div
-						class="absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out transform -rotate-90 scale-50 opacity-0 group-hover:rotate-0 group-hover:scale-100 group-hover:opacity-100"
-					>
+				<!-- Top Main Click Area (Starts Sandbox Immediately) -->
+				<button
+					type="button"
+					onclick={startSandboxQuick}
+					class="w-full p-6 text-center flex flex-col items-center justify-center gap-3 cursor-pointer group/btn focus:outline-none"
+					data-testid="play-sandbox-link"
+					title="Швидкий запуск пісочниці"
+				>
+					<!-- Large Rotating Icon morphing to Play button on hover -->
+					<div class="relative w-24 h-24 my-2 flex items-center justify-center">
+						<!-- Ambient glow backlight -->
 						<div
-							class="w-20 h-20 rounded-full bg-cyan-500/20 border-2 border-cyan-400 flex items-center justify-center shadow-[0_0_24px_rgba(6,182,212,0.6)] group-hover:scale-105 transition-transform"
+							class="absolute inset-0 rounded-full bg-cyan-500/10 blur-xl group-hover:bg-cyan-500/25 transition-all duration-300"
+						></div>
+
+						<!-- Normal state: Large Sparkles Icon (rotates 90deg and fades out on hover) -->
+						<div
+							class="absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out transform group-hover:rotate-90 group-hover:scale-50 group-hover:opacity-0"
 						>
-							<Play class="w-10 h-10 text-cyan-300 fill-cyan-300 ml-1.5 drop-shadow" />
+							<Sparkles
+								class="w-20 h-20 text-cyan-400 drop-shadow-[0_4px_16px_rgba(6,182,212,0.4)]"
+							/>
+						</div>
+
+						<!-- Hover state: Big Play Button (rotates from -90deg to 0deg and fades in) -->
+						<div
+							class="absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out transform -rotate-90 scale-50 opacity-0 group-hover:rotate-0 group-hover:scale-100 group-hover:opacity-100"
+						>
+							<div
+								class="w-20 h-20 rounded-full bg-cyan-500/20 border-2 border-cyan-400 flex items-center justify-center shadow-[0_0_24px_rgba(6,182,212,0.6)] group-hover:scale-105 transition-transform"
+							>
+								<Play class="w-10 h-10 text-cyan-300 fill-cyan-300 ml-1.5 drop-shadow" />
+							</div>
 						</div>
 					</div>
-				</div>
 
-				<!-- Title Only -->
-				<h2 class="text-lg font-black text-cyan-100 tracking-wide text-center">
-					{t('menu.sandbox')}
-				</h2>
-			</button>
+					<!-- Title Only -->
+					<h2 class="text-lg font-black text-cyan-100 tracking-wide text-center">
+						{t('menu.sandbox')}
+					</h2>
+				</button>
 
-			<!-- Quick Settings Drawer (Floats downward without shifting neighboring elements) -->
-			<div
-				class="absolute top-full -left-[2px] -right-[2px] z-40 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-all duration-200 bg-[var(--color-bg-card,#131826)] border-2 border-t-0 border-cyan-400/80 rounded-b-2xl shadow-2xl p-3 space-y-1.5"
-				style="box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6);"
-			>
+				<!-- Quick Settings Drawer (Floats downward without shifting neighboring elements) -->
+				<div
+					class="absolute top-full -left-[2px] -right-[2px] z-40 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-all duration-200 bg-[var(--color-bg-card,#131826)] border-2 border-t-0 border-cyan-400/80 rounded-b-2xl shadow-2xl p-3 space-y-1.5"
+					style="box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6);"
+				>
 					<!-- 1. Gold -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
 						<span class="text-slate-400 truncate">Золото:</span>
@@ -900,62 +902,62 @@
 						<Sliders class="w-3.5 h-3.5" />
 						<span>Налаштувати</span>
 					</button>
+				</div>
 			</div>
-		</div>
 
-		<!-- 3. AI vs AI Spectator Mode -->
-		<div
-			class="group relative bg-[var(--color-bg-card,#131826)] hover:bg-[var(--color-bg-card-hover,#14241e)] border-2 border-[var(--color-border-card,#2e3d5a)] hover:border-emerald-400/80 rounded-2xl group-hover:rounded-b-none shadow-xl transition-colors duration-200 flex flex-col"
-			style="box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);"
-			data-testid="play-spectator-card"
-		>
-			<!-- Top Main Click Area (Starts Bot vs Bot Immediately) -->
-			<button
-				type="button"
-				onclick={startBotVsBotQuick}
-				class="w-full p-6 text-center flex flex-col items-center justify-center gap-3 cursor-pointer group/btn focus:outline-none"
-				data-testid="play-spectator-link"
-				title="Швидкий запуск спостереження"
+			<!-- 3. AI vs AI Spectator Mode -->
+			<div
+				class="group relative bg-[var(--color-bg-card,#131826)] hover:bg-[var(--color-bg-card-hover,#14241e)] border-2 border-[var(--color-border-card,#2e3d5a)] hover:border-emerald-400/80 rounded-2xl group-hover:rounded-b-none shadow-xl transition-colors duration-200 flex flex-col"
+				style="box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);"
+				data-testid="play-spectator-card"
 			>
-				<!-- Large Rotating Icon morphing to Play button on hover -->
-				<div class="relative w-24 h-24 my-2 flex items-center justify-center">
-					<!-- Ambient glow backlight -->
-					<div
-						class="absolute inset-0 rounded-full bg-emerald-500/10 blur-xl group-hover:bg-emerald-500/25 transition-all duration-300"
-					></div>
-
-					<!-- Normal state: Large Eye Icon (rotates 90deg and fades out on hover) -->
-					<div
-						class="absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out transform group-hover:rotate-90 group-hover:scale-50 group-hover:opacity-0"
-					>
-						<Eye
-							class="w-20 h-20 text-emerald-400 drop-shadow-[0_4px_16px_rgba(16,185,129,0.4)]"
-						/>
-					</div>
-
-					<!-- Hover state: Big Play Button (rotates from -90deg to 0deg and fades in) -->
-					<div
-						class="absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out transform -rotate-90 scale-50 opacity-0 group-hover:rotate-0 group-hover:scale-100 group-hover:opacity-100"
-					>
+				<!-- Top Main Click Area (Starts Bot vs Bot Immediately) -->
+				<button
+					type="button"
+					onclick={startBotVsBotQuick}
+					class="w-full p-6 text-center flex flex-col items-center justify-center gap-3 cursor-pointer group/btn focus:outline-none"
+					data-testid="play-spectator-link"
+					title="Швидкий запуск спостереження"
+				>
+					<!-- Large Rotating Icon morphing to Play button on hover -->
+					<div class="relative w-24 h-24 my-2 flex items-center justify-center">
+						<!-- Ambient glow backlight -->
 						<div
-							class="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center shadow-[0_0_24px_rgba(16,185,129,0.6)] group-hover:scale-105 transition-transform"
+							class="absolute inset-0 rounded-full bg-emerald-500/10 blur-xl group-hover:bg-emerald-500/25 transition-all duration-300"
+						></div>
+
+						<!-- Normal state: Large Eye Icon (rotates 90deg and fades out on hover) -->
+						<div
+							class="absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out transform group-hover:rotate-90 group-hover:scale-50 group-hover:opacity-0"
 						>
-							<Play class="w-10 h-10 text-emerald-300 fill-emerald-300 ml-1.5 drop-shadow" />
+							<Eye
+								class="w-20 h-20 text-emerald-400 drop-shadow-[0_4px_16px_rgba(16,185,129,0.4)]"
+							/>
+						</div>
+
+						<!-- Hover state: Big Play Button (rotates from -90deg to 0deg and fades in) -->
+						<div
+							class="absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out transform -rotate-90 scale-50 opacity-0 group-hover:rotate-0 group-hover:scale-100 group-hover:opacity-100"
+						>
+							<div
+								class="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center shadow-[0_0_24px_rgba(16,185,129,0.6)] group-hover:scale-105 transition-transform"
+							>
+								<Play class="w-10 h-10 text-emerald-300 fill-emerald-300 ml-1.5 drop-shadow" />
+							</div>
 						</div>
 					</div>
-				</div>
 
-				<!-- Title Only -->
-				<h2 class="text-lg font-black text-emerald-100 tracking-wide text-center">
-					{t('menu.botVsBot')}
-				</h2>
-			</button>
+					<!-- Title Only -->
+					<h2 class="text-lg font-black text-emerald-100 tracking-wide text-center">
+						{t('menu.botVsBot')}
+					</h2>
+				</button>
 
-			<!-- Quick Settings Drawer (Floats downward without shifting neighboring elements) -->
-			<div
-				class="absolute top-full -left-[2px] -right-[2px] z-40 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-all duration-200 bg-[var(--color-bg-card,#131826)] border-2 border-t-0 border-emerald-400/80 rounded-b-2xl shadow-2xl p-3 space-y-1.5"
-				style="box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6);"
-			>
+				<!-- Quick Settings Drawer (Floats downward without shifting neighboring elements) -->
+				<div
+					class="absolute top-full -left-[2px] -right-[2px] z-40 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-all duration-200 bg-[var(--color-bg-card,#131826)] border-2 border-t-0 border-emerald-400/80 rounded-b-2xl shadow-2xl p-3 space-y-1.5"
+					style="box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6);"
+				>
 					<!-- 1. Format -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
 						<span class="text-slate-400 truncate">Формат:</span>
@@ -1222,80 +1224,78 @@
 						<Sliders class="w-3.5 h-3.5" />
 						<span>Налаштувати</span>
 					</button>
+				</div>
 			</div>
-		</div>
 
-		<!-- 4. Custom Match Mode -->
-		<div
-			class="group relative bg-[#131826] hover:bg-[#1e1730] border-2 border-[#2e3d5a] hover:border-purple-400/80 rounded-2xl shadow-xl transition-all duration-300 flex flex-col overflow-hidden"
-			style="box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);"
-			data-testid="play-custom-card"
-		>
-			<!-- Top Main Click Area (Opens Full Configuration Directly) -->
-			<button
-				type="button"
-				onclick={() => openConfigFor('custom')}
-				class="w-full p-6 text-center flex flex-col items-center justify-center gap-3 cursor-pointer group/btn focus:outline-none"
-				data-testid="open-custom-config-btn"
-				title="Відкрити повну конфігурацію"
+			<!-- 4. Custom Match Mode -->
+			<div
+				class="group relative bg-[#131826] hover:bg-[#1e1730] border-2 border-[#2e3d5a] hover:border-purple-400/80 rounded-2xl shadow-xl transition-all duration-300 flex flex-col overflow-hidden"
+				style="box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);"
+				data-testid="play-custom-card"
 			>
-				<!-- Large Rotating Icon morphing on hover -->
-				<div class="relative w-24 h-24 my-2 flex items-center justify-center">
-					<!-- Ambient glow backlight -->
-					<div
-						class="absolute inset-0 rounded-full bg-purple-500/10 blur-xl group-hover:bg-purple-500/25 transition-all duration-300"
-					></div>
-
-					<!-- Normal state: Large Sliders Icon (rotates 90deg and fades out on hover) -->
-					<div
-						class="absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out transform group-hover:rotate-90 group-hover:scale-50 group-hover:opacity-0"
-					>
-						<Sliders
-							class="w-20 h-20 text-purple-400 drop-shadow-[0_4px_16px_rgba(168,85,247,0.4)]"
-						/>
-					</div>
-
-					<!-- Hover state: Big Play / Config Icon (rotates from -90deg to 0deg and fades in) -->
-					<div
-						class="absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out transform -rotate-90 scale-50 opacity-0 group-hover:rotate-0 group-hover:scale-100 group-hover:opacity-100"
-					>
+				<!-- Top Main Click Area (Opens Full Configuration Directly) -->
+				<button
+					type="button"
+					onclick={() => openConfigFor('custom')}
+					class="w-full p-6 text-center flex flex-col items-center justify-center gap-3 cursor-pointer group/btn focus:outline-none"
+					data-testid="open-custom-config-btn"
+					title="Відкрити повну конфігурацію"
+				>
+					<!-- Large Rotating Icon morphing on hover -->
+					<div class="relative w-24 h-24 my-2 flex items-center justify-center">
+						<!-- Ambient glow backlight -->
 						<div
-							class="w-20 h-20 rounded-full bg-purple-500/20 border-2 border-purple-400 flex items-center justify-center shadow-[0_0_24px_rgba(168,85,247,0.6)] group-hover:scale-105 transition-transform"
+							class="absolute inset-0 rounded-full bg-purple-500/10 blur-xl group-hover:bg-purple-500/25 transition-all duration-300"
+						></div>
+
+						<!-- Normal state: Large Sliders Icon (rotates 90deg and fades out on hover) -->
+						<div
+							class="absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out transform group-hover:rotate-90 group-hover:scale-50 group-hover:opacity-0"
 						>
-							<Play class="w-10 h-10 text-purple-300 fill-purple-300 ml-1.5 drop-shadow" />
+							<Sliders
+								class="w-20 h-20 text-purple-400 drop-shadow-[0_4px_16px_rgba(168,85,247,0.4)]"
+							/>
+						</div>
+
+						<!-- Hover state: Big Play / Config Icon (rotates from -90deg to 0deg and fades in) -->
+						<div
+							class="absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out transform -rotate-90 scale-50 opacity-0 group-hover:rotate-0 group-hover:scale-100 group-hover:opacity-100"
+						>
+							<div
+								class="w-20 h-20 rounded-full bg-purple-500/20 border-2 border-purple-400 flex items-center justify-center shadow-[0_0_24px_rgba(168,85,247,0.6)] group-hover:scale-105 transition-transform"
+							>
+								<Play class="w-10 h-10 text-purple-300 fill-purple-300 ml-1.5 drop-shadow" />
+							</div>
 						</div>
 					</div>
-				</div>
 
-				<!-- Title Only -->
-				<h2 class="text-lg font-black text-purple-100 tracking-wide text-center">
-					Власний бій
-				</h2>
-			</button>
+					<!-- Title Only -->
+					<h2 class="text-lg font-black text-purple-100 tracking-wide text-center">Власний бій</h2>
+				</button>
 
-			<!-- Quick Settings Drawer -->
-			<div
-				class="max-h-0 opacity-0 pointer-events-none group-hover:max-h-[800px] group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:max-h-[800px] group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-all duration-300 ease-in-out overflow-hidden"
-			>
-				<div class="bg-[#120f21] border-t border-slate-800/80 p-4 space-y-3 shadow-inner">
-					<p class="text-xs text-slate-300 text-center leading-relaxed">
-						Повна свобода правил: 12 додаткових модів, бани розширених рас, гнучкий баланс.
-					</p>
+				<!-- Quick Settings Drawer -->
+				<div
+					class="max-h-0 opacity-0 pointer-events-none group-hover:max-h-[800px] group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:max-h-[800px] group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-all duration-300 ease-in-out overflow-hidden"
+				>
+					<div class="bg-[#120f21] border-t border-slate-800/80 p-4 space-y-3 shadow-inner">
+						<p class="text-xs text-slate-300 text-center leading-relaxed">
+							Повна свобода правил: 12 додаткових модів, бани розширених рас, гнучкий баланс.
+						</p>
 
-					<!-- Big CTA Button to open configuration modal -->
-					<button
-						type="button"
-						onclick={() => openConfigFor('custom')}
-						class="w-full py-2.5 px-3 rounded-lg bg-gradient-to-r from-purple-700 to-purple-600 hover:from-purple-600 hover:to-purple-500 text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-purple-900/40"
-					>
-						<Sliders class="w-4 h-4" />
-						<span>Відкрити конфігурацію</span>
-					</button>
+						<!-- Big CTA Button to open configuration modal -->
+						<button
+							type="button"
+							onclick={() => openConfigFor('custom')}
+							class="w-full py-2.5 px-3 rounded-lg bg-gradient-to-r from-purple-700 to-purple-600 hover:from-purple-600 hover:to-purple-500 text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-purple-900/40"
+						>
+							<Sliders class="w-4 h-4" />
+							<span>Відкрити конфігурацію</span>
+						</button>
+					</div>
 				</div>
 			</div>
 		</div>
-	</div>
-{:else}
+	{:else}
 		<!-- In-Place Configuration (Morphs / Expands on Page, No Modal Window) -->
 		<div
 			class="w-full flex justify-center px-2 animate-in fade-in slide-in-from-top-4 duration-300"

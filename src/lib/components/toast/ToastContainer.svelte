@@ -8,28 +8,58 @@
 				return {
 					border: 'border-emerald-500/50 bg-slate-900/95 text-emerald-300',
 					icon: CheckCircle2,
-					iconClass: 'text-emerald-400'
+					iconClass: 'text-emerald-400',
+					progressClass: 'bg-emerald-400'
 				};
 			case 'error':
 				return {
 					border: 'border-red-500/50 bg-slate-900/95 text-red-300',
 					icon: AlertCircle,
-					iconClass: 'text-red-400'
+					iconClass: 'text-red-400',
+					progressClass: 'bg-red-400'
 				};
 			case 'warn':
 				return {
 					border: 'border-amber-500/50 bg-slate-900/95 text-amber-300',
 					icon: AlertTriangle,
-					iconClass: 'text-amber-400'
+					iconClass: 'text-amber-400',
+					progressClass: 'bg-amber-400'
 				};
 			case 'info':
 			default:
 				return {
 					border: 'border-cyan-500/50 bg-slate-900/95 text-cyan-300',
 					icon: Info,
-					iconClass: 'text-cyan-400'
+					iconClass: 'text-cyan-400',
+					progressClass: 'bg-cyan-400'
 				};
 		}
+	}
+
+	function progressAction(node: HTMLElement, item: ToastItem) {
+		if (typeof node.animate !== 'function' || item.duration <= 0) return;
+		const animation = node.animate([{ transform: 'scaleX(1)' }, { transform: 'scaleX(0)' }], {
+			duration: item.duration,
+			fill: 'forwards',
+			easing: 'linear'
+		});
+		animation.currentTime = toast.elapsed(item.id);
+		if (item.paused) {
+			animation.pause();
+		}
+
+		return {
+			update(newItem: ToastItem) {
+				if (newItem.paused) {
+					animation.pause();
+				} else {
+					animation.play();
+				}
+			},
+			destroy() {
+				animation.cancel();
+			}
+		};
 	}
 </script>
 
@@ -76,6 +106,15 @@
 				>
 					<X class="w-4 h-4" />
 				</button>
+
+				{#if item.duration > 0}
+					<div
+						class="toast-progress absolute bottom-0 left-0 right-0 h-[3px] origin-left pointer-events-none {styling.progressClass}"
+						data-testid="toast-{item.id}-progress"
+						aria-hidden="true"
+						use:progressAction={item}
+					></div>
+				{/if}
 			</div>
 		{/each}
 	</div>

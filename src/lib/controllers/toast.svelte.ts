@@ -24,6 +24,7 @@ export interface ToastItem {
 	duration: number;
 	remaining: number;
 	paused: boolean;
+	holds: number;
 	action?: ToastAction;
 	urgent?: boolean;
 	startTime: number;
@@ -58,6 +59,7 @@ export class ToastController {
 			duration,
 			remaining: duration,
 			paused: false,
+			holds: 0,
 			action: options?.action,
 			urgent: options?.urgent ?? type === 'error',
 			startTime: Date.now()
@@ -104,7 +106,10 @@ export class ToastController {
 
 	pause(id: number) {
 		const item = this.items.find((t) => t.id === id);
-		if (!item || item.duration === 0 || item.paused) return;
+		if (!item || item.duration === 0) return;
+
+		item.holds += 1;
+		if (item.paused) return;
 
 		this.clearTimer(id);
 		const elapsed = Date.now() - item.startTime;
@@ -114,7 +119,10 @@ export class ToastController {
 
 	resume(id: number) {
 		const item = this.items.find((t) => t.id === id);
-		if (!item || item.duration === 0 || !item.paused) return;
+		if (!item || item.duration === 0 || item.holds === 0) return;
+
+		item.holds -= 1;
+		if (item.holds > 0) return;
 
 		item.paused = false;
 		item.startTime = Date.now();
@@ -123,6 +131,17 @@ export class ToastController {
 		} else {
 			this.dismiss(id);
 		}
+	}
+
+	elapsed(id: number): number {
+		const item = this.items.find((t) => t.id === id);
+		if (!item) return 0;
+		if (item.duration === 0) return 0;
+		if (item.paused) {
+			return Math.min(item.duration, Math.max(0, item.duration - item.remaining));
+		}
+		const currentElapsed = item.duration - item.remaining + (Date.now() - item.startTime);
+		return Math.min(item.duration, Math.max(0, currentElapsed));
 	}
 
 	clear() {

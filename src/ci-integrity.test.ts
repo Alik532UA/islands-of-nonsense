@@ -42,7 +42,9 @@ describe('CI & Testing Integrity Invariants (CI-CD-AND-TOOLS-v10)', () => {
 		for (const wf of workflows) {
 			const content = fs.readFileSync(path.join(wfDir, wf), 'utf-8');
 			// Знаходимо всі job (ключ з 2 пробілами, що має runs-on)
-			const jobsMatches = [...content.matchAll(/\n {2}([a-zA-Z0-9_-]+):\s*\n(?:\s+.*\n)*?\s+runs-on:/g)];
+			const jobsMatches = [
+				...content.matchAll(/\n {2}([a-zA-Z0-9_-]+):\s*\n(?:\s+.*\n)*?\s+runs-on:/g)
+			];
 			expect(jobsMatches.length, `${wf} має містити хоча б один job`).toBeGreaterThan(0);
 
 			// Перевіряємо наявність timeout-minutes
@@ -63,10 +65,9 @@ describe('CI & Testing Integrity Invariants (CI-CD-AND-TOOLS-v10)', () => {
 	it('усі GitHub Actions workflows декларують права доступу permissions (CI § 1.14)', () => {
 		for (const wf of workflows) {
 			const content = fs.readFileSync(path.join(wfDir, wf), 'utf-8');
-			expect(
-				content.includes('permissions:'),
-				`${wf} повинен декларувати блок permissions`
-			).toBe(true);
+			expect(content.includes('permissions:'), `${wf} повинен декларувати блок permissions`).toBe(
+				true
+			);
 		}
 	});
 

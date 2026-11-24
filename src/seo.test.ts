@@ -33,7 +33,9 @@ describe('SEO & Social Metadata (SEO-v10)', () => {
 		const robots = readFileSync(robotsPath, 'utf-8');
 		expect(robots).toContain('User-agent: *');
 		expect(robots).toContain('Allow: /');
-		expect(robots).toContain('Sitemap: https://alik532ua.github.io/islands-of-nonsense/sitemap.xml');
+		expect(robots).toContain(
+			'Sitemap: https://alik532ua.github.io/islands-of-nonsense/sitemap.xml'
+		);
 	});
 
 	it('sitemap.xml існує та містить обов’язкові маршрути (SEO-v10 § 5)', () => {

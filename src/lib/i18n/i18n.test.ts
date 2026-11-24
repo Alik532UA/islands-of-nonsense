@@ -15,7 +15,10 @@ describe('i18n parity and translation coverage (I18N-v10)', () => {
 		for (const loc of locales) {
 			const dict = translations[loc];
 			for (const [key, val] of Object.entries(dict)) {
-				expect(val.trim().length, `Key "${key}" in locale "${loc}" should not be empty`).toBeGreaterThan(0);
+				expect(
+					val.trim().length,
+					`Key "${key}" in locale "${loc}" should not be empty`
+				).toBeGreaterThan(0);
 			}
 		}
 	});
@@ -28,10 +31,9 @@ describe('i18n parity and translation coverage (I18N-v10)', () => {
 			const ukPlaceholders = (ukVal.match(/\{[a-zA-Z0-9_-]+\}/g) ?? []).sort();
 			const enPlaceholders = (enVal.match(/\{[a-zA-Z0-9_-]+\}/g) ?? []).sort();
 
-			expect(
-				enPlaceholders,
-				`Placeholders for key "${key}" must match between uk and en`
-			).toEqual(ukPlaceholders);
+			expect(enPlaceholders, `Placeholders for key "${key}" must match between uk and en`).toEqual(
+				ukPlaceholders
+			);
 		}
 	});
 

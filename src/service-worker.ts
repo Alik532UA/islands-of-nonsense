@@ -5,10 +5,11 @@
 
 declare const self: ServiceWorkerGlobalScope;
 
-import { build, files, version } from '$service-worker';
+import { assets, immutable, prerendered } from '$app/manifest';
+import { version } from '$app/env';
 
 const CACHE = `islandsofnonsense-cache-${version}`;
-const ASSETS = [...build, ...files];
+const ASSETS = [...assets, ...immutable, ...prerendered];
 
 self.addEventListener('message', (event: ExtendableMessageEvent) => {
 	if (event.data && event.data.type === 'SKIP_WAITING') {

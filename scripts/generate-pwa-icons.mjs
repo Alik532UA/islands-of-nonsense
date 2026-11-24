@@ -127,7 +127,8 @@ function getCastlePixel(x, y, size, maskable) {
 
 	// Arched Portcullis (Gate): nx in [-0.14, 0.14], ny in [0.15, 0.55]
 	const inGateRect = nx >= -0.13 && nx <= 0.13 && ny >= 0.2 && ny <= 0.55;
-	const inGateArch = nx * nx / (0.13 * 0.13) + (ny - 0.2) * (ny - 0.2) / (0.13 * 0.13) <= 1 && ny <= 0.2;
+	const inGateArch =
+		(nx * nx) / (0.13 * 0.13) + ((ny - 0.2) * (ny - 0.2)) / (0.13 * 0.13) <= 1 && ny <= 0.2;
 	const inGate = (inGateRect || inGateArch) && ny >= 0.07;
 
 	// Roof / Spire peak on Center Keep: ny in [-0.85, -0.65], width tapering
