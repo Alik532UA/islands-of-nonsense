@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Simulation } from '../engine/simulation';
+	import type { PlayerState } from '../engine/types';
 	import { BUILDINGS_MAP } from '../engine/gameData';
 	import { sound } from '../services/audio';
 	import {
@@ -20,6 +21,7 @@
 		sim,
 		uiTick = 0,
 		localTeam = 'west',
+		activePlayer = null,
 		isOpen = $bindable(false),
 		onBuildForge,
 		onUpgradeForge
@@ -27,23 +29,27 @@
 		sim: Simulation;
 		uiTick?: number;
 		localTeam?: 'west' | 'east';
+		activePlayer?: PlayerState | null;
 		isOpen: boolean;
 		onBuildForge?: () => void;
 		onUpgradeForge?: (type: ForgeUpgradeType) => void;
 	} = $props();
 
 	let player = $derived(
-		uiTick >= 0 ? (localTeam === 'east' ? sim.players.east : sim.players.west) : sim.players.west
+		uiTick >= 0
+			? (activePlayer ?? (localTeam === 'east' ? sim.players.east : sim.players.west))
+			: sim.players.west
 	);
+	let activeTeam = $derived(player.team);
 	let playerGold = $derived(Math.floor(player.gold));
 	let playerLumber = $derived(Math.floor(player.lumber ?? 0));
 	let isAlik = $derived(player.commander === 2);
-	let hasForge = $derived(uiTick >= 0 ? sim.hasForge(localTeam, player) : false);
+	let hasForge = $derived(uiTick >= 0 ? sim.hasForge(activeTeam, player) : false);
 	let pendingForge = $derived(
 		uiTick >= 0
 			? sim.buildings.find(
 					(b) =>
-						b.team === localTeam &&
+						b.team === activeTeam &&
 						b.specialType === 'forge' &&
 						b.isUnderConstruction &&
 						(!b.playerId || b.playerId === player.id)
@@ -138,7 +144,7 @@
 			onUpgradeForge(type);
 			return;
 		}
-		const ok = sim.upgradeForge(localTeam, type, player);
+		const ok = sim.upgradeForge(activeTeam, type, player);
 		if (ok) sound.playForgeUpgrade();
 		else sound.playErrorResource();
 	}

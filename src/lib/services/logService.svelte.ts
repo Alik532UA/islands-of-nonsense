@@ -575,9 +575,22 @@ class LogService {
 
 		// 5. Worker selected (or default fallback if worker is selected)
 		if (selectedEntity?.type === 'worker') {
-			const w = sim.players.west?.worker;
+			const player =
+				selectedEntity.playerSlot != null
+					? sim.allPlayers?.find((p) => p.slot === selectedEntity.playerSlot)
+					: sim.players.west;
+			const targetPlayer = player || sim.players.west;
+			const w = targetPlayer?.worker;
 			if (w) {
-				return { report: this.getWorkerReport(w, 'west', sim), title: `робітника` };
+				const team: MatchTeam = targetPlayer.team ?? 'west';
+				const title =
+					selectedEntity.playerSlot != null && targetPlayer.slot != null
+						? `робітника (Слот ${targetPlayer.slot})`
+						: 'робітника';
+				return {
+					report: this.getWorkerReport(w, team, sim),
+					title
+				};
 			}
 		}
 

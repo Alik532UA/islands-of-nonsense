@@ -60,7 +60,9 @@
 		<span class="text-xs font-bold text-amber-300 tracking-wider uppercase">
 			{formatFactionName(player.race)}
 		</span>
-		<span class="text-base font-bold text-[#fef08a] leading-tight"> Будівельник </span>
+		<span class="text-base font-bold text-[#fef08a] leading-tight">
+			{player.isBot ? `Бот-будівельник #${player.slot}` : 'Будівельник'}
+		</span>
 		<div class="flex items-center gap-1.5 pt-1 text-xs">
 			<Footprints class="w-4 h-4 text-amber-400 shrink-0" />
 			<span class="text-[#9ca3af]">Швидкість:</span>

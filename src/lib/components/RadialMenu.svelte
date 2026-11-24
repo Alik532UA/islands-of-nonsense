@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Simulation } from '../engine/simulation';
-	import type { BuildingDefinition } from '../engine/types';
+	import type { BuildingDefinition, PlayerState } from '../engine/types';
 	import {
 		Swords,
 		Hammer,
@@ -30,6 +30,7 @@
 		category = 'army',
 		sim,
 		localTeam = 'west',
+		activePlayer = null,
 		armyBuildings = [],
 		specialBuildings = [],
 		onSelectBuilding,
@@ -41,6 +42,7 @@
 		category: RadialCategory;
 		sim: Simulation;
 		localTeam?: 'west' | 'east';
+		activePlayer?: PlayerState | null;
 		armyBuildings?: BuildingDefinition[];
 		specialBuildings?: BuildingDefinition[];
 		onSelectBuilding: (defId: string) => void;
@@ -49,7 +51,10 @@
 		onClose: () => void;
 	} = $props();
 
-	let player = $derived(localTeam === 'east' ? sim.players.east : sim.players.west);
+	let player = $derived(
+		activePlayer ?? (localTeam === 'east' ? sim.players.east : sim.players.west)
+	);
+	let activeTeam = $derived(player.team);
 	let gold = $derived(player.gold);
 	let lumber = $derived(player.lumber ?? 0);
 
@@ -60,10 +65,10 @@
 			costText: 'Готовий',
 			hotkey: '1',
 			icon: 'rescue',
-			enabled: sim.canUseRescueStrike(localTeam),
+			enabled: sim.canUseRescueStrike(activeTeam),
 			action: () => {
-				if (sim.canUseRescueStrike(localTeam)) {
-					sim.triggerRescueStrike(localTeam);
+				if (sim.canUseRescueStrike(activeTeam)) {
+					sim.triggerRescueStrike(activeTeam);
 					sound.playRescueStrike();
 					onClose();
 				} else {
@@ -77,10 +82,10 @@
 			costText: 'Безкоштовно',
 			hotkey: '2',
 			icon: 'repair',
-			enabled: sim.castles[localTeam].hp < sim.castles[localTeam].maxHp,
+			enabled: sim.castles[activeTeam].hp < sim.castles[activeTeam].maxHp,
 			action: () => {
-				if (sim.castles[localTeam].hp < sim.castles[localTeam].maxHp) {
-					sim.repairBuilding(localTeam, `castle_${localTeam}`);
+				if (sim.castles[activeTeam].hp < sim.castles[activeTeam].maxHp) {
+					sim.repairBuilding(activeTeam, `castle_${activeTeam}`, player);
 					sound.playRepair();
 					onClose();
 				} else {
@@ -97,7 +102,7 @@
 			enabled: Boolean(sim.brokenBridge) && lumber >= 50,
 			action: () => {
 				if (sim.brokenBridge && lumber >= 50) {
-					sim.orderBridgeRepair(localTeam);
+					sim.orderBridgeRepair(activeTeam, player);
 					sound.playBuild();
 					onClose();
 				} else {
@@ -135,10 +140,10 @@
 			costText: 'Магія',
 			hotkey: '6',
 			icon: 'skill',
-			enabled: sim.canUseRaceSkill(localTeam),
+			enabled: sim.canUseRaceSkill(activeTeam),
 			action: () => {
-				if (sim.canUseRaceSkill(localTeam)) {
-					sim.useRaceSkill(localTeam);
+				if (sim.canUseRaceSkill(activeTeam)) {
+					sim.useRaceSkill(activeTeam, player);
 					sound.playUpgrade();
 					onClose();
 				} else {

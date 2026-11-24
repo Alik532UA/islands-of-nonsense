@@ -1,7 +1,13 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import type { Simulation } from '../engine/simulation';
-	import { getBaseBuildingsForRace, getUpgradesForBuilding, getUnit } from '../engine/gameData';
+	import type { PlayerState } from '../engine/types';
+	import {
+		formatRaceName,
+		getBaseBuildingsForRace,
+		getUpgradesForBuilding,
+		getUnit
+	} from '../engine/gameData';
 	import { Shield, Swords, Hammer, Users } from 'lucide-svelte';
 	import Minimap from './Minimap.svelte';
 	import CommandCard from './CommandCard.svelte';
@@ -27,6 +33,8 @@
 		selectedGroup = null,
 		selectedEntity = null,
 		localTeam = 'west',
+		activePlayer = null,
+		allowAllTeamsControl = false,
 		onSelectBuilding,
 		onUpgradeBuilding,
 		onSellBuilding,
@@ -46,6 +54,8 @@
 		selectedGroup?: string[] | null;
 		selectedEntity?: SelectedEntity;
 		localTeam?: 'west' | 'east';
+		activePlayer?: PlayerState | null;
+		allowAllTeamsControl?: boolean;
 		onSelectBuilding: (id: string | null) => void;
 		onUpgradeBuilding?: (instanceId: string, targetDefId: string) => void;
 		onSellBuilding?: (instanceId: string) => void;
@@ -55,7 +65,10 @@
 		touchControls?: Snippet;
 	} = $props();
 
-	let localPlayer = $derived(localTeam === 'east' ? sim.players.east : sim.players.west);
+	let localPlayer = $derived(
+		activePlayer ?? (localTeam === 'east' ? sim.players.east : sim.players.west)
+	);
+	let effectiveTeam = $derived(localPlayer.team);
 	let player = $derived(uiTick >= 0 ? localPlayer : localPlayer);
 	let playerGold = $derived(uiTick >= 0 ? localPlayer.gold : 0);
 	let worker = $derived(uiTick >= 0 ? localPlayer.worker : localPlayer.worker);
@@ -129,19 +142,23 @@
 	);
 
 	let isAllied = $derived(
-		activeEntityType !== 'none' && entityTeam !== 'none' && entityTeam === localTeam
+		activeEntityType !== 'none' &&
+			entityTeam !== 'none' &&
+			(allowAllTeamsControl ? entityTeam !== 'neutral' : entityTeam === effectiveTeam)
 	);
 	let isOpponent = $derived(
-		activeEntityType !== 'none' && entityTeam !== 'none' && entityTeam !== localTeam
+		activeEntityType !== 'none' &&
+			entityTeam !== 'none' &&
+			(allowAllTeamsControl ? false : entityTeam !== effectiveTeam)
 	);
 
 	let showOnLeft = $derived(
 		activeEntityType !== 'none' &&
-			((localTeam === 'west' && isAllied) || (localTeam === 'east' && isOpponent))
+			((effectiveTeam === 'west' && isAllied) || (effectiveTeam === 'east' && isOpponent))
 	);
 	let showOnRight = $derived(
 		activeEntityType !== 'none' &&
-			((localTeam === 'west' && isOpponent) || (localTeam === 'east' && isAllied))
+			((effectiveTeam === 'west' && isOpponent) || (effectiveTeam === 'east' && isAllied))
 	);
 
 	const HOTKEYS = ['Q', 'W', 'E', 'R', 'A', 'S', 'D', 'F', 'Z', 'X', 'C'];
@@ -304,22 +321,27 @@
 					<span class="text-[9px] uppercase tracking-wide opacity-60">Вибір</span>
 				</div>
 			{:else}
-				<!-- Worker ("Північний будівельник") Portrait (Fills 100% of frame) -->
-				<div class="relative flex flex-col items-center justify-center scale-135">
-					<!-- Peasant head graphic -->
+				<!-- Worker Portrait reflecting controlled race & bot slot -->
+				{@const collarHex =
+					player.color?.lightHex ?? (player.team === 'east' ? '#ef4444' : '#2563eb')}
+				<div class="relative flex flex-col items-center justify-center scale-115">
 					<div
-						class="w-13 h-13 rounded-full bg-[#fcd34d] border-2 border-[#b45309] relative flex items-center justify-center overflow-hidden shadow-inner"
+						class="w-12 h-12 rounded-full bg-[#fcd34d] border-2 border-[#b45309] relative flex items-center justify-center overflow-hidden shadow-inner"
 					>
-						<!-- Headband / Hair -->
-						<div class="absolute top-0 left-0 right-0 h-4.5 bg-[#78350f]"></div>
-						<!-- Face eyes -->
-						<div class="flex gap-3 mt-2.5">
+						<div class="absolute top-0 left-0 right-0 h-4 bg-[#78350f]"></div>
+						<div class="flex gap-2.5 mt-2">
 							<div class="w-1.5 h-1.5 rounded-full bg-[#1e293b]"></div>
 							<div class="w-1.5 h-1.5 rounded-full bg-[#1e293b]"></div>
 						</div>
 					</div>
-					<!-- Blue tunic collar -->
-					<div class="w-16 h-5 bg-[#2563eb] border border-[#60a5fa] rounded-t-md mt-0.5"></div>
+					<div
+						class="w-16 h-5 border border-white/30 rounded-t-md mt-0.5 flex items-center justify-center"
+						style="background-color: {collarHex};"
+					>
+						<span class="text-[8px] font-bold text-white drop-shadow truncate max-w-[58px]">
+							{formatRaceName(player.race)}
+						</span>
+					</div>
 				</div>
 			{/if}
 

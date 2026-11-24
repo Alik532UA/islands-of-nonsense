@@ -6,7 +6,7 @@ import { UnitRenderer } from './unitRenderer';
 import { VfxRenderer } from './vfxRenderer';
 
 export type SelectedEntity =
-	| { type: 'worker' }
+	| { type: 'worker'; playerSlot?: number }
 	| { type: 'building'; instanceId: string }
 	| { type: 'unit'; instanceId: string }
 	| { type: 'group'; unitIds: string[] }
@@ -65,11 +65,11 @@ export class EntityRenderer {
 	// =========================================================================
 	public drawWorkersLayer(
 		g: Graphics,
-		isWorkerSelected: boolean,
+		selectedWorker: boolean | number | null,
 		enableFog = false,
 		bounds?: { minX: number; minY: number; maxX: number; maxY: number }
 	): void {
-		this.unitRenderer.drawWorkersLayer(g, isWorkerSelected, enableFog, bounds);
+		this.unitRenderer.drawWorkersLayer(g, selectedWorker, enableFog, bounds);
 	}
 
 	public drawUnitsLayer(

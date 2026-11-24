@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { Simulation } from '../engine/simulation';
+	import type { PlayerState } from '../engine/types';
 	import { getCommander } from '../engine/commanders';
 	import { getRaceAbility } from '../engine/raceAbilities';
 	import { resolve } from '$app/paths';
@@ -34,6 +35,7 @@
 		sim,
 		uiTick = 0,
 		isOnline = false,
+		activePlayer = null,
 		onOpenForge,
 		onOpenCommander,
 		onOpenShop,
@@ -43,6 +45,7 @@
 		sim: Simulation;
 		uiTick?: number;
 		isOnline?: boolean;
+		activePlayer?: PlayerState | null;
 		onOpenForge: () => void;
 		onOpenCommander: () => void;
 		onOpenShop?: () => void;
@@ -62,8 +65,8 @@
 	// Explicitly depend on uiTick so Svelte 5 re-reads properties from the class instance
 	let westCastle = $derived(uiTick >= 0 ? sim.castles.west : sim.castles.west);
 	let eastCastle = $derived(uiTick >= 0 ? sim.castles.east : sim.castles.east);
-	let player = $derived(uiTick >= 0 ? sim.players.west : sim.players.west);
-	let playerGold = $derived(uiTick >= 0 ? Math.floor(sim.players.west.gold) : 0);
+	let player = $derived(uiTick >= 0 ? (activePlayer ?? sim.players.west) : sim.players.west);
+	let playerGold = $derived(uiTick >= 0 ? Math.floor(player.gold) : 0);
 	let commander = $derived(uiTick >= 0 ? getCommander(player.commander) : getCommander(1));
 
 	let westHp = $derived(
@@ -83,23 +86,23 @@
 	);
 
 	let raceAbility = $derived(uiTick >= 0 ? getRaceAbility(player.race) : getRaceAbility('Альянс'));
-	let canCastRaceSkill = $derived(uiTick >= 0 ? sim.canUseRaceSkill('west') : false);
+	let canCastRaceSkill = $derived(uiTick >= 0 ? sim.canUseRaceSkill(player.team) : false);
 
 	const availableSpeeds = [1, 2, 3, 5, 10, 50, 100];
-	let raceSkillCd = $derived(uiTick >= 0 ? sim.raceSkillCooldown.west : 0);
+	let raceSkillCd = $derived(uiTick >= 0 ? sim.raceSkillCooldown[player.team] : 0);
 	let raceSkillUnlockLeft = $derived(
 		uiTick >= 0 ? Math.max(0, 300 - Math.floor(sim.gameTime)) : 300
 	);
 
-	let canUseRescue = $derived(uiTick >= 0 ? sim.canUseRescueStrike('west') : false);
-	let rescueCd = $derived(uiTick >= 0 ? sim.rescueStrikeCooldown.west : 0);
+	let canUseRescue = $derived(uiTick >= 0 ? sim.canUseRescueStrike(player.team) : false);
+	let rescueCd = $derived(uiTick >= 0 ? sim.rescueStrikeCooldown[player.team] : 0);
 
 	let gameTime = $derived(uiTick >= 0 ? sim.gameTime : 0);
 	let bossSpawnTimer = $derived(uiTick >= 0 ? Math.max(0, Math.ceil(sim.bossSpawnTimer)) : 180);
 	let activeBossInstanceId = $derived(uiTick >= 0 ? sim.activeBossInstanceId : null);
 	let isRunning = $derived(uiTick >= 0 ? sim.isRunning : false);
 	let simSpeed = $derived(uiTick >= 0 ? sim.speed : 1);
-	let westLumber = $derived(uiTick >= 0 ? Math.floor(sim.players.west.lumber) : 0);
+	let westLumber = $derived(uiTick >= 0 ? Math.floor(player.lumber ?? 0) : 0);
 
 	// Day/Night Cycle calculation (every 120s full day/night cycle)
 	let isDay = $derived(uiTick >= 0 ? sim.dayNightCycle === 'day' : true);

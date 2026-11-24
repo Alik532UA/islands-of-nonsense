@@ -16,4 +16,15 @@ describe('CSP inline script hashes (SECURITY-v10 § 6.3.1)', () => {
 			expect(hash).toMatch(/^sha256-[A-Za-z0-9+/=]+$/);
 		}
 	});
+
+	it('enforces hash mode, object-src none, and Firebase connect-src in vite.config.ts', () => {
+		const viteConfig = readFileSync('vite.config.ts', 'utf-8');
+		expect(viteConfig).toContain("mode: 'hash'");
+		expect(viteConfig).toContain("'object-src': ['none']");
+		expect(viteConfig).toContain('https://*.firebasedatabase.app');
+		expect(viteConfig).toContain('wss://*.firebasedatabase.app');
+		expect(viteConfig).toContain('https://identitytoolkit.googleapis.com');
+		expect(viteConfig).not.toMatch(/'script-src'[^;\n]*'unsafe-inline'/);
+		expect(viteConfig).not.toMatch(/'script-src'[^;\n]*'unsafe-eval'/);
+	});
 });

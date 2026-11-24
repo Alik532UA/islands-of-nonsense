@@ -402,10 +402,10 @@ export class EconomySystem {
 		return this.sim.gameTime >= 300 && this.sim.raceSkillCooldown[team] <= 0 && !this.sim.winner;
 	}
 
-	public useRaceSkill(team: MatchTeam): boolean {
+	public useRaceSkill(team: MatchTeam, playerInput?: PlayerState): boolean {
 		if (!this.canUseRaceSkill(team)) return false;
 
-		const player = this.sim.players[team];
+		const player = playerInput || this.sim.players[team];
 		const ability = getRaceAbility(player.race);
 		this.sim.raceSkillCooldown[team] = 150;
 
@@ -632,8 +632,8 @@ export class EconomySystem {
 		return cd <= 0.001 ? 0 : cd;
 	}
 
-	public canBuyCastleItem(team: MatchTeam, itemId: string): boolean {
-		if (!this.hasShop(team)) return false;
+	public canBuyCastleItem(team: MatchTeam, itemId: string, playerInput?: PlayerState): boolean {
+		if (!this.hasShop(team, playerInput)) return false;
 		if (this.sim.gameModeConfig?.noItems) return false;
 		if ((itemId === 'I00B' || itemId === 'I00N') && !this.sim.gameModeConfig?.nuclearWarheads) {
 			return false;
@@ -646,16 +646,16 @@ export class EconomySystem {
 		}
 		const item = CASTLE_ITEMS[itemId];
 		if (!item) return false;
-		const player = this.sim.players[team];
+		const player = playerInput || this.sim.players[team];
 		if (player.gold < item.cost) return false;
 		if (this.getItemCooldown(team, itemId) > 0) return false;
 		return true;
 	}
 
-	public buyCastleItem(team: MatchTeam, itemId: string): boolean {
-		if (!this.canBuyCastleItem(team, itemId)) return false;
+	public buyCastleItem(team: MatchTeam, itemId: string, playerInput?: PlayerState): boolean {
+		if (!this.canBuyCastleItem(team, itemId, playerInput)) return false;
 		const item = CASTLE_ITEMS[itemId];
-		const player = this.sim.players[team];
+		const player = playerInput || this.sim.players[team];
 		const myCastle = this.sim.castles[team];
 		const enemyTeam: MatchTeam = team === 'west' ? 'east' : 'west';
 

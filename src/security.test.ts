@@ -18,9 +18,13 @@ function getSvelteFiles(dir: string, out: string[] = []): string[] {
 describe('Security Invariants (SECURITY-v10)', () => {
 	it('svelte файли не містять несанітизованого {@html}', () => {
 		const svelteFiles = getSvelteFiles('src');
+		expect(svelteFiles.length).toBeGreaterThan(0);
 		for (const file of svelteFiles) {
 			const content = readFileSync(file, 'utf-8');
-			expect(content).not.toMatch(/{@html\s+(?!vetted|sanitized)[a-zA-Z0-9_.]*}/);
+			const matches = [...content.matchAll(/{@html\s+([^}]+)}/g)];
+			for (const m of matches) {
+				expect(m[1]).toMatch(/^(?:vetted|sanitized)\b/);
+			}
 		}
 	});
 

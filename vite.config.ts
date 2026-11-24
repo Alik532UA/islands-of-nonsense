@@ -73,8 +73,27 @@ export default defineConfig(({ mode }) => ({
 					'style-src': ['self', 'unsafe-inline'],
 					'font-src': ['self', 'data:'],
 					'img-src': ['self', 'data:', 'blob:'],
-					'connect-src': ['self'],
+					'connect-src': [
+						'self',
+						'https://*.firebasedatabase.app',
+						'wss://*.firebasedatabase.app',
+						'https://*.firebaseio.com',
+						'wss://*.firebaseio.com',
+						'https://identitytoolkit.googleapis.com',
+						'https://securetoken.googleapis.com',
+						...(mode === 'production'
+							? ([] as const)
+							: ([
+									'http://127.0.0.1:9012',
+									'ws://127.0.0.1:9012',
+									'http://127.0.0.1:9111',
+									'http://localhost:9012',
+									'ws://localhost:9012',
+									'http://localhost:9111'
+								] as const))
+					],
 					'worker-src': ['self', 'blob:'],
+					'object-src': ['none'],
 					'frame-ancestors': ['none'],
 					'base-uri': ['self'],
 					'form-action': ['none']

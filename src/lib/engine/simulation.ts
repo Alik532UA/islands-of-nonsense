@@ -1572,20 +1572,20 @@ export class Simulation {
 		return this.economySystem.canUseRaceSkill(team);
 	}
 
-	public useRaceSkill(team: MatchTeam): boolean {
-		return this.economySystem.useRaceSkill(team);
+	public useRaceSkill(team: MatchTeam, player?: PlayerState): boolean {
+		return this.economySystem.useRaceSkill(team, player);
 	}
 
 	public getItemCooldown(team: MatchTeam, itemId: string): number {
 		return this.economySystem.getItemCooldown(team, itemId);
 	}
 
-	public canBuyCastleItem(team: MatchTeam, itemId: string): boolean {
-		return this.economySystem.canBuyCastleItem(team, itemId);
+	public canBuyCastleItem(team: MatchTeam, itemId: string, player?: PlayerState): boolean {
+		return this.economySystem.canBuyCastleItem(team, itemId, player);
 	}
 
-	public buyCastleItem(team: MatchTeam, itemId: string): boolean {
-		return this.economySystem.buyCastleItem(team, itemId);
+	public buyCastleItem(team: MatchTeam, itemId: string, player?: PlayerState): boolean {
+		return this.economySystem.buyCastleItem(team, itemId, player);
 	}
 
 	public canUseRescueStrike(team: MatchTeam): boolean {

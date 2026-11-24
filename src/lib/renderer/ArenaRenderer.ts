@@ -10,8 +10,15 @@ import {
 	GRID_STEP
 } from '../engine/simulation';
 import { sound } from '../services/audio';
-import type { Unit, Castle } from '../engine/types';
-import { WEST_CASTLE_X, WEST_CASTLE_Y, EAST_CASTLE_X, EAST_CASTLE_Y } from '../engine/constants';
+import type { Unit, Castle, PlayerState, MatchTeam } from '../engine/types';
+import {
+	WEST_CASTLE_X,
+	WEST_CASTLE_Y,
+	EAST_CASTLE_X,
+	EAST_CASTLE_Y,
+	EAST_GRID_START_X,
+	EAST_GRID_START_Y
+} from '../engine/constants';
 import { TerrainRenderer } from './terrainRenderer';
 import { EntityRenderer, type SelectedEntity } from './entityRenderer';
 import { OverlayRenderer } from './overlayRenderer';
@@ -37,6 +44,7 @@ export interface RendererOptions {
 	getSelectedEntity?: () => SelectedEntity;
 	getSelectedBuildingDefId: () => string | null;
 	getSelectedPlacedBuildingId?: () => string | null;
+	getActiveControlPlayer?: () => PlayerState | null;
 	onCameraChange?: (camX: number, camY: number, zoom: number) => void;
 }
 
@@ -49,6 +57,7 @@ export class ArenaRenderer {
 	private getSelectedEntity?: () => SelectedEntity;
 	private getSelectedBuildingDefId: () => string | null;
 	private getSelectedPlacedBuildingId?: () => string | null;
+	private getActiveControlPlayer?: () => PlayerState | null;
 	public onCameraChange?: (camX: number, camY: number, zoom: number) => void;
 
 	// Viewport & RTS Camera Navigation
@@ -141,6 +150,7 @@ export class ArenaRenderer {
 		this.getSelectedEntity = options.getSelectedEntity;
 		this.getSelectedBuildingDefId = options.getSelectedBuildingDefId;
 		this.getSelectedPlacedBuildingId = options.getSelectedPlacedBuildingId;
+		this.getActiveControlPlayer = options.getActiveControlPlayer;
 		this.onCameraChange = options.onCameraChange;
 		this.graphicsStyle = options.graphicsStyle ?? '2.5d';
 
@@ -579,10 +589,12 @@ export class ArenaRenderer {
 			// RIGHT CLICK: Cancel Building Placement OR Move Worker / Order Action / Repair
 			if (e.button === 2) {
 				e.preventDefault();
+				const activePlayer = this.getActiveControlPlayer?.() ?? this.sim.players.west;
+				const activeTeam: MatchTeam = activePlayer.team;
 
 				// If in building placement mode, cancel placement (Warcraft 3 style)
 				if (this.getSelectedBuildingDefId()) {
-					this.onSelectEntity?.({ type: 'worker' });
+					this.onSelectEntity?.({ type: 'worker', playerSlot: activePlayer.slot });
 					return;
 				}
 
@@ -595,41 +607,41 @@ export class ArenaRenderer {
 				});
 				sound.playWorkerAck();
 
-				// Check if RMB clicked a gold coin (command worker to run and collect it)
+				// Check if RMB clicked a gold coin (command active worker to collect it)
 				const clickedCoin = this.sim.goldCoins.find(
 					(c) => Math.hypot(world.x - c.x, world.y - c.y) <= 32
 				);
 				if (clickedCoin) {
-					this.sim.orderWorkerMove('west', clickedCoin.x, clickedCoin.y);
+					this.sim.orderWorkerMove(activeTeam, clickedCoin.x, clickedCoin.y, activePlayer);
 					return;
 				}
 
 				// Check if RMB clicked an injured friendly building or castle to repair / continue construction
 				const clickedBuilding = this.sim.buildings.find(
 					(b) =>
-						b.team === 'west' &&
+						b.team === activeTeam &&
 						Math.abs(world.x - (b.x + CELL_SIZE / 2)) <= CELL_SIZE &&
 						Math.abs(world.y - (b.y + CELL_SIZE / 2)) <= CELL_SIZE
 				);
-				const westCastle = this.sim.castles.west;
-				const clickedCastle = Math.hypot(world.x - westCastle.x, world.y - westCastle.y) <= 80;
+				const teamCastle = this.sim.castles[activeTeam];
+				const clickedCastle = Math.hypot(world.x - teamCastle.x, world.y - teamCastle.y) <= 80;
 
 				if (clickedBuilding) {
 					if (clickedBuilding.isUnderConstruction) {
-						this.sim.continueConstruction('west', clickedBuilding.instanceId);
+						this.sim.continueConstruction(activeTeam, clickedBuilding.instanceId, activePlayer);
 						return;
 					}
 					if (clickedBuilding.hp < clickedBuilding.maxHp) {
-						this.sim.repairBuilding('west', clickedBuilding.instanceId);
+						this.sim.repairBuilding(activeTeam, clickedBuilding.instanceId, activePlayer);
 						return;
 					}
-				} else if (clickedCastle && westCastle.hp < westCastle.maxHp) {
-					this.sim.repairBuilding('west', 'castle_west');
+				} else if (clickedCastle && teamCastle.hp < teamCastle.maxHp) {
+					this.sim.repairBuilding(activeTeam, `castle_${activeTeam}`, activePlayer);
 					return;
 				}
 
 				// Otherwise regular move worker order
-				this.sim.moveWorker('west', world.x, world.y);
+				this.sim.moveWorker(activeTeam, world.x, world.y, activePlayer);
 				return;
 			}
 
@@ -675,11 +687,16 @@ export class ArenaRenderer {
 				}
 			}
 
-			// Hovered Tile calculation on West Building Platform (Warcraft III Grid Planning with GRID_STEP = 32px)
+			// Hovered Tile calculation on Active Island Platform (Warcraft III Grid Planning with GRID_STEP = 32px)
 			if (this.getSelectedBuildingDefId()) {
-				const tileX = Math.round((world.x - WEST_GRID_START_X) / GRID_STEP);
-				const tileY = Math.round((world.y - WEST_GRID_START_Y) / GRID_STEP);
-				if (tileX >= 0 && tileX <= 96 && tileY >= 0 && tileY <= 70) {
+				const activeTeam: MatchTeam = this.getActiveControlPlayer?.()?.team ?? 'west';
+				const gridStartX = activeTeam === 'east' ? EAST_GRID_START_X : WEST_GRID_START_X;
+				const gridStartY = activeTeam === 'east' ? EAST_GRID_START_Y : WEST_GRID_START_Y;
+				const minTileX = activeTeam === 'east' ? -52 : 0;
+				const maxTileX = activeTeam === 'east' ? 42 : 96;
+				const tileX = Math.round((world.x - gridStartX) / GRID_STEP);
+				const tileY = Math.round((world.y - gridStartY) / GRID_STEP);
+				if (tileX >= minTileX && tileX <= maxTileX && tileY >= 0 && tileY <= 70) {
 					this.hoveredTile = { x: tileX, y: tileY };
 				} else {
 					this.hoveredTile = null;
@@ -750,12 +767,15 @@ export class ArenaRenderer {
 			const mouseScreenY = e.clientY - rect.top;
 			const world = this.screenToWorld(mouseScreenX, mouseScreenY);
 
-			// A. Command worker to run to Gold Coin (Warcraft 3: worker runs to coin)
+			const activePlayer = this.getActiveControlPlayer?.() ?? this.sim.players.west;
+			const activeTeam: MatchTeam = activePlayer.team;
+
+			// A. Command active worker to run to Gold Coin (Warcraft 3: worker runs to coin)
 			for (const coin of this.sim.goldCoins) {
 				const dx = world.x - coin.x;
 				const dy = world.y - coin.y;
 				if (dx * dx + dy * dy <= 32 * 32) {
-					this.sim.orderWorkerMove('west', coin.x, coin.y);
+					this.sim.orderWorkerMove(activeTeam, coin.x, coin.y, activePlayer);
 					this.moveMarkers.push({
 						x: coin.x,
 						y: coin.y,
@@ -770,11 +790,13 @@ export class ArenaRenderer {
 			// B. If building placement mode active -> build
 			if (this.getSelectedBuildingDefId()) {
 				if (this.hoveredTile) {
-					if (this.sim.canBuild('west', this.hoveredTile.x, this.hoveredTile.y)) {
+					const gridStartX = activeTeam === 'east' ? EAST_GRID_START_X : WEST_GRID_START_X;
+					const gridStartY = activeTeam === 'east' ? EAST_GRID_START_Y : WEST_GRID_START_Y;
+					if (this.sim.canBuild(activeTeam, this.hoveredTile.x, this.hoveredTile.y)) {
 						this.onTileClick(this.hoveredTile.x, this.hoveredTile.y, e.shiftKey);
 					} else {
-						const px = WEST_GRID_START_X + this.hoveredTile.x * GRID_STEP;
-						const py = WEST_GRID_START_Y + this.hoveredTile.y * GRID_STEP;
+						const px = gridStartX + this.hoveredTile.x * GRID_STEP;
+						const py = gridStartY + this.hoveredTile.y * GRID_STEP;
 						this.sim.addFloatingText(
 							'Не можна будувати тут!',
 							px + CELL_SIZE / 2,
@@ -786,14 +808,27 @@ export class ArenaRenderer {
 				return;
 			}
 
-			// C. Check Worker click
-			const worker = this.sim.players.west?.worker;
-			if (worker) {
-				const wDist = Math.hypot(world.x - worker.x, world.y - worker.y);
-				if (wDist <= 32) {
-					this.onSelectEntity?.({ type: 'worker' });
-					return;
+			// C. Check Worker click across ALL players/bots (West & East, 1v1 / 2v2 / 3v3 / botVsBot)
+			const allWorkersPlayers = this.sim.allPlayers?.length
+				? this.sim.allPlayers
+				: [this.sim.players.west, this.sim.players.east];
+			let closestWorkerSlot: number | null = null;
+			let closestWorkerDist = Infinity;
+			for (const p of allWorkersPlayers) {
+				const w = p?.worker;
+				if (!w) continue;
+				if (this.enableFog && p.team !== 'west' && !this.sim.isPointRevealed('west', w.x, w.y)) {
+					continue;
 				}
+				const wDist = Math.hypot(world.x - w.x, world.y - w.y);
+				if (wDist <= 34 && wDist < closestWorkerDist) {
+					closestWorkerDist = wDist;
+					closestWorkerSlot = p.slot ?? (p.team === 'west' ? 1 : 2);
+				}
+			}
+			if (closestWorkerSlot !== null) {
+				this.onSelectEntity?.({ type: 'worker', playerSlot: closestWorkerSlot });
+				return;
 			}
 
 			// D. Check Unit click (friendly, enemy or neutral mobs)
@@ -869,10 +904,19 @@ export class ArenaRenderer {
 		const selectedDefId = this.getSelectedBuildingDefId?.() || null;
 		const selectedPlacedId = this.getSelectedPlacedBuildingId?.() || null;
 		const selectedEntity = this.getSelectedEntity?.() || null;
-		const isWorkerSelected = selectedEntity?.type === 'worker';
+		const activeControlPlayer = this.getActiveControlPlayer?.() ?? this.sim.players.west;
+		const selectedWorkerSlot =
+			selectedEntity?.type === 'worker'
+				? (selectedEntity.playerSlot ?? activeControlPlayer.slot ?? 1)
+				: null;
 		const bounds = this.getVisibleWorldBounds();
 
-		this.overlayRenderer.drawGridLayer(this.gridLayer, selectedDefId, this.hoveredTile);
+		this.overlayRenderer.drawGridLayer(
+			this.gridLayer,
+			selectedDefId,
+			this.hoveredTile,
+			activeControlPlayer.team
+		);
 		this.entityRenderer.drawBuildingsLayer(
 			this.buildingsLayer,
 			selectedPlacedId,
@@ -881,7 +925,7 @@ export class ArenaRenderer {
 		);
 		this.entityRenderer.drawWorkersLayer(
 			this.workersLayer,
-			isWorkerSelected,
+			selectedWorkerSlot,
 			this.enableFog,
 			bounds
 		);

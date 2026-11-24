@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Simulation } from '../engine/simulation';
+	import type { PlayerState } from '../engine/types';
 	import { BUILDINGS_MAP } from '../engine/gameData';
 	import { CASTLE_ITEMS_LIST } from '../engine/items';
 	import { sound } from '../services/audio';
@@ -28,6 +29,7 @@
 		sim,
 		uiTick = 0,
 		localTeam = 'west',
+		activePlayer = null,
 		isOpen = $bindable(false),
 		onBuildShop,
 		onBuyItem
@@ -35,22 +37,26 @@
 		sim: Simulation;
 		uiTick?: number;
 		localTeam?: 'west' | 'east';
+		activePlayer?: PlayerState | null;
 		isOpen: boolean;
 		onBuildShop?: () => void;
 		onBuyItem?: (itemId: string) => void;
 	} = $props();
 
 	let player = $derived(
-		uiTick >= 0 ? (localTeam === 'east' ? sim.players.east : sim.players.west) : sim.players.west
+		uiTick >= 0
+			? (activePlayer ?? (localTeam === 'east' ? sim.players.east : sim.players.west))
+			: sim.players.west
 	);
+	let activeTeam = $derived(player.team);
 	let playerGold = $derived(Math.floor(player.gold));
 	let playerLumber = $derived(Math.floor(player.lumber ?? 0));
-	let hasShop = $derived(uiTick >= 0 ? sim.hasShop(localTeam, player) : false);
+	let hasShop = $derived(uiTick >= 0 ? sim.hasShop(activeTeam, player) : false);
 	let pendingShop = $derived(
 		uiTick >= 0
 			? sim.buildings.find(
 					(b) =>
-						b.team === localTeam &&
+						b.team === activeTeam &&
 						b.specialType === 'shop' &&
 						b.isUnderConstruction &&
 						(!b.playerId || b.playerId === player.id)
@@ -96,7 +102,7 @@
 			onBuyItem(itemId);
 			return;
 		}
-		const success = sim.buyCastleItem(localTeam, itemId);
+		const success = sim.buyCastleItem(activeTeam, itemId, player);
 		if (success) {
 			sound.playCoin();
 		} else {

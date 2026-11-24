@@ -3,11 +3,17 @@
 	import { goto, beforeNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { Simulation, type SimulationConfig } from '$lib/engine/simulation';
+	import type { PlayerState } from '$lib/engine/types';
 	import { BotAI } from '$lib/engine/botAI';
 	import { ArenaRenderer, type SelectedEntity } from '$lib/renderer/ArenaRenderer';
 	import { sound } from '$lib/services/audio';
 	import { attachAudioBridge } from '$lib/services/audioBridge';
-	import { RACES_LIST, PLAYABLE_RACES, getBaseBuildingsForRace } from '$lib/engine/gameData';
+	import {
+		RACES_LIST,
+		PLAYABLE_RACES,
+		formatRaceName,
+		getBaseBuildingsForRace
+	} from '$lib/engine/gameData';
 	import TopBar from '$lib/components/TopBar.svelte';
 	import BottomBar from '$lib/components/BottomBar.svelte';
 	import RadialMenu from '$lib/components/RadialMenu.svelte';
@@ -46,7 +52,55 @@
 	let selectedPlacedBuildingId = $state<string | null>(null);
 	let selectedUnitId = $state<string | null>(null);
 	let selectedEntity = $state<SelectedEntity>(null);
+	let controlledPlayerSlot = $state<number>(1);
 	let lastSpaceTime = 0;
+
+	let localTeam = $derived<'west' | 'east'>(matchSync?.localTeam ?? 'west');
+	let isBotVsBot = $derived(
+		!matchSync &&
+			(Boolean(sim.config.botVsBot) ||
+				(sim.allPlayers?.length > 0 && sim.allPlayers.every((p) => p.isBot)))
+	);
+
+	function getControllablePlayerBySlot(slot: number | null | undefined): PlayerState | null {
+		if (slot == null) return null;
+		const list = sim.allPlayers?.length ? sim.allPlayers : [sim.players.west, sim.players.east];
+		const found = list.find((p) => p.slot === slot);
+		if (!found) return null;
+		if (isBotVsBot || found.team === localTeam) return found;
+		return null;
+	}
+
+	let controlledPlayer = $derived.by(() => {
+		const _tick = uiTick;
+		if (matchSync) {
+			return localTeam === 'east' ? sim.players.east : sim.players.west;
+		}
+		if (selectedEntity?.type === 'worker' && selectedEntity.playerSlot != null) {
+			const match = getControllablePlayerBySlot(selectedEntity.playerSlot);
+			if (match) return match;
+		}
+		const fromSlot = getControllablePlayerBySlot(controlledPlayerSlot);
+		if (fromSlot) return fromSlot;
+		return localTeam === 'east' ? sim.players.east : sim.players.west;
+	});
+
+	function selectBotControl(slot: number, centerCamera = false) {
+		const target = getControllablePlayerBySlot(slot);
+		if (!target) return;
+		const targetSlot = target.slot ?? slot;
+		const alreadySelected =
+			selectedEntity?.type === 'worker' && selectedEntity.playerSlot === targetSlot;
+		controlledPlayerSlot = targetSlot;
+		selectedBuildingId = null;
+		selectedPlacedBuildingId = null;
+		selectedUnitId = null;
+		selectedEntity = { type: 'worker', playerSlot: targetSlot };
+		if ((centerCamera || alreadySelected) && target.worker) {
+			renderer?.setCamera(target.worker.x, target.worker.y);
+		}
+		uiTick = sim.stateVersion;
+	}
 	let isRadialOpen = $state(false);
 	let radialCategory = $state<'army' | 'special' | 'abilities'>('army');
 
@@ -263,18 +317,15 @@
 				!isSettingsOpen
 			) {
 				e.preventDefault();
+				const targetPlayer = controlledPlayer;
 				selectedBuildingId = null;
 				selectedPlacedBuildingId = null;
 				selectedUnitId = null;
-				selectedEntity = { type: 'worker' };
+				selectedEntity = { type: 'worker', playerSlot: targetPlayer.slot };
 
 				const now = Date.now();
-				if (now - lastSpaceTime < 350) {
-					const localT = matchSync?.localTeam ?? 'west';
-					const w = localT === 'east' ? sim.players.east.worker : sim.players.west.worker;
-					if (w) {
-						renderer?.setCamera(w.x, w.y);
-					}
+				if (now - lastSpaceTime < 350 && targetPlayer.worker) {
+					renderer?.setCamera(targetPlayer.worker.x, targetPlayer.worker.y);
 				}
 				lastSpaceTime = now;
 				uiTick = sim.stateVersion;
@@ -314,8 +365,9 @@
 				if (letter === 'r' && !e.repeat && !isForgeOpen && !isCommanderOpen && !isShopOpen) {
 					if (selectedPlacedBuildingId) {
 						const bld = sim.buildings.find((b) => b.instanceId === selectedPlacedBuildingId);
-						if (bld && bld.team === 'west' && bld.hp < bld.maxHp) {
-							const success = sim.repairBuilding('west', selectedPlacedBuildingId);
+						if (bld && (isBotVsBot || bld.team === localTeam) && bld.hp < bld.maxHp) {
+							const owner = getControllablePlayerBySlot(bld.playerSlot) ?? sim.players[bld.team];
+							const success = sim.repairBuilding(bld.team, selectedPlacedBuildingId, owner);
 							if (success) {
 								sound.playRepair();
 								uiTick = sim.stateVersion;
@@ -323,9 +375,14 @@
 							return;
 						}
 					}
-					if (selectedEntity?.type === 'castle' && selectedEntity.team === 'west') {
-						if (sim.castles.west.hp < sim.castles.west.maxHp) {
-							const success = sim.repairBuilding('west', 'castle_west');
+					if (
+						selectedEntity?.type === 'castle' &&
+						(isBotVsBot || selectedEntity.team === localTeam)
+					) {
+						const cTeam = selectedEntity.team;
+						if (sim.castles[cTeam].hp < sim.castles[cTeam].maxHp) {
+							const owner = controlledPlayer.team === cTeam ? controlledPlayer : sim.players[cTeam];
+							const success = sim.repairBuilding(cTeam, `castle_${cTeam}`, owner);
 							if (success) {
 								sound.playRepair();
 								uiTick = sim.stateVersion;
@@ -334,7 +391,8 @@
 						}
 					}
 					if (!isWorkerGridActive || e.altKey) {
-						const activeTeam = matchSync?.localTeam ?? 'west';
+						const targetPlayer = controlledPlayer;
+						const activeTeam = targetPlayer.team;
 						if (matchSync) {
 							if (sim.canUseRaceSkill(activeTeam)) {
 								void matchSync.dispatch('USE_ABILITY');
@@ -344,8 +402,8 @@
 								sound.playErrorResource();
 							}
 						} else {
-							if (sim.canUseRaceSkill('west')) {
-								const success = sim.useRaceSkill('west');
+							if (sim.canUseRaceSkill(activeTeam)) {
+								const success = sim.useRaceSkill(activeTeam, targetPlayer);
 								if (success) {
 									sound.playUpgrade();
 									uiTick = sim.stateVersion;
@@ -363,7 +421,7 @@
 					!isShopOpen &&
 					(!isWorkerGridActive || e.altKey)
 				) {
-					const activeTeam = matchSync?.localTeam ?? 'west';
+					const activeTeam = controlledPlayer.team;
 					if (matchSync) {
 						if (sim.canUseRescueStrike(activeTeam)) {
 							void matchSync.dispatch('RESCUE_STRIKE');
@@ -371,8 +429,8 @@
 							uiTick = sim.stateVersion;
 						}
 					} else {
-						if (sim.canUseRescueStrike('west')) {
-							const res = sim.triggerRescueStrike('west');
+						if (sim.canUseRescueStrike(activeTeam)) {
+							const res = sim.triggerRescueStrike(activeTeam);
 							if (res) {
 								sound.playRescueStrike();
 								uiTick = sim.stateVersion;
@@ -391,7 +449,12 @@
 			uiTick = sim.stateVersion;
 			return;
 		}
-		const success = sim.upgradeBuilding('west', instanceId, targetDefId);
+		const bld = sim.buildings.find((b) => b.instanceId === instanceId);
+		const targetTeam = bld?.team ?? controlledPlayer.team;
+		const owner =
+			(bld?.playerSlot ? getControllablePlayerBySlot(bld.playerSlot) : null) ??
+			(controlledPlayer.team === targetTeam ? controlledPlayer : sim.players[targetTeam]);
+		const success = sim.upgradeBuilding(targetTeam, instanceId, targetDefId, owner);
 		if (success) {
 			sound.playUpgrade();
 			uiTick = sim.stateVersion;
@@ -405,15 +468,20 @@
 			void matchSync.dispatch('SELL', { targetId: instanceId });
 			sound.playCoin();
 			selectedPlacedBuildingId = null;
-			selectedEntity = { type: 'worker' };
+			selectedEntity = { type: 'worker', playerSlot: controlledPlayer.slot };
 			uiTick = sim.stateVersion;
 			return;
 		}
-		const success = sim.sellBuilding('west', instanceId);
+		const bld = sim.buildings.find((b) => b.instanceId === instanceId);
+		const targetTeam = bld?.team ?? controlledPlayer.team;
+		const owner =
+			(bld?.playerSlot ? getControllablePlayerBySlot(bld.playerSlot) : null) ??
+			(controlledPlayer.team === targetTeam ? controlledPlayer : sim.players[targetTeam]);
+		const success = sim.sellBuilding(targetTeam, instanceId, owner);
 		if (success) {
 			sound.playCoin();
 			selectedPlacedBuildingId = null;
-			selectedEntity = { type: 'worker' };
+			selectedEntity = { type: 'worker', playerSlot: owner.slot };
 			uiTick = sim.stateVersion;
 		}
 	}
@@ -425,7 +493,12 @@
 			uiTick = sim.stateVersion;
 			return;
 		}
-		const success = sim.continueConstruction('west', instanceId);
+		const bld = sim.buildings.find((b) => b.instanceId === instanceId);
+		const targetTeam = bld?.team ?? controlledPlayer.team;
+		const owner =
+			(bld?.playerSlot ? getControllablePlayerBySlot(bld.playerSlot) : null) ??
+			(controlledPlayer.team === targetTeam ? controlledPlayer : sim.players[targetTeam]);
+		const success = sim.continueConstruction(targetTeam, instanceId, owner);
 		if (success) {
 			sound.playWorkerAck();
 			uiTick = sim.stateVersion;
@@ -448,7 +521,8 @@
 				const { MatchSync: MS } = await import('$lib/net/matchSync');
 				const uid = await liveNet.me();
 				const isHost = searchParams?.get('host') === '1';
-				const localTeam: 'west' | 'east' = isHost ? 'west' : 'east';
+				const roomLocalTeam: 'west' | 'east' = isHost ? 'west' : 'east';
+				controlledPlayerSlot = roomLocalTeam === 'east' ? 2 : 1;
 				if (!isHost) {
 					cameraX = 6400;
 					cameraY = 1200;
@@ -458,7 +532,7 @@
 					sim,
 					transport,
 					localUid: uid,
-					localTeam,
+					localTeam: roomLocalTeam,
 					onPeerStatusChange: (status) => {
 						peerOnline = status.online;
 						networkNotice = status.online ? null : 'Суперник тимчасово офлайн';
@@ -552,16 +626,17 @@
 						if (!shiftKey) {
 							selectedBuildingId = null;
 							selectedPlacedBuildingId = null;
-							selectedEntity = { type: 'worker' };
+							selectedEntity = { type: 'worker', playerSlot: controlledPlayer.slot };
 						}
 					} else {
+						const activeP = controlledPlayer;
 						const success = sim.build(
-							'west',
+							activeP.team,
 							selectedBuildingId,
 							tileX,
 							tileY,
 							'top',
-							undefined,
+							activeP,
 							shouldQueue
 						);
 						if (success) {
@@ -569,7 +644,7 @@
 							if (!shiftKey) {
 								selectedBuildingId = null;
 								selectedPlacedBuildingId = null;
-								selectedEntity = { type: 'worker' };
+								selectedEntity = { type: 'worker', playerSlot: activeP.slot };
 							}
 							uiTick = sim.stateVersion;
 						} else {
@@ -580,6 +655,12 @@
 					const existing = sim.buildings.find((b) => b.tileX === tileX && b.tileY === tileY);
 					selectedPlacedBuildingId = existing ? existing.instanceId : null;
 					selectedEntity = existing ? { type: 'building', instanceId: existing.instanceId } : null;
+					if (existing && isBotVsBot) {
+						controlledPlayerSlot =
+							existing.playerSlot ??
+							sim.players[existing.team].slot ??
+							(existing.team === 'east' ? 2 : 1);
+					}
 					uiTick = sim.stateVersion;
 				}
 			},
@@ -589,10 +670,30 @@
 					selectedPlacedBuildingId = entity.instanceId;
 					selectedUnitId = null;
 					selectedBuildingId = null;
+					if (isBotVsBot) {
+						const b = sim.buildings.find((bld) => bld.instanceId === entity.instanceId);
+						if (b) {
+							controlledPlayerSlot =
+								b.playerSlot ?? sim.players[b.team].slot ?? (b.team === 'east' ? 2 : 1);
+						}
+					}
 				} else if (entity?.type === 'unit') {
 					selectedUnitId = entity.instanceId;
 					selectedPlacedBuildingId = null;
 					selectedBuildingId = null;
+				} else if (entity?.type === 'worker') {
+					selectedPlacedBuildingId = null;
+					selectedUnitId = null;
+					if (entity.playerSlot != null && getControllablePlayerBySlot(entity.playerSlot)) {
+						controlledPlayerSlot = entity.playerSlot;
+					}
+				} else if (entity?.type === 'castle') {
+					selectedPlacedBuildingId = null;
+					selectedUnitId = null;
+					if (isBotVsBot) {
+						controlledPlayerSlot =
+							sim.players[entity.team].slot ?? (entity.team === 'east' ? 2 : 1);
+					}
 				} else {
 					selectedPlacedBuildingId = null;
 					selectedUnitId = null;
@@ -601,7 +702,8 @@
 			},
 			getSelectedEntity: () => selectedEntity,
 			getSelectedBuildingDefId: () => selectedBuildingId,
-			getSelectedPlacedBuildingId: () => selectedPlacedBuildingId
+			getSelectedPlacedBuildingId: () => selectedPlacedBuildingId,
+			getActiveControlPlayer: () => controlledPlayer
 		});
 
 		await renderer.init(canvasEl);
@@ -741,7 +843,9 @@
 				fy = b.y - 20;
 			}
 		} else if (selectedEntity?.type === 'worker') {
-			const w = sim.players.west?.worker;
+			const targetPlayer =
+				getControllablePlayerBySlot(selectedEntity.playerSlot) ?? controlledPlayer;
+			const w = targetPlayer?.worker;
 			if (w) {
 				fx = w.x;
 				fy = w.y - 30;
@@ -787,6 +891,7 @@
 		isSettingsOpen = false;
 
 		sim = new Simulation(newConfig);
+		controlledPlayerSlot = sim.players.west?.slot ?? 1;
 		sim.isRunning = false;
 		perfMonitor.attachSim(sim);
 		if (unlistenAudio) unlistenAudio();
@@ -908,12 +1013,45 @@
 			{sim}
 			{uiTick}
 			isOnline={Boolean(matchSync)}
+			activePlayer={controlledPlayer}
 			onOpenForge={() => (isForgeOpen = true)}
 			onOpenCommander={() => (isCommanderOpen = true)}
 			onOpenShop={() => (isShopOpen = true)}
 			onOpenSettings={openPauseMenu}
 			onBeforeLeave={handleRequestLeave}
 		/>
+
+		{#if isBotVsBot && matchPhase === 'BATTLE' && sim.allPlayers?.length > 0}
+			<!-- Bot Switcher Pill Dock for Controlling Any Bot in Bot vs Bot Matches -->
+			<div
+				data-testid="spectator-bot-switcher"
+				class="absolute top-14 left-1/2 -translate-x-1/2 z-20 flex flex-wrap items-center justify-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#111520]/90 border border-[#544738] shadow-xl backdrop-blur-md"
+			>
+				{#each sim.allPlayers as botPlayer (botPlayer.slot ?? botPlayer.team)}
+					{@const botSlot = botPlayer.slot ?? (botPlayer.team === 'east' ? 2 : 1)}
+					{@const isActiveBot = controlledPlayer.slot === botSlot}
+					<button
+						type="button"
+						onclick={() => selectBotControl(botSlot)}
+						data-testid="bot-switch-btn-{botSlot}"
+						class="flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[11px] font-bold transition cursor-pointer touch-manipulation {isActiveBot
+							? 'bg-amber-950/80 border-amber-400 text-amber-200 shadow-[0_0_8px_rgba(251,191,36,0.35)]'
+							: 'bg-[#181e2c] hover:bg-[#232b3e] border-[#3b3226] text-slate-300 hover:text-white'}"
+						title="Вибрати Бота #{botSlot} ({formatRaceName(botPlayer.race)})"
+					>
+						<span
+							class="w-2 h-2 rounded-full shrink-0"
+							style="background-color: {botPlayer.color?.lightHex ??
+								(botPlayer.team === 'west' ? '#3b82f6' : '#ef4444')};"
+						></span>
+						<span>Бот {botSlot}</span>
+						<span class="text-[9px] text-slate-400 font-normal">
+							({formatRaceName(botPlayer.race)})
+						</span>
+					</button>
+				{/each}
+			</div>
+		{/if}
 
 		{#if matchSync}
 			<div
@@ -1018,7 +1156,9 @@
 			{zoom}
 			{selectedEntity}
 			{touchControls}
-			localTeam={matchSync?.localTeam ?? 'west'}
+			localTeam={controlledPlayer.team}
+			activePlayer={controlledPlayer}
+			allowAllTeamsControl={isBotVsBot}
 			selectedGroup={selectedEntity?.type === 'group' ? selectedEntity.unitIds : null}
 			bind:selectedBuildingId
 			bind:selectedPlacedBuildingId
@@ -1028,7 +1168,7 @@
 				if (id) {
 					selectedPlacedBuildingId = null;
 					selectedUnitId = null;
-					selectedEntity = { type: 'worker' };
+					selectedEntity = { type: 'worker', playerSlot: controlledPlayer.slot };
 				}
 			}}
 			onUpgradeBuilding={handleUpgradeBuilding}
@@ -1108,18 +1248,17 @@
 		isOpen={isRadialOpen}
 		category={radialCategory}
 		{sim}
-		localTeam={matchSync?.localTeam ?? 'west'}
-		armyBuildings={getBaseBuildingsForRace(
-			(matchSync?.localTeam === 'east' ? sim.players.east : sim.players.west).race
-		).filter((b) => !b.specialType)}
-		specialBuildings={getBaseBuildingsForRace(
-			(matchSync?.localTeam === 'east' ? sim.players.east : sim.players.west).race
-		).filter((b) => Boolean(b.specialType))}
+		localTeam={controlledPlayer.team}
+		activePlayer={controlledPlayer}
+		armyBuildings={getBaseBuildingsForRace(controlledPlayer.race).filter((b) => !b.specialType)}
+		specialBuildings={getBaseBuildingsForRace(controlledPlayer.race).filter((b) =>
+			Boolean(b.specialType)
+		)}
 		onSelectBuilding={(defId) => {
 			selectedBuildingId = defId;
 			selectedPlacedBuildingId = null;
 			selectedUnitId = null;
-			selectedEntity = { type: 'worker' };
+			selectedEntity = { type: 'worker', playerSlot: controlledPlayer.slot };
 			isRadialOpen = false;
 			uiTick = sim.stateVersion;
 		}}
@@ -1138,13 +1277,14 @@
 	<ForgeModal
 		{sim}
 		{uiTick}
-		localTeam={matchSync?.localTeam ?? 'west'}
+		localTeam={controlledPlayer.team}
+		activePlayer={controlledPlayer}
 		bind:isOpen={isForgeOpen}
 		onBuildForge={() => {
 			selectedBuildingId = 'cg11_forge';
 			selectedPlacedBuildingId = null;
 			selectedUnitId = null;
-			selectedEntity = { type: 'worker' };
+			selectedEntity = { type: 'worker', playerSlot: controlledPlayer.slot };
 			isForgeOpen = false;
 			uiTick = sim.stateVersion;
 		}}
@@ -1154,7 +1294,8 @@
 				sound.playForgeUpgrade();
 				uiTick = sim.stateVersion;
 			} else {
-				const ok = sim.upgradeForge('west', type);
+				const activeP = controlledPlayer;
+				const ok = sim.upgradeForge(activeP.team, type, activeP);
 				if (ok) {
 					sound.playForgeUpgrade();
 					uiTick = sim.stateVersion;
@@ -1164,17 +1305,18 @@
 			}
 		}}
 	/>
-	<CommanderModal {sim} bind:isOpen={isCommanderOpen} />
+	<CommanderModal {sim} activePlayer={controlledPlayer} bind:isOpen={isCommanderOpen} />
 	<ShopModal
 		{sim}
 		{uiTick}
-		localTeam={matchSync?.localTeam ?? 'west'}
+		localTeam={controlledPlayer.team}
+		activePlayer={controlledPlayer}
 		bind:isOpen={isShopOpen}
 		onBuildShop={() => {
 			selectedBuildingId = 'cg10_shop';
 			selectedPlacedBuildingId = null;
 			selectedUnitId = null;
-			selectedEntity = { type: 'worker' };
+			selectedEntity = { type: 'worker', playerSlot: controlledPlayer.slot };
 			isShopOpen = false;
 			uiTick = sim.stateVersion;
 		}}
@@ -1184,7 +1326,8 @@
 				sound.playCoin();
 				uiTick = sim.stateVersion;
 			} else {
-				const success = sim.buyCastleItem('west', itemId);
+				const activeP = controlledPlayer;
+				const success = sim.buyCastleItem(activeP.team, itemId, activeP);
 				if (success) {
 					sound.playCoin();
 					uiTick = sim.stateVersion;

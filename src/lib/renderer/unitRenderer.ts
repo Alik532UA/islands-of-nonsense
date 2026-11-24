@@ -37,7 +37,7 @@ export class UnitRenderer {
 	// =========================================================================
 	public drawWorkersLayer(
 		g: Graphics,
-		isWorkerSelected: boolean,
+		selectedWorker: boolean | number | null,
 		enableFog = false,
 		bounds?: { minX: number; minY: number; maxX: number; maxY: number }
 	): void {
@@ -64,10 +64,13 @@ export class UnitRenderer {
 			}
 
 			const isWest = player.team === 'west';
-			const isHumanWorker = player === this.sim.players.west;
+			const slot = player.slot ?? (isWest ? 1 : 2);
+			const isSelectedThisWorker =
+				typeof selectedWorker === 'number'
+					? slot === selectedWorker
+					: Boolean(selectedWorker && player === this.sim.players.west);
 			const wx = w.x;
 			const wy = w.y;
-			const slot = player.slot ?? (isWest ? 1 : 2);
 			const bob = Math.sin(this.sim.gameTime * 7 + slot) * 2;
 			const playerColor = player.color?.num ?? (isWest ? 0x0042ff : 0xff0303);
 
@@ -76,8 +79,8 @@ export class UnitRenderer {
 			g.beginPath();
 			g.ellipse(wx, wy + 16, 21, 10);
 			g.stroke({
-				color: isHumanWorker && isWorkerSelected ? 0xfbbf24 : 0x38bdf8,
-				width: isHumanWorker && isWorkerSelected ? 3.2 : 1.8,
+				color: isSelectedThisWorker ? 0xfbbf24 : isWest ? 0x38bdf8 : 0xf43f5e,
+				width: isSelectedThisWorker ? 3.2 : 1.8,
 				alpha: ringPulse * 0.8
 			});
 

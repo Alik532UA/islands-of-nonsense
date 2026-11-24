@@ -1,11 +1,13 @@
 import { Container, Graphics, Sprite, Texture, Text } from 'pixi.js';
 import type { Simulation } from '../engine/simulation';
-import type { FloatingText } from '../engine/types';
+import type { FloatingText, MatchTeam } from '../engine/types';
 import {
 	ARENA_WIDTH,
 	ARENA_HEIGHT,
 	WEST_GRID_START_X,
 	WEST_GRID_START_Y,
+	EAST_GRID_START_X,
+	EAST_GRID_START_Y,
 	CELL_SIZE,
 	GRID_STEP,
 	TOP_LANE_Y,
@@ -37,18 +39,23 @@ export class OverlayRenderer {
 	public drawGridLayer(
 		g: Graphics,
 		selectedDefId: string | null,
-		hoveredTile: { x: number; y: number } | null
+		hoveredTile: { x: number; y: number } | null,
+		activeTeam: MatchTeam = 'west'
 	): void {
 		g.clear();
 
+		const startX = activeTeam === 'east' ? EAST_GRID_START_X : WEST_GRID_START_X;
+		const startY = activeTeam === 'east' ? EAST_GRID_START_Y : WEST_GRID_START_Y;
+		const minTileX = activeTeam === 'east' ? -51 : 4;
+		const maxTileX = activeTeam === 'east' ? 40 : 92;
+
 		// Only during building placement planning does a subtle guide grid appear.
-		// Focuses on the West courtyard meadow area (x: 4..60, y: 6..64)
 		if (selectedDefId) {
-			for (let x = 4; x <= 60; x++) {
-				for (let y = 6; y <= 64; y++) {
-					const px = WEST_GRID_START_X + x * GRID_STEP;
-					const py = WEST_GRID_START_Y + y * GRID_STEP;
-					const canBuild = this.sim.canBuild('west', x, y);
+			for (let x = minTileX; x <= maxTileX; x++) {
+				for (let y = 4; y <= 66; y++) {
+					const px = startX + x * GRID_STEP;
+					const py = startY + y * GRID_STEP;
+					const canBuild = this.sim.canBuild(activeTeam, x, y);
 					if (canBuild) {
 						g.rect(px + 1, py + 1, GRID_STEP - 2, GRID_STEP - 2);
 						g.fill({ color: 0x1e293b, alpha: 0.08 });
@@ -60,9 +67,9 @@ export class OverlayRenderer {
 
 		// Hover Highlight: Authentic 1x1 placement bounding box
 		if (selectedDefId && hoveredTile) {
-			const px = WEST_GRID_START_X + hoveredTile.x * GRID_STEP;
-			const py = WEST_GRID_START_Y + hoveredTile.y * GRID_STEP;
-			const canBuild = this.sim.canBuild('west', hoveredTile.x, hoveredTile.y);
+			const px = startX + hoveredTile.x * GRID_STEP;
+			const py = startY + hoveredTile.y * GRID_STEP;
+			const canBuild = this.sim.canBuild(activeTeam, hoveredTile.x, hoveredTile.y);
 			const color = canBuild ? 0x22c55e : 0xef4444;
 
 			// Clean 1x1 building placement indicator (not 2x2 split quadrants)

@@ -180,7 +180,8 @@
 							<div class="flex items-center gap-1">
 								{#if placedBuilding.hp < placedBuilding.maxHp}
 									<button
-										onclick={() => sim.repairBuilding(player.team, placedBuilding.instanceId)}
+										onclick={() =>
+											sim.repairBuilding(placedBuilding.team, placedBuilding.instanceId, player)}
 										data-testid="hud-repair-btn"
 										class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-emerald-950/80 hover:bg-emerald-900 border-emerald-500/70 text-emerald-200 cursor-pointer shadow flex items-center gap-0.5"
 									>
@@ -212,8 +213,8 @@
 								{@const canBuy = canAfford && cd <= 0}
 								<button
 									onclick={() => {
-										if (sim.canBuyCastleItem(player.team, item.id)) {
-											const success = sim.buyCastleItem(player.team, item.id);
+										if (sim.canBuyCastleItem(player.team, item.id, player)) {
+											const success = sim.buyCastleItem(player.team, item.id, player);
 											if (success) sound.playCoin();
 										}
 									}}
@@ -270,12 +271,12 @@
 					{@const atkLvl = player.forge.attack}
 					{@const armLvl = player.forge.armor}
 					{@const ecoLvl = player.forge.econ}
-					{@const atkCost = sim.getForgePrice(player.team, 'attack')}
-					{@const armCost = sim.getForgePrice(player.team, 'armor')}
-					{@const ecoCost = sim.getForgePrice(player.team, 'econ')}
-					{@const atkLum = sim.getForgeLumberPrice(player.team, 'attack')}
-					{@const armLum = sim.getForgeLumberPrice(player.team, 'armor')}
-					{@const ecoLum = sim.getForgeLumberPrice(player.team, 'econ')}
+					{@const atkCost = sim.getForgePrice(player.team, 'attack', player)}
+					{@const armCost = sim.getForgePrice(player.team, 'armor', player)}
+					{@const ecoCost = sim.getForgePrice(player.team, 'econ', player)}
+					{@const atkLum = sim.getForgeLumberPrice(player.team, 'attack', player)}
+					{@const armLum = sim.getForgeLumberPrice(player.team, 'armor', player)}
+					{@const ecoLum = sim.getForgeLumberPrice(player.team, 'econ', player)}
 					{@const canAtk = atkLvl < 5 && playerGold >= atkCost && (player.lumber ?? 0) >= atkLum}
 					{@const canArm = armLvl < 5 && playerGold >= armCost && (player.lumber ?? 0) >= armLum}
 					{@const canEco = ecoLvl < 3 && playerGold >= ecoCost && (player.lumber ?? 0) >= ecoLum}
@@ -289,7 +290,8 @@
 							<div class="flex items-center gap-1">
 								{#if placedBuilding.hp < placedBuilding.maxHp}
 									<button
-										onclick={() => sim.repairBuilding(player.team, placedBuilding.instanceId)}
+										onclick={() =>
+											sim.repairBuilding(placedBuilding.team, placedBuilding.instanceId, player)}
 										data-testid="hud-repair-btn"
 										class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-emerald-950/80 hover:bg-emerald-900 border-emerald-500/70 text-emerald-200 cursor-pointer shadow flex items-center gap-0.5"
 									>
@@ -316,7 +318,7 @@
 						</div>
 						<div class="grid grid-cols-3 gap-1.5 pt-1">
 							<button
-								onclick={() => sim.upgradeForge(player.team, 'attack')}
+								onclick={() => sim.upgradeForge(player.team, 'attack', player)}
 								disabled={!canAtk}
 								class="h-16 rounded border flex flex-col items-center justify-between p-1 transition cursor-pointer {canAtk
 									? 'bg-rose-950/60 hover:bg-rose-900/80 border-rose-500/70 text-white shadow'
@@ -349,7 +351,7 @@
 							</button>
 
 							<button
-								onclick={() => sim.upgradeForge(player.team, 'armor')}
+								onclick={() => sim.upgradeForge(player.team, 'armor', player)}
 								disabled={!canArm}
 								class="h-16 rounded border flex flex-col items-center justify-between p-1 transition cursor-pointer {canArm
 									? 'bg-blue-950/60 hover:bg-blue-900/80 border-blue-500/70 text-white shadow'
@@ -382,7 +384,7 @@
 							</button>
 
 							<button
-								onclick={() => sim.upgradeForge(player.team, 'econ')}
+								onclick={() => sim.upgradeForge(player.team, 'econ', player)}
 								disabled={!canEco}
 								class="h-16 rounded border flex flex-col items-center justify-between p-1 transition cursor-pointer {canEco
 									? 'bg-emerald-950/60 hover:bg-emerald-900/80 border-emerald-500/70 text-white shadow'
@@ -453,7 +455,8 @@
 					{/each}
 					{#if placedBuilding.hp < placedBuilding.maxHp}
 						<button
-							onclick={() => sim.repairBuilding('west', placedBuilding.instanceId)}
+							onclick={() =>
+								sim.repairBuilding(placedBuilding.team, placedBuilding.instanceId, player)}
 							data-testid="hud-repair-btn"
 							class="w-16 h-10 rounded border border-emerald-500/70 bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-200 flex flex-col items-center justify-center p-0.5 transition cursor-pointer shadow"
 							title="Наказати робітникові відремонтувати споруду (R)"
@@ -575,7 +578,8 @@
 				<div class="grid grid-cols-4 gap-1.5 pt-1">
 					{#if selectedCastle.hp < selectedCastle.maxHp}
 						<button
-							onclick={() => sim.repairBuilding(player.team, `castle_${player.team}`)}
+							onclick={() =>
+								sim.repairBuilding(selectedCastle.team, `castle_${selectedCastle.team}`, player)}
 							data-testid="hud-castle-repair-btn"
 							class="w-16 h-10 rounded border border-emerald-500/70 bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-200 flex flex-col items-center justify-center p-0.5 transition cursor-pointer shadow"
 							title="Наказати робітникові ремонтувати цитадель (R)"
@@ -590,7 +594,7 @@
 					{#if sim.brokenBridge}
 						<button
 							type="button"
-							onclick={() => sim.orderBridgeRepair(player.team)}
+							onclick={() => sim.orderBridgeRepair(player.team, player)}
 							disabled={(player.lumber ?? 0) < 50}
 							data-testid="hud-repair-bridge-btn"
 							class="w-16 h-10 rounded border border-amber-500/70 bg-amber-950/70 hover:bg-amber-900/90 disabled:opacity-40 text-amber-200 flex flex-col items-center justify-center p-0.5 transition cursor-pointer shadow"
@@ -797,7 +801,7 @@
 			{#if sim.brokenBridge}
 				<button
 					type="button"
-					onclick={() => sim.orderBridgeRepair(player.team)}
+					onclick={() => sim.orderBridgeRepair(player.team, player)}
 					disabled={(player.lumber ?? 0) < 50}
 					data-testid="hud-worker-repair-bridge-btn"
 					class="relative w-[61px] h-[39px] rounded-[3px] border transition flex items-center justify-center overflow-hidden cursor-pointer touch-manipulation {(player.lumber ??

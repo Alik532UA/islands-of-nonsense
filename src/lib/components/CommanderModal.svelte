@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Simulation } from '../engine/simulation';
+	import type { PlayerState } from '../engine/types';
 	import { COMMANDERS } from '../engine/commanders';
 	import {
 		Coins,
@@ -16,14 +17,16 @@
 
 	let {
 		sim,
+		activePlayer = null,
 		isOpen = $bindable(false)
 	}: {
 		sim: Simulation;
+		activePlayer?: PlayerState | null;
 		isOpen: boolean;
 	} = $props();
 
 	let activeTab = $state<'commanders' | 'guide'>('commanders');
-	let player = $derived(sim.players.west);
+	let player = $derived(activePlayer ?? sim.players.west);
 
 	function getLucideIcon(name: string) {
 		switch (name) {
