@@ -41,6 +41,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run check:tests
 
+      - name: Check Firebase RTDB rules & stamp
+        if: ${{ !cancelled() }}
+        run: npm run check:rules
+
       - name: Check types & code
         if: ${{ !cancelled() }}
         run: npm run check

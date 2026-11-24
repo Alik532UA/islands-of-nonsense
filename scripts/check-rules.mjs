@@ -84,6 +84,24 @@ assertRule(
 	payload.checksum?.['.validate']?.includes('length <= 32'),
 	'State checksum must be bounded'
 );
+assertRule(
+	payload.itemId?.['.validate']?.includes('length <= 64'),
+	'Shop itemId must be bounded to 64 chars'
+);
+assertRule(
+	payload.forgeType?.['.validate']?.includes("'attack'") &&
+		payload.forgeType?.['.validate']?.includes("'armor'") &&
+		payload.forgeType?.['.validate']?.includes("'economy'"),
+	'Forge upgrade type must be attack, armor, or economy'
+);
+assertRule(
+	payload.shiftKey?.['.validate']?.includes('isBoolean()'),
+	'Move shiftKey flag must be boolean'
+);
+assertRule(
+	rules.lobby?.$gameId?.$code?.players?.['.validate']?.includes('<= 6'),
+	'Lobby players count must be bounded <= 6'
+);
 
 // 6. Presence & Chat validation
 const presence = rules.rooms?.$code?.presence?.$uid || {};

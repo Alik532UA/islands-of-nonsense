@@ -2,7 +2,7 @@
 	"rules": {
 		"__rulesVersion": {
 			"$v": {
-				".read": "auth != null && $v === 'e98b87b77a52'"
+				".read": "auth != null && $v === 'e7c0076bdb55'"
 			}
 		},
 		"rooms": {
@@ -131,6 +131,15 @@
 							"targetId": {
 								".validate": "newData.isString() && newData.val().length <= 64"
 							},
+							"itemId": {
+								".validate": "newData.isString() && newData.val().length <= 64"
+							},
+							"forgeType": {
+								".validate": "newData.val() === 'attack' || newData.val() === 'armor' || newData.val() === 'economy'"
+							},
+							"shiftKey": {
+								".validate": "newData.isBoolean()"
+							},
 							"checksum": {
 								".validate": "newData.isString() && newData.val().length <= 32"
 							},
@@ -207,10 +216,10 @@
 						".validate": "newData.isNumber()"
 					},
 					"players": {
-						".validate": "newData.isNumber() && newData.val() >= 1"
+						".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 6"
 					},
 					"maxPlayers": {
-						".validate": "newData.isNumber() && newData.val() >= 1"
+						".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 6"
 					},
 					"modeId": {
 						".validate": "newData.isString()"

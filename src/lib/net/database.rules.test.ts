@@ -98,6 +98,11 @@ describe('database.rules.json security invariants & Firebase architecture', () =
 		expect(payloadRules.x['.validate']).toContain('newData.val() <= 120');
 		expect(payloadRules.y['.validate']).toContain('newData.val() <= 60');
 		expect(payloadRules.checksum['.validate']).toContain('newData.val().length <= 32');
+		expect(payloadRules.itemId['.validate']).toContain('newData.val().length <= 64');
+		expect(payloadRules.forgeType['.validate']).toContain("'attack'");
+		expect(payloadRules.forgeType['.validate']).toContain("'armor'");
+		expect(payloadRules.forgeType['.validate']).toContain("'economy'");
+		expect(payloadRules.shiftKey['.validate']).toContain('isBoolean()');
 	});
 
 	it('strictly validates player game history stats are non-negative', () => {
