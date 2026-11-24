@@ -16,7 +16,6 @@
 	import { connect } from '$lib/net/firebase';
 	import { liveNet } from '$lib/net/roomNet';
 	import { probeNetProblem } from '$lib/utils/netProblem';
-	import { sendChatMessage } from '$lib/net/rtdbRoom';
 	import { removeFromLobby } from '$lib/net/lobby';
 	import type { Member, RoomInfo, RoomTransport } from '$lib/net/roomTypes';
 	import { PLAYABLE_RACES, formatRaceName } from '$lib/engine/gameData';
@@ -206,7 +205,7 @@
 		if (!text || !localUid) return;
 		chatInput = '';
 		try {
-			await sendChatMessage(roomCode, identity.forEntry(settings.locale), text);
+			await liveNet.sendChatMessage(roomCode, identity.forEntry(settings.locale), text);
 		} catch {
 			// Ignore transient chat write failure
 		}

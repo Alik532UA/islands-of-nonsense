@@ -10,6 +10,7 @@ export interface RoomNet {
 	peekMembers(code: string): Promise<Member[] | null>;
 	roomTransport(code: string): Promise<RoomTransport>;
 	closeRoom(code: string): Promise<void>;
+	sendChatMessage(code: string, senderName: string, text: string): Promise<boolean>;
 	me(): Promise<string>;
 	trackPresence(code: string): Promise<() => void>;
 	watchPresence(code: string, onChange: (online: string[]) => void): Promise<() => void>;
@@ -24,6 +25,8 @@ export const liveNet: RoomNet = {
 	peekMembers: async (code) => (await import('./rtdbRoom')).peekMembers(code),
 	roomTransport: async (code) => (await import('./rtdbRoom')).roomTransport(code),
 	closeRoom: async (code) => (await import('./rtdbRoom')).closeRoom(code),
+	sendChatMessage: async (code, senderName, text) =>
+		(await import('./rtdbRoom')).sendChatMessage(code, senderName, text),
 	me: async () => (await (await import('./firebase')).connect()).uid,
 	trackPresence: async (code) => (await import('./presence')).trackPresence(code),
 	watchPresence: async (code, onChange) =>

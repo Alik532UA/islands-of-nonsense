@@ -1,6 +1,6 @@
 import type { Database } from 'firebase/database';
 import { GAME_ID, RULES_VERSION, publishToLobby, updateLobbyPlayers } from './lobby';
-import { createRoom, joinRoom } from './rtdbRoom';
+import type { createRoom, joinRoom } from './rtdbRoom';
 import type { LobbyRoom } from './roomTypes';
 
 export interface SeekPlayer {
@@ -78,8 +78,8 @@ export async function seekMatch(
 	const { ref, get, set, remove, onDisconnect, serverTimestamp, query, orderByChild, limitToLast } =
 		dbModule;
 
-	const doCreateRoom = deps.createRoom ?? createRoom;
-	const doJoinRoom = deps.joinRoom ?? joinRoom;
+	const doCreateRoom = deps.createRoom ?? (await import('./rtdbRoom')).createRoom;
+	const doJoinRoom = deps.joinRoom ?? (await import('./rtdbRoom')).joinRoom;
 	const doPublish = deps.publishToLobby ?? publishToLobby;
 	const doUpdatePlayers = deps.updateLobbyPlayers ?? updateLobbyPlayers;
 	const nowFn = deps.now ?? Date.now;

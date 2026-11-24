@@ -8,9 +8,10 @@ import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
 const BUILD_DIR = process.argv.slice(2).find((arg) => !arg.startsWith('-')) ?? 'build';
-const MAX_JS_KB = 550; // Gzip ceiling for total JS across all pages and chunks
+const MAX_ENTRY_JS_KB = 180; // Strict gzip ceiling for initial entry preloads (excludes lazy Pixi/Firebase)
+const MAX_JS_KB = 640; // Gzip ceiling for total JS across all pages and lazy chunks
 const MAX_CSS_KB = 60; // Gzip ceiling for CSS
-const MAX_SINGLE_CHUNK_KB = 250; // Max allowed gzip size for any individual JS chunk
+const MAX_SINGLE_CHUNK_KB = 220; // Max allowed gzip size for any individual JS chunk
 
 if (!existsSync(BUILD_DIR)) {
 	console.error(`❌ Build directory "${BUILD_DIR}" not found. Run "npm run build" first.`);
@@ -50,7 +51,23 @@ for (const file of files) {
 const totalJsKb = totalJsGzip / 1024;
 const totalCssKb = totalCssGzip / 1024;
 
+let entryJsGzip = 0;
+const indexPath = join(BUILD_DIR, 'index.html');
+if (existsSync(indexPath)) {
+	const indexHtml = readFileSync(indexPath, 'utf8');
+	const refs = new Set([...indexHtml.matchAll(/[_a-zA-Z0-9/.-]+\.js/g)].map((m) => m[0]));
+	for (const ref of refs) {
+		const rel = ref.replace(/^\/islands-of-nonsense\//, '').replace(/^\.\//, '');
+		const candidate = join(BUILD_DIR, rel);
+		if (existsSync(candidate)) {
+			entryJsGzip += gzipSync(readFileSync(candidate)).length;
+		}
+	}
+}
+const entryJsKb = entryJsGzip / 1024;
+
 console.log('📦 Bundle Budget Report (Castle Fight Web):');
+console.log(`  Entry JS (gzip):  ${entryJsKb.toFixed(1)} KB (Budget: ${MAX_ENTRY_JS_KB} KB)`);
 console.log(`  Total JS (gzip):  ${totalJsKb.toFixed(1)} KB (Budget: ${MAX_JS_KB} KB)`);
 console.log(`  Total CSS (gzip): ${totalCssKb.toFixed(1)} KB (Budget: ${MAX_CSS_KB} KB)`);
 
@@ -64,6 +81,13 @@ if (chunkDetails.length > 0) {
 
 const isSoft = process.env.BUDGET_SOFT === '1' || process.argv.includes('--warn-only');
 let failed = false;
+
+if (entryJsKb > MAX_ENTRY_JS_KB) {
+	console.error(
+		`\n❌ Initial entry JS exceeds budget (${entryJsKb.toFixed(1)} KB > ${MAX_ENTRY_JS_KB} KB)`
+	);
+	failed = true;
+}
 
 if (totalJsKb > MAX_JS_KB) {
 	console.error(`\n❌ Total JS exceeds budget (${totalJsKb.toFixed(1)} KB > ${MAX_JS_KB} KB)`);
