@@ -4,7 +4,6 @@
 	import {
 		Bot,
 		Sparkles,
-		ArrowLeft,
 		Eye,
 		Sliders,
 		ChevronLeft,
@@ -253,13 +252,17 @@
 </svelte:head>
 
 <div
-	class="menu-page fill min-h-screen px-4 flex flex-col items-center !justify-start pt-4 sm:pt-6 pb-16 relative"
-	style="justify-content: flex-start !important;"
+	class="menu-page fill min-h-[calc(100dvh-56px)] {isConfigOpen
+		? 'h-auto py-4'
+		: 'h-auto lg:h-[calc(100dvh-56px)]'} px-4 flex flex-col items-center relative overflow-y-auto overflow-x-hidden"
 >
 	{#if !isConfigOpen}
+		<!-- Top Spacer: 1 part for ~20% above-center placement -->
+		<div class="flex-[1] min-h-[16px] max-h-[14vh] pointer-events-none shrink-0"></div>
+
 		<!-- 4 Modes in a Row (Adaptive: 4 in a row on desktop lg, 2 on tablet sm, 1 on mobile) -->
 		<div
-			class="w-full max-w-7xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 px-2 items-start animate-in fade-in duration-300"
+			class="w-full max-w-7xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 px-2 items-start animate-in fade-in duration-300 shrink-0"
 		>
 			<!-- 1. Classic Battle vs Computer -->
 			<div
@@ -271,7 +274,7 @@
 				<button
 					type="button"
 					onclick={() => openConfigFor('classic')}
-					class="absolute bottom-[calc(100%+8px)] left-3 right-3 z-40 opacity-0 -translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-200 py-1.5 px-3 rounded-xl bg-[var(--color-bg-card,#131826)]/95 hover:bg-amber-500/20 backdrop-blur-md border border-amber-400/70 text-[var(--color-heading,#fef08a)] text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+					class="absolute bottom-[calc(100%+8px)] left-3 right-3 z-40 opacity-0 -translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-200 py-1.5 px-3 rounded-xl bg-[var(--color-bg-card,#131826)]/95 hover:bg-amber-500/20 backdrop-blur-md border border-amber-400/70 text-[var(--color-heading,#fef08a)] text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg invisible group-hover:visible group-focus-within:visible"
 					style="box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);"
 					data-testid="customize-btn-vsBot"
 				>
@@ -322,7 +325,7 @@
 
 				<!-- Quick Settings Drawer (Floats downward without shifting neighboring elements) -->
 				<div
-					class="absolute top-[calc(100%+8px)] left-3 right-3 z-40 opacity-0 translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-200 bg-[var(--color-bg-card,#131826)]/95 backdrop-blur-md border border-amber-400/70 rounded-xl shadow-2xl p-3 space-y-1.5"
+					class="absolute top-[calc(100%+8px)] left-3 right-3 z-40 opacity-0 translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-200 bg-[var(--color-bg-card,#131826)]/95 backdrop-blur-md border border-amber-400/70 rounded-xl shadow-2xl p-3 space-y-1.5 invisible group-hover:visible group-focus-within:visible"
 					style="box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6);"
 				>
 					<!-- 1. Difficulty -->
@@ -602,7 +605,7 @@
 				<button
 					type="button"
 					onclick={() => openConfigFor('sandbox')}
-					class="absolute bottom-[calc(100%+8px)] left-3 right-3 z-40 opacity-0 -translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-200 py-1.5 px-3 rounded-xl bg-[var(--color-bg-card,#131826)]/95 hover:bg-cyan-500/20 backdrop-blur-md border border-cyan-400/70 text-[var(--color-heading,#fef08a)] text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+					class="absolute bottom-[calc(100%+8px)] left-3 right-3 z-40 opacity-0 -translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-200 py-1.5 px-3 rounded-xl bg-[var(--color-bg-card,#131826)]/95 hover:bg-cyan-500/20 backdrop-blur-md border border-cyan-400/70 text-[var(--color-heading,#fef08a)] text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg invisible group-hover:visible group-focus-within:visible"
 					style="box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);"
 					data-testid="customize-btn-sandbox"
 				>
@@ -655,7 +658,7 @@
 
 				<!-- Quick Settings Drawer (Floats downward without shifting neighboring elements) -->
 				<div
-					class="absolute top-[calc(100%+8px)] left-3 right-3 z-40 opacity-0 translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-200 bg-[var(--color-bg-card,#131826)]/95 backdrop-blur-md border border-cyan-400/70 rounded-xl shadow-2xl p-3 space-y-1.5"
+					class="absolute top-[calc(100%+8px)] left-3 right-3 z-40 opacity-0 translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-200 bg-[var(--color-bg-card,#131826)]/95 backdrop-blur-md border border-cyan-400/70 rounded-xl shadow-2xl p-3 space-y-1.5 invisible group-hover:visible group-focus-within:visible"
 					style="box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6);"
 				>
 					<!-- 1. Gold -->
@@ -936,7 +939,7 @@
 				<button
 					type="button"
 					onclick={() => openConfigFor('botVsBot')}
-					class="absolute bottom-[calc(100%+8px)] left-3 right-3 z-40 opacity-0 -translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-200 py-1.5 px-3 rounded-xl bg-[var(--color-bg-card,#131826)]/95 hover:bg-emerald-500/20 backdrop-blur-md border border-emerald-400/70 text-[var(--color-heading,#fef08a)] text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+					class="absolute bottom-[calc(100%+8px)] left-3 right-3 z-40 opacity-0 -translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-200 py-1.5 px-3 rounded-xl bg-[var(--color-bg-card,#131826)]/95 hover:bg-emerald-500/20 backdrop-blur-md border border-emerald-400/70 text-[var(--color-heading,#fef08a)] text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg invisible group-hover:visible group-focus-within:visible"
 					style="box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);"
 					data-testid="customize-btn-botVsBot"
 				>
@@ -989,7 +992,7 @@
 
 				<!-- Quick Settings Drawer (Floats downward without shifting neighboring elements) -->
 				<div
-					class="absolute top-[calc(100%+8px)] left-3 right-3 z-40 opacity-0 translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-200 bg-[var(--color-bg-card,#131826)]/95 backdrop-blur-md border border-emerald-400/70 rounded-xl shadow-2xl p-3 space-y-1.5"
+					class="absolute top-[calc(100%+8px)] left-3 right-3 z-40 opacity-0 translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-200 bg-[var(--color-bg-card,#131826)]/95 backdrop-blur-md border border-emerald-400/70 rounded-xl shadow-2xl p-3 space-y-1.5 invisible group-hover:visible group-focus-within:visible"
 					style="box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6);"
 				>
 					<!-- 1. Format -->
@@ -1268,7 +1271,7 @@
 				<button
 					type="button"
 					onclick={() => openConfigFor('custom')}
-					class="absolute bottom-[calc(100%+8px)] left-3 right-3 z-40 opacity-0 -translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-200 py-1.5 px-3 rounded-xl bg-[var(--color-bg-card,#131826)]/95 hover:bg-purple-500/20 backdrop-blur-md border border-purple-400/70 text-[var(--color-heading,#fef08a)] text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+					class="absolute bottom-[calc(100%+8px)] left-3 right-3 z-40 opacity-0 -translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-200 py-1.5 px-3 rounded-xl bg-[var(--color-bg-card,#131826)]/95 hover:bg-purple-500/20 backdrop-blur-md border border-purple-400/70 text-[var(--color-heading,#fef08a)] text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg invisible group-hover:visible group-focus-within:visible"
 					style="box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);"
 				>
 					<Sliders class="w-3.5 h-3.5 text-purple-300" />
@@ -1320,7 +1323,7 @@
 
 				<!-- Details Drawer (Floats downward without shifting neighboring elements) -->
 				<div
-					class="absolute top-[calc(100%+8px)] left-3 right-3 z-40 opacity-0 translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-200 bg-[var(--color-bg-card,#131826)]/95 backdrop-blur-md border border-purple-400/70 rounded-xl shadow-2xl p-3 space-y-2.5"
+					class="absolute top-[calc(100%+8px)] left-3 right-3 z-40 opacity-0 translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-200 bg-[var(--color-bg-card,#131826)]/95 backdrop-blur-md border border-purple-400/70 rounded-xl shadow-2xl p-3 space-y-2.5 invisible group-hover:visible group-focus-within:visible"
 					style="box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6);"
 				>
 					<p class="text-xs text-[var(--color-text)] text-center leading-relaxed">
@@ -1339,6 +1342,9 @@
 				</div>
 			</div>
 		</div>
+
+		<!-- Bottom Spacer: 2.5 parts so drawer fits below without screen overflow -->
+		<div class="flex-[2.5] min-h-[32px] pointer-events-none shrink-0"></div>
 	{:else}
 		<!-- In-Place Configuration (Morphs / Expands on Page, No Modal Window) -->
 		<div
@@ -1351,21 +1357,6 @@
 				onClose={() => (isConfigOpen = false)}
 				onStartMatch={(config) => launchMatch(config)}
 			/>
-		</div>
-	{/if}
-
-	<!-- Back link -->
-	{#if isConfigOpen}
-		<div class="menu-links mt-8">
-			<button
-				type="button"
-				onclick={() => (isConfigOpen = false)}
-				class="menu-btn menu-btn--link cursor-pointer"
-				data-testid="back-to-cards-link"
-			>
-				<ArrowLeft class="menu-link__icon" />
-				<span>Згорнути до вибору режимів</span>
-			</button>
 		</div>
 	{/if}
 </div>

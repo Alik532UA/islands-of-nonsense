@@ -410,11 +410,14 @@
 			},
 			onTileClick: (tileX: number, tileY: number, shiftKey = false) => {
 				if (selectedBuildingId) {
+					const shouldQueue = settings.buildQueueMode === 'convenient' ? !shiftKey : shiftKey;
+
 					if (matchSync) {
 						void matchSync.dispatch('BUILD', {
 							buildingType: selectedBuildingId,
 							x: tileX,
-							y: tileY
+							y: tileY,
+							shiftKey: shouldQueue
 						});
 						sound.playBuild();
 						if (!shiftKey) {
@@ -430,7 +433,7 @@
 							tileY,
 							'top',
 							undefined,
-							shiftKey
+							shouldQueue
 						);
 						if (success) {
 							sound.playBuild();
@@ -893,7 +896,9 @@
 							<div
 								class="px-2.5 py-1 bg-amber-500/20 border-2 border-amber-400/80 rounded-xl flex items-center gap-1.5 animate-pulse"
 							>
-								<span class="text-base font-mono font-black text-amber-300">{countdownSeconds}</span>
+								<span class="text-base font-mono font-black text-amber-300">
+									{countdownSeconds}
+								</span>
 								<span class="text-[10px] text-amber-200 font-bold uppercase">сек</span>
 							</div>
 						</div>

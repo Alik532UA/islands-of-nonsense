@@ -97,4 +97,14 @@ describe('SettingsService & Header Claiming', () => {
 		settings.setGraphicsStyle('2.5d');
 		expect(settings.graphicsStyle).toBe('2.5d');
 	});
+
+	it('manages build queue mode (convenient vs classic)', () => {
+		expect(settings.buildQueueMode).toBe('convenient');
+
+		settings.setBuildQueueMode('classic');
+		expect(settings.buildQueueMode).toBe('classic');
+
+		settings.setBuildQueueMode('convenient');
+		expect(settings.buildQueueMode).toBe('convenient');
+	});
 });

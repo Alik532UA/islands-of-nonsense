@@ -170,7 +170,7 @@ export class MatchSync {
 					typeof p.x === 'number' &&
 					typeof p.y === 'number'
 				) {
-					this.sim.build(team, p.buildingType, p.x, p.y);
+					this.sim.build(team, p.buildingType, p.x, p.y, undefined, undefined, Boolean(p.shiftKey));
 				}
 				break;
 

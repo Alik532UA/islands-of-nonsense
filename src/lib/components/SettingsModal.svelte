@@ -11,7 +11,13 @@
 		Sparkles,
 		Check
 	} from 'lucide-svelte';
-	import { settings, UI_SCALES, APP_THEMES, GRAPHICS_STYLES } from '$lib/services/settings.svelte';
+	import {
+		settings,
+		UI_SCALES,
+		APP_THEMES,
+		GRAPHICS_STYLES,
+		BUILD_QUEUE_MODES
+	} from '$lib/services/settings.svelte';
 	import { fullscreen, canFullscreen, isStandalone } from '$lib/services/fullscreen.svelte';
 	import { sound } from '$lib/services/audio';
 	import { t } from '$lib/i18n';
@@ -301,6 +307,57 @@
 										</div>
 
 										{#if settings.graphicsStyle === styleId}
+											<span
+												class="p-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 shrink-0"
+											>
+												<Check class="w-3.5 h-3.5" />
+											</span>
+										{/if}
+									</button>
+								{/each}
+							</div>
+						</div>
+
+						<!-- Build Queue Mode (Settings - зручний vs класичний) -->
+						<div class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 space-y-3">
+							<div class="space-y-0.5">
+								<div class="text-xs font-bold text-slate-200">{t('settings.buildQueueMode')}</div>
+								<div class="text-[11px] text-slate-400">{t('settings.buildQueueModeDesc')}</div>
+							</div>
+
+							<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+								{#each BUILD_QUEUE_MODES as modeId}
+									<button
+										type="button"
+										class="p-3 rounded-xl border text-left transition flex items-center justify-between gap-3 cursor-pointer {settings.buildQueueMode ===
+										modeId
+											? 'bg-amber-500/20 border-amber-500/60 text-amber-200 shadow-sm'
+											: 'bg-[#0f131d] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
+										onclick={() => settings.setBuildQueueMode(modeId)}
+										data-testid={`settings-buildqueue-${modeId}`}
+									>
+										<div class="flex items-center gap-2.5">
+											<div
+												class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 {settings.buildQueueMode ===
+												modeId
+													? 'bg-amber-500/30 text-amber-300'
+													: 'bg-slate-800/80 text-slate-400'}"
+											>
+												{modeId === 'convenient' ? '⚡' : '📜'}
+											</div>
+											<div>
+												<div class="text-xs font-bold text-slate-200">
+													{t(`settings.buildQueueMode.${modeId}`)}
+												</div>
+												<div class="text-[10px] text-slate-400">
+													{modeId === 'convenient'
+														? 'Без Shift: у чергу (з Shift: перервати)'
+														: 'Без Shift: перервати (з Shift: у чергу)'}
+												</div>
+											</div>
+										</div>
+
+										{#if settings.buildQueueMode === modeId}
 											<span
 												class="p-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 shrink-0"
 											>

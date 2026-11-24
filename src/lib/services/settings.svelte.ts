@@ -18,6 +18,17 @@ export const APP_THEMES: readonly AppTheme[] = [
 export type GraphicsStyle = '2.5d' | 'hd-webp';
 export const GRAPHICS_STYLES: readonly GraphicsStyle[] = ['2.5d', 'hd-webp'] as const;
 
+export type BuildQueueMode = 'convenient' | 'classic';
+export const BUILD_QUEUE_MODES: readonly BuildQueueMode[] = ['convenient', 'classic'] as const;
+
+function detectInitialBuildQueueMode(): BuildQueueMode {
+	const saved = storage.getJSON<BuildQueueMode>('settings_build_queue_mode', 'convenient');
+	if (BUILD_QUEUE_MODES.includes(saved)) {
+		return saved;
+	}
+	return 'convenient';
+}
+
 function detectInitialGraphicsStyle(): GraphicsStyle {
 	const saved = storage.getJSON<GraphicsStyle>('settings_graphics_style', '2.5d');
 	if (GRAPHICS_STYLES.includes(saved)) {
@@ -85,6 +96,7 @@ class SettingsService {
 	#uiScale = $state<UiScale>(detectInitialUiScale());
 	#theme = $state<AppTheme>(detectInitialTheme());
 	#graphicsStyle = $state<GraphicsStyle>(detectInitialGraphicsStyle());
+	#buildQueueMode = $state<BuildQueueMode>(detectInitialBuildQueueMode());
 	#isSettingsOpen = $state(false);
 
 	constructor() {
@@ -127,6 +139,10 @@ class SettingsService {
 		return this.#graphicsStyle;
 	}
 
+	get buildQueueMode(): BuildQueueMode {
+		return this.#buildQueueMode;
+	}
+
 	get isSettingsOpen(): boolean {
 		return this.#isSettingsOpen;
 	}
@@ -166,6 +182,13 @@ class SettingsService {
 		if (GRAPHICS_STYLES.includes(style)) {
 			this.#graphicsStyle = style;
 			storage.setJSON('settings_graphics_style', style);
+		}
+	}
+
+	setBuildQueueMode(mode: BuildQueueMode): void {
+		if (BUILD_QUEUE_MODES.includes(mode)) {
+			this.#buildQueueMode = mode;
+			storage.setJSON('settings_build_queue_mode', mode);
 		}
 	}
 

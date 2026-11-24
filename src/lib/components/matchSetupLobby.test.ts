@@ -29,6 +29,15 @@ describe('Play Modes (/play) & MatchConfigModal Presets Architecture', () => {
 		expect(playContent).toContain('data-testid="open-custom-config-btn"');
 	});
 
+	it('Play page positions cards ~20% above center with no redundant vertical scrollbar on desktop', () => {
+		expect(playContent).toContain('min-h-[calc(100dvh-56px)]');
+		expect(playContent).not.toContain('min-h-screen');
+		expect(playContent).not.toContain('!justify-start');
+		expect(playContent).toContain('flex-[1]');
+		expect(playContent).toContain('flex-[2.5]');
+		expect(playContent).toContain('invisible group-hover:visible');
+	});
+
 	it('/play/setup cleanly redirects to canonical /play route', () => {
 		expect(setupContent).toContain("goto(resolve('/play')");
 	});
@@ -62,5 +71,12 @@ describe('Play Modes (/play) & MatchConfigModal Presets Architecture', () => {
 		expect(modalContent).toContain('data-testid="gold-btn-');
 		expect(modalContent).toContain('data-testid="teamsize-btn-');
 		expect(modalContent).toContain('data-testid="targetwins-btn-');
+	});
+
+	it('MatchConfigModal implements a balanced 3-column command layout (West, Center, East)', () => {
+		expect(modalContent).toContain('lg:grid-cols-[190px_1fr_190px]');
+		expect(modalContent).toContain('Захід (Гравець)');
+		expect(modalContent).toContain('Схід (Бот)');
+		expect(modalContent).toContain('max-w-6xl');
 	});
 });

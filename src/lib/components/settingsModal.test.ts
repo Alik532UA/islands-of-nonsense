@@ -44,6 +44,7 @@ describe('SettingsModal and Settings Integration Tests', () => {
 		// Interface scale controls
 		expect(modalContent).toContain('data-testid={`settings-scale-${scale}`}');
 		expect(modalContent).toContain('data-testid={`settings-graphics-${styleId}`}');
+		expect(modalContent).toContain('data-testid={`settings-buildqueue-${modeId}`}');
 		expect(modalContent).toContain('data-testid="settings-fullscreen-btn"');
 	});
 

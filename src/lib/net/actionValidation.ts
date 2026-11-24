@@ -94,6 +94,10 @@ export function validatePlayerMove(raw: unknown): ValidationResult {
 		sanitizedPayload.y = Math.round(p.y);
 	}
 
+	if ('shiftKey' in p) {
+		sanitizedPayload.shiftKey = Boolean(p.shiftKey);
+	}
+
 	if ('targetId' in p) {
 		if (typeof p.targetId !== 'string' || p.targetId.length > 64) {
 			return { valid: false, error: 'Target ID exceeds allowable length' };
