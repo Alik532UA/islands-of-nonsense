@@ -202,10 +202,23 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 	});
 
 	it('configures minimalist worker inspection panel with faction badge, single speed stat, zero text overlap, and hides redundant vital bar', () => {
-		// Title and faction badge
+		// Title and faction badge without square brackets
 		expect(entityInspectDetailsSrc).toContain('Будівельник');
 		expect(entityInspectDetailsSrc).toContain('formatFactionName');
-		expect(entityInspectDetailsSrc).toContain('[{formatFactionName(player.race)}]');
+		expect(entityInspectDetailsSrc).toContain('{formatFactionName(player.race)}');
+		expect(entityInspectDetailsSrc).not.toContain('[{formatFactionName(player.race)}]');
+
+		// No pulsing green dot
+		expect(entityInspectDetailsSrc).not.toContain('animate-pulse');
+
+		// Compact stats container for worker
+		expect(bottomBarSrc).toContain("activeEntityType === 'worker'\n\t\t\t? 'w-40 shrink-0'");
+
+		// Portrait frame expands to 100% of container for worker
+		expect(bottomBarSrc).toContain("activeEntityType === 'worker'\n\t\t\t\t? 'w-full h-full'");
+
+		// Inventory header title stripped (self-explanatory slots)
+		expect(bottomBarSrc).not.toMatch(/>\s*Предмети\s*<\/span>/);
 
 		// Worker attribute row contains only Speed (260) with Footprints icon
 		expect(entityInspectDetailsSrc).toContain("activeEntityType === 'worker'");

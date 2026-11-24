@@ -221,8 +221,8 @@
 	<div
 		data-testid="hud-portrait-panel"
 		class="flex flex-col items-center {activeEntityType === 'worker'
-			? 'justify-center'
-			: 'justify-between'} px-3 py-2 bg-[#131722]/95 backdrop-blur-md rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 {entityTeam ===
+			? 'justify-center p-2'
+			: 'justify-between px-3 py-2'} bg-[#131722]/95 backdrop-blur-md rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 {entityTeam ===
 		'neutral'
 			? 'border-purple-600/80 shadow-[0_0_12px_rgba(168,85,247,0.4)]'
 			: isOpponent
@@ -232,7 +232,9 @@
 	>
 		<!-- Stone Arch Portrait Frame -->
 		<div
-			class="relative w-20 h-20 rounded-md border-2 border-[#8c7456] bg-[#0c1017] flex items-center justify-center overflow-hidden shadow-md"
+			class="relative {activeEntityType === 'worker'
+				? 'w-full h-full'
+				: 'w-20 h-20'} rounded-md border-2 border-[#8c7456] bg-[#0c1017] flex items-center justify-center overflow-hidden shadow-md"
 		>
 			{#if activeEntityType === 'castle' && selectedCastle}
 				<!-- Castle Keep Portrait with Actual WebP Sprite -->
@@ -302,22 +304,22 @@
 					<span class="text-[9px] uppercase tracking-wide opacity-60">Вибір</span>
 				</div>
 			{:else}
-				<!-- Worker ("Північний будівельник") Portrait -->
-				<div class="relative flex flex-col items-center justify-center">
+				<!-- Worker ("Північний будівельник") Portrait (Fills 100% of frame) -->
+				<div class="relative flex flex-col items-center justify-center scale-135">
 					<!-- Peasant head graphic -->
 					<div
-						class="w-11 h-11 rounded-full bg-[#fcd34d] border-2 border-[#b45309] relative flex items-center justify-center overflow-hidden shadow-inner"
+						class="w-13 h-13 rounded-full bg-[#fcd34d] border-2 border-[#b45309] relative flex items-center justify-center overflow-hidden shadow-inner"
 					>
 						<!-- Headband / Hair -->
-						<div class="absolute top-0 left-0 right-0 h-4 bg-[#78350f]"></div>
+						<div class="absolute top-0 left-0 right-0 h-4.5 bg-[#78350f]"></div>
 						<!-- Face eyes -->
-						<div class="flex gap-2.5 mt-2">
+						<div class="flex gap-3 mt-2.5">
 							<div class="w-1.5 h-1.5 rounded-full bg-[#1e293b]"></div>
 							<div class="w-1.5 h-1.5 rounded-full bg-[#1e293b]"></div>
 						</div>
 					</div>
 					<!-- Blue tunic collar -->
-					<div class="w-14 h-4 bg-[#2563eb] border border-[#60a5fa] rounded-t-md mt-0.5"></div>
+					<div class="w-16 h-5 bg-[#2563eb] border border-[#60a5fa] rounded-t-md mt-0.5"></div>
 				</div>
 			{/if}
 
@@ -422,9 +424,11 @@
 	<!-- 3. CENTER: Entity Stats & Characteristics Panel -->
 	<div
 		data-testid="hud-stats-panel"
-		class="relative flex-1 {activeEntityType === 'unit'
-			? 'min-w-[340px] max-w-[420px]'
-			: 'min-w-[280px] max-w-[500px]'} flex flex-col justify-between px-4 py-2 bg-[#131722]/95 backdrop-blur-md rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 {entityTeam ===
+		class="relative {activeEntityType === 'worker'
+			? 'w-40 shrink-0'
+			: activeEntityType === 'unit'
+				? 'flex-1 min-w-[340px] max-w-[420px]'
+				: 'flex-1 min-w-[280px] max-w-[500px]'} flex flex-col justify-between px-4 py-2 bg-[#131722]/95 backdrop-blur-md rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 {entityTeam ===
 		'neutral'
 			? 'border-purple-600/80 shadow-[0_0_12px_rgba(168,85,247,0.4)]'
 			: isOpponent
@@ -451,18 +455,14 @@
 {/snippet}
 
 {#snippet inventorySnippet()}
-	<!-- 4. CENTER-RIGHT: Authentic Warcraft III 6-Slot Inventory ("Предмети") -->
+	<!-- 4. CENTER-RIGHT: Authentic Warcraft III 6-Slot Inventory -->
 	<div
 		data-testid="hud-inventory-panel"
-		class="flex flex-col items-center justify-between px-2.5 py-2 bg-[#131722]/95 backdrop-blur-md rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 border-[#544738] shadow-inner shrink-0 w-28 h-[142px] pointer-events-auto"
+		class="flex flex-col items-center justify-center px-2.5 py-2 bg-[#131722]/95 backdrop-blur-md rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 border-[#544738] shadow-inner shrink-0 w-28 h-[142px] pointer-events-auto"
 		style="box-shadow: inset 0 0 10px rgba(0,0,0,0.85);"
 	>
-		<span class="text-[10px] font-bold uppercase tracking-wider text-[#b89758] leading-none">
-			Предмети
-		</span>
-
 		<!-- 2 columns x 3 rows grid of authentic Warcraft III leather inventory pouches -->
-		<div class="grid grid-cols-2 gap-1 my-auto">
+		<div class="grid grid-cols-2 gap-1.5 my-auto">
 			{#each [0, 1, 2, 3, 4, 5] as slotIdx}
 				<div
 					data-testid="hud-inventory-slot-{slotIdx}"
