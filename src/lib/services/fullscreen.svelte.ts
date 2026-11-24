@@ -1,4 +1,4 @@
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 
 interface FullscreenDocument extends Document {
 	webkitFullscreenElement?: Element;

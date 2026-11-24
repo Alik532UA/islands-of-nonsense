@@ -4,7 +4,7 @@ import { STORAGE_PREFIX } from '$lib/services/storage';
 
 vi.mock('$app/paths', () => ({ base: '/App' }));
 // Фасад сховища працює лише в браузері; у vitest із плагіном SvelteKit `browser` — false (§ 4).
-vi.mock('$app/environment', () => ({ browser: true, dev: false }));
+vi.mock('$app/env', () => ({ browser: true, dev: false }));
 
 const HOST = 'https://user.github.io';
 /** Префікс — з фасаду, а не рядком: `<PROJECT_PREFIX>` кожного проєкту свій. Превʼю — той самий проєкт в іншому середовищі. */

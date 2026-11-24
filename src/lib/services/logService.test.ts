@@ -1,7 +1,7 @@
 // src/lib/services/logService.test.ts
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('$app/environment', () => ({ browser: true, dev: false }));
+vi.mock('$app/env', () => ({ browser: true, dev: false }));
 vi.mock('$app/env', () => ({ browser: true, dev: false }));
 
 const load = async () => (await import('./logService.svelte')).logService;
