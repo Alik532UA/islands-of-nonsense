@@ -30,4 +30,18 @@ describe('CI & Testing Integrity Invariants', () => {
 		expect(files).toContain('game.spec.ts');
 		expect(files).toContain('online-lobby.spec.ts');
 	});
+
+	it('GitHub Actions workflows use verified real action versions and declare timeouts (CI-CD-AND-TOOLS-v10)', () => {
+		const wfDir = path.resolve(process.cwd(), '.github/workflows');
+		const workflows = fs.readdirSync(wfDir).filter((f) => f.endsWith('.yml'));
+		expect(workflows.length).toBeGreaterThanOrEqual(3);
+
+		for (const wf of workflows) {
+			const content = fs.readFileSync(path.join(wfDir, wf), 'utf-8');
+			// Заборона вигаданих мажорів дій
+			expect(content).not.toMatch(/actions\/(?:checkout|setup-node|upload-artifact)@v7/);
+			// Обов'язкова наявність timeout-minutes на кожному job
+			expect(content).toContain('timeout-minutes:');
+		}
+	});
 });
