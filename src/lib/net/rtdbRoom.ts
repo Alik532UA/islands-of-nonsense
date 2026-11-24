@@ -2,6 +2,7 @@ import { isDenied } from './denied';
 import { connect, serverNow, serverTime } from './firebase';
 import { logService } from '$lib/services/logService.svelte';
 import { generateRoomCode } from './roomCode';
+import { forgetOwnRoom, pruneOwnRooms, rememberOwnRoom } from './ownRooms';
 import type {
 	GoneReason,
 	Member,
@@ -266,6 +267,8 @@ export async function createRoom(options: NewRoomOptions): Promise<string> {
 	const { get, ref, set, serverTimestamp } = await import('firebase/database');
 	const random = options.random ?? Math.random;
 
+	await pruneOwnRooms();
+
 	let lastDenial: unknown = null;
 
 	for (let attempt = 0; attempt < CODE_TRIES; attempt++) {
@@ -304,13 +307,15 @@ export async function createRoom(options: NewRoomOptions): Promise<string> {
 			role: 'player',
 			order: 1,
 			slot: 1,
-			...(options.country ? { country: options.country } : {}),
+			...(options.country && options.country.length === 2 ? { country: options.country } : {}),
 			...(options.avatar ? { avatar: options.avatar } : {}),
 			...(options.team ? { team: options.team } : { team: 'west' }),
 			...(options.race ? { race: options.race } : {}),
 			...(options.compact ? { compact: true } : {}),
 			...(auth.currentUser?.isAnonymous === false ? { account: true } : {})
 		});
+
+		await rememberOwnRoom(code);
 
 		return code;
 	}
@@ -342,7 +347,7 @@ export async function joinRoom(code: string, entry: RoomEntry): Promise<void> {
 		role: entry.role,
 		order,
 		slot,
-		...(entry.country ? { country: entry.country } : {}),
+		...(entry.country && entry.country.length === 2 ? { country: entry.country } : {}),
 		...(entry.avatar ? { avatar: entry.avatar } : {}),
 		team,
 		...(entry.race ? { race: entry.race } : {}),
@@ -409,6 +414,7 @@ export async function closeRoom(code: string): Promise<void> {
 	const { db } = await connect();
 	const { ref, remove } = await import('firebase/database');
 	await remove(ref(db, `rooms/${code}`));
+	await forgetOwnRoom(code);
 }
 
 export async function roomTransport(code: string): Promise<RoomTransport> {

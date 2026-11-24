@@ -37,7 +37,7 @@ export function buildSeekTicket(
 	return {
 		uid: player.uid,
 		name: player.name,
-		...(player.country ? { country: player.country } : {}),
+		...(player.country && player.country.length === 2 ? { country: player.country } : {}),
 		...(player.avatar ? { avatar: player.avatar } : {}),
 		at: timestampSentinel
 	};
@@ -75,7 +75,8 @@ export async function seekMatch(
 	deps: SeekDeps = {}
 ): Promise<SeekResult> {
 	const dbModule = await import('firebase/database');
-	const { ref, get, set, remove, onDisconnect, serverTimestamp } = dbModule;
+	const { ref, get, set, remove, onDisconnect, serverTimestamp, query, orderByChild, limitToLast } =
+		dbModule;
 
 	const doCreateRoom = deps.createRoom ?? createRoom;
 	const doJoinRoom = deps.joinRoom ?? joinRoom;
@@ -85,7 +86,7 @@ export async function seekMatch(
 
 	if (signal?.aborted) throw new Error('Search cancelled');
 
-	const lobbyRef = ref(db, `lobby/${GAME_ID}`);
+	const lobbyRef = query(ref(db, `lobby/${GAME_ID}`), orderByChild('createdAt'), limitToLast(30));
 	const lobbySnap = await get(lobbyRef);
 	if (lobbySnap.exists()) {
 		const open = findJoinableLobbyRoom(
@@ -108,7 +109,7 @@ export async function seekMatch(
 
 	if (signal?.aborted) throw new Error('Search cancelled');
 
-	const queueRef = ref(db, `seek/${GAME_ID}`);
+	const queueRef = query(ref(db, `seek/${GAME_ID}`), orderByChild('at'), limitToLast(30));
 	const myTicketRef = ref(db, `seek/${GAME_ID}/${player.uid}`);
 	await set(myTicketRef, buildSeekTicket(player, serverTimestamp()));
 	const disconnect = onDisconnect(myTicketRef);

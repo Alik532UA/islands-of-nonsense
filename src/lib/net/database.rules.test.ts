@@ -162,6 +162,9 @@ describe('database.rules.json security invariants & Firebase architecture', () =
 		const json = JSON.parse(raw);
 
 		expect(json.rules.rooms.$code.info.$other['.validate']).toBe(false);
+		expect(json.rules.rooms.$code.info.config.$other['.validate']).toBe(false);
+		expect(json.rules.rooms.$code.info.roster.$uid.$other['.validate']).toBe(false);
+		expect(json.rules.rooms.$code.$other['.validate']).toBe(false);
 		expect(json.rules.rooms.$code.members.$uid.$other['.validate']).toBe(false);
 		expect(json.rules.rooms.$code.moves.$seq.$other['.validate']).toBe(false);
 		expect(json.rules.rooms.$code.moves.$seq.payload.$other['.validate']).toBe(false);
@@ -169,9 +172,42 @@ describe('database.rules.json security invariants & Firebase architecture', () =
 		expect(json.rules.rooms.$code.chat.$msgId.$other['.validate']).toBe(false);
 		expect(json.rules.lobby.$gameId.$code.$other['.validate']).toBe(false);
 		expect(json.rules.seek.$gameId.$uid.$other['.validate']).toBe(false);
+		expect(json.rules.users.$uid.$other['.validate']).toBe(false);
 		expect(json.rules.users.$uid.profile.$other['.validate']).toBe(false);
 		expect(json.rules.users.$uid.play.$other['.validate']).toBe(false);
 		expect(json.rules.leaders.$uid.$other['.validate']).toBe(false);
+		expect(json.rules.myRooms.$uid.$code.$other['.validate']).toBe(false);
+	});
+
+	it('enforces room info immutability, lobby bounded queries, and non-anonymous profiles/leaders', () => {
+		const raw = readFileSync(rulesPath, 'utf8');
+		const json = JSON.parse(raw);
+
+		const info = json.rules.rooms.$code.info;
+		expect(info['.write']).toContain("!data.parent().child('members').exists()");
+		expect(info['.write']).toContain("!data.parent().child('moves').exists()");
+		expect(info.gameId['.validate']).toContain('!data.exists() || newData.val() === data.val()');
+		expect(info.createdAt['.validate']).toContain('newData.val() === data.val()');
+		expect(info.roster.$uid.name['.validate']).toContain('members');
+
+		const member = json.rules.rooms.$code.members.$uid;
+		expect(member.order['.validate']).toContain('!data.exists() || newData.val() === data.val()');
+		expect(member.account['.validate']).toContain('sign_in_provider');
+
+		expect(json.rules.lobby.$gameId['.indexOn']).toContain('createdAt');
+		expect(json.rules.lobby.$gameId['.read']).toContain('limitToLast <= 30');
+		expect(json.rules.lobby.$gameId.$code['.write']).not.toContain('|| !newData.exists()');
+
+		expect(json.rules.seek.$gameId['.indexOn']).toContain('at');
+		expect(json.rules.seek.$gameId['.read']).toContain('limitToLast <= 30');
+
+		expect(json.rules.users.$uid.profile['.validate']).toContain('sign_in_provider');
+		expect(json.rules.users.$uid.profile.handle['.validate']).toContain('handles');
+		expect(json.rules.leaders['.read']).toContain('limitToLast <= 50');
+		expect(json.rules.leaders.$uid.score['.validate']).toContain('play/score');
+		expect(json.rules.myRooms.$uid.$code['.validate']).toContain(
+			'$code.matches(/^[0-9A-Z]{2,6}$/)'
+		);
 	});
 
 	it('protects handle uniqueness and regex requirements', () => {

@@ -15,10 +15,21 @@ export async function publishToLobby(db: Database, room: LobbyPublishInput): Pro
 	const { ref, set, onDisconnect, remove, serverTimestamp } = dbModule;
 	const lobbyRef = ref(db, `lobby/${GAME_ID}/${room.code}`);
 
-	await set(lobbyRef, {
-		...room,
+	const payload: Record<string, unknown> = {
+		code: room.code,
+		hostUid: room.hostUid,
+		hostName: room.hostName,
+		...(room.hostCountry && room.hostCountry.length === 2 ? { hostCountry: room.hostCountry } : {}),
+		...(room.hostAvatar ? { hostAvatar: room.hostAvatar } : {}),
+		gameId: room.gameId,
+		rulesVersion: room.rulesVersion,
+		players: room.players,
+		maxPlayers: room.maxPlayers,
+		modeId: room.modeId,
 		createdAt: serverTimestamp()
-	});
+	};
+
+	await set(lobbyRef, payload);
 	const disconnectHandler = onDisconnect(lobbyRef);
 	void disconnectHandler.remove();
 
@@ -58,9 +69,13 @@ export function subscribeLobby(db: Database, onRooms: (rooms: LobbyRoom[]) => vo
 	let cancelled = false;
 	let unsubscribe = () => {};
 
-	void import('firebase/database').then(({ ref, onValue, query, limitToLast }) => {
+	void import('firebase/database').then(({ ref, onValue, orderByChild, query, limitToLast }) => {
 		if (cancelled) return;
-		const lobbyQuery = query(ref(db, `lobby/${GAME_ID}`), limitToLast(30));
+		const lobbyQuery = query(
+			ref(db, `lobby/${GAME_ID}`),
+			orderByChild('createdAt'),
+			limitToLast(30)
+		);
 		unsubscribe = onValue(lobbyQuery, (snapshot) => {
 			if (!snapshot.exists()) {
 				onRooms([]);
@@ -71,8 +86,7 @@ export function subscribeLobby(db: Database, onRooms: (rooms: LobbyRoom[]) => vo
 			const list: LobbyRoom[] = [];
 			for (const room of Object.values(val)) {
 				const age = typeof room.createdAt === 'number' ? now - room.createdAt : 0;
-				if (age > LOBBY_STALE_MS && room.code) {
-					void removeFromLobby(db, room.code).catch(() => {});
+				if (age > LOBBY_STALE_MS) {
 					continue;
 				}
 				if (room.players < room.maxPlayers) {

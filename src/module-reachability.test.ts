@@ -46,7 +46,6 @@ const ENTRY_POINTS = [
  */
 const KNOWN_UNREACHABLE: Record<string, string> = {
 	'src/lib/index.ts': 'Library root re-export package entrypoint',
-	'src/lib/net/sweepRooms.ts': 'CLI maintenance sweep script entrypoint (npm run rooms:sweep)',
 	'src/lib/engine/balanceRunner.ts': 'Balance suite runner executed by npm run test:balance',
 	'src/lib/net/localRoom.ts': 'In-memory offline RTDB room simulation mock for unit tests',
 	'src/lib/net/localRules.ts':
