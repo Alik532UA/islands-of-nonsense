@@ -7,8 +7,14 @@ declare const self: ServiceWorkerGlobalScope;
 
 import { build, files, version } from '$service-worker';
 
-const CACHE = `castlefight-cache-${version}`;
+const CACHE = `islandsofnonsense-cache-${version}`;
 const ASSETS = [...build, ...files];
+
+self.addEventListener('message', (event: ExtendableMessageEvent) => {
+	if (event.data && event.data.type === 'SKIP_WAITING') {
+		void self.skipWaiting();
+	}
+});
 
 self.addEventListener('install', (event: ExtendableEvent) => {
 	async function addFilesToCache() {
@@ -21,7 +27,9 @@ self.addEventListener('install', (event: ExtendableEvent) => {
 self.addEventListener('activate', (event: ExtendableEvent) => {
 	async function deleteOldCaches() {
 		for (const key of await caches.keys()) {
-			if (key !== CACHE) await caches.delete(key);
+			if (key !== CACHE) {
+				await caches.delete(key);
+			}
 		}
 	}
 	event.waitUntil(deleteOldCaches());

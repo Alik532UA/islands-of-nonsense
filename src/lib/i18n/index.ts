@@ -202,7 +202,9 @@ export const translations = {
 		'install.title.inApp': 'Відкрийте у браузері',
 		'install.title.app': 'Встановити застосунок',
 		'install.warning.iosChrome': 'Якщо пункту немає, відкрийте гру в Safari',
-		'install.done': 'Зрозуміло'
+		'install.done': 'Зрозуміло',
+		'pwa.updateAvailable': 'Доступна нова версія гри!',
+		'pwa.updateAction': 'Оновити'
 	},
 	en: {
 		app_title: 'Castle Fight Web',
@@ -399,7 +401,9 @@ export const translations = {
 		'install.title.inApp': 'Open in Browser',
 		'install.title.app': 'Install Web App',
 		'install.warning.iosChrome': 'If the option is missing, open the game in Safari',
-		'install.done': 'Got it'
+		'install.done': 'Got it',
+		'pwa.updateAvailable': 'A new game update is available!',
+		'pwa.updateAction': 'Update'
 	}
 } as const;
 

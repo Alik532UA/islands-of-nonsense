@@ -14,6 +14,7 @@
 	import { logService } from '$lib/services/logService.svelte';
 	import { settings } from '$lib/services/settings.svelte';
 	import { fullscreen } from '$lib/services/fullscreen.svelte';
+	import { initServiceWorkerUpdate } from '$lib/pwa/serviceWorkerUpdate';
 	import { debugMode } from '$lib/debug/debugMode.svelte';
 	import { hardReset } from '$lib/debug/hardReset';
 	import { createKeySequence, listenForSequences } from '$lib/debug/keySequence';
@@ -38,7 +39,11 @@
 
 	$effect(() => {
 		const unwatch = fullscreen.watch();
-		return () => unwatch();
+		const cleanupSw = initServiceWorkerUpdate();
+		return () => {
+			unwatch();
+			cleanupSw();
+		};
 	});
 
 	$effect(() =>
