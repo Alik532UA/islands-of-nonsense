@@ -65,8 +65,8 @@ export function getCommander(id: number): Commander {
 	return COMMANDERS.find((c) => c.id === id) || COMMANDERS[0];
 }
 
-export function pickRandomCommanderId(): number {
-	const idx = Math.floor(Math.random() * COMMANDERS.length);
+export function pickRandomCommanderId(rand: () => number = Math.random): number {
+	const idx = Math.floor(rand() * COMMANDERS.length);
 	return COMMANDERS[idx]?.id ?? COMMANDERS[0].id;
 }
 

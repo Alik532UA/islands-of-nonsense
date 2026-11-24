@@ -147,8 +147,11 @@ export const BOSS_DEFINITIONS: BossDefinition[] = [
 	}
 ];
 
-export function getRandomBoss(excludeIndex = -1): { boss: BossDefinition; index: number } {
-	let idx = Math.floor(Math.random() * BOSS_DEFINITIONS.length);
+export function getRandomBoss(
+	excludeIndex = -1,
+	rand: () => number = Math.random
+): { boss: BossDefinition; index: number } {
+	let idx = Math.floor(rand() * BOSS_DEFINITIONS.length);
 	if (idx === excludeIndex && BOSS_DEFINITIONS.length > 1) {
 		idx = (idx + 1) % BOSS_DEFINITIONS.length;
 	}

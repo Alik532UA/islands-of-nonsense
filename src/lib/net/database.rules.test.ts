@@ -115,15 +115,46 @@ describe('database.rules.json security invariants & Firebase architecture', () =
 		expect(gameRules.score['.validate']).toContain('newData.val() >= 0');
 	});
 
-	it('protects chat messages with length bounds and sender validation', () => {
+	it('protects chat messages with length bounds, sender validation, and anti-spam rate limit', () => {
 		const raw = readFileSync(rulesPath, 'utf8');
 		const json = JSON.parse(raw);
 		const chat = json.rules.rooms.$code.chat.$msgId;
 
 		expect(chat['.write']).toContain("newData.child('senderUid').val() === auth.uid");
 		expect(chat['.write']).toContain('!data.exists() && newData.exists()');
+		expect(chat['.write']).toContain('lastChatAt');
 		expect(chat.text['.validate']).toContain('newData.val().length <= 200');
 		expect(chat.senderUid['.validate']).toContain('newData.val() === auth.uid');
+	});
+
+	it('scopes moves, chat, and presence reads to room members and enforces move cooldowns', () => {
+		const raw = readFileSync(rulesPath, 'utf8');
+		const json = JSON.parse(raw);
+		const room = json.rules.rooms.$code;
+
+		expect(room['.read']).toBeUndefined();
+		expect(room.info['.read']).toBe('auth != null');
+		expect(room.members['.read']).toBe('auth != null');
+		expect(room.moves['.read']).toContain('members');
+		expect(room.chat['.read']).toContain('members');
+		expect(room.presence['.read']).toContain('members');
+
+		const movesWrite = room.moves.$seq['.write'];
+		expect(movesWrite).toContain('lastMoveAt');
+		expect(movesWrite).toContain('now - 80');
+
+		const member = room.members.$uid;
+		expect(member.order['.validate']).toContain('<= 10');
+		expect(member.lastMoveAt['.validate']).toContain(
+			'!data.exists() || newData.val() > data.val()'
+		);
+		expect(member.lastChatAt['.validate']).toContain(
+			'!data.exists() || newData.val() > data.val()'
+		);
+
+		const payloadRules = room.moves.$seq.payload;
+		expect(payloadRules.commanderId['.validate']).toContain("'random'");
+		expect(payloadRules.playerSlot['.validate']).toContain('<= 6');
 	});
 
 	it('enforces strict $other: false schema locking across critical nodes', () => {

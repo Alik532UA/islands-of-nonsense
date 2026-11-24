@@ -79,7 +79,7 @@ export class BotAI {
 		this.team = team;
 		this.player = player;
 		// Stagger initial decision timer (0.4s - 1.8s) so multiple bots on a team don't act in synchronous lockstep
-		const slotOffset = player?.slot ? (player.slot * 0.35) % 1.2 : Math.random() * 0.8;
+		const slotOffset = player?.slot ? (player.slot * 0.35) % 1.2 : this.sim.nextRandom() * 0.8;
 		this.decisionTimer = 0.5 + slotOffset;
 	}
 
@@ -95,7 +95,7 @@ export class BotAI {
 		if (this.sim.winner) return;
 		this.decisionTimer -= dt;
 		if (this.decisionTimer <= 0) {
-			this.decisionTimer = 1.2 + Math.random() * 0.8;
+			this.decisionTimer = 1.2 + this.sim.nextRandom() * 0.8;
 			this.makeDecision();
 		}
 	}
@@ -487,7 +487,7 @@ export class BotAI {
 		}
 
 		// When tier >= 3, upgrade probability is 100% (WC3 reference: "при поднятом ярусе 3+ шанс заменён на 100%")
-		if (upgradeCandidates.length > 0 && (tier >= 3 || Math.random() < 0.45)) {
+		if (upgradeCandidates.length > 0 && (tier >= 3 || this.sim.nextRandom() < 0.45)) {
 			// Score upgrade candidates with tactical counter-picks rather than pure random choice
 			const scoredUpgrades = upgradeCandidates.map((c) => {
 				let score = 5000 + c.cost / 4;
@@ -996,7 +996,7 @@ export class BotAI {
 		const behindSlots = validSlots.filter((s) => s.isBehind);
 		let pool: CandidateSlot[];
 
-		if (Math.random() < 0.99 && behindSlots.length > 0) {
+		if (this.sim.nextRandom() < 0.99 && behindSlots.length > 0) {
 			pool = behindSlots;
 		} else if (behindSlots.length > 0) {
 			pool = validSlots;
@@ -1007,7 +1007,7 @@ export class BotAI {
 
 		// 2. Prioritize 1-tile gap (90% probability)
 		const gapSlots = pool.filter((s) => s.hasGap);
-		if (Math.random() < 0.9 && gapSlots.length > 0) {
+		if (this.sim.nextRandom() < 0.9 && gapSlots.length > 0) {
 			pool = gapSlots;
 		} else if (gapSlots.length === 0) {
 			// No gap slots left, use available slots
@@ -1059,7 +1059,7 @@ export class BotAI {
 		}
 
 		const finalSelection = laneFiltered.length > 0 ? laneFiltered : candidateTier;
-		const chosen = finalSelection[Math.floor(Math.random() * finalSelection.length)];
+		const chosen = finalSelection[Math.floor(this.sim.nextRandom() * finalSelection.length)];
 		return chosen ? { x: chosen.x, y: chosen.y } : null;
 	}
 

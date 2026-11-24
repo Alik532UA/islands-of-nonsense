@@ -49,6 +49,8 @@ export async function removeFromLobby(db: Database, code: string): Promise<void>
 	await remove(lobbyRef);
 }
 
+export const LOBBY_STALE_MS = 2 * 60 * 60 * 1000;
+
 /**
  * Real-time listener for open public lobby rooms.
  */
@@ -64,8 +66,19 @@ export function subscribeLobby(db: Database, onRooms: (rooms: LobbyRoom[]) => vo
 				onRooms([]);
 				return;
 			}
+			const now = Date.now();
 			const val = snapshot.val() as Record<string, LobbyRoom>;
-			const list = Object.values(val).filter((r) => r.players < r.maxPlayers);
+			const list: LobbyRoom[] = [];
+			for (const room of Object.values(val)) {
+				const age = typeof room.createdAt === 'number' ? now - room.createdAt : 0;
+				if (age > LOBBY_STALE_MS && room.code) {
+					void removeFromLobby(db, room.code).catch(() => {});
+					continue;
+				}
+				if (room.players < room.maxPlayers) {
+					list.push(room);
+				}
+			}
 			// Sort newest first
 			list.sort((a, b) => b.createdAt - a.createdAt);
 			onRooms(list);

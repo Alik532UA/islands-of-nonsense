@@ -88,7 +88,7 @@ export class DefenseSystem {
 		attacker.attackAnimTimer = 0.25;
 		const rawDmg =
 			attacker.damageMin +
-			Math.floor(Math.random() * (attacker.damageMax - attacker.damageMin + 1));
+			Math.floor(this.sim.nextRandom() * (attacker.damageMax - attacker.damageMin + 1));
 		const finalDamage = calculateDamage(attacker.attackType, 'fort', rawDmg, 5);
 
 		if (attacker.range > 150) {
@@ -134,7 +134,7 @@ export class DefenseSystem {
 		attacker.attackAnimTimer = 0.25;
 		let rawDmg =
 			attacker.damageMin +
-			Math.floor(Math.random() * (attacker.damageMax - attacker.damageMin + 1));
+			Math.floor(this.sim.nextRandom() * (attacker.damageMax - attacker.damageMin + 1));
 		if (attacker.buffs?.some((b) => b.type === 'dmg')) {
 			rawDmg = Math.round(rawDmg * 1.25);
 		}

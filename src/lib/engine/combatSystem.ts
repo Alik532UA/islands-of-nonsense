@@ -662,7 +662,7 @@ export class CombatSystem {
 		if (!this.canEngageTarget(attacker, target)) return;
 
 		// Curse check: 33% chance to miss attacks
-		if (attacker.buffs?.some((b) => b.type === 'curse') && Math.random() < 0.33) {
+		if (attacker.buffs?.some((b) => b.type === 'curse') && this.sim.nextRandom() < 0.33) {
 			this.sim.addFloatingText('Промах! (Прокляття)', attacker.x, attacker.y - 20, '#a855f7');
 			return;
 		}
@@ -672,7 +672,7 @@ export class CombatSystem {
 		if (target.buffs?.some((b) => b.type === 'evade')) {
 			effectiveEvade = Math.min(0.85, effectiveEvade + 0.4);
 		}
-		if (effectiveEvade > 0 && Math.random() < effectiveEvade) {
+		if (effectiveEvade > 0 && this.sim.nextRandom() < effectiveEvade) {
 			this.sim.addFloatingText('Ухилення!', target.x, target.y - 20, '#60a5fa');
 			return;
 		}
@@ -680,7 +680,7 @@ export class CombatSystem {
 		// Roll raw damage
 		let rawDmg =
 			attacker.damageMin +
-			Math.floor(Math.random() * (attacker.damageMax - attacker.damageMin + 1));
+			Math.floor(this.sim.nextRandom() * (attacker.damageMax - attacker.damageMin + 1));
 
 		if (attacker.buffs?.some((b) => b.type === 'dmg')) {
 			rawDmg = Math.round(rawDmg * 1.25);
@@ -690,7 +690,7 @@ export class CombatSystem {
 		}
 
 		let isCrit = false;
-		if (attacker.critChance && Math.random() < attacker.critChance) {
+		if (attacker.critChance && this.sim.nextRandom() < attacker.critChance) {
 			rawDmg *= 2;
 			isCrit = true;
 		}
@@ -698,7 +698,7 @@ export class CombatSystem {
 		// Tactical on-attack procs: Bash, Poison, Frost, Pulverize
 		if (
 			(attacker.abilityType === 'bash' || attacker.abilities?.some((a) => a.type === 'bash')) &&
-			Math.random() < 0.2
+			this.sim.nextRandom() < 0.2
 		) {
 			target.buffs = target.buffs || [];
 			target.buffs.push({ type: 'stun', timer: 1.2, value: 0 });
@@ -716,7 +716,7 @@ export class CombatSystem {
 			target.buffs.push({ type: 'frost', timer: 3.5, value: 0.35 });
 			this.sim.addFloatingText('Холод', target.x, target.y - 20, '#38bdf8');
 		}
-		if (attacker.pulverizeChance && Math.random() < attacker.pulverizeChance) {
+		if (attacker.pulverizeChance && this.sim.nextRandom() < attacker.pulverizeChance) {
 			this.triggerSplashDamage(
 				target.x,
 				target.y,
@@ -954,7 +954,7 @@ export class CombatSystem {
 
 		this.sim.addFloatingText(
 			isCrit ? `!${finalDamage}!` : `-${finalDamage}`,
-			target.x + (Math.random() * 20 - 10),
+			target.x + (this.sim.nextRandom() * 20 - 10),
 			target.y - 15,
 			isCrit ? '#f59e0b' : target.team === 'west' ? '#ef4444' : '#38bdf8'
 		);
@@ -1007,7 +1007,7 @@ export class CombatSystem {
 			// Corpse generation (for non-summoned units)
 			if (!target.isSummoned && (target.team === 'west' || target.team === 'east')) {
 				this.sim.corpses.push({
-					id: `corpse_${Date.now()}_${Math.random()}`,
+					id: `corpse_${this.sim.nextCorpseId++}`,
 					x: target.x,
 					y: target.y,
 					lane: target.lane,
@@ -1033,7 +1033,7 @@ export class CombatSystem {
 			// Recycler scrap salvage on unit death & drop visible debris
 			if (target.team === 'west' || target.team === 'east') {
 				this.sim.debris.push({
-					id: `deb_${Date.now()}_${Math.random()}`,
+					id: `deb_${this.sim.nextDebrisId++}`,
 					x: target.x,
 					y: target.y,
 					team: target.team,

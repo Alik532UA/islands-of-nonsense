@@ -1003,7 +1003,7 @@ export class BuildingSystem {
 			damageBonusPct,
 			armorBonus,
 			attackCooldown: cooldown,
-			cooldownTimer: Math.random() * 0.3,
+			cooldownTimer: this.sim.nextRandom() * 0.3,
 			range: Math.max(90, unitDef.range ?? 100),
 			speed: unitSpeed,
 			flying: !!unitDef.flying,

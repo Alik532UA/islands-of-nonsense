@@ -2,7 +2,7 @@
  * Realtime Database abandoned room and stale state cleaner.
  * Scans rooms and deletes those inactive for longer than 24 hours.
  */
-export const SWEEP_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+export const SWEEP_MAX_AGE_MS = 2 * 60 * 60 * 1000; // 2 hours stale threshold
 
 export interface SweepRoomInfo {
 	createdAt?: number;

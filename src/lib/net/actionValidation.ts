@@ -8,6 +8,7 @@ export const VALID_ACTION_TYPES = [
 	'USE_ABILITY',
 	'BUY_ITEM',
 	'UPGRADE_FORGE',
+	'SELECT_COMMANDER',
 	'BRIDGE_REPAIR',
 	'RESCUE_STRIKE',
 	'SURRENDER',
@@ -140,6 +141,36 @@ export function validatePlayerMove(raw: unknown): ValidationResult {
 			return { valid: false, error: 'Invalid forgeType value' };
 		}
 		sanitizedPayload.forgeType = p.forgeType;
+	}
+
+	if ('commanderId' in p) {
+		const cid = p.commanderId;
+		if (
+			cid !== 'random' &&
+			(typeof cid !== 'number' || !Number.isInteger(cid) || cid < 1 || cid > 6)
+		) {
+			return { valid: false, error: 'Invalid commanderId value' };
+		}
+		sanitizedPayload.commanderId = cid;
+	}
+
+	if ('playerSlot' in p) {
+		if (
+			typeof p.playerSlot !== 'number' ||
+			!Number.isInteger(p.playerSlot) ||
+			p.playerSlot < 1 ||
+			p.playerSlot > 6
+		) {
+			return { valid: false, error: 'Invalid playerSlot value' };
+		}
+		sanitizedPayload.playerSlot = p.playerSlot;
+	}
+
+	if ('race' in p) {
+		if (typeof p.race !== 'string' || p.race.length === 0 || p.race.length > 32) {
+			return { valid: false, error: 'Invalid race value' };
+		}
+		sanitizedPayload.race = p.race.trim();
 	}
 
 	return {

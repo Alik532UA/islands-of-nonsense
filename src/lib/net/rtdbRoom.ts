@@ -3,17 +3,26 @@ import { connect, serverNow, serverTime } from './firebase';
 import { logService } from '$lib/services/logService.svelte';
 import { generateRoomCode } from './roomCode';
 import type {
+	GoneReason,
 	Member,
 	MemberPatch,
 	Move,
 	RoomConfig,
 	RoomEntry,
 	RoomInfo,
+	RoomSnapshot,
 	RoomStatus,
 	RoomTransport,
 	RosterEntry
 } from './roomTypes';
-import { infoFromDb, membersFromDb, moveKey, rosterToRecord, snapshotFromDb } from './roomShape';
+import {
+	MOVE_SEQ_MAX,
+	infoFromDb,
+	membersFromDb,
+	moveKey,
+	rosterToRecord,
+	type RawInfo
+} from './roomShape';
 
 export interface NewRoomOptions {
 	gameId: string;
@@ -32,6 +41,224 @@ export interface NewRoomOptions {
 }
 
 const CODE_TRIES = 12;
+const MOVE_RETRY_LIMIT = 8;
+const MOVE_RATE_LIMIT_BACKOFF_MS = 95;
+
+export interface RetryMoveWriteOptions {
+	initialSeq: number;
+	maxSeq?: number;
+	getHighestSeq: () => number;
+	attemptWrite: (seq: number) => Promise<void>;
+	doesSeqExist: (seq: number) => Promise<boolean>;
+	waitMs?: (ms: number) => Promise<void>;
+}
+
+/**
+ * Writes a move safely under concurrent multi-client dispatches and RTDB cooldowns.
+ * Resolves sequence-number collisions by advancing past `highestSeq`, and backs off once
+ * if rejected solely due to the server-side 80ms anti-spam cooldown.
+ */
+export async function writeMoveWithRetry(options: RetryMoveWriteOptions): Promise<boolean> {
+	const maxSeq = options.maxSeq ?? MOVE_SEQ_MAX;
+	const wait =
+		options.waitMs ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+	let seq = Math.max(1, options.initialSeq, options.getHighestSeq() + 1);
+	let waitedForCooldown = false;
+
+	for (let attempt = 0; attempt < MOVE_RETRY_LIMIT; attempt++) {
+		if (seq > maxSeq || seq < 1) return false;
+		try {
+			await options.attemptWrite(seq);
+			return true;
+		} catch (error) {
+			if (!isDenied(error)) throw error;
+			const taken = await options.doesSeqExist(seq).catch(() => false);
+			if (taken) {
+				seq = Math.max(seq + 1, options.getHighestSeq() + 1);
+				continue;
+			}
+			if (!waitedForCooldown) {
+				waitedForCooldown = true;
+				await wait(MOVE_RATE_LIMIT_BACKOFF_MS);
+				seq = Math.max(seq, options.getHighestSeq() + 1);
+				continue;
+			}
+			return false;
+		}
+	}
+	return false;
+}
+
+interface RoomSubscriber {
+	onSnapshot: (snapshot: RoomSnapshot) => void;
+	onGone?: (why: GoneReason) => void;
+}
+
+interface SharedRoomChannel {
+	highestSeq: number;
+	subscribe: (sub: RoomSubscriber) => () => void;
+}
+
+const sharedChannels = new Map<string, SharedRoomChannel>();
+
+async function acquireSharedChannel(code: string): Promise<SharedRoomChannel> {
+	const { uid, db } = await connect();
+	const channelKey = `${uid}:${code}`;
+	const existing = sharedChannels.get(channelKey);
+	if (existing) return existing;
+
+	const { onChildAdded, onChildRemoved, onValue, orderByKey, query, ref } =
+		await import('firebase/database');
+
+	let info: RoomInfo | null = null;
+	let infoLoaded = false;
+	let members: Member[] = [];
+	let membersLoaded = false;
+	const movesBySeq = new Map<number, Move>();
+	const subscribers = new Set<RoomSubscriber>();
+	let emitQueued = false;
+	let unsubFns: (() => void)[] = [];
+	let disposed = false;
+
+	const getSortedMoves = () => [...movesBySeq.values()].sort((a, b) => a.seq - b.seq);
+
+	const channel: SharedRoomChannel = {
+		highestSeq: 0,
+		subscribe(sub: RoomSubscriber) {
+			if (unsubFns.length === 0 && !disposed) {
+				startListeners();
+			}
+			subscribers.add(sub);
+			if (infoLoaded && membersLoaded && info) {
+				sub.onSnapshot({ info, members, moves: getSortedMoves() });
+			}
+			return () => {
+				subscribers.delete(sub);
+				if (subscribers.size === 0) {
+					teardown();
+				}
+			};
+		}
+	};
+
+	function flushEmit() {
+		emitQueued = false;
+		if (disposed || !infoLoaded || !membersLoaded || !info) return;
+		const snapshot: RoomSnapshot = {
+			info,
+			members,
+			moves: getSortedMoves()
+		};
+		for (const sub of [...subscribers]) {
+			sub.onSnapshot(snapshot);
+		}
+	}
+
+	function scheduleEmit() {
+		if (emitQueued || disposed || !infoLoaded || !membersLoaded || !info) return;
+		emitQueued = true;
+		queueMicrotask(flushEmit);
+	}
+
+	function notifyGone(why: GoneReason) {
+		for (const sub of [...subscribers]) {
+			sub.onGone?.(why);
+		}
+		teardown();
+	}
+
+	function startListeners() {
+		const infoRef = ref(db, `rooms/${code}/info`);
+		const membersRef = ref(db, `rooms/${code}/members`);
+		const movesRef = ref(db, `rooms/${code}/moves`);
+		const movesQuery = query(movesRef, orderByKey());
+
+		const unsubInfo = onValue(
+			infoRef,
+			(snap) => {
+				infoLoaded = true;
+				if (!snap.exists()) {
+					info = null;
+					notifyGone('closed');
+					return;
+				}
+				info = infoFromDb(snap.val() as RawInfo);
+				scheduleEmit();
+			},
+			(error) => {
+				logService.error('network', 'room info listener cancelled', {
+					code,
+					reason: String(error)
+				});
+				notifyGone('lost');
+			}
+		);
+
+		const unsubMembers = onValue(
+			membersRef,
+			(snap) => {
+				membersLoaded = true;
+				members = snap.exists()
+					? membersFromDb(snap.val() as Record<string, Omit<Member, 'uid'>>)
+					: [];
+				scheduleEmit();
+			},
+			(error) => {
+				logService.error('network', 'room members listener cancelled', {
+					code,
+					reason: String(error)
+				});
+				notifyGone('lost');
+			}
+		);
+
+		const unsubMovesAdd = onChildAdded(
+			movesQuery,
+			(snap) => {
+				const seq = Number(snap.key);
+				const val = snap.val() as Move | null;
+				if (!Number.isInteger(seq) || !val) return;
+				const move: Move = { ...val, seq };
+				movesBySeq.set(seq, move);
+				if (seq > channel.highestSeq) {
+					channel.highestSeq = seq;
+				}
+				scheduleEmit();
+			},
+			(error) => {
+				logService.warn('network', 'room moves listener cancelled', {
+					code,
+					reason: String(error)
+				});
+			}
+		);
+
+		const unsubMovesRemove = onChildRemoved(movesRef, (snap) => {
+			const seq = Number(snap.key);
+			if (Number.isInteger(seq)) {
+				movesBySeq.delete(seq);
+			}
+			// Reset sequence high-water mark when room clears moves on round/match start
+			if (movesBySeq.size === 0) {
+				channel.highestSeq = 0;
+			}
+			scheduleEmit();
+		});
+
+		unsubFns = [unsubInfo, unsubMembers, unsubMovesAdd, unsubMovesRemove];
+	}
+
+	function teardown() {
+		if (disposed) return;
+		disposed = true;
+		for (const u of unsubFns) u();
+		unsubFns = [];
+		sharedChannels.delete(channelKey);
+	}
+
+	sharedChannels.set(channelKey, channel);
+	return channel;
+}
 
 export async function createRoom(options: NewRoomOptions): Promise<string> {
 	const { uid, db, auth } = await connect();
@@ -75,6 +302,7 @@ export async function createRoom(options: NewRoomOptions): Promise<string> {
 			name: options.name,
 			role: 'player',
 			order: 1,
+			slot: 1,
 			...(options.country ? { country: options.country } : {}),
 			...(options.avatar ? { avatar: options.avatar } : {}),
 			...(options.team ? { team: options.team } : { team: 'west' }),
@@ -96,14 +324,16 @@ export async function joinRoom(code: string, entry: RoomEntry): Promise<void> {
 	const membersSnap = await get(ref(db, `rooms/${code}/members`));
 	const currentMembers = membersSnap.val() as Record<string, unknown> | null;
 	const count = currentMembers ? Object.keys(currentMembers).length : 0;
+	const team = entry.team ?? (count % 2 === 0 ? 'west' : 'east');
 
 	await set(ref(db, `rooms/${code}/members/${uid}`), {
 		name: entry.name,
 		role: entry.role,
 		order: count + 1,
+		slot: Math.min(6, count + 1),
 		...(entry.country ? { country: entry.country } : {}),
 		...(entry.avatar ? { avatar: entry.avatar } : {}),
-		...(entry.team ? { team: entry.team } : { team: count % 2 === 0 ? 'west' : 'east' }),
+		team,
 		...(entry.race ? { race: entry.race } : {}),
 		...(entry.compact ? { compact: true } : {}),
 		...(auth.currentUser?.isAnonymous === false ? { account: true } : {})
@@ -114,6 +344,40 @@ export async function updateMe(code: string, patch: MemberPatch): Promise<void> 
 	const { uid, db } = await connect();
 	const { ref, update } = await import('firebase/database');
 	await update(ref(db, `rooms/${code}/members/${uid}`), patch);
+}
+
+/**
+ * Sends an atomic, RTDB-rate-limited room chat message (simultaneously updates members/$uid/lastChatAt).
+ */
+export async function sendChatMessage(
+	code: string,
+	senderName: string,
+	text: string
+): Promise<boolean> {
+	const cleanText = text.trim().slice(0, 200);
+	if (!cleanText) return false;
+
+	const { uid, db } = await connect();
+	const { push, ref, serverTimestamp, update } = await import('firebase/database');
+	const msgKey = push(ref(db, `rooms/${code}/chat`)).key;
+	if (!msgKey) return false;
+
+	const stamp = serverTimestamp();
+	try {
+		await update(ref(db, `rooms/${code}`), {
+			[`chat/${msgKey}`]: {
+				senderUid: uid,
+				senderName: senderName.slice(0, 48),
+				text: cleanText,
+				at: stamp
+			},
+			[`members/${uid}/lastChatAt`]: stamp
+		});
+		return true;
+	} catch (error) {
+		if (!isDenied(error)) throw error;
+		return false;
+	}
 }
 
 export async function peekRoom(code: string): Promise<RoomInfo | null> {
@@ -137,41 +401,43 @@ export async function closeRoom(code: string): Promise<void> {
 }
 
 export async function roomTransport(code: string): Promise<RoomTransport> {
-	const { db } = await connect();
+	const { uid, db } = await connect();
 	await serverTime();
-	const { onValue, ref, serverTimestamp, set, update } = await import('firebase/database');
-	const room = ref(db, `rooms/${code}`);
+	const channel = await acquireSharedChannel(code);
+	const { get, ref, serverTimestamp, update } = await import('firebase/database');
 
 	return {
 		code,
 		now: serverNow,
 
 		watch(onSnapshot, onGone) {
-			return onValue(
-				room,
-				(snapshot) => {
-					const next = snapshotFromDb(snapshot.val());
-					if (next) onSnapshot(next);
-					else onGone?.('closed');
-				},
-				(error) => {
-					logService.error('network', 'room listener cancelled', { code, reason: String(error) });
-					onGone?.('lost');
-				}
-			);
+			return channel.subscribe({ onSnapshot, onGone });
 		},
 
 		async append(move: Move) {
-			try {
-				await set(ref(db, `rooms/${code}/moves/${moveKey(move.seq)}`), {
-					...move,
-					at: serverTimestamp()
-				});
-				return true;
-			} catch (error) {
-				if (!isDenied(error)) throw error;
-				return false;
-			}
+			return writeMoveWithRetry({
+				initialSeq: move.seq,
+				getHighestSeq: () => channel.highestSeq,
+				attemptWrite: async (seq) => {
+					const stamp = serverTimestamp();
+					await update(ref(db, `rooms/${code}`), {
+						[`moves/${moveKey(seq)}`]: {
+							...move,
+							by: uid,
+							seq,
+							at: stamp
+						},
+						[`members/${uid}/lastMoveAt`]: stamp
+					});
+					if (seq > channel.highestSeq) {
+						channel.highestSeq = seq;
+					}
+				},
+				doesSeqExist: async (seq) => {
+					const snap = await get(ref(db, `rooms/${code}/moves/${moveKey(seq)}`));
+					return snap.exists();
+				}
+			});
 		},
 
 		async setStatus(status: RoomStatus, roster?: RosterEntry[], config?: RoomConfig) {
@@ -184,6 +450,7 @@ export async function roomTransport(code: string): Promise<RoomTransport> {
 					...(config ? { 'info/config': config } : {}),
 					moves: null
 				});
+				channel.highestSeq = 0;
 				return;
 			}
 			await update(ref(db, `rooms/${code}/info`), { status, countdownAt: null });

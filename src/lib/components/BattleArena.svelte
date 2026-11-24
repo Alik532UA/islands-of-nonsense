@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, setContext } from 'svelte';
 	import { goto, beforeNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { Simulation, type SimulationConfig } from '$lib/engine/simulation';
@@ -36,6 +36,12 @@
 	import { logService } from '$lib/services/logService.svelte';
 	import { perfMonitor } from '$lib/debug/perfMonitor.svelte';
 	import type { MatchSync } from '$lib/net/matchSync';
+	import {
+		BATTLE_COMMAND_ROUTER_KEY,
+		applyOnlineRosterToSimulation,
+		createOnlineSimulation,
+		type BattleCommandRouter
+	} from '$lib/net/onlineMatchSetup';
 	import { settings } from '$lib/services/settings.svelte';
 
 	let canvasEl: HTMLCanvasElement;
@@ -76,7 +82,10 @@
 	let controlledPlayer = $derived.by(() => {
 		const _tick = uiTick;
 		if (matchSync) {
-			return localTeam === 'east' ? sim.players.east : sim.players.west;
+			return (
+				sim.allPlayers?.find((p) => p.slot === matchSync?.localSlot) ??
+				(localTeam === 'east' ? sim.players.east : sim.players.west)
+			);
 		}
 		if (selectedEntity?.type === 'worker' && selectedEntity.playerSlot != null) {
 			const match = getControllablePlayerBySlot(selectedEntity.playerSlot);
@@ -86,6 +95,18 @@
 		if (fromSlot) return fromSlot;
 		return localTeam === 'east' ? sim.players.east : sim.players.west;
 	});
+
+	const routeOnlineCommand: BattleCommandRouter = (type, payload = {}) => {
+		if (!matchSync) return false;
+		void matchSync.dispatch(type, {
+			team: controlledPlayer.team,
+			playerSlot: controlledPlayer.slot,
+			...payload
+		});
+		uiTick = sim.stateVersion;
+		return true;
+	};
+	setContext(BATTLE_COMMAND_ROUTER_KEY, routeOnlineCommand);
 
 	function selectBotControl(slot: number, centerCamera = false) {
 		const target = getControllablePlayerBySlot(slot);
@@ -201,7 +222,10 @@
 	let animFrameId: number;
 	let unlistenSequences: (() => void) | null = null;
 	let unlistenAudio: (() => void) | null = null;
+	let stopOnlineStatusWatch: (() => void) | null = null;
+	let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 	let peerOnline = $state(false);
+	let peerPingMs = $state<number | null>(null);
 	let networkNotice = $state<string | null>(null);
 	const heldPanKeys = new Set<string>();
 
@@ -386,6 +410,14 @@
 					if (selectedPlacedBuildingId) {
 						const bld = sim.buildings.find((b) => b.instanceId === selectedPlacedBuildingId);
 						if (bld && (isBotVsBot || bld.team === localTeam) && bld.hp < bld.maxHp) {
+							if (matchSync) {
+								routeOnlineCommand('REPAIR', {
+									team: bld.team,
+									targetId: selectedPlacedBuildingId
+								});
+								sound.playRepair();
+								return;
+							}
 							const owner = getControllablePlayerBySlot(bld.playerSlot) ?? sim.players[bld.team];
 							const success = sim.repairBuilding(bld.team, selectedPlacedBuildingId, owner);
 							if (success) {
@@ -401,6 +433,14 @@
 					) {
 						const cTeam = selectedEntity.team;
 						if (sim.castles[cTeam].hp < sim.castles[cTeam].maxHp) {
+							if (matchSync) {
+								routeOnlineCommand('REPAIR', {
+									team: cTeam,
+									targetId: `castle_${cTeam}`
+								});
+								sound.playRepair();
+								return;
+							}
 							const owner = controlledPlayer.team === cTeam ? controlledPlayer : sim.players[cTeam];
 							const success = sim.repairBuilding(cTeam, `castle_${cTeam}`, owner);
 							if (success) {
@@ -535,26 +575,70 @@
 
 		if (urlRoom) {
 			isSettingsOpen = false;
+			matchPhase = 'BATTLE';
 			try {
 				const { liveNet } = await import('$lib/net/roomNet');
 				const { MatchSync: MS } = await import('$lib/net/matchSync');
 				const uid = await liveNet.me();
-				const isHost = searchParams?.get('host') === '1';
-				const roomLocalTeam: 'west' | 'east' = isHost ? 'west' : 'east';
-				controlledPlayerSlot = roomLocalTeam === 'east' ? 2 : 1;
-				if (!isHost) {
+
+				// Wait briefly for OnlineRoomHUD to finish joinRoom before reading moves under strict RTDB membership rules
+				let roomInfo = await liveNet.peekRoom(urlRoom);
+				let members = (await liveNet.peekMembers(urlRoom)) ?? [];
+				for (let waitTry = 0; waitTry < 15 && !members.some((m) => m.uid === uid); waitTry++) {
+					await new Promise((resolveWait) => setTimeout(resolveWait, 100));
+					members = (await liveNet.peekMembers(urlRoom)) ?? [];
+					if (!roomInfo) {
+						roomInfo = await liveNet.peekRoom(urlRoom);
+					}
+				}
+
+				const onlineInit = roomInfo ? createOnlineSimulation(roomInfo, members, uid) : null;
+				if (onlineInit) {
+					sim = onlineInit.sim;
+					controlledPlayerSlot = onlineInit.localSlot;
+					perfMonitor.attachSim(sim);
+					if (unlistenAudio) unlistenAudio();
+					unlistenAudio = attachAudioBridge(sim, sound);
+					uiTick = sim.stateVersion;
+				} else {
+					const fallbackHost = searchParams?.get('host') === '1';
+					controlledPlayerSlot = fallbackHost ? 1 : 2;
+				}
+
+				const roomLocalTeam =
+					onlineInit?.localTeam ?? (searchParams?.get('host') === '1' ? 'west' : 'east');
+				const roomLocalSlot = onlineInit?.localSlot ?? (roomLocalTeam === 'east' ? 2 : 1);
+				if (roomLocalTeam === 'east') {
 					cameraX = 6400;
 					cameraY = 1200;
+				} else {
+					cameraX = 1200;
+					cameraY = 1200;
 				}
+
 				const transport = await liveNet.roomTransport(urlRoom);
+				let onlineStarted = Boolean(roomInfo?.status === 'playing');
 				matchSync = new MS({
 					sim,
 					transport,
 					localUid: uid,
 					localTeam: roomLocalTeam,
+					localSlot: roomLocalSlot,
+					uidToSlot: onlineInit?.uidToSlot,
 					onPeerStatusChange: (status) => {
 						peerOnline = status.online;
-						networkNotice = status.online ? null : 'Суперник тимчасово офлайн';
+						if (status.online && networkNotice?.includes('офлайн')) {
+							networkNotice = null;
+						} else if (!status.online) {
+							networkNotice = 'Суперник тимчасово офлайн';
+						}
+					},
+					onPeerPing: ({ rtt }) => {
+						peerPingMs = rtt;
+					},
+					onDesync: ({ tick }) => {
+						networkNotice = `Увага: розсинхронізація на тіку ${tick}`;
+						logService.warn('network', 'Simulation checksum mismatch', { tick });
 					},
 					onGone: (reason) => {
 						networkNotice = `Мережева сесія завершена: ${reason}`;
@@ -563,6 +647,24 @@
 						uiTick = sim.stateVersion;
 					}
 				});
+
+				stopOnlineStatusWatch = transport.watch((snap) => {
+					if (snap.info.status === 'playing' && !onlineStarted) {
+						onlineStarted = true;
+						const rosterSync = applyOnlineRosterToSimulation(sim, snap.info, snap.members, uid);
+						matchSync?.setRosterSlots(rosterSync.uidToSlot);
+						controlledPlayerSlot = rosterSync.localSlot;
+						sim.isRunning = true;
+						sound.playHorn();
+						uiTick = sim.stateVersion;
+					}
+				});
+
+				heartbeatTimer = setInterval(() => {
+					if (matchSync && sim.isRunning) {
+						void matchSync.sendHeartbeat();
+					}
+				}, 12_000);
 			} catch (err) {
 				logService.warn('network', 'Failed to connect room match sync', { err: String(err) });
 			}
@@ -677,10 +779,14 @@
 		});
 
 		await renderer.init(canvasEl);
+		if (urlRoom) {
+			renderer.setCamera(cameraX, cameraY);
+		}
 
 		let lastTime = performance.now();
 		let lastUiTickTime = 0;
 		let lastStateVersion = -1;
+		let lastChecksumTick = -1;
 		let accumulator = 0;
 		const FIXED_STEP = 1 / 60;
 
@@ -696,6 +802,10 @@
 
 				while (accumulator >= subDt && stepsCount < maxStepsPerFrame) {
 					sim.step(subDt);
+					if (matchSync && sim.tick > 0 && sim.tick % 300 === 0 && sim.tick !== lastChecksumTick) {
+						lastChecksumTick = sim.tick;
+						void matchSync.broadcastChecksum();
+					}
 					accumulator -= subDt;
 					stepsCount++;
 				}
@@ -743,6 +853,12 @@
 
 	onDestroy(() => {
 		perfMonitor.detachSim();
+		stopOnlineStatusWatch?.();
+		stopOnlineStatusWatch = null;
+		if (heartbeatTimer) {
+			clearInterval(heartbeatTimer);
+			heartbeatTimer = null;
+		}
 		matchSync?.dispose();
 		if (animFrameId) cancelAnimationFrame(animFrameId);
 		if (countdownTimer) clearInterval(countdownTimer);
@@ -1047,9 +1163,16 @@
 						: 'bg-amber-400'}"
 				></span>
 				<span>
-					{peerOnline
-						? `Онлайн PvP: ${matchSync.localTeam === 'west' ? 'Захід (Ви)' : 'Схід (Ви)'} vs Суперник`
-						: (networkNotice ?? 'Очікування суперника...')}
+					{#if networkNotice?.includes('розсинхронізація')}
+						{networkNotice}
+					{:else if peerOnline}
+						Онлайн PvP: {matchSync.localTeam === 'west' ? 'Захід (Ви)' : 'Схід (Ви)'} vs Суперник{peerPingMs !==
+						null
+							? ` · ${peerPingMs} мс`
+							: ''}
+					{:else}
+						{networkNotice ?? 'Очікування суперника...'}
+					{/if}
 				</span>
 			</div>
 		{/if}
@@ -1305,6 +1428,21 @@
 			selectedEntity = { type: 'worker', playerSlot: controlledPlayer.slot };
 			isCommanderOpen = false;
 			uiTick = sim.stateVersion;
+		}}
+		onSelectCommander={(choice) => {
+			if (matchSync) {
+				const check = sim.canSelectOrChangeCommander(controlledPlayer.team, controlledPlayer);
+				if (!check.allowed) {
+					sound.playErrorResource();
+					return false;
+				}
+				routeOnlineCommand('SELECT_COMMANDER', { commanderId: choice });
+				sound.playUpgrade();
+				return true;
+			}
+			const res = sim.selectPlayerCommander(controlledPlayer.team, choice, controlledPlayer);
+			uiTick = sim.stateVersion;
+			return res.ok;
 		}}
 	/>
 	<ShopModal

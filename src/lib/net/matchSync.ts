@@ -1,4 +1,5 @@
 import type { Simulation } from '$lib/engine/simulation';
+import type { PlayerState } from '$lib/engine/types';
 import type { Move, MovePayload, RoomTransport } from './roomTypes';
 import { validatePlayerMove } from './actionValidation';
 
@@ -7,6 +8,8 @@ export interface MatchSyncOptions {
 	transport: RoomTransport;
 	localUid: string;
 	localTeam: 'west' | 'east';
+	localSlot?: number;
+	uidToSlot?: Record<string, number>;
 	onCommandApplied?: (move: Move) => void;
 	onGone?: (reason: string) => void;
 	onPeerStatusChange?: (status: { peerUid: string; online: boolean }) => void;
@@ -14,15 +17,24 @@ export interface MatchSyncOptions {
 	onDesync?: (info: { tick: number; localChecksum: string; remoteChecksum: string }) => void;
 }
 
+const MAX_CHECKPOINT_HISTORY = 40;
+
 export function computeSimStateChecksum(sim: Simulation): string {
 	const westHp = Math.round(sim.castles?.west?.hp ?? 0);
 	const eastHp = Math.round(sim.castles?.east?.hp ?? 0);
-	const westGold = Math.floor(sim.players?.west?.gold ?? 0);
-	const eastGold = Math.floor(sim.players?.east?.gold ?? 0);
+	const playerSignatures = (
+		sim.allPlayers?.length ? sim.allPlayers : [sim.players?.west, sim.players?.east]
+	)
+		.filter((p): p is PlayerState => Boolean(p))
+		.map(
+			(p) =>
+				`${p.slot ?? 0}:${Math.floor(p.gold)}:${Math.floor(p.lumber ?? 0)}:${p.commander}:${p.race}`
+		)
+		.join('|');
 	const buildingsCount = sim.buildings?.length ?? 0;
 	const unitsCount = sim.units?.length ?? 0;
 
-	const raw = `${sim.tick}:${westHp},${eastHp}:${westGold},${eastGold}:${buildingsCount}:${unitsCount}`;
+	const raw = `${sim.tick}:r${sim.round}:${sim.score.west}-${sim.score.east}:${sim.brokenBridge ?? 'none'}:${westHp},${eastHp}:${playerSignatures}:b${buildingsCount}:u${unitsCount}`;
 	let hash = 5381;
 	for (let i = 0; i < raw.length; i++) {
 		hash = ((hash << 5) + hash + raw.charCodeAt(i)) & 0xffffffff;
@@ -33,15 +45,17 @@ export function computeSimStateChecksum(sim: Simulation): string {
 /**
  * Deterministic RTS match synchronizer.
  * Ingests local player commands, serializes them as monotonic Move records over RoomTransport,
- * and executes remote and local commands deterministically on the local Simulation instance.
- * Features state checksum validation, latency ping heartbeats, and reconnect reconciliation.
+ * executes remote and local commands deterministically on the local Simulation instance,
+ * and validates lockstep parity on matching simulation ticks.
  */
 export class MatchSync {
 	public sim: Simulation;
 	public transport: RoomTransport;
 	public localUid: string;
 	public localTeam: 'west' | 'east';
+	public localSlot: number;
 
+	private uidToSlot = new Map<string, number>();
 	private nextSeq = 1;
 	private appliedSeq = 0;
 	private unwatch: (() => void) | null = null;
@@ -55,12 +69,18 @@ export class MatchSync {
 	}) => void;
 	private peerSeen = new Map<string, number>();
 	private peerRtt = new Map<string, number>();
+	private checksumHistory = new Map<number, string>();
+	private pendingRemoteChecksums = new Map<number, { peerUid: string; checksum: string }[]>();
 
 	constructor(options: MatchSyncOptions) {
 		this.sim = options.sim;
 		this.transport = options.transport;
 		this.localUid = options.localUid;
 		this.localTeam = options.localTeam;
+		this.localSlot = options.localSlot ?? (options.localTeam === 'east' ? 2 : 1);
+		if (options.uidToSlot) {
+			this.setRosterSlots(options.uidToSlot);
+		}
 		this.onCommandApplied = options.onCommandApplied;
 		this.onPeerStatusChange = options.onPeerStatusChange;
 		this.onPeerPing = options.onPeerPing;
@@ -68,6 +88,10 @@ export class MatchSync {
 
 		this.unwatch = this.transport.watch(
 			(snapshot) => {
+				if (snapshot.moves.length === 0 && this.appliedSeq > 0) {
+					this.appliedSeq = 0;
+					this.nextSeq = 1;
+				}
 				this.processMoves(snapshot.moves);
 				this.checkMembers(snapshot.members);
 			},
@@ -75,6 +99,15 @@ export class MatchSync {
 				options.onGone?.(reason);
 			}
 		);
+	}
+
+	setRosterSlots(mapping: Record<string, number>) {
+		this.uidToSlot.clear();
+		for (const [uid, slot] of Object.entries(mapping)) {
+			if (Number.isInteger(slot) && slot >= 1 && slot <= 6) {
+				this.uidToSlot.set(uid, slot);
+			}
+		}
 	}
 
 	getPeerLatency(peerUid: string): number | undefined {
@@ -89,6 +122,37 @@ export class MatchSync {
 		return computeSimStateChecksum(this.sim);
 	}
 
+	/**
+	 * Records the simulation checksum for the current tick and verifies any buffered
+	 * remote checksums waiting for this exact tick.
+	 */
+	recordCheckpointChecksum(): string {
+		const tick = this.sim.tick;
+		const sum = this.getSimChecksum();
+		this.checksumHistory.set(tick, sum);
+		if (this.checksumHistory.size > MAX_CHECKPOINT_HISTORY) {
+			const oldestKey = this.checksumHistory.keys().next().value;
+			if (oldestKey !== undefined) {
+				this.checksumHistory.delete(oldestKey);
+			}
+		}
+
+		const waiting = this.pendingRemoteChecksums.get(tick);
+		if (waiting) {
+			this.pendingRemoteChecksums.delete(tick);
+			for (const entry of waiting) {
+				if (entry.checksum !== sum) {
+					this.onDesync?.({
+						tick,
+						localChecksum: sum,
+						remoteChecksum: entry.checksum
+					});
+				}
+			}
+		}
+		return sum;
+	}
+
 	async sendHeartbeat(): Promise<boolean> {
 		return this.dispatch('HEARTBEAT', {
 			clientTime: Date.now(),
@@ -97,16 +161,19 @@ export class MatchSync {
 	}
 
 	async broadcastChecksum(): Promise<boolean> {
+		const checksum = this.recordCheckpointChecksum();
 		return this.dispatch('CHECKSUM', {
-			checksum: this.getSimChecksum(),
+			checksum,
 			tick: this.sim.tick
 		});
 	}
 
-	private checkMembers(members: readonly { uid: string }[]) {
-		if (!this.onPeerStatusChange) return;
+	private checkMembers(members: readonly { uid: string; slot?: number }[]) {
 		for (const m of members) {
-			if (m.uid !== this.localUid) {
+			if (typeof m.slot === 'number' && !this.uidToSlot.has(m.uid)) {
+				this.uidToSlot.set(m.uid, m.slot);
+			}
+			if (this.onPeerStatusChange && m.uid !== this.localUid) {
 				this.peerSeen.set(m.uid, Date.now());
 				this.onPeerStatusChange({ peerUid: m.uid, online: true });
 			}
@@ -125,13 +192,13 @@ export class MatchSync {
 			payload: {
 				tick: this.sim.tick,
 				team: this.localTeam,
+				playerSlot: this.localSlot,
 				...payload
 			}
 		};
 
 		const success = await this.transport.append(move);
 		if (!success) {
-			// Rollback sequence anticipation on reject
 			if (this.nextSeq === seq + 1) {
 				this.nextSeq = seq;
 			}
@@ -159,9 +226,22 @@ export class MatchSync {
 		}
 	}
 
+	private resolvePlayerForMove(move: Move): PlayerState {
+		const p = move.payload ?? {};
+		const explicitSlot =
+			typeof p.playerSlot === 'number' ? p.playerSlot : this.uidToSlot.get(move.by);
+		if (explicitSlot !== undefined && this.sim.allPlayers?.length) {
+			const matched = this.sim.allPlayers.find((pl) => pl.slot === explicitSlot);
+			if (matched) return matched;
+		}
+		const team = p.team === 'west' || p.team === 'east' ? p.team : this.localTeam;
+		return this.sim.players[team];
+	}
+
 	private applyMoveToSimulation(move: Move) {
 		const p = move.payload ?? {};
-		const team = p.team === 'west' || p.team === 'east' ? p.team : this.localTeam;
+		const player = this.resolvePlayerForMove(move);
+		const team = p.team === 'west' || p.team === 'east' ? p.team : player.team;
 
 		switch (move.type) {
 			case 'BUILD':
@@ -170,50 +250,59 @@ export class MatchSync {
 					typeof p.x === 'number' &&
 					typeof p.y === 'number'
 				) {
-					this.sim.build(team, p.buildingType, p.x, p.y, undefined, undefined, Boolean(p.shiftKey));
+					this.sim.build(team, p.buildingType, p.x, p.y, undefined, player, Boolean(p.shiftKey));
 				}
 				break;
 
 			case 'UPGRADE':
 				if (typeof p.targetId === 'string' && typeof p.buildingType === 'string') {
-					this.sim.upgradeBuilding(team, p.targetId, p.buildingType);
+					this.sim.upgradeBuilding(team, p.targetId, p.buildingType, player);
 				}
 				break;
 
 			case 'SELL':
 				if (typeof p.targetId === 'string') {
-					this.sim.sellBuilding(team, p.targetId);
+					this.sim.sellBuilding(team, p.targetId, player);
 				}
 				break;
 
 			case 'REPAIR':
 				if (typeof p.targetId === 'string') {
-					this.sim.repairBuilding(team, p.targetId);
+					this.sim.repairBuilding(team, p.targetId, player);
 				}
 				break;
 
 			case 'USE_ABILITY':
-				this.sim.useRaceSkill(team);
+				this.sim.useRaceSkill(team, player);
 				break;
 
 			case 'BUY_ITEM':
 				if (typeof p.itemId === 'string') {
-					this.sim.buyCastleItem(team, p.itemId);
+					this.sim.buyCastleItem(team, p.itemId, player);
 				}
 				break;
 
 			case 'UPGRADE_FORGE':
 				if (p.forgeType === 'attack' || p.forgeType === 'armor' || p.forgeType === 'econ') {
-					this.sim.upgradeForge(team, p.forgeType);
+					this.sim.upgradeForge(team, p.forgeType, player);
+				}
+				break;
+
+			case 'SELECT_COMMANDER':
+				if (
+					p.commanderId === 'random' ||
+					(typeof p.commanderId === 'number' && p.commanderId >= 1 && p.commanderId <= 6)
+				) {
+					this.sim.selectPlayerCommander(team, p.commanderId, player);
 				}
 				break;
 
 			case 'BRIDGE_REPAIR':
-				this.sim.orderBridgeRepair(team);
+				this.sim.orderBridgeRepair(team, player);
 				break;
 
 			case 'RESCUE_STRIKE':
-				this.sim.triggerRescueStrike(team);
+				this.sim.triggerRescueStrike(team, player);
 				break;
 
 			case 'SURRENDER':
@@ -243,13 +332,29 @@ export class MatchSync {
 					typeof p.tick === 'number' &&
 					move.by !== this.localUid
 				) {
-					const localChecksum = this.getSimChecksum();
-					if (localChecksum !== p.checksum && Math.abs(this.sim.tick - p.tick) <= 5) {
-						this.onDesync?.({
-							tick: p.tick,
-							localChecksum,
-							remoteChecksum: p.checksum
-						});
+					if (p.tick === this.sim.tick) {
+						const localChecksum = this.recordCheckpointChecksum();
+						if (localChecksum !== p.checksum) {
+							this.onDesync?.({
+								tick: p.tick,
+								localChecksum,
+								remoteChecksum: p.checksum
+							});
+						}
+					} else if (p.tick < this.sim.tick) {
+						const historical = this.checksumHistory.get(p.tick);
+						if (historical && historical !== p.checksum) {
+							this.onDesync?.({
+								tick: p.tick,
+								localChecksum: historical,
+								remoteChecksum: p.checksum
+							});
+						}
+					} else {
+						// Remote peer is slightly ahead; verify when local sim reaches `p.tick`
+						const list = this.pendingRemoteChecksums.get(p.tick) ?? [];
+						list.push({ peerUid: move.by, checksum: p.checksum });
+						this.pendingRemoteChecksums.set(p.tick, list);
 					}
 				}
 				break;
@@ -266,5 +371,7 @@ export class MatchSync {
 			this.unwatch();
 			this.unwatch = null;
 		}
+		this.checksumHistory.clear();
+		this.pendingRemoteChecksums.clear();
 	}
 }

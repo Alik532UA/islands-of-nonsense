@@ -1,5 +1,7 @@
 <script lang="ts">
+	import { getContext } from 'svelte';
 	import type { Simulation } from '../engine/simulation';
+	import { BATTLE_COMMAND_ROUTER_KEY, type BattleCommandRouter } from '$lib/net/onlineMatchSetup';
 	import type {
 		Building,
 		BuildingDefinition,
@@ -14,6 +16,20 @@
 		getCommanderEffectivePct
 	} from '../engine/commanders';
 	import { sound } from '../services/audio';
+
+	const routeBattleCommand = getContext<BattleCommandRouter | undefined>(BATTLE_COMMAND_ROUTER_KEY);
+
+	function dispatchRepair(team: 'west' | 'east', targetId: string) {
+		if (!routeBattleCommand?.('REPAIR', { team, playerSlot: player.slot, targetId })) {
+			sim.repairBuilding(team, targetId, player);
+		}
+	}
+
+	function dispatchBridgeRepair() {
+		if (!routeBattleCommand?.('BRIDGE_REPAIR', { team: player.team, playerSlot: player.slot })) {
+			sim.orderBridgeRepair(player.team, player);
+		}
+	}
 	import {
 		Trash2,
 		X,
@@ -187,8 +203,7 @@
 							<div class="flex items-center gap-1">
 								{#if placedBuilding.hp < placedBuilding.maxHp}
 									<button
-										onclick={() =>
-											sim.repairBuilding(placedBuilding.team, placedBuilding.instanceId, player)}
+										onclick={() => dispatchRepair(placedBuilding.team, placedBuilding.instanceId)}
 										data-testid="hud-repair-btn"
 										class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-emerald-950/80 hover:bg-emerald-900 border-emerald-500/70 text-emerald-200 cursor-pointer shadow flex items-center gap-0.5"
 									>
@@ -297,8 +312,7 @@
 							<div class="flex items-center gap-1">
 								{#if placedBuilding.hp < placedBuilding.maxHp}
 									<button
-										onclick={() =>
-											sim.repairBuilding(placedBuilding.team, placedBuilding.instanceId, player)}
+										onclick={() => dispatchRepair(placedBuilding.team, placedBuilding.instanceId)}
 										data-testid="hud-repair-btn"
 										class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-emerald-950/80 hover:bg-emerald-900 border-emerald-500/70 text-emerald-200 cursor-pointer shadow flex items-center gap-0.5"
 									>
@@ -437,8 +451,7 @@
 							<div class="flex items-center gap-1">
 								{#if placedBuilding.hp < placedBuilding.maxHp}
 									<button
-										onclick={() =>
-											sim.repairBuilding(placedBuilding.team, placedBuilding.instanceId, player)}
+										onclick={() => dispatchRepair(placedBuilding.team, placedBuilding.instanceId)}
 										data-testid="hud-repair-btn"
 										class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-emerald-950/80 hover:bg-emerald-900 border-emerald-500/70 text-emerald-200 cursor-pointer shadow flex items-center gap-0.5"
 									>
@@ -538,8 +551,7 @@
 					{/each}
 					{#if placedBuilding.hp < placedBuilding.maxHp}
 						<button
-							onclick={() =>
-								sim.repairBuilding(placedBuilding.team, placedBuilding.instanceId, player)}
+							onclick={() => dispatchRepair(placedBuilding.team, placedBuilding.instanceId)}
 							data-testid="hud-repair-btn"
 							class="w-16 h-10 rounded border border-emerald-500/70 bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-200 flex flex-col items-center justify-center p-0.5 transition cursor-pointer shadow"
 							title="Наказати робітникові відремонтувати споруду (R)"
@@ -661,8 +673,7 @@
 				<div class="grid grid-cols-4 gap-1.5 pt-1">
 					{#if selectedCastle.hp < selectedCastle.maxHp}
 						<button
-							onclick={() =>
-								sim.repairBuilding(selectedCastle.team, `castle_${selectedCastle.team}`, player)}
+							onclick={() => dispatchRepair(selectedCastle.team, `castle_${selectedCastle.team}`)}
 							data-testid="hud-castle-repair-btn"
 							class="w-16 h-10 rounded border border-emerald-500/70 bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-200 flex flex-col items-center justify-center p-0.5 transition cursor-pointer shadow"
 							title="Наказати робітникові ремонтувати цитадель (R)"
@@ -677,7 +688,7 @@
 					{#if sim.brokenBridge}
 						<button
 							type="button"
-							onclick={() => sim.orderBridgeRepair(player.team, player)}
+							onclick={() => dispatchBridgeRepair()}
 							disabled={(player.lumber ?? 0) < 50}
 							data-testid="hud-repair-bridge-btn"
 							class="w-16 h-10 rounded border border-amber-500/70 bg-amber-950/70 hover:bg-amber-900/90 disabled:opacity-40 text-amber-200 flex flex-col items-center justify-center p-0.5 transition cursor-pointer shadow"
@@ -890,7 +901,7 @@
 			{#if sim.brokenBridge}
 				<button
 					type="button"
-					onclick={() => sim.orderBridgeRepair(player.team, player)}
+					onclick={() => dispatchBridgeRepair()}
 					disabled={(player.lumber ?? 0) < 50}
 					data-testid="hud-worker-repair-bridge-btn"
 					class="relative w-[61px] h-[39px] rounded-[3px] border transition flex items-center justify-center overflow-hidden cursor-pointer touch-manipulation {(player.lumber ??

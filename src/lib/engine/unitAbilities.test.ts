@@ -143,8 +143,8 @@ describe('Point 3: Unit Abilities & Passives (Ensnare, Poison, Heal, Bash, Aura)
 		});
 
 		// Guarantee bash proc deterministically
-		const origRandom = Math.random;
-		Math.random = () => 0.05;
+		const origNextRandom = sim.nextRandom.bind(sim);
+		sim.nextRandom = () => 0.05;
 
 		let stunned = false;
 		for (let i = 0; i < 50; i++) {
@@ -154,7 +154,7 @@ describe('Point 3: Unit Abilities & Passives (Ensnare, Poison, Heal, Bash, Aura)
 				break;
 			}
 		}
-		Math.random = origRandom;
+		sim.nextRandom = origNextRandom;
 		expect(stunned).toBe(true);
 	});
 

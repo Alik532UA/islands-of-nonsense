@@ -202,16 +202,16 @@ export class EconomySystem {
 			const coinsToSpawn =
 				this.sim.config.coinCount !== undefined ? this.sim.config.coinCount : isCrazy ? 5 : 1;
 			for (let c = 0; c < coinsToSpawn; c++) {
-				const lane: Lane = Math.random() < 0.5 ? 'top' : 'bottom';
+				const lane: Lane = this.sim.nextRandom() < 0.5 ? 'top' : 'bottom';
 				const laneY = lane === 'top' ? TOP_LANE_Y : BOTTOM_LANE_Y;
 				const spawnX = isCrazy
-					? 300 + Math.random() * (ARENA_WIDTH - 600)
-					: 850 + Math.random() * 700;
+					? 300 + this.sim.nextRandom() * (ARENA_WIDTH - 600)
+					: 850 + this.sim.nextRandom() * 700;
 				const coin: GoldCoin = {
 					id: `coin_${this.sim.nextCoinId++}`,
 					lane,
 					x: spawnX,
-					y: laneY + (Math.random() * 60 - 30),
+					y: laneY + (this.sim.nextRandom() * 60 - 30),
 					value: 50,
 					lifeTime: 35.0,
 					maxLifeTime: 35.0

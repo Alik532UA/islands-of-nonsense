@@ -15,8 +15,10 @@
 	} from 'lucide-svelte';
 	import { connect } from '$lib/net/firebase';
 	import { liveNet } from '$lib/net/roomNet';
+	import { sendChatMessage } from '$lib/net/rtdbRoom';
 	import { removeFromLobby } from '$lib/net/lobby';
 	import type { Member, RoomInfo, RoomTransport } from '$lib/net/roomTypes';
+	import { PLAYABLE_RACES, formatRaceName } from '$lib/engine/gameData';
 	import { PlayerIdentity } from '$lib/controllers/playerIdentity.svelte';
 	import { settings } from '$lib/services/settings.svelte';
 	import { t } from '$lib/i18n';
@@ -54,6 +56,7 @@
 	let isLobby = $derived(roomInfo?.status === 'lobby');
 	let isPlaying = $derived(roomInfo?.status === 'playing');
 	let peerOnlineCount = $derived(onlineUids.filter((id) => id !== localUid).length);
+	let localMember = $derived(members.find((m) => m.uid === localUid) ?? null);
 
 	onMount(() => {
 		let stopPresence = () => {};
@@ -84,7 +87,7 @@
 						role: currentInfo.status === 'playing' ? 'spectator' : 'player',
 						country: identity.country,
 						avatar: identity.avatar,
-						team: isHost ? 'west' : 'east'
+						team: isHost ? 'west' : currentMembers.length % 2 === 0 ? 'west' : 'east'
 					});
 				}
 
@@ -110,18 +113,18 @@
 					}
 				);
 
-				const { ref, query, limitToLast, onValue } = await import('firebase/database');
+				const { ref, query, limitToLast, onChildAdded } = await import('firebase/database');
 				if (!active) return;
 				const chatQuery = query(ref(db, `rooms/${roomCode}/chat`), limitToLast(30));
-				stopChat = onValue(chatQuery, (snap) => {
-					if (!snap.exists()) {
-						messages = [];
-						return;
-					}
-					const val = snap.val() as Record<string, Omit<ChatMessage, 'id'>>;
-					messages = Object.entries(val)
-						.map(([id, m]) => ({ id, ...m }))
-						.sort((a, b) => (a.at ?? 0) - (b.at ?? 0));
+				const seenMessageIds = new Set<string>();
+				stopChat = onChildAdded(chatQuery, (snap) => {
+					const id = snap.key;
+					const val = snap.val() as Omit<ChatMessage, 'id'> | null;
+					if (!id || !val || seenMessageIds.has(id)) return;
+					seenMessageIds.add(id);
+					messages = [...messages, { id, ...val }]
+						.sort((a, b) => (a.at ?? 0) - (b.at ?? 0))
+						.slice(-30);
 				});
 			} catch (err) {
 				roomError = err instanceof Error ? err.message : t('online.hud.joinError');
@@ -148,19 +151,35 @@
 		}
 	}
 
+	async function handleChangeTeam(nextTeam: 'west' | 'east') {
+		if (!isLobby || !localUid) return;
+		await liveNet.updateMe(roomCode, { team: nextTeam }).catch(() => {});
+	}
+
+	async function handleChangeRace(nextRace: string) {
+		if (!isLobby || !localUid) return;
+		await liveNet.updateMe(roomCode, { race: nextRace }).catch(() => {});
+	}
+
 	async function handleStartMatch() {
 		if (!transport || !localUid || starting) return;
 		starting = true;
 		try {
-			const roster = members
+			const roster = [...members]
 				.filter((m) => m.role === 'player')
-				.map((m) => ({ uid: m.uid, name: m.name, team: m.team }));
+				.sort((a, b) => a.order - b.order)
+				.map((m) => ({
+					uid: m.uid,
+					name: m.name,
+					team: m.team ?? 'west',
+					...(m.race ? { race: m.race } : {})
+				}));
 			await transport.setStatus('playing', roster);
 			await transport.append({
 				seq: maxMoveSeq + 1,
 				by: localUid,
 				type: 'RESUME',
-				payload: { tick: 0, team: isHost ? 'west' : 'east' }
+				payload: { tick: 0, team: localMember?.team ?? (isHost ? 'west' : 'east') }
 			});
 			const { db } = await connect();
 			await removeFromLobby(db, roomCode).catch(() => {});
@@ -175,14 +194,7 @@
 		if (!text || !localUid) return;
 		chatInput = '';
 		try {
-			const { db, uid } = await connect();
-			const { ref, push, serverTimestamp } = await import('firebase/database');
-			await push(ref(db, `rooms/${roomCode}/chat`), {
-				senderUid: uid,
-				senderName: identity.forEntry(settings.locale).slice(0, 48),
-				text,
-				at: serverTimestamp()
-			});
+			await sendChatMessage(roomCode, identity.forEntry(settings.locale), text);
 		} catch {
 			// Ignore transient chat write failure
 		}
@@ -229,6 +241,52 @@
 				</button>
 			</div>
 
+			{#if localMember && !roomInfo?.config?.allRandom}
+				<div class="mb-4 p-3 rounded-xl bg-slate-800/70 border border-slate-700 space-y-2.5">
+					<div class="flex items-center justify-between gap-2">
+						<span class="text-xs font-semibold text-slate-300">Команда:</span>
+						<div class="flex gap-1.5">
+							<button
+								type="button"
+								onclick={() => handleChangeTeam('west')}
+								class="px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer {localMember.team !==
+								'east'
+									? 'bg-sky-500/25 border-sky-400 text-sky-200'
+									: 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'}"
+							>
+								{t('online.hud.teamWest')}
+							</button>
+							<button
+								type="button"
+								onclick={() => handleChangeTeam('east')}
+								class="px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer {localMember.team ===
+								'east'
+									? 'bg-rose-500/25 border-rose-400 text-rose-200'
+									: 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'}"
+							>
+								{t('online.hud.teamEast')}
+							</button>
+						</div>
+					</div>
+					<div class="flex items-center justify-between gap-2">
+						<label for="online-lobby-race" class="text-xs font-semibold text-slate-300">
+							Раса:
+						</label>
+						<select
+							id="online-lobby-race"
+							value={localMember.race ?? 'random'}
+							onchange={(e) => handleChangeRace((e.currentTarget as HTMLSelectElement).value)}
+							class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs font-semibold text-slate-100"
+						>
+							<option value="random">Випадкова (+30%)</option>
+							{#each PLAYABLE_RACES as race (race)}
+								<option value={race}>{formatRaceName(race)}</option>
+							{/each}
+						</select>
+					</div>
+				</div>
+			{/if}
+
 			<div class="mb-4 space-y-2">
 				<div
 					class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5"
@@ -240,7 +298,14 @@
 					<div
 						class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/80 border border-slate-700 text-sm"
 					>
-						<span class="font-semibold text-slate-100">{member.name}</span>
+						<div class="flex flex-col">
+							<span class="font-semibold text-slate-100">{member.name}</span>
+							{#if member.race}
+								<span class="text-[10px] text-amber-300/90">
+									{member.race === 'random' ? 'Випадкова (+30%)' : formatRaceName(member.race)}
+								</span>
+							{/if}
+						</div>
 						<span class="text-xs px-2 py-0.5 rounded bg-slate-900 text-slate-300">
 							{member.team === 'east' ? t('online.hud.teamEast') : t('online.hud.teamWest')}
 							{onlineUids.includes(member.uid) ? ` · ${t('online.hud.onlineBadge')}` : ''}
@@ -328,14 +393,14 @@
 		<div
 			class="w-72 rounded-xl bg-slate-900/95 border border-slate-700 shadow-2xl p-3 flex flex-col gap-2"
 		>
-			<div class="max-h-44 overflow-y-auto space-y-1.5 text-xs">
+			<div class="max-h-40 overflow-y-auto space-y-1 text-xs">
 				{#if messages.length === 0}
-					<p class="text-slate-500 text-center py-3">{t('online.hud.noMessages')}</p>
+					<div class="text-slate-500 italic">{t('online.hud.noMessages')}</div>
 				{:else}
 					{#each messages as msg (msg.id)}
-						<div class="text-slate-200 break-words">
+						<div class="break-words">
 							<span class="font-bold text-amber-300">{msg.senderName}:</span>
-							<span> {msg.text}</span>
+							<span class="text-slate-200"> {msg.text}</span>
 						</div>
 					{/each}
 				{/if}
@@ -344,14 +409,14 @@
 				<input
 					type="text"
 					bind:value={chatInput}
-					maxlength={200}
+					maxlength="200"
 					placeholder={t('online.hud.chatPlaceholder')}
-					class="flex-1 min-w-0 min-h-[44px] bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-sky-400"
+					class="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-600 text-xs text-white focus:outline-none focus:border-sky-500"
 				/>
 				<button
 					type="submit"
-					class="min-h-[44px] min-w-[44px] px-2.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white flex items-center justify-center cursor-pointer"
-					aria-label={t('online.hud.sendMessage')}
+					class="min-h-[36px] px-2.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold cursor-pointer flex items-center justify-center"
+					aria-label={t('online.hud.sendChat')}
 				>
 					<Send class="w-3.5 h-3.5" />
 				</button>

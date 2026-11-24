@@ -314,9 +314,25 @@ export class Simulation {
 	public nextProjectileId = 1;
 	public nextTextId = 1;
 	public nextCoinId = 1;
+	public nextCorpseId = 1;
+	public nextDebrisId = 1;
+	private rngState: number;
+
+	/**
+	 * Deterministic Mulberry32 PRNG scoped to this Simulation instance.
+	 * Ensures identical combat, economy, boss, bridge, and bot outcomes when seeded.
+	 */
+	public nextRandom(): number {
+		this.rngState = (this.rngState + 0x6d2b79f5) >>> 0;
+		let t = this.rngState;
+		t = Math.imul(t ^ (t >>> 15), t | 1);
+		t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+	}
 
 	constructor(config: SimulationConfig = { botDifficulty: 0, startGold: 500 }) {
 		this.config = config;
+		this.rngState = (config.seed ?? createRandomDecorationSeed()) >>> 0 || 1;
 		if (config.isRunning !== undefined) {
 			this.isRunning = config.isRunning;
 		}
@@ -343,7 +359,7 @@ export class Simulation {
 		}
 		this.targetWins = config.targetWins ?? 2;
 		const bridges: ('top' | 'mid' | 'bottom')[] = ['top', 'mid', 'bottom'];
-		this.brokenBridge = bridges[Math.floor(Math.random() * 3)];
+		this.brokenBridge = bridges[Math.floor(this.nextRandom() * 3)];
 		this.bridgeRepairProgress = 0;
 		this.lastBotBridgeRepairTime = { west: -180, east: -180 };
 		const castleHp = Math.round(14000 * (this.gameModeConfig.castleHpMultiplier || 1.0));
@@ -371,7 +387,7 @@ export class Simulation {
 		const remainingRaces = [...availableRaces];
 		const takeRace = (requested?: string, isRand = false): { race: string; isRandom: boolean } => {
 			if (isAllRandom || requested === 'random' || isRand) {
-				const idx = Math.floor(Math.random() * remainingRaces.length);
+				const idx = Math.floor(this.nextRandom() * remainingRaces.length);
 				const picked = remainingRaces[idx] || availableRaces[0];
 				if (avoidDuplicateRaces && remainingRaces.length > 1) {
 					remainingRaces.splice(idx, 1);
@@ -390,7 +406,7 @@ export class Simulation {
 				}
 				return { race: requested, isRandom: false };
 			}
-			const idx = Math.floor(Math.random() * remainingRaces.length);
+			const idx = Math.floor(this.nextRandom() * remainingRaces.length);
 			const picked = remainingRaces[idx] || availableRaces[0];
 			if (avoidDuplicateRaces && remainingRaces.length > 1) {
 				remainingRaces.splice(idx, 1);
@@ -763,7 +779,7 @@ export class Simulation {
 		// Shuffle WC3 12 player colors so all active players and bots receive distinct random colors
 		const pool = [...WC3_PLAYER_COLORS];
 		for (let i = pool.length - 1; i > 0; i--) {
-			const j = Math.floor(Math.random() * (i + 1));
+			const j = Math.floor(this.nextRandom() * (i + 1));
 			[pool[i], pool[j]] = [pool[j], pool[i]];
 		}
 
@@ -775,7 +791,7 @@ export class Simulation {
 	public assignCastleColors(): void {
 		const westMembers = this.teamMembers.west;
 		if (westMembers.length > 0) {
-			const pickedWest = westMembers[Math.floor(Math.random() * westMembers.length)];
+			const pickedWest = westMembers[Math.floor(this.nextRandom() * westMembers.length)];
 			this.castles.west.color = pickedWest.color;
 		} else if (this.players.west) {
 			this.castles.west.color = this.players.west.color;
@@ -783,7 +799,7 @@ export class Simulation {
 
 		const eastMembers = this.teamMembers.east;
 		if (eastMembers.length > 0) {
-			const pickedEast = eastMembers[Math.floor(Math.random() * eastMembers.length)];
+			const pickedEast = eastMembers[Math.floor(this.nextRandom() * eastMembers.length)];
 			this.castles.east.color = pickedEast.color;
 		} else if (this.players.east) {
 			this.castles.east.color = this.players.east.color;
@@ -820,7 +836,7 @@ export class Simulation {
 			}
 			if (pool.length === 0) pool = availableRaces;
 
-			const picked = pool[Math.floor(Math.random() * pool.length)];
+			const picked = pool[Math.floor(this.nextRandom() * pool.length)];
 			player.race = picked;
 			player.isRandomRace = true;
 			if (player.worker) {
@@ -1019,7 +1035,9 @@ export class Simulation {
 		}
 
 		const isRandom = choice === 'random';
-		const commanderId = isRandom ? pickRandomCommanderId() : getCommander(choice).id;
+		const commanderId = isRandom
+			? pickRandomCommanderId(() => this.nextRandom())
+			: getCommander(choice).id;
 		player.commander = commanderId;
 		player.isRandomCommander = isRandom;
 		player.commanderCooldown = COMMANDER_CHANGE_COOLDOWN_SEC;
@@ -1143,7 +1161,7 @@ export class Simulation {
 		this.debris = [];
 		this.coinSpawnTimer = this.coinSpawnInterval;
 		const bridges: ('top' | 'mid' | 'bottom')[] = ['top', 'mid', 'bottom'];
-		this.brokenBridge = bridges[Math.floor(Math.random() * 3)];
+		this.brokenBridge = bridges[Math.floor(this.nextRandom() * 3)];
 		this.bridgeRepairProgress = 0;
 		this.lastBotBridgeRepairTime = { west: -180, east: -180 };
 		this.initDecorations(
@@ -1490,7 +1508,7 @@ export class Simulation {
 		this.lastBossLane = lane;
 		this.bossIndex++;
 
-		const { boss: bossDef, index } = getRandomBoss(this.lastBossId);
+		const { boss: bossDef, index } = getRandomBoss(this.lastBossId, () => this.nextRandom());
 		this.lastBossId = index;
 
 		const laneY = lane === 'top' ? TOP_LANE_Y : BOTTOM_LANE_Y;

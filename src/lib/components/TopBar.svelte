@@ -1,10 +1,11 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { getContext, onMount } from 'svelte';
 	import type { Simulation } from '../engine/simulation';
 	import type { PlayerState } from '../engine/types';
 	import { findCommander } from '../engine/commanders';
 	import { getRaceAbility } from '../engine/raceAbilities';
 	import { toPlayableRace } from '../engine/gameData';
+	import { BATTLE_COMMAND_ROUTER_KEY, type BattleCommandRouter } from '$lib/net/onlineMatchSetup';
 	import { resolve } from '$app/paths';
 	import { settings } from '$lib/services/settings.svelte';
 	import { fullscreen, canFullscreen } from '$lib/services/fullscreen.svelte';
@@ -56,6 +57,8 @@
 		onOpenSettings?: () => void;
 		onBeforeLeave?: (targetUrl: string) => boolean;
 	} = $props();
+
+	const routeBattleCommand = getContext<BattleCommandRouter | undefined>(BATTLE_COMMAND_ROUTER_KEY);
 
 	let isBotVsBot = $derived.by(() => {
 		if (isOnline) return false;
@@ -650,7 +653,15 @@
 			<div class="relative group/tip flex items-center">
 				<button
 					onclick={() => {
-						if (canCastRaceSkill) sim.useRaceSkill(player.team, player);
+						if (!canCastRaceSkill) return;
+						if (
+							!routeBattleCommand?.('USE_ABILITY', {
+								team: player.team,
+								playerSlot: player.slot
+							})
+						) {
+							sim.useRaceSkill(player.team, player);
+						}
 					}}
 					disabled={!canCastRaceSkill}
 					data-testid="hud-race-ability-btn"
@@ -693,7 +704,15 @@
 			<div class="relative group/tip flex items-center">
 				<button
 					onclick={() => {
-						if (canUseRescue) sim.triggerRescueStrike(player.team, player);
+						if (!canUseRescue) return;
+						if (
+							!routeBattleCommand?.('RESCUE_STRIKE', {
+								team: player.team,
+								playerSlot: player.slot
+							})
+						) {
+							sim.triggerRescueStrike(player.team, player);
+						}
 					}}
 					disabled={!canUseRescue}
 					data-testid="hud-rescue-strike-btn"

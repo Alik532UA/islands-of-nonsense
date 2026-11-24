@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { getContext } from 'svelte';
 	import type { Simulation } from '../engine/simulation';
 	import type { BuildingDefinition, PlayerState } from '../engine/types';
+	import { BATTLE_COMMAND_ROUTER_KEY, type BattleCommandRouter } from '$lib/net/onlineMatchSetup';
 	import {
 		Swords,
 		Hammer,
@@ -58,6 +60,8 @@
 	let gold = $derived(player.gold);
 	let lumber = $derived(player.lumber ?? 0);
 
+	const routeBattleCommand = getContext<BattleCommandRouter | undefined>(BATTLE_COMMAND_ROUTER_KEY);
+
 	let rescueCd = $derived(sim.getRescueStrikeCooldown(activeTeam, player));
 
 	let abilities = $derived<RadialAbilityItem[]>([
@@ -70,7 +74,14 @@
 			enabled: sim.canUseRescueStrike(activeTeam, player),
 			action: () => {
 				if (sim.canUseRescueStrike(activeTeam, player)) {
-					sim.triggerRescueStrike(activeTeam, player);
+					if (
+						!routeBattleCommand?.('RESCUE_STRIKE', {
+							team: activeTeam,
+							playerSlot: player.slot
+						})
+					) {
+						sim.triggerRescueStrike(activeTeam, player);
+					}
 					sound.playRescueStrike();
 					onClose();
 				} else {
@@ -87,7 +98,16 @@
 			enabled: sim.castles[activeTeam].hp < sim.castles[activeTeam].maxHp,
 			action: () => {
 				if (sim.castles[activeTeam].hp < sim.castles[activeTeam].maxHp) {
-					sim.repairBuilding(activeTeam, `castle_${activeTeam}`, player);
+					const targetId = `castle_${activeTeam}`;
+					if (
+						!routeBattleCommand?.('REPAIR', {
+							team: activeTeam,
+							playerSlot: player.slot,
+							targetId
+						})
+					) {
+						sim.repairBuilding(activeTeam, targetId, player);
+					}
 					sound.playRepair();
 					onClose();
 				} else {
@@ -104,7 +124,14 @@
 			enabled: Boolean(sim.brokenBridge) && lumber >= 50,
 			action: () => {
 				if (sim.brokenBridge && lumber >= 50) {
-					sim.orderBridgeRepair(activeTeam, player);
+					if (
+						!routeBattleCommand?.('BRIDGE_REPAIR', {
+							team: activeTeam,
+							playerSlot: player.slot
+						})
+					) {
+						sim.orderBridgeRepair(activeTeam, player);
+					}
 					sound.playBuild();
 					onClose();
 				} else {
@@ -145,7 +172,14 @@
 			enabled: sim.canUseRaceSkill(activeTeam),
 			action: () => {
 				if (sim.canUseRaceSkill(activeTeam)) {
-					sim.useRaceSkill(activeTeam, player);
+					if (
+						!routeBattleCommand?.('USE_ABILITY', {
+							team: activeTeam,
+							playerSlot: player.slot
+						})
+					) {
+						sim.useRaceSkill(activeTeam, player);
+					}
 					sound.playUpgrade();
 					onClose();
 				} else {

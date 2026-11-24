@@ -2,14 +2,14 @@
 	"rules": {
 		"__rulesVersion": {
 			"$v": {
-				".read": "auth != null && $v === '14c85f530668'"
+				".read": "auth != null && $v === '370d14960459'"
 			}
 		},
 		"rooms": {
 			"$code": {
-				".read": "auth != null",
 				".write": "auth != null && !newData.exists() && data.child('info/hostUid').val() === auth.uid",
 				"info": {
+					".read": "auth != null",
 					".write": "auth != null && (data.exists() ? data.child('hostUid').val() === auth.uid && newData.exists() : (newData.child('hostUid').val() === auth.uid && $code.matches(/^[0-9A-Z]{2,6}$/)))",
 					".validate": "newData.hasChildren(['gameId', 'rulesVersion', 'seed', 'status', 'hostUid'])",
 					"status": {
@@ -47,16 +47,62 @@
 						".validate": "newData.isNumber() && newData.val() <= now && newData.val() > now - 60000"
 					},
 					"config": {
-						".validate": "newData.hasChildren()"
+						".validate": "newData.hasChildren(['modeId', 'teamSize', 'targetWins'])",
+						"modeId": {
+							".validate": "newData.isString() && newData.val().length <= 32"
+						},
+						"teamSize": {
+							".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 3"
+						},
+						"targetWins": {
+							".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 5"
+						},
+						"startGold": {
+							".validate": "newData.isNumber() && newData.val() >= 100 && newData.val() <= 5000"
+						},
+						"allRandom": {
+							".validate": "newData.isBoolean()"
+						},
+						"uniqueRaces": {
+							".validate": "newData.isBoolean()"
+						},
+						"coinMode": {
+							".validate": "newData.val() === 'none' || newData.val() === 'normal' || newData.val() === 'crazy'"
+						},
+						"isPrivate": {
+							".validate": "newData.isBoolean()"
+						},
+						"botDifficulty": {
+							".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 4"
+						}
 					},
 					"roster": {
-						".validate": "newData.hasChildren()"
+						".validate": "newData.hasChildren()",
+						"$uid": {
+							".validate": "newData.hasChildren(['name', 'seat'])",
+							"name": {
+								".validate": "newData.isString() && newData.val().length <= 48"
+							},
+							"seat": {
+								".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 5"
+							},
+							"team": {
+								".validate": "newData.val() === 'west' || newData.val() === 'east'"
+							},
+							"race": {
+								".validate": "newData.isString() && newData.val().length <= 32"
+							},
+							"$other": {
+								".validate": false
+							}
+						}
 					},
 					"$other": {
 						".validate": false
 					}
 				},
 				"members": {
+					".read": "auth != null",
 					"$uid": {
 						".write": "auth != null && (($uid === auth.uid && (!newData.exists() || (root.child('rooms').child($code).child('info').exists() && $code.matches(/^[0-9A-Z]{2,6}$/)))) || (!newData.exists() && root.child('rooms').child($code).child('info/hostUid').val() === auth.uid))",
 						".validate": "newData.hasChildren(['name', 'role', 'order'])",
@@ -67,7 +113,10 @@
 							".validate": "newData.val() === 'player' || newData.val() === 'spectator'"
 						},
 						"order": {
-							".validate": "newData.isNumber()"
+							".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 10"
+						},
+						"slot": {
+							".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 6"
 						},
 						"country": {
 							".validate": "newData.isString() && newData.val().length === 2"
@@ -90,15 +139,22 @@
 						"account": {
 							".validate": "newData.isBoolean()"
 						},
+						"lastMoveAt": {
+							".validate": "newData.isNumber() && newData.val() <= now && newData.val() > now - 60000 && (!data.exists() || newData.val() > data.val())"
+						},
+						"lastChatAt": {
+							".validate": "newData.isNumber() && newData.val() <= now && newData.val() > now - 60000 && (!data.exists() || newData.val() > data.val())"
+						},
 						"$other": {
 							".validate": false
 						}
 					}
 				},
 				"moves": {
+					".read": "auth != null && root.child('rooms').child($code).child('members').child(auth.uid).exists()",
 					"$seq": {
-						".write": "auth != null && !data.exists() && newData.exists() && root.child('rooms').child($code).child('members').child(auth.uid).exists() && newData.child('by').val() === auth.uid",
-						".validate": "newData.hasChildren(['seq', 'by', 'type']) && $seq.matches(/^[0-9]{6}$/)",
+						".write": "auth != null && !data.exists() && newData.exists() && root.child('rooms').child($code).child('members').child(auth.uid).exists() && newData.child('by').val() === auth.uid && newData.parent().parent().child('members').child(auth.uid).child('lastMoveAt').val() === newData.child('at').val() && (!data.parent().parent().child('members').child(auth.uid).child('lastMoveAt').exists() || data.parent().parent().child('members').child(auth.uid).child('lastMoveAt').val() <= now - 80)",
+						".validate": "newData.hasChildren(['seq', 'by', 'type', 'at']) && $seq.matches(/^[0-9]{6}$/)",
 						"seq": {
 							".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 9999"
 						},
@@ -106,7 +162,7 @@
 							".validate": "newData.val() === auth.uid"
 						},
 						"type": {
-							".validate": "newData.isString() && newData.val().length <= 32"
+							".validate": "newData.isString() && (newData.val() === 'BUILD' || newData.val() === 'UPGRADE' || newData.val() === 'SELL' || newData.val() === 'REPAIR' || newData.val() === 'USE_ABILITY' || newData.val() === 'BUY_ITEM' || newData.val() === 'UPGRADE_FORGE' || newData.val() === 'SELECT_COMMANDER' || newData.val() === 'BRIDGE_REPAIR' || newData.val() === 'RESCUE_STRIKE' || newData.val() === 'SURRENDER' || newData.val() === 'PAUSE' || newData.val() === 'RESUME' || newData.val() === 'HEARTBEAT' || newData.val() === 'CHECKSUM' || newData.val() === 'CHAT')"
 						},
 						"at": {
 							".validate": "newData.isNumber() && newData.val() <= now && newData.val() > now - 60000"
@@ -118,6 +174,9 @@
 							},
 							"team": {
 								".validate": "newData.val() === 'west' || newData.val() === 'east'"
+							},
+							"playerSlot": {
+								".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 6"
 							},
 							"buildingType": {
 								".validate": "newData.isString() && newData.val().length <= 16"
@@ -136,6 +195,12 @@
 							},
 							"forgeType": {
 								".validate": "newData.val() === 'attack' || newData.val() === 'armor' || newData.val() === 'econ'"
+							},
+							"commanderId": {
+								".validate": "(newData.isNumber() && newData.val() >= 1 && newData.val() <= 6) || newData.val() === 'random'"
+							},
+							"race": {
+								".validate": "newData.isString() && newData.val().length <= 32"
 							},
 							"shiftKey": {
 								".validate": "newData.isBoolean()"
@@ -156,6 +221,7 @@
 					}
 				},
 				"presence": {
+					".read": "auth != null && root.child('rooms').child($code).child('members').child(auth.uid).exists()",
 					"$uid": {
 						".write": "auth != null && $uid === auth.uid",
 						".validate": "newData.hasChildren(['online'])",
@@ -171,8 +237,9 @@
 					}
 				},
 				"chat": {
+					".read": "auth != null && root.child('rooms').child($code).child('members').child(auth.uid).exists()",
 					"$msgId": {
-						".write": "auth != null && !data.exists() && newData.exists() && root.child('rooms').child($code).child('members').child(auth.uid).exists() && newData.child('senderUid').val() === auth.uid",
+						".write": "auth != null && !data.exists() && newData.exists() && root.child('rooms').child($code).child('members').child(auth.uid).exists() && newData.child('senderUid').val() === auth.uid && newData.parent().parent().child('members').child(auth.uid).child('lastChatAt').val() === newData.child('at').val() && (!data.parent().parent().child('members').child(auth.uid).child('lastChatAt').exists() || data.parent().parent().child('members').child(auth.uid).child('lastChatAt').val() <= now - 800)",
 						".validate": "newData.hasChildren(['senderUid', 'text', 'at'])",
 						"senderUid": {
 							".validate": "newData.val() === auth.uid"

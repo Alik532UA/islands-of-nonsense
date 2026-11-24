@@ -6,6 +6,8 @@ export interface RosterEntry {
 	uid: string;
 	name: string;
 	team?: MatchTeamId;
+	race?: string;
+	slot?: number;
 }
 
 export interface Member {
@@ -18,6 +20,7 @@ export interface Member {
 	race?: string;
 	ready?: boolean;
 	order: number;
+	slot?: number;
 	compact?: boolean;
 	account?: boolean;
 }
@@ -73,6 +76,7 @@ export interface RoomInfo {
 export interface MovePayload {
 	tick?: number;
 	team?: MatchTeamId;
+	playerSlot?: number;
 	actionType?: string;
 	buildingType?: string;
 	x?: number;
@@ -82,6 +86,10 @@ export interface MovePayload {
 	abilityId?: string;
 	itemId?: string;
 	forgeType?: string;
+	commanderId?: number | 'random';
+	race?: string;
+	checksum?: string;
+	clientTime?: number;
 	from?: string;
 	[key: string]: unknown;
 }

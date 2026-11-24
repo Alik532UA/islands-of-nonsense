@@ -15,13 +15,15 @@
 		uiTick = 0,
 		activePlayer = null,
 		isOpen = $bindable(false),
-		onBuildCommanderHall
+		onBuildCommanderHall,
+		onSelectCommander
 	}: {
 		sim: Simulation;
 		uiTick?: number;
 		activePlayer?: PlayerState | null;
 		isOpen: boolean;
 		onBuildCommanderHall?: () => void;
+		onSelectCommander?: (choice: number | 'random') => boolean | void;
 	} = $props();
 
 	let player = $derived(activePlayer ?? sim.players.west);
@@ -216,6 +218,13 @@
 					isRandomBoostActive={Boolean(player.isRandomCommander)}
 					disabled={!hallStatus.allowed}
 					onSelect={(choice) => {
+						if (onSelectCommander) {
+							const handled = onSelectCommander(choice);
+							if (handled !== false) {
+								isOpen = false;
+							}
+							return;
+						}
 						const res = sim.selectPlayerCommander(player.team, choice, player);
 						if (res.ok) {
 							isOpen = false;
