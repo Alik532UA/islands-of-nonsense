@@ -7,7 +7,7 @@ import { existsSync, readdirSync, statSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
-const BUILD_DIR = process.argv[2] ?? 'build';
+const BUILD_DIR = process.argv.slice(2).find((arg) => !arg.startsWith('-')) ?? 'build';
 const MAX_JS_KB = 550; // Gzip ceiling for total JS across all pages and chunks
 const MAX_CSS_KB = 60; // Gzip ceiling for CSS
 const MAX_SINGLE_CHUNK_KB = 250; // Max allowed gzip size for any individual JS chunk

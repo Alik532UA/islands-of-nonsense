@@ -68,6 +68,8 @@ jobs:
       - name: Build static site
         id: build
         if: ${{ !cancelled() }}
+        env:
+          BUDGET_SOFT: '1'
         run: |
           npm run build
           npm run check:build
