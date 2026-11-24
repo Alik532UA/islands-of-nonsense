@@ -37,7 +37,10 @@ export default defineConfig(({ mode }) => ({
 	test: {
 		include: ['src/**/*.{test,spec}.{js,ts}'],
 		maxWorkers: 2,
-		minWorkers: 1
+		minWorkers: 1,
+		expect: {
+			requireAssertions: true
+		}
 	},
 	plugins: [
 		tailwindcss(),

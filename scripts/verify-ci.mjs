@@ -39,6 +39,11 @@ step('Verifying i18n translation key & placeholder parity', () => {
 	execSync('node scripts/check-i18n.mjs', { cwd, stdio: 'pipe' });
 });
 
+// 3. Test Discovery Gate (AI-AGENT-PITFALLS-v10 § 1.3.1)
+step('Verifying test discovery across test runners', () => {
+	execSync('node scripts/check-test-discovery.mjs', { cwd, stdio: 'pipe' });
+});
+
 // 2. Package manifest invariants
 step('Checking package.json script invariants', () => {
 	const pkg = JSON.parse(fs.readFileSync(path.join(cwd, 'package.json'), 'utf-8'));

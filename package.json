@@ -1,6 +1,6 @@
 {
 	"name": "islands-of-nonsense",
-	"version": "0.0.108",
+	"version": "0.0.109",
 	"private": true,
 	"type": "module",
 	"imports": {
@@ -20,6 +20,7 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"check:i18n": "node scripts/check-i18n.mjs",
+		"check:tests": "node scripts/check-test-discovery.mjs",
 		"rules:stamp": "node scripts/rules-stamp.mjs",
 		"rules:stamp:check": "node scripts/rules-stamp.mjs --check",
 		"rooms:sweep": "node scripts/sweep-rooms.mjs",
