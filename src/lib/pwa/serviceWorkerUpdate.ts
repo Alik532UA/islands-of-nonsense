@@ -9,6 +9,8 @@ export function initServiceWorkerUpdate(): () => void {
 	}
 
 	let refreshing = false;
+	let prompted = false;
+
 	const onControllerChange = () => {
 		if (refreshing) return;
 		refreshing = true;
@@ -18,11 +20,26 @@ export function initServiceWorkerUpdate(): () => void {
 	navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
 
 	function promptUser(worker: ServiceWorker) {
+		if (prompted) return;
+		prompted = true;
+
 		toast.info(t('pwa.updateAvailable') || 'Доступна нова версія гри', {
 			duration: 0,
 			action: {
 				label: t('pwa.updateAction') || 'Оновити',
 				run: () => {
+					if (
+						typeof window !== 'undefined' &&
+						window.location &&
+						window.location.pathname.includes('/play/battle')
+					) {
+						const confirmMsg =
+							t('pwa.reloadConfirmBattle') ||
+							'Ви перебуваєте в бою. Перезавантаження завершить поточний матч. Продовжити?';
+						if (!window.confirm(confirmMsg)) {
+							return;
+						}
+					}
 					worker.postMessage({ type: 'SKIP_WAITING' });
 				}
 			}
