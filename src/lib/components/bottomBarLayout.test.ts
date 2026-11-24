@@ -142,7 +142,7 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 		// Bottom-left corner gold cost: Coins SVG icon then amount
 		expect(commandCardSrc).toContain('absolute bottom-0 left-0');
 		expect(commandCardSrc).toContain('<Coins');
-		expect(commandCardSrc).toContain('{bld.gold_cost}');
+		expect(commandCardSrc).toContain('{effectiveGoldCost}');
 
 		// Bottom-right corner lumber cost: amount then TreePine SVG icon
 		expect(commandCardSrc).toContain('absolute bottom-0 right-0');
@@ -275,6 +275,12 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 
 		// Route footer stripped for worker
 		expect(entityInspectDetailsSrc).not.toContain('Маршрут: Авто');
+
+		// Displays active commander inside builder's hud-stats-panel once selected
+		expect(entityInspectDetailsSrc).toContain('data-testid="worker-commander-info"');
+		expect(entityInspectDetailsSrc).toContain('findCommander(player.commander)');
+		expect(commandCardSrc).toContain("placedBuilding.specialType === 'commander'");
+		expect(commandCardSrc).toContain('data-testid="hud-open-commander-btn"');
 
 		// BottomBar hides redundant vital health bar (220/220) for invulnerable worker
 		expect(bottomBarSrc).toContain("activeEntityType !== 'worker' && activeEntityType !== 'none'");

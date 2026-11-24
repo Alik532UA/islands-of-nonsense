@@ -325,31 +325,110 @@ export class TerrainRenderer {
 		g.poly(flatPoly(basePoly, 0, 10));
 		g.fill({ color: 0x8d5b4c });
 
-		// 5. Fairytale Meadow Surface (Rich green base landscape)
+		// 5. Fairytale Meadow Surface (Rich green base landscape with soft coastal moss rim)
 		g.poly(flatPoly(basePoly, 0, 0));
 		g.fill({ color: 0x275d16 });
-		g.stroke({ color: 0x1e4a11, width: 3.5 });
+		g.stroke({ color: 0x1a420e, width: 5 });
 
-		// 6. Rolling Fairytale Meadow Hillocks (Volumetric mounds)
-		// Upper Sunny Hillock
-		g.ellipse(cx, cy - radiusY * 0.45, radiusX * 0.65, radiusY * 0.32);
-		g.fill({ color: 0x3a8222, alpha: 0.55 });
-		g.ellipse(cx, cy - radiusY * 0.48, radiusX * 0.45, radiusY * 0.2);
-		g.fill({ color: 0x4da32f, alpha: 0.45 });
+		// Subtle inner coastal depth & soft organic meadow variation (replaces harsh geometric ovals)
+		const insetPoly = (scaleX: number, scaleY: number, offX = 0, offY = 0) => {
+			const arr: number[] = [];
+			for (const p of basePoly) {
+				arr.push(cx + (p.x - cx) * scaleX + offX, cy + (p.y - cy) * scaleY + offY);
+			}
+			return arr;
+		};
+		g.poly(insetPoly(0.96, 0.95));
+		g.fill({ color: 0x2d6a1a, alpha: 0.45 });
 
-		// Lower Sunny Hillock
-		g.ellipse(cx, cy + radiusY * 0.45, radiusX * 0.68, radiusY * 0.32);
-		g.fill({ color: 0x3a8222, alpha: 0.55 });
-		g.ellipse(cx, cy + radiusY * 0.48, radiusX * 0.48, radiusY * 0.2);
-		g.fill({ color: 0x4da32f, alpha: 0.45 });
+		this.drawOrganicMeadowClearings(g, cx, cy, radiusX, radiusY, isWest, seed);
 
-		// Perimeter Meadow Ridge
-		const ridgeX = isWest ? cx - radiusX * 0.45 : cx + radiusX * 0.45;
-		g.ellipse(ridgeX, cy, radiusX * 0.35, radiusY * 0.55);
-		g.fill({ color: 0x33741d, alpha: 0.42 });
-
-		// 7. High-Density Procedural Meadow Grass & Clover Texture
+		// 7. High-Density Procedural Meadow Grass, Clover & Wildflower Texture
 		this.drawProceduralGrassField(g, cx, cy, radiusX, radiusY, seed);
+	}
+
+	/**
+	 * Draws softly feathered, multi-octave irregular sunlit and mossy meadow clearings
+	 * (avoiding harsh concentric geometric ellipses).
+	 */
+	private drawOrganicMeadowClearings(
+		g: Graphics,
+		cx: number,
+		cy: number,
+		rx: number,
+		ry: number,
+		isWest: boolean,
+		seed: number
+	): void {
+		const patches = [
+			{
+				ox: isWest ? -120 : 120,
+				oy: -ry * 0.42,
+				px: rx * 0.48,
+				py: ry * 0.25,
+				color: 0x3b8622,
+				pSeed: seed + 1.3
+			},
+			{
+				ox: isWest ? -100 : 100,
+				oy: ry * 0.42,
+				px: rx * 0.5,
+				py: ry * 0.26,
+				color: 0x3b8622,
+				pSeed: seed + 4.7
+			},
+			{
+				ox: isWest ? -rx * 0.42 : rx * 0.42,
+				oy: 0,
+				px: rx * 0.3,
+				py: ry * 0.44,
+				color: 0x34771e,
+				pSeed: seed + 8.1
+			},
+			{
+				ox: isWest ? rx * 0.2 : -rx * 0.2,
+				oy: -ry * 0.22,
+				px: rx * 0.28,
+				py: ry * 0.18,
+				color: 0x4ca12d,
+				pSeed: seed + 12.4
+			},
+			{
+				ox: isWest ? rx * 0.22 : -rx * 0.22,
+				oy: ry * 0.24,
+				px: rx * 0.26,
+				py: ry * 0.17,
+				color: 0x4ca12d,
+				pSeed: seed + 15.9
+			}
+		];
+
+		for (const p of patches) {
+			const pcx = cx + p.ox;
+			const pcy = cy + p.oy;
+			// Two feathered low-alpha irregular passes create painterly depth without sharp edges
+			for (const layer of [
+				{ scale: 1.0, alpha: 0.14 },
+				{ scale: 0.68, alpha: 0.12 }
+			]) {
+				const pts: number[] = [];
+				const segs = 36;
+				for (let i = 0; i < segs; i++) {
+					const a = (i / segs) * Math.PI * 2;
+					const wobble =
+						1 +
+						Math.sin(a * 3 + p.pSeed) * 0.14 +
+						Math.cos(a * 5 - p.pSeed * 1.7) * 0.09 +
+						Math.sin(a * 8 + p.pSeed * 2.3) * 0.05;
+					pts.push(
+						pcx + Math.cos(a) * p.px * layer.scale * wobble,
+						pcy + Math.sin(a) * p.py * layer.scale * wobble
+					);
+				}
+				g.poly(pts);
+				g.fill({ color: p.color, alpha: layer.alpha });
+			}
+		}
 	}
 
 	/**
@@ -411,12 +490,16 @@ export class TerrainRenderer {
 					g.fill({ color: 0x2a6b18, alpha: 0.8 });
 				}
 
-				// 3. Occasional wildflower flecks
-				if (r2 > 0.88) {
-					const flowerColor = r1 > 0.5 ? 0xfef08a : 0xf8fafc;
+				// 3. Occasional wildflower flecks & tiny pebbles
+				if (r2 > 0.87) {
+					const flowerColor =
+						r1 > 0.72 ? 0xfef08a : r1 > 0.45 ? 0xf8fafc : r1 > 0.22 ? 0x93c5fd : 0xf9a8d4;
 					g.beginPath();
 					g.circle(ox + 1, oy - bladeH - 1, 1.8);
 					g.fill({ color: flowerColor, alpha: 0.85 });
+				} else if (r1 > 0.94) {
+					g.ellipse(ox + 4, oy + 2, 2.4, 1.5);
+					g.fill({ color: 0x64748b, alpha: 0.45 });
 				}
 			}
 		}
@@ -865,108 +948,318 @@ export class TerrainRenderer {
 	}
 
 	private drawMushroomCluster(g: Graphics, x: number, y: number, rand: () => number): void {
-		g.ellipse(x + 4, y + 6, 14, 6);
-		g.fill({ color: 0x000000, alpha: 0.35 });
+		// Soft cast shadow & mossy forest turf base
+		g.ellipse(x + 4, y + 6, 17, 7);
+		g.fill({ color: 0x000000, alpha: 0.32 });
+		g.ellipse(x - 1, y + 4, 14, 5.5);
+		g.fill({ color: 0x225419, alpha: 0.9 });
+		g.circle(x - 8, y + 3, 4);
+		g.fill({ color: 0x3b8226, alpha: 0.85 });
+		g.circle(x + 9, y + 3, 3.5);
+		g.fill({ color: 0x3b8226, alpha: 0.85 });
 
-		const capColors = [0xef4444, 0xf97316, 0x8b5cf6, 0x06b6d4];
-		const capColor = capColors[Math.floor(rand() * capColors.length)];
+		const palettes = [
+			{ cap: 0xdc2626, light: 0xf87171, rim: 0x7f1d1d, spots: 0xfef9c3 }, // Scarlet Fly Agaric
+			{ cap: 0xea580c, light: 0xfb923c, rim: 0x7c2d12, spots: 0xfef08a }, // Amber Chanterelle
+			{ cap: 0x7c3aed, light: 0xa78bfa, rim: 0x3b0764, spots: 0xe9d5ff }, // Arcane Violet Cap
+			{ cap: 0x0891b2, light: 0x22d3ee, rim: 0x164e63, spots: 0xcffafe } // Luminescent Cyan Cap
+		];
+		const pal = palettes[Math.floor(rand() * palettes.length)];
 
-		g.roundRect(x - 3, y - 8, 6, 12, 2);
-		g.fill({ color: 0xfef08a });
+		const drawToadstool = (mx: number, my: number, scale: number, lean: number) => {
+			const stemW = 6 * scale;
+			const stemH = 12 * scale;
+			const capR = 12 * scale;
 
-		g.beginPath();
-		g.arc(x, y - 6, 11, Math.PI, 0, false);
-		g.fill({ color: capColor });
-		g.stroke({ color: 0x450a0a, width: 1.5 });
+			// Stem with shaded side & under-cap gill ring
+			g.roundRect(mx - stemW * 0.5 + lean, my - stemH, stemW, stemH + 2, 2.5 * scale);
+			g.fill({ color: 0xfef3c7 });
+			g.stroke({ color: 0x78350f, width: 1.2 * scale });
+			g.rect(mx + lean, my - stemH, stemW * 0.45, stemH + 1);
+			g.fill({ color: 0xd6b98c, alpha: 0.7 });
 
-		g.circle(x - 4, y - 10, 2);
-		g.fill({ color: 0xffffff });
-		g.circle(x + 3, y - 11, 2.5);
-		g.fill({ color: 0xffffff });
-		g.circle(x, y - 7, 1.8);
-		g.fill({ color: 0xffffff });
+			// Gill ring / skirt
+			g.ellipse(mx + lean, my - stemH + 2 * scale, capR * 0.88, 3.4 * scale);
+			g.fill({ color: 0x451a03 });
+
+			// Dome cap
+			const capCx = mx + lean;
+			const capCy = my - stemH + 1.5 * scale;
+			g.beginPath();
+			g.arc(capCx, capCy, capR, Math.PI, 0, false);
+			g.closePath();
+			g.fill({ color: pal.cap });
+			g.stroke({ color: pal.rim, width: 1.5 * scale });
+
+			// Top volumetric crescent highlight
+			g.ellipse(capCx - capR * 0.24, capCy - capR * 0.48, capR * 0.44, capR * 0.24);
+			g.fill({ color: pal.light, alpha: 0.65 });
+
+			// Spotted cap flecks
+			g.circle(capCx - capR * 0.36, capCy - capR * 0.42, 2.1 * scale);
+			g.fill({ color: pal.spots });
+			g.circle(capCx + capR * 0.28, capCy - capR * 0.52, 2.3 * scale);
+			g.fill({ color: pal.spots });
+			g.circle(capCx + capR * 0.04, capCy - capR * 0.22, 1.5 * scale);
+			g.fill({ color: pal.spots });
+		};
+
+		// Side smaller mushrooms behind hero mushroom
+		drawToadstool(x - 10, y + 3, 0.62, -1.5);
+		drawToadstool(x + 10, y + 4, 0.52, 1.2);
+		// Main hero mushroom
+		drawToadstool(x, y + 2, 1.0, 0);
 	}
 
 	private drawCrystalSpire(g: Graphics, x: number, y: number, rand: () => number): void {
-		g.ellipse(x + 3, y + 5, 12, 5);
+		const palettes = [
+			{ lit: 0x38bdf8, mid: 0x06b6d4, dark: 0x155e75, glint: 0xe0f2fe }, // Aquamarine
+			{ lit: 0xf43f5e, mid: 0xe11d48, dark: 0x881337, glint: 0xffe4e6 }, // Crimson Ruby
+			{ lit: 0xc084fc, mid: 0x9333ea, dark: 0x581c87, glint: 0xf3e8ff }, // Royal Amethyst
+			{ lit: 0x34d399, mid: 0x10b981, dark: 0x064e3b, glint: 0xd1fae5 }, // Fel Emerald
+			{ lit: 0xf472b6, mid: 0xdb2777, dark: 0x831843, glint: 0xfce7f3 } // Star Sapphire / Rose
+		];
+		const pal = palettes[Math.floor(rand() * palettes.length)];
+
+		// Ambient magical aura on grass + rock outcrop base
+		g.ellipse(x, y + 3, 22, 11);
+		g.fill({ color: pal.mid, alpha: 0.16 });
+		g.ellipse(x + 4, y + 6, 16, 7);
 		g.fill({ color: 0x000000, alpha: 0.35 });
 
-		const crystalColors = [0x00f5ff, 0xec4899, 0xa855f7, 0x22c55e];
-		const color = crystalColors[Math.floor(rand() * crystalColors.length)];
+		// Slate rock bed cradling the crystal cluster
+		g.poly([
+			x - 15,
+			y + 5,
+			x - 9,
+			y - 3,
+			x + 2,
+			y - 4,
+			x + 14,
+			y + 2,
+			x + 11,
+			y + 9,
+			x - 11,
+			y + 9
+		]);
+		g.fill({ color: 0x334155 });
+		g.stroke({ color: 0x0f172a, width: 1.5 });
 
-		g.poly([x - 6, y + 4, x, y - 24, x + 6, y + 4, x, y + 8]);
-		g.fill({ color, alpha: 0.9 });
-		g.stroke({ color: 0xffffff, width: 1.2, alpha: 0.75 });
+		const drawFacetedShard = (
+			bx: number,
+			by: number,
+			tipX: number,
+			tipY: number,
+			halfW: number
+		) => {
+			// Left lit facet
+			g.poly([bx - halfW, by, tipX, tipY, bx, by + 3]);
+			g.fill({ color: pal.lit });
+			// Right shaded facet
+			g.poly([bx, by + 3, tipX, tipY, bx + halfW, by]);
+			g.fill({ color: pal.dark });
+			// Facet outline + crisp light ridge
+			g.poly([bx - halfW, by, tipX, tipY, bx + halfW, by, bx, by + 4]);
+			g.stroke({ color: pal.glint, width: 1.1, alpha: 0.8 });
+			g.beginPath();
+			g.moveTo(bx, by + 3);
+			g.lineTo(tipX, tipY);
+			g.stroke({ color: pal.glint, width: 1.3, alpha: 0.9 });
+		};
 
-		g.poly([x - 12, y + 4, x - 7, y - 12, x - 2, y + 4]);
-		g.fill({ color, alpha: 0.8 });
-		g.poly([x + 2, y + 4, x + 8, y - 15, x + 13, y + 4]);
-		g.fill({ color, alpha: 0.8 });
+		// Back left & right flanking shards
+		drawFacetedShard(x - 8, y + 3, x - 13, y - 14, 4.5);
+		drawFacetedShard(x + 8, y + 3, x + 13, y - 16, 4.5);
+		// Mid secondary shard
+		drawFacetedShard(x + 4, y + 5, x + 6, y - 20, 4.2);
+		// Primary tall central shard
+		drawFacetedShard(x - 1, y + 5, x - 1, y - 27, 6.2);
 
-		g.circle(x - 1, y - 18, 2);
-		g.fill({ color: 0xffffff });
+		// Crisp sparkle glint on hero crystal tip
+		g.circle(x - 1, y - 23, 2);
+		g.fill({ color: 0xffffff, alpha: 0.95 });
 	}
 
-	private drawAncientMonolith(g: Graphics, x: number, y: number, _rand: () => number): void {
-		g.ellipse(x + 6, y + 8, 18, 8);
-		g.fill({ color: 0x000000, alpha: 0.35 });
+	private drawAncientMonolith(g: Graphics, x: number, y: number, rand: () => number): void {
+		const isBoulderCairn = rand() > 0.55;
+		g.ellipse(x + 6, y + 8, 20, 9);
+		g.fill({ color: 0x000000, alpha: 0.36 });
 
-		g.roundRect(x - 10, y - 32, 20, 40, 4);
+		if (isBoulderCairn) {
+			// Stylized 2.5D mossy stone boulder outcrop + pebbles
+			g.poly([x - 17, y + 6, x - 14, y - 9, x - 3, y - 13, x + 4, y - 6, x + 2, y + 7]);
+			g.fill({ color: 0x64748b });
+			g.stroke({ color: 0x1e293b, width: 1.8 });
+			// Sunlit top bevel
+			g.poly([x - 14, y - 9, x - 3, y - 13, x + 3, y - 7, x - 8, y - 5]);
+			g.fill({ color: 0x94a3b8 });
+
+			// Right companion stone in darker shadow tone
+			g.poly([x + 1, y + 7, x + 3, y - 6, x + 13, y - 4, x + 17, y + 6]);
+			g.fill({ color: 0x475569 });
+			g.stroke({ color: 0x1e293b, width: 1.6 });
+
+			// Moss cushions & grass blades around base
+			g.ellipse(x - 6, y - 7, 6, 3.2);
+			g.fill({ color: 0x3b8226, alpha: 0.92 });
+			g.ellipse(x + 7, y + 2, 5, 2.8);
+			g.fill({ color: 0x2d6a1a, alpha: 0.9 });
+			g.circle(x - 16, y + 7, 3);
+			g.fill({ color: 0x64748b });
+			g.stroke({ color: 0x1e293b, width: 1.2 });
+			return;
+		}
+
+		// 2.5D Runic Menhir Monolith with chiseled bevel, mossy base, and glowing arcane glyph
+		g.ellipse(x, y + 5, 16, 6);
+		g.fill({ color: 0x334155 });
+		g.stroke({ color: 0x0f172a, width: 1.5 });
+
+		// Front stone face (tapered obelisk slab)
+		g.poly([x - 10, y + 5, x - 8, y - 26, x + 2, y - 31, x + 6, y + 5]);
 		g.fill({ color: 0x64748b });
-		g.stroke({ color: 0x1e293b, width: 2 });
+		g.stroke({ color: 0x1e293b, width: 1.8 });
 
-		g.circle(x - 4, y - 10, 5);
-		g.fill({ color: 0x36761f, alpha: 0.85 });
-		g.circle(x + 5, y - 22, 6);
-		g.fill({ color: 0x36761f, alpha: 0.85 });
+		// Right 2.5D depth bevel face
+		g.poly([x + 2, y - 31, x + 10, y - 24, x + 11, y + 4, x + 6, y + 5]);
+		g.fill({ color: 0x475569 });
+		g.stroke({ color: 0x1e293b, width: 1.6 });
 
+		// Top chiseled edge highlight
+		g.poly([x - 8, y - 26, x + 2, y - 31, x + 10, y - 24, x, y - 23]);
+		g.fill({ color: 0x94a3b8 });
+
+		// Creeping moss patches on stone
+		g.circle(x - 5, y + 1, 4.5);
+		g.fill({ color: 0x2f6e1b, alpha: 0.9 });
+		g.circle(x + 6, y - 6, 3.5);
+		g.fill({ color: 0x3b8226, alpha: 0.85 });
+
+		// Glowing carved arcane rune glyph
+		g.circle(x - 2, y - 15, 6);
+		g.fill({ color: 0x38bdf8, alpha: 0.22 });
 		g.beginPath();
-		g.moveTo(x, y - 26);
-		g.lineTo(x, y - 14);
-		g.stroke({ color: 0x38bdf8, width: 2, alpha: 0.9 });
-		g.circle(x, y - 20, 3);
-		g.fill({ color: 0xa5f3fc });
+		g.moveTo(x - 2, y - 21);
+		g.lineTo(x - 2, y - 9);
+		g.moveTo(x - 6, y - 16);
+		g.lineTo(x - 2, y - 20);
+		g.lineTo(x + 2, y - 15);
+		g.stroke({ color: 0x38bdf8, width: 2.2, alpha: 0.95 });
+		g.circle(x - 2, y - 15, 2.2);
+		g.fill({ color: 0xe0f2fe });
 	}
 
 	private drawFloweringBush(g: Graphics, x: number, y: number, rand: () => number): void {
-		g.circle(x + 4, y + 5, 16);
-		g.fill({ color: 0x000000, alpha: 0.28 });
+		// Soft shadow + woody root base
+		g.ellipse(x + 4, y + 7, 19, 9);
+		g.fill({ color: 0x000000, alpha: 0.3 });
+		g.rect(x - 4, y + 2, 8, 6);
+		g.fill({ color: 0x5c3a21 });
 
-		g.circle(x, y, 16);
-		g.fill({ color: 0x225419 });
-		g.circle(x - 5, y - 4, 12);
-		g.fill({ color: 0x3b8226 });
-		g.circle(x + 5, y - 3, 11);
-		g.fill({ color: 0x4d9e33 });
+		// Deep shaded lower foliage base
+		g.circle(x - 7, y + 2, 11);
+		g.circle(x + 8, y + 2, 10.5);
+		g.circle(x, y + 4, 12);
+		g.fill({ color: 0x164212 });
 
-		const bCols = [0xf472b6, 0xfde047, 0xe879f9];
-		const bCol = bCols[Math.floor(rand() * bCols.length)];
-		g.circle(x - 4, y - 6, 3);
-		g.fill({ color: bCol });
-		g.circle(x + 4, y - 4, 2.5);
-		g.fill({ color: bCol });
-		g.circle(x, y + 2, 2.5);
-		g.fill({ color: 0xfef08a });
+		// Mid rich forest leaf lobes
+		g.circle(x - 8, y - 2, 10);
+		g.circle(x + 7, y - 2, 9.5);
+		g.circle(x, y - 6, 11.5);
+		g.fill({ color: 0x2a6e1d });
+		g.stroke({ color: 0x14380e, width: 1.5 });
+
+		// Sunlit upper canopy clusters
+		g.circle(x - 5, y - 6, 8);
+		g.circle(x + 4, y - 5, 7.2);
+		g.fill({ color: 0x429b29 });
+		g.circle(x - 3, y - 9, 5.2);
+		g.fill({ color: 0x62c23c, alpha: 0.85 });
+
+		// 3-petal blossom clusters with warm nectar centers
+		const blossomPalettes = [0xf472b6, 0xfde047, 0x93c5fd, 0xfb7185];
+		const bCol = blossomPalettes[Math.floor(rand() * blossomPalettes.length)];
+		const spots = [
+			{ fx: x - 7, fy: y - 5 },
+			{ fx: x + 5, fy: y - 4 },
+			{ fx: x - 1, fy: y + 1 }
+		];
+		for (const s of spots) {
+			g.circle(s.fx - 1.5, s.fy, 2.2);
+			g.circle(s.fx + 1.5, s.fy, 2.2);
+			g.circle(s.fx, s.fy - 1.8, 2.2);
+			g.fill({ color: bCol });
+			g.circle(s.fx, s.fy - 0.3, 1.3);
+			g.fill({ color: 0xfef08a });
+		}
 	}
 
 	private drawStoneBrazier(g: Graphics, x: number, y: number, _rand: () => number): void {
-		g.roundRect(x - 6, y - 10, 12, 16, 2);
-		g.fill({ color: 0x475569 });
-		g.rect(x - 8, y - 14, 16, 5);
-		g.fill({ color: 0x334155 });
+		// Warm ambient firelight glow on grass + ground shadow
+		g.ellipse(x, y - 2, 22, 11);
+		g.fill({ color: 0xf59e0b, alpha: 0.16 });
+		g.ellipse(x + 4, y + 6, 13, 5.5);
+		g.fill({ color: 0x000000, alpha: 0.35 });
 
-		g.circle(x, y - 18, 6);
-		g.fill({ color: 0xf59e0b, alpha: 0.85 });
-		g.circle(x, y - 20, 3.5);
-		g.fill({ color: 0xfef08a });
+		// Stepped stone plinth & fluted column
+		g.roundRect(x - 10, y + 1, 20, 6, 2);
+		g.fill({ color: 0x334155 });
+		g.stroke({ color: 0x0f172a, width: 1.5 });
+		g.roundRect(x - 6, y - 11, 12, 14, 2);
+		g.fill({ color: 0x64748b });
+		g.stroke({ color: 0x1e293b, width: 1.5 });
+
+		// Iron collar + flared stone fire-bowl
+		g.poly([x - 11, y - 16, x + 11, y - 16, x + 7, y - 9, x - 7, y - 9]);
+		g.fill({ color: 0x475569 });
+		g.stroke({ color: 0x1e293b, width: 1.5 });
+		g.rect(x - 12, y - 17, 24, 3);
+		g.fill({ color: 0x94a3b8 });
+
+		// Glowing embers + layered stylized flame
+		g.ellipse(x, y - 17, 7, 2.5);
+		g.fill({ color: 0xb91c1c });
+		g.poly([x - 6, y - 17, x - 2, y - 28, x + 1, y - 23, x + 4, y - 30, x + 6, y - 17]);
+		g.fill({ color: 0xf97316 });
+		g.poly([x - 3.5, y - 17, x, y - 26, x + 3.5, y - 17]);
+		g.fill({ color: 0xfacc15 });
+		g.circle(x, y - 19, 2.2);
+		g.fill({ color: 0xfef9c3 });
 	}
 
 	private drawWaterLily(g: Graphics, x: number, y: number): void {
-		g.ellipse(x, y, 9, 6);
-		g.fill({ color: 0x15803d, alpha: 0.85 });
-		g.circle(x, y - 2, 3);
+		g.ellipse(x + 2, y + 2, 12, 7.5);
+		g.fill({ color: 0x38bdf8, alpha: 0.18 });
+		// Notched lily pad
+		g.poly([
+			x,
+			y,
+			x + 10,
+			y - 2,
+			x + 8,
+			y - 6,
+			x,
+			y - 7.5,
+			x - 9,
+			y - 4,
+			x - 10,
+			y + 2,
+			x - 4,
+			y + 6,
+			x + 7,
+			y + 5,
+			x + 10,
+			y + 2
+		]);
+		g.fill({ color: 0x15803d, alpha: 0.92 });
+		g.stroke({ color: 0x14532d, width: 1.2 });
+
+		// Layered lotus blossom
+		g.circle(x - 2, y - 2, 3);
+		g.circle(x + 2, y - 2, 3);
+		g.circle(x, y - 4.5, 3);
 		g.fill({ color: 0xf472b6 });
-		g.circle(x, y - 2, 1.5);
+		g.circle(x, y - 2.5, 1.8);
 		g.fill({ color: 0xfef08a });
 	}
 

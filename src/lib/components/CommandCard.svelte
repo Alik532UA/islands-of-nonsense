@@ -8,6 +8,11 @@
 		PlayerState
 	} from '../engine/types';
 	import { getUnit, isLegendaryBuilding } from '../engine/gameData';
+	import {
+		applyCommanderForgeCostDiscount,
+		findCommander,
+		getCommanderEffectivePct
+	} from '../engine/commanders';
 	import { sound } from '../services/audio';
 	import {
 		Trash2,
@@ -51,6 +56,7 @@
 		onUpgradeBuilding,
 		onSellBuilding,
 		onContinueConstruction,
+		onOpenCommander,
 		onClearSelection,
 		onCloseBuilding,
 		onCloseUnit
@@ -71,6 +77,7 @@
 		onUpgradeBuilding?: (instanceId: string, targetDefId: string) => void;
 		onSellBuilding?: (instanceId: string) => void;
 		onContinueConstruction?: (instanceId: string) => void;
+		onOpenCommander?: () => void;
 		onClearSelection?: () => void;
 		onCloseBuilding?: () => void;
 		onCloseUnit?: () => void;
@@ -111,6 +118,7 @@
 		if (name.includes('Вівтар')) return 'Вівтар';
 		if (name.includes('Брама')) return 'Брама';
 		if (name.includes('Кузня')) return 'Кузня';
+		if (name.includes('командира')) return 'Командир';
 		if (name.includes('Фабрика')) return 'Фабрика';
 		if (name.includes('Звалище')) return 'Звалище';
 		if (name.includes('Клепальня')) return 'Клепальня';
@@ -417,6 +425,82 @@
 							</button>
 						</div>
 					</div>
+				{:else if placedBuilding.specialType === 'commander'}
+					{@const activeCmd = findCommander(player.commander)}
+					{@const cmdStatus = sim.canSelectOrChangeCommander(player.team, player)}
+					<!-- Placed Commander Hall: Status & Open Selection -->
+					<div class="col-span-4 flex flex-col justify-between w-[280px] h-full py-0.5">
+						<div class="flex items-center justify-between border-b border-[#3b3226] pb-1 shrink-0">
+							<span class="text-[11px] font-bold text-indigo-300 flex items-center gap-1">
+								<Crown class="w-3.5 h-3.5 text-indigo-400" />
+								Дім командира
+							</span>
+							<div class="flex items-center gap-1">
+								{#if placedBuilding.hp < placedBuilding.maxHp}
+									<button
+										onclick={() =>
+											sim.repairBuilding(placedBuilding.team, placedBuilding.instanceId, player)}
+										data-testid="hud-repair-btn"
+										class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-emerald-950/80 hover:bg-emerald-900 border-emerald-500/70 text-emerald-200 cursor-pointer shadow flex items-center gap-0.5"
+									>
+										<Wrench class="w-2.5 h-2.5 text-emerald-400" />
+										<span>Ремонт [R]</span>
+									</button>
+								{/if}
+								<button
+									onclick={() => onSellBuilding?.(placedBuilding.instanceId)}
+									data-testid="hud-sell-btn"
+									class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-rose-950/70 hover:bg-rose-900 border-rose-600/70 text-rose-200 cursor-pointer shadow flex items-center gap-0.5"
+								>
+									<Trash2 class="w-2.5 h-2.5 text-rose-400" />
+									<span>Знести (+{Math.round(placedBuilding.goldCost * 0.5)}g)</span>
+								</button>
+								<button
+									onclick={() => onCloseBuilding?.()}
+									data-testid="hud-close-building-btn"
+									class="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 bg-[#1e2433] rounded border border-slate-700 cursor-pointer"
+								>
+									Esc
+								</button>
+							</div>
+						</div>
+						<div class="flex flex-col gap-1.5 pt-1">
+							<div
+								class="flex items-center justify-between text-[10px] bg-[#0c1017] px-2 py-1 rounded border border-[#2d3748]"
+							>
+								<span class="text-slate-400">
+									Командир:
+									<strong class="text-indigo-200 ml-1">
+										{#if activeCmd}
+											{activeCmd.name}{player.isRandomCommander ? ' ×2' : ''} ({activeCmd.id === 2
+												? `-${getCommanderEffectivePct(activeCmd.id, Boolean(player.isRandomCommander))}%`
+												: `+${getCommanderEffectivePct(activeCmd.id, Boolean(player.isRandomCommander))}%`})
+										{:else}
+											Не обрано
+										{/if}
+									</strong>
+								</span>
+								<span
+									class="text-[9px] font-mono {cmdStatus.isFree
+										? 'text-emerald-300'
+										: 'text-amber-300'}"
+								>
+									{cmdStatus.isFree
+										? 'Безкошт.'
+										: `${Math.ceil(cmdStatus.cooldownLeft)}с / 250g+250w`}
+								</span>
+							</div>
+							<button
+								type="button"
+								onclick={() => onOpenCommander?.()}
+								data-testid="hud-open-commander-btn"
+								class="w-full py-1.5 px-3 rounded border border-indigo-400/70 bg-indigo-950/80 hover:bg-indigo-900 text-indigo-100 text-[11px] font-bold flex items-center justify-center gap-1.5 cursor-pointer transition shadow"
+							>
+								<Crown class="w-3.5 h-3.5 text-indigo-300" />
+								<span>{activeCmd ? 'Змінити командира' : 'Обрати командира'}</span>
+							</button>
+						</div>
+					</div>
 				{:else}
 					{#each availableUpgrades as up, uIdx}
 						{@const upCost = up.upgrade_from
@@ -697,8 +781,12 @@
 			{#each availableBuildings as bld, idx}
 				{@const isSelected = selectedBuildingId === bld.id}
 				{@const bldLumber = bld.lumber_cost || 0}
-				{@const isAffordable =
-					playerGold >= (bld.gold_cost || 200) && (player.lumber ?? 0) >= bldLumber}
+				{@const effectiveGoldCost = applyCommanderForgeCostDiscount(
+					bld.gold_cost || 200,
+					bld.specialType === 'forge',
+					player
+				)}
+				{@const isAffordable = playerGold >= effectiveGoldCost && (player.lumber ?? 0) >= bldLumber}
 				{@const isLeg = isLegendaryBuilding(bld)}
 				{@const lacksFood = isLeg && player.food >= player.maxFood}
 				{@const hotkey = getHotkeyForBuilding(bld, idx)}
@@ -716,7 +804,7 @@
 							: isAffordable
 								? 'bg-[#1b2230] hover:bg-[#28354d] border-[#544738] hover:border-[#8c7456]'
 								: 'bg-[#12161f] border-[#2d3748] opacity-50 grayscale cursor-not-allowed'}"
-					aria-label="{bld.name} ({bld.gold_cost}g{bldLumber > 0
+					aria-label="{bld.name} ({effectiveGoldCost}g{bldLumber > 0
 						? `, ${bldLumber}w`
 						: ''}) {hotkey}"
 				>
@@ -728,6 +816,8 @@
 							<ShoppingBag class="w-3 h-3 text-amber-300 drop-shadow" />
 						{:else if bld.specialType === 'forge'}
 							<Hammer class="w-3 h-3 text-cyan-300 drop-shadow" />
+						{:else if bld.specialType === 'commander'}
+							<Crown class="w-3 h-3 text-indigo-300 drop-shadow" />
 						{:else if bld.id === 'h008'}
 							<Package class="w-3 h-3 text-amber-400 drop-shadow" />
 						{:else if isLeg}
@@ -762,12 +852,12 @@
 					<div
 						class="absolute bottom-0 left-0 flex items-center gap-0.5 px-0.5 py-0.2 rounded-tr-[3px] text-[7.5px] font-mono font-bold leading-none select-none {isSelected
 							? 'bg-black/70 text-amber-300'
-							: playerGold >= (bld.gold_cost || 200)
+							: playerGold >= effectiveGoldCost
 								? 'bg-black/70 text-amber-300 border-t border-r border-[#544738]/60'
 								: 'bg-red-950/90 text-red-400 border-t border-r border-red-800/60'}"
 					>
 						<Coins class="w-2.5 h-2.5 text-amber-400 shrink-0" />
-						<span>{bld.gold_cost}</span>
+						<span>{effectiveGoldCost}</span>
 					</div>
 
 					<!-- Lumber cost in bottom-right corner: amount then icon -->
@@ -828,7 +918,7 @@
 						Міст
 					</span>
 				</button>
-			{:else}
+			{:else if availableBuildings.length < 14}
 				<div class="w-[61px] h-[39px]"></div>
 			{/if}
 
@@ -882,7 +972,13 @@
 			<div class="flex items-center gap-3 font-mono font-bold text-xs mt-1">
 				<span class="text-amber-300 flex items-center gap-1">
 					<Coins class="w-3.5 h-3.5 text-amber-400" />
-					<span>{hoveredBuilding.gold_cost}</span>
+					<span>
+						{applyCommanderForgeCostDiscount(
+							hoveredBuilding.gold_cost || 200,
+							hoveredBuilding.specialType === 'forge',
+							player
+						)}
+					</span>
 				</span>
 				{#if hoveredBuilding.lumber_cost}
 					<span class="text-emerald-400 flex items-center gap-1">

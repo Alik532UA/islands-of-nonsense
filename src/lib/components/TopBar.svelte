@@ -2,12 +2,13 @@
 	import { onMount } from 'svelte';
 	import type { Simulation } from '../engine/simulation';
 	import type { PlayerState } from '../engine/types';
-	import { getCommander } from '../engine/commanders';
+	import { findCommander } from '../engine/commanders';
 	import { getRaceAbility } from '../engine/raceAbilities';
 	import { toPlayableRace } from '../engine/gameData';
 	import { resolve } from '$app/paths';
 	import { settings } from '$lib/services/settings.svelte';
 	import { fullscreen, canFullscreen } from '$lib/services/fullscreen.svelte';
+	import { createHoverMenu, hoverMenuContainer } from '$lib/ui/hoverMenu.svelte';
 	import {
 		ArrowLeft,
 		House,
@@ -68,7 +69,12 @@
 	let eastCastle = $derived(uiTick >= 0 ? sim.castles.east : sim.castles.east);
 	let player = $derived(uiTick >= 0 ? (activePlayer ?? sim.players.west) : sim.players.west);
 	let playerGold = $derived(uiTick >= 0 ? Math.floor(player.gold) : 0);
-	let commander = $derived(uiTick >= 0 ? getCommander(player.commander) : getCommander(1));
+	let periodicGold = $derived(
+		uiTick >= 0 ? sim.economySystem.calculateIncome(player.team, player) : 3
+	);
+	let incomeEvery = $derived(uiTick >= 0 ? Math.round(sim.incomeInterval) : 5);
+	let incomeIn = $derived(uiTick >= 0 ? Math.max(0, Math.ceil(sim.incomeTimer)) : 5);
+	let commander = $derived(uiTick >= 0 ? findCommander(player.commander) : null);
 
 	let westHp = $derived(
 		uiTick >= 0 ? Math.max(0, Math.ceil(westCastle.hp)) : Math.round(westCastle.maxHp)
@@ -126,11 +132,14 @@
 		'relative flex items-center justify-center w-9 h-9 [@media(pointer:coarse)]:min-w-[44px] [@media(pointer:coarse)]:min-h-[44px] rounded-lg border text-xs font-semibold transition-all duration-150 cursor-pointer active:scale-95 shadow-sm shrink-0 touch-manipulation';
 
 	const neutralBtnClass = `${baseBtnClass} bg-[#181d28] hover:bg-[#242c3d] border-[#3b3226] hover:border-amber-500/70 text-slate-200 hover:text-amber-300`;
+
+	const speedMenu = createHoverMenu({ closeDelayMs: 300 });
 </script>
 
 <!-- Floating Modular Top HUD Docks (Mirrors BottomBar modular architecture) -->
 <header
-	class="absolute top-0 left-0 right-0 px-2.5 sm:px-3 flex flex-wrap xl:flex-nowrap items-start justify-between gap-2 text-white select-none z-20 pointer-events-none min-w-0 overflow-visible"
+	class="absolute top-0 left-0 right-0 px-2.5 sm:px-3 flex flex-wrap xl:flex-nowrap items-start justify-between gap-2 text-white select-none z-30 pointer-events-none min-w-0 overflow-visible"
+	style:z-index={speedMenu.isOpen ? speedMenu.zIndex : undefined}
 	data-testid="top-bar"
 >
 	<!-- 1. LEFT: System, Navigation & Settings Containers -->
@@ -187,7 +196,9 @@
 					onclick={onOpenCommander}
 					data-testid="hud-commander-btn"
 					class={neutralBtnClass}
-					aria-label="Довідник гри та командир: {commander.name} ({commander.nickname})"
+					aria-label="Довідник гри та командир: {commander
+						? `${commander.name}${player.isRandomCommander ? ' (×2)' : ''} (${commander.nickname})`
+						: 'не обрано'}"
 					aria-keyshortcuts="F9"
 				>
 					<BookOpen class="w-4 h-4 text-amber-400 shrink-0" />
@@ -195,7 +206,11 @@
 				<div
 					class="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-amber-100 flex items-center gap-1.5"
 				>
-					<span>Довідник гри ({commander.name})</span>
+					<span>
+						Довідник гри ({commander
+							? `${commander.name}${player.isRandomCommander ? ' ×2' : ''}`
+							: 'Командир'})
+					</span>
 					<span
 						class="text-[9px] font-mono font-bold text-amber-400 bg-black/60 px-1 rounded border border-[#544738]"
 					>
@@ -420,7 +435,11 @@
 	<div class="flex items-start gap-2 shrink-0 pointer-events-none">
 		<!-- Dock 3A: Play / Pause / Speed (Singleplayer & Spectator only, decoupled from banner) -->
 		{#if !isOnline}
-			<div class={dockClass} data-testid="speed-controls">
+			<div
+				class="relative {dockClass}"
+				style:z-index={speedMenu.isOpen ? speedMenu.zIndex : undefined}
+				data-testid="speed-controls"
+			>
 				<div class="relative group/tip flex items-center">
 					<button
 						onclick={() => {
@@ -439,7 +458,9 @@
 						{/if}
 					</button>
 					<div
-						class="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-amber-100 flex items-center gap-1.5"
+						class="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 {speedMenu.isOpen
+							? ''
+							: 'group-hover/tip:opacity-100'} transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-amber-100 flex items-center gap-1.5"
 					>
 						<span>{isRunning ? 'Пауза' : 'Продовжити'}</span>
 						<span
@@ -450,30 +471,55 @@
 					</div>
 				</div>
 
-				<!-- Single Speed Button with Dropdown on Hover -->
-				<div class="relative group/speed flex items-center">
+				<!-- Single Speed Button with Hybrid Click + Safe-Zone Hover Dropdown -->
+				<div
+					class="relative group/speed flex items-center"
+					use:hoverMenuContainer={speedMenu}
+					data-testid="topbar-speed-menu"
+				>
 					<button
 						type="button"
-						class="relative flex items-center justify-center h-9 min-w-[44px] px-2 [@media(pointer:coarse)]:min-h-[44px] rounded-lg border text-[11px] font-mono font-bold transition-all duration-150 cursor-pointer active:scale-95 shadow-sm shrink-0 touch-manipulation bg-[#181d28] hover:bg-[#242c3d] border-amber-500/50 hover:border-amber-400 text-amber-300 gap-1"
-						title="Швидкість гри: {simSpeed}x (наведіть для вибору)"
+						onclick={() => speedMenu.togglePin()}
+						data-testid="topbar-speed-trigger"
+						class="relative flex items-center justify-center h-9 min-w-[44px] px-2 [@media(pointer:coarse)]:min-h-[44px] rounded-lg border text-[11px] font-mono font-bold transition-all duration-150 cursor-pointer active:scale-95 shadow-sm shrink-0 touch-manipulation bg-[#181d28] hover:bg-[#242c3d] {speedMenu.isOpen
+							? 'border-amber-400 bg-[#242c3d]'
+							: 'border-amber-500/50 hover:border-amber-400'} text-amber-300 gap-1"
+						title="Швидкість гри: {simSpeed}x (натисніть або наведіть для вибору)"
 						aria-label="Швидкість гри: {simSpeed}x"
+						aria-expanded={speedMenu.isOpen}
+						aria-haspopup="menu"
 					>
 						<span>{simSpeed >= 10 ? `x${simSpeed}` : `${simSpeed}x`}</span>
-						<span class="text-[8px] text-amber-400/80">▾</span>
+						<span
+							class="text-[8px] text-amber-400/80 transition-transform duration-150 {speedMenu.isOpen
+								? 'rotate-180'
+								: ''}"
+						>
+							▾
+						</span>
 					</button>
 
-					<!-- Dropdown options panel below on hover -->
+					<!-- Safe-zone (+8px apron + 300ms close cooldown) dropdown options panel -->
 					<div
-						class="absolute top-full right-0 mt-1 pt-1 opacity-0 pointer-events-none group-hover/speed:opacity-100 group-hover/speed:pointer-events-auto transition-opacity duration-150 z-50"
+						class="absolute top-full -right-2 pt-2 px-2 pb-2 transition-all duration-150 z-50 {speedMenu.isOpen
+							? 'opacity-100 translate-y-0 pointer-events-auto visible'
+							: 'opacity-0 -translate-y-1 pointer-events-none invisible'}"
+						role="menu"
+						aria-label="Вибір швидкості гри"
+						data-testid="topbar-speed-dropdown"
 					>
 						<div
 							class="flex flex-col gap-0.5 bg-[#0f131c] border border-[#544738] rounded-lg p-1 shadow-2xl backdrop-blur-md min-w-[76px]"
 						>
 							{#each availableSpeeds as sp}
 								<button
+									type="button"
+									role="menuitemradio"
+									aria-checked={simSpeed === sp}
 									onclick={() => {
 										sim.speed = sp;
 										sim.notifyStateChanged();
+										speedMenu.closeNow();
 									}}
 									data-testid="topbar-speed-btn-{sp}"
 									class="px-2 py-1 rounded text-[10px] font-mono font-bold transition flex items-center justify-between cursor-pointer {simSpeed ===
@@ -649,7 +695,7 @@
 				<!-- Gold -->
 				<div
 					class="flex items-center gap-1.5 font-bold text-amber-400 shrink-0"
-					title="Золото гравця"
+					title="Золото гравця • Дохід: +{periodicGold}g кожні {incomeEvery}с (наступне через {incomeIn}с)"
 				>
 					<Coins class="w-4 h-4 text-amber-400 shrink-0" />
 					<span class="text-sm font-mono tracking-tight tabular-nums">{playerGold}</span>

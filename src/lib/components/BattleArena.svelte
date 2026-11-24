@@ -1038,7 +1038,7 @@
 			</div>
 		{/if}
 
-		<!-- Pre-Match 10s Countdown & Race Selection Overlay -->
+		<!-- Pre-Match 15s Countdown & Race Selection Overlay -->
 		{#if matchPhase === 'COUNTDOWN'}
 			<div
 				class="absolute inset-0 bg-black/75 backdrop-blur-sm flex flex-col items-center justify-center z-30 p-4 select-none"
@@ -1145,6 +1145,7 @@
 			onUpgradeBuilding={handleUpgradeBuilding}
 			onSellBuilding={handleSellBuilding}
 			onContinueConstruction={handleContinueConstruction}
+			onOpenCommander={() => (isCommanderOpen = true)}
 			onMinimapClick={(ax: number, ay: number) => renderer?.setCamera(ax, ay)}
 			onClearSelection={() => {
 				selectedEntity = null;
@@ -1276,7 +1277,20 @@
 			}
 		}}
 	/>
-	<CommanderModal {sim} activePlayer={controlledPlayer} bind:isOpen={isCommanderOpen} />
+	<CommanderModal
+		{sim}
+		{uiTick}
+		activePlayer={controlledPlayer}
+		bind:isOpen={isCommanderOpen}
+		onBuildCommanderHall={() => {
+			selectedBuildingId = 'cg12_commander';
+			selectedPlacedBuildingId = null;
+			selectedUnitId = null;
+			selectedEntity = { type: 'worker', playerSlot: controlledPlayer.slot };
+			isCommanderOpen = false;
+			uiTick = sim.stateVersion;
+		}}
+	/>
 	<ShopModal
 		{sim}
 		{uiTick}

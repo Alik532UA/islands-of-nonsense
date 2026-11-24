@@ -13,6 +13,7 @@ import type {
 	PlayerState,
 	MatchTeam
 } from './types';
+import { UNIT_MIN_SPEED, UNIT_MAX_SPEED } from './constants';
 
 export const BUILDINGS_MAP = new Map<string, BuildingDefinition>();
 export const UNITS_MAP = new Map<string, UnitDefinition>();
@@ -74,6 +75,21 @@ export const SPECIAL_BUILDINGS: BuildingDefinition[] = [
 		upgrade_extra_cost: 0,
 		race: null,
 		specialType: 'forge'
+	},
+	{
+		id: 'cg12_commander',
+		name: 'Дім командира',
+		hp: 1000,
+		armor: 5,
+		armor_type: 'fort',
+		attack_type: 'normal',
+		gold_cost: 250,
+		lumber_cost: 250,
+		unit: '',
+		upgrade_from: null,
+		upgrade_extra_cost: 0,
+		race: null,
+		specialType: 'commander'
 	},
 	{
 		id: 'h008',
@@ -406,6 +422,81 @@ export function getBuilding(id: string): BuildingDefinition | undefined {
 	return BUILDINGS_MAP.get(id);
 }
 
+const ARTILLERY_SPEED_IDS = new Set(['cg1a', 'hmtm', 'e002', 'cg18', 'n01E', 'n01F']);
+const SIEGE_SPEED_RE =
+	/танк|мортира|катапульт|баліст|гармат|машина|каменекидач|зорекидач|облог|руйнівник|подрібнювач/i;
+const HEAVY_SPEED_RE =
+	/голем|гігант|колос|титан|мамонт|черепах|ведмід|вандіго|демон безодні|охорон|абомін|мерзот|лорд|велет|енто|древ/i;
+const BEAST_SPEED_RE =
+	/вовк|пантер|тигр|леопард|павук|змій|змія|собака|гончак|пес|гієн|кабан|вепр|гриф|віверн|дракон|сова|орел|кажан|гарпі|вершник|наїзник|кінь|раптор|скат|краб|омар|лобстер|кентавр|сатир|фенікс|муталіск|яструб|ящір|скорпіон|химер/i;
+
+/**
+ * Resolves intentional archetype-based movement speed in [120, 170] px/s:
+ * - Siege & artillery (120..132): slowest frontline units
+ * - Heavy / large armored units (128..142): moderately slow tanks
+ * - Standard infantry, ranged & casters (142..152): baseline pace
+ * - Beasts / animals / fast flyers & riders (158..170): fastest skirmishers
+ */
+export function resolveUnitMoveSpeed(unitDef: UnitDefinition, ownerRace?: string): number {
+	const name = unitDef.name || '';
+	const armor = (unitDef.armor_type || 'medium').toLowerCase();
+	const attack = (unitDef.attack_type || 'normal').toLowerCase();
+	const hp = unitDef.hp ?? 300;
+	const range = unitDef.range ?? 100;
+	const isFlying = Boolean(unitDef.flying);
+	const rawUmvs = Number(unitDef.raw_fields?.umvs) || 0;
+
+	const isSiege =
+		Boolean(unitDef.isArtillery) ||
+		attack === 'siege' ||
+		ARTILLERY_SPEED_IDS.has(unitDef.id) ||
+		SIEGE_SPEED_RE.test(name);
+
+	const isBeastOrAnimal =
+		(ownerRace ? toPlayableRace(ownerRace) === 'Тварини' : false) ||
+		BEAST_SPEED_RE.test(name) ||
+		(isFlying && armor !== 'large' && hp <= 520);
+
+	const isHeavy =
+		armor === 'large' ||
+		armor === 'divine' ||
+		armor === 'heavy' ||
+		hp >= 750 ||
+		HEAVY_SPEED_RE.test(name);
+
+	let speed: number;
+
+	if (isSiege) {
+		if (isFlying) {
+			speed = 132;
+		} else {
+			speed = hp >= 800 || /танк|мортира/i.test(name) ? 120 : 126;
+		}
+	} else if (isHeavy) {
+		if (isBeastOrAnimal) {
+			speed = hp >= 1000 ? 136 : 142;
+		} else {
+			speed = hp >= 1000 ? 128 : hp >= 750 ? 132 : 136;
+		}
+	} else if (isBeastOrAnimal) {
+		if (isFlying) {
+			speed = hp <= 380 ? 170 : 164;
+		} else {
+			speed = hp <= 380 || armor === 'none' || armor === 'small' ? 166 : 158;
+		}
+	} else {
+		if (range > 180) {
+			speed = attack === 'magic' ? 142 : 144;
+		} else if (armor === 'none' || armor === 'small' || rawUmvs >= 320) {
+			speed = 152;
+		} else {
+			speed = 146;
+		}
+	}
+
+	return Math.max(UNIT_MIN_SPEED, Math.min(UNIT_MAX_SPEED, speed));
+}
+
 export function getUnit(id: string): UnitDefinition | undefined {
 	return UNITS_MAP.get(id);
 }
@@ -538,6 +629,7 @@ export function getBaseBuildingsForRace(raceName: string): BuildingDefinition[] 
 			if (
 				sb.id !== 'cg10_shop' &&
 				sb.id !== 'cg11_forge' &&
+				sb.id !== 'cg12_commander' &&
 				!refBuildings.some((x) => x.id === sb.id)
 			) {
 				refBuildings.push(sb);
@@ -552,12 +644,14 @@ export function getBaseBuildingsForRace(raceName: string): BuildingDefinition[] 
 
 	const refSpecials = refBuildings.filter((b) => Boolean(b.specialType));
 
-	// 2. Aux buildings: shop (cg10_shop, 50g/50w) and forge (cg11_forge, 100g/100w)
+	// 2. Aux buildings: shop (cg10_shop, 50g/50w), forge (cg11_forge, 100g/100w), and commander hall (cg12_commander, 250g/250w)
 	const shop = BUILDINGS_MAP.get('cg10_shop');
 	const forge = BUILDINGS_MAP.get('cg11_forge');
+	const commanderHall = BUILDINGS_MAP.get('cg12_commander');
 	const aux: BuildingDefinition[] = [];
 	if (shop && !refSpecials.some((x) => x.id === shop.id)) aux.push(shop);
 	if (forge && !refSpecials.some((x) => x.id === forge.id)) aux.push(forge);
+	if (commanderHall && !refSpecials.some((x) => x.id === commanderHall.id)) aux.push(commanderHall);
 
 	// Sort specials by gold cost ascending
 	const allSpecials = [...refSpecials, ...aux];
@@ -579,7 +673,8 @@ export function getUpgradesForBuilding(buildingId: string): BuildingDefinition[]
 export interface BuildingVisualRank {
 	rank: number; // 1 to 6 (dice pips), or 0 for specials
 	isUpgrade: boolean;
-	specialType?: 'tower' | 'treasure' | 'repair' | 'recycler' | 'special' | 'shop' | 'forge';
+	specialType?:
+		'tower' | 'treasure' | 'repair' | 'recycler' | 'special' | 'shop' | 'forge' | 'commander';
 }
 
 /**

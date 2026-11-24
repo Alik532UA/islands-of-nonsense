@@ -35,7 +35,10 @@ describe('Play Modes (/play) & MatchConfigModal Presets Architecture', () => {
 		expect(playContent).not.toContain('!justify-start');
 		expect(playContent).toContain('flex-[1]');
 		expect(playContent).toContain('flex-[2.5]');
-		expect(playContent).toContain('invisible group-hover:visible');
+		expect(playContent).toContain('pointer-events-none invisible');
+		expect(playContent).toContain('hoverMenuContainer');
+		expect(playContent).toContain('topFloaterWrapClass');
+		expect(playContent).toContain('bottomFloaterWrapClass');
 	});
 
 	it('/play/setup cleanly redirects to canonical /play route', () => {

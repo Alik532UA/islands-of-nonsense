@@ -185,13 +185,43 @@ describe('Point 8: Tactical Counter-Pick Bot AI', () => {
 		expect(afterBuildingCount).toBeGreaterThan(initBuildingCount);
 	});
 
-	it('should adapt commander based on chosen race and strategy', () => {
+	it('should adapt commander only after Commander Hall is built based on chosen race and strategy', () => {
 		sim.players.east.race = 'Люди';
+		botAI.update(2.0);
+		expect(sim.players.east.commander).toBe(0); // Cannot select before Дім командира is built
+
+		sim.buildings.push({
+			instanceId: 'east_cmd_hall',
+			defId: 'cg12_commander',
+			name: 'Дім командира',
+			team: 'east',
+			playerId: sim.players.east.id,
+			tileX: 30,
+			tileY: 20,
+			x: 6720,
+			y: 704,
+			hp: 1000,
+			maxHp: 1000,
+			armor: 5,
+			armorType: 'fort',
+			goldCost: 250,
+			lumberCost: 250,
+			spawnUnitId: '',
+			spawnCooldown: 0,
+			spawnTimer: 0,
+			lane: 'mid',
+			upgradeFrom: null,
+			race: 'Альянс',
+			specialType: 'commander',
+			isUnderConstruction: false
+		});
+
 		botAI.update(2.0);
 		expect(sim.players.east.commander).toBe(1); // Sasha for economy
 
 		sim.players.east.race = 'Ельфи';
-		sim.players.east.commander = 3;
+		sim.players.east.commander = 0;
+		sim.players.east.commanderCooldown = 0;
 		botAI.update(2.0);
 		expect(sim.players.east.commander).toBe(5); // Yura for ranged crit
 	});

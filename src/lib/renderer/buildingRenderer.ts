@@ -1,6 +1,7 @@
 import type { Graphics } from 'pixi.js';
 import type { Simulation } from '../engine/simulation';
 import type { Castle } from '../engine/types';
+import { computeSpawnProgressRatio } from '../engine/buildingSystem';
 import { CELL_SIZE } from '../engine/constants';
 import {
 	BUILDINGS_MAP,
@@ -153,9 +154,9 @@ export class BuildingRenderer {
 				}
 			}
 
-			// Unit spawn timer status bar: VERTICAL along right edge of building
+			// Unit spawn timer status bar: VERTICAL along right edge of building (fills upward 0 -> 100%)
 			if (!b.isUnderConstruction && b.spawnCooldown > 0) {
-				const pct = Math.max(0, Math.min(1, (b.spawnTimer || 0) / b.spawnCooldown));
+				const pct = computeSpawnProgressRatio(b.spawnTimer, b.spawnCooldown);
 				const vBarX = px + CELL_SIZE + 2;
 				const vBarY = py + 6;
 				const vBarW = 4;

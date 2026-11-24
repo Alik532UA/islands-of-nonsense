@@ -63,7 +63,9 @@ export const GRID_STEP = 32;
 export const CELL_SIZE = 64; // Building footprint: 2x2 grid steps (64x64 px)
 
 export const WORKER_MOVE_SPEED = 170;
-export const UNIT_SPEED_SCALE = 0.55; // ~45% unit movement speed reduction
+export const UNIT_MIN_SPEED = 120;
+export const UNIT_MAX_SPEED = 170;
+export const UNIT_SPEED_SCALE = 0.5;
 
 export type DecorationType = 'mushroom' | 'crystal' | 'monolith' | 'bush' | 'brazier';
 

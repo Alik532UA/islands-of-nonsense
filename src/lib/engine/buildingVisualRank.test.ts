@@ -86,8 +86,12 @@ describe('Building Visual Rank & Player Color Assignment', () => {
 		const hpPct = Math.max(0, Math.min(1, mockBuilding.hp / mockBuilding.maxHp));
 		expect(hpPct).toBe(0.75); // 75% HP -> green color (> 0.5)
 
-		// 2. Vertical spawn progress percentage
-		const spawnPct = Math.max(0, Math.min(1, mockBuilding.spawnTimer / mockBuilding.spawnCooldown));
-		expect(spawnPct).toBe(0.5); // 50% spawn progress -> fills vertically upwards
+		// 2. Vertical spawn progress percentage (fills upward from 0% to 100% as timer counts down)
+		const calcSpawnPct = (timer: number, cooldown: number) =>
+			cooldown > 0 ? Math.max(0, Math.min(1, 1 - timer / cooldown)) : 0;
+
+		expect(calcSpawnPct(mockBuilding.spawnCooldown, mockBuilding.spawnCooldown)).toBe(0); // 0% at cycle start
+		expect(calcSpawnPct(mockBuilding.spawnTimer, mockBuilding.spawnCooldown)).toBe(0.5); // 50% halfway
+		expect(calcSpawnPct(0, mockBuilding.spawnCooldown)).toBe(1); // 100% full right as unit spawns
 	});
 });

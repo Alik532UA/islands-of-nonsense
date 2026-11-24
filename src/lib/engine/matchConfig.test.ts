@@ -3,8 +3,14 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Simulation } from './simulation';
 import { BotAI } from './botAI';
-import { BUILDINGS_MAP, UNITS_MAP, formatRaceName } from './gameData';
-import { WORKER_MOVE_SPEED, UNIT_SPEED_SCALE } from './constants';
+import {
+	BUILDINGS_MAP,
+	UNITS_MAP,
+	formatRaceName,
+	getUnit,
+	resolveUnitMoveSpeed
+} from './gameData';
+import { WORKER_MOVE_SPEED, UNIT_MIN_SPEED, UNIT_MAX_SPEED } from './constants';
 import {
 	buildQuickMatchConfig,
 	getDefaultQuickSettingsState,
@@ -278,7 +284,7 @@ describe('Quick Settings, Match Config & GameMode Integration', () => {
 		}
 	});
 
-	it('sets worker speed to 170 and scales combat unit speeds down by ~45%', () => {
+	it('sets worker speed to 170 and assigns archetype-based combat unit speeds in 120..170', () => {
 		const sim = new Simulation({
 			botDifficulty: 15,
 			startGold: 2000,
@@ -297,9 +303,28 @@ describe('Quick Settings, Match Config & GameMode Integration', () => {
 		const spawned = sim.buildingSystem.spawnUnitFromBuilding(barracks);
 		expect(spawned).not.toBeNull();
 		const unitDef = UNITS_MAP.get(barracks.spawnUnitId)!;
-		const rawUmvs = Number(unitDef.raw_fields?.umvs) || 270;
-		expect(spawned!.speed).toBe(Math.max(40, Math.round(rawUmvs * UNIT_SPEED_SCALE)));
-		expect(spawned!.speed).toBeLessThanOrEqual(Math.round(rawUmvs * 0.6));
-		expect(spawned!.speed).toBeGreaterThanOrEqual(Math.round(rawUmvs * 0.5));
+		expect(spawned!.speed).toBe(resolveUnitMoveSpeed(unitDef, 'Альянс'));
+		expect(spawned!.speed).toBeGreaterThanOrEqual(UNIT_MIN_SPEED);
+		expect(spawned!.speed).toBeLessThanOrEqual(UNIT_MAX_SPEED);
+
+		// Verify all units stay strictly within 120..170 and obey Siege <= Heavy < Standard < Beasts
+		for (const u of UNITS_MAP.values()) {
+			const spd = resolveUnitMoveSpeed(u);
+			expect(spd).toBeGreaterThanOrEqual(120);
+			expect(spd).toBeLessThanOrEqual(170);
+		}
+
+		const siegeTank = getUnit('n01E')!; // Інфернальний танк
+		const siegeMortar = getUnit('cg1a')!; // Мортира
+		const beastWolf = getUnit('n017')!; // Крижаний вовк
+		const fleshGolem = getUnit('n00E')!; // М'ясний Голем
+		const standardFootman = getUnit(barracks.spawnUnitId)!;
+
+		expect(resolveUnitMoveSpeed(siegeTank)).toBeLessThanOrEqual(128);
+		expect(resolveUnitMoveSpeed(siegeMortar)).toBeLessThanOrEqual(128);
+		expect(resolveUnitMoveSpeed(fleshGolem)).toBeLessThan(resolveUnitMoveSpeed(standardFootman));
+		expect(resolveUnitMoveSpeed(beastWolf, 'Тварини')).toBeGreaterThan(
+			resolveUnitMoveSpeed(standardFootman)
+		);
 	});
 });

@@ -2,6 +2,7 @@ import type { Simulation } from './simulation';
 import { ARENA_WIDTH, TOP_LANE_Y, BOTTOM_LANE_Y } from './constants';
 import type { MatchTeam, Lane, GoldCoin, PlayerState, Building } from './types';
 import { getRaceAbility } from './raceAbilities';
+import { getCommanderIncomeBonus, getCommanderForgeDiscount } from './commanders';
 import { CASTLE_ITEMS } from './items';
 import { getBuilding, getUnit } from './gameData';
 
@@ -26,6 +27,17 @@ export function calculateBuildingWeightedValue(b: Building): number {
 }
 
 /**
+ * Progressive periodic gold payout interval:
+ * - Minute 1 (0..59s): every 5s
+ * - Minute 2 (60..119s): every 6s
+ * - Minute 3 (120..179s): every 7s
+ * - ... (+1s per elapsed minute)
+ */
+export function getIncomeIntervalForTime(gameTime: number): number {
+	return 5 + Math.floor(Math.max(0, gameTime) / 60);
+}
+
+/**
  * Diminishing returns function from WC3 Castle Fight (pr = 25, 6 tiers with 15% reduction per tier).
  */
 export function calculateDiminishingReturns(rawVal: number, step = 25, maxSteps = 6): number {
@@ -45,9 +57,11 @@ export function calculateDiminishingReturns(rawVal: number, step = 25, maxSteps 
  * forge upgrades, race active skills, castle shop items, and rescue strikes.
  */
 export class EconomySystem {
+	private incomeCarry = new Map<string, number>();
+
 	constructor(private sim: Simulation) {}
 
-	public calculateIncome(team: MatchTeam, playerInput?: PlayerState): number {
+	public calculateExactIncome(team: MatchTeam, playerInput?: PlayerState): number {
 		let cfM = 0.65;
 		if (this.sim.gameTime >= 1500) {
 			cfM = 1.0;
@@ -68,8 +82,9 @@ export class EconomySystem {
 		const baseIncome = calculateDiminishingReturns(rawBase);
 		let multiplier = cfM * (1 + 0.1 * player.forge.econ);
 
-		if (player.commander === 1) {
-			multiplier += cfM * 0.12;
+		const incomeBonus = getCommanderIncomeBonus(player);
+		if (incomeBonus > 0) {
+			multiplier += cfM * incomeBonus;
 		}
 
 		// CF_BD bot income bonus: docs/04 § 1.2 & docs/05 § 3.B
@@ -101,28 +116,30 @@ export class EconomySystem {
 		// Game mode income multiplier (e.g., blitz 2.0x, sandbox 5.0x, survival 0.9x)
 		multiplier *= this.sim.gameModeConfig?.incomeMultiplier ?? 1.0;
 
-		return Math.max(3, Math.round(baseIncome * multiplier));
+		return Math.max(3, baseIncome * multiplier);
+	}
+
+	public calculateIncome(team: MatchTeam, playerInput?: PlayerState): number {
+		return Math.max(3, Math.round(this.calculateExactIncome(team, playerInput)));
 	}
 
 	public updateEconomy(dt: number): void {
-		let interval = 3.0;
-		if (this.sim.gameTime >= 1500) {
-			interval = 10.0;
-		} else if (this.sim.gameTime >= 960) {
-			interval = 7.0;
-		} else if (this.sim.gameTime >= 480) {
-			interval = 5.0;
-		}
+		const interval = getIncomeIntervalForTime(this.sim.gameTime);
 		this.sim.incomeInterval = interval;
 		this.sim.incomeTimer -= dt;
 
-		if (this.sim.incomeTimer <= 0) {
+		if (this.sim.incomeTimer <= 1e-6) {
 			this.sim.incomeTimer = interval;
 
 			for (const player of this.sim.allPlayers) {
 				const team = player.team;
 				const myCastle = this.sim.castles[team];
-				const payout = this.calculateIncome(team, player);
+				const key = player.id || `${team}_${player.slot ?? 0}`;
+				const exact = this.calculateExactIncome(team, player);
+				// Preserve sub-integer commander/econ bonuses (+4% / +8%) across periodic payouts
+				const totalWithCarry = exact + (this.incomeCarry.get(key) ?? 0);
+				const payout = Math.max(3, Math.floor(totalWithCarry));
+				this.incomeCarry.set(key, totalWithCarry - payout);
 				player.gold += payout;
 
 				// Spawn income text above worker or castle
@@ -311,7 +328,7 @@ export class EconomySystem {
 			return false;
 		}
 		const currentLevel = player.forge[type];
-		const isAlik = player.commander === 2;
+		const forgeDiscount = getCommanderForgeDiscount(player);
 
 		let maxLevel = 5;
 		let baseCost = 200;
@@ -329,7 +346,7 @@ export class EconomySystem {
 		if (currentLevel >= maxLevel) return false;
 
 		let price = baseCost + currentLevel * costStep;
-		if (isAlik) price = Math.round(price * 0.5);
+		if (forgeDiscount > 0) price = Math.round(price * (1 - forgeDiscount));
 
 		let lumberPrice = 0;
 		if (currentLevel >= 2) {
@@ -371,7 +388,7 @@ export class EconomySystem {
 	): number {
 		const player = playerInput || this.sim.players[team];
 		const currentLevel = player.forge[type];
-		const isAlik = player.commander === 2;
+		const forgeDiscount = getCommanderForgeDiscount(player);
 
 		let baseCost = 200;
 		let costStep = 100;
@@ -385,7 +402,7 @@ export class EconomySystem {
 		}
 
 		let price = baseCost + currentLevel * costStep;
-		if (isAlik) price = Math.round(price * 0.5);
+		if (forgeDiscount > 0) price = Math.round(price * (1 - forgeDiscount));
 		return price;
 	}
 

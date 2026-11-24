@@ -10,7 +10,15 @@ describe('BuildingRenderer 2.5D Stylized Architectural Models', () => {
 		const sim = new Simulation({ botDifficulty: 0, startGold: 5000 });
 		const renderer = new BuildingRenderer(sim);
 
-		const specialIds = ['cg10_shop', 'cg11_forge', 'h008', 'cg09_repair', 'cg07_recycler', 'h006'];
+		const specialIds = [
+			'cg10_shop',
+			'cg11_forge',
+			'cg12_commander',
+			'h008',
+			'cg09_repair',
+			'cg07_recycler',
+			'h006'
+		];
 		for (let i = 0; i < specialIds.length; i++) {
 			const id = specialIds[i];
 			sim.buildings.push({
@@ -38,13 +46,15 @@ describe('BuildingRenderer 2.5D Stylized Architectural Models', () => {
 						? 'shop'
 						: id === 'cg11_forge'
 							? 'forge'
-							: id === 'h008'
-								? 'treasure'
-								: id === 'cg09_repair'
-									? 'repair'
-									: id === 'cg07_recycler'
-										? 'recycler'
-										: 'tower'
+							: id === 'cg12_commander'
+								? 'commander'
+								: id === 'h008'
+									? 'treasure'
+									: id === 'cg09_repair'
+										? 'repair'
+										: id === 'cg07_recycler'
+											? 'recycler'
+											: 'tower'
 			});
 		}
 
@@ -248,5 +258,74 @@ describe('BuildingRenderer 2.5D Stylized Architectural Models', () => {
 
 		expect(sim.buildings.length).toBeGreaterThan(100);
 		expect(() => renderer.drawBuildingsLayer(mockGraphics, null, false)).not.toThrow();
+	});
+
+	it('draws vertical spawn progress bar filling upward from empty (start of cooldown) to full (ready to spawn)', () => {
+		const measureFillHeight = (spawnTimer: number, spawnCooldown: number): number => {
+			const sim = new Simulation({ botDifficulty: 0, startGold: 500 });
+			const renderer = new BuildingRenderer(sim);
+			sim.buildings.push({
+				instanceId: 'prog_bld',
+				defId: 'h02B',
+				name: 'Шаманське шатро',
+				team: 'west',
+				tileX: 28,
+				tileY: 22,
+				x: 896,
+				y: 704,
+				hp: 500,
+				maxHp: 500,
+				armor: 2,
+				armorType: 'fort',
+				goldCost: 140,
+				spawnUnitId: 'o003',
+				spawnCooldown,
+				spawnTimer,
+				lane: 'mid',
+				upgradeFrom: null,
+				race: 'Орки'
+			});
+
+			let lastRoundRect: { x: number; w: number; h: number } | null = null;
+			let cyanFillHeight = 0;
+			const noop = () => {};
+			const mockGraphics = {
+				clear: noop,
+				beginPath: noop,
+				circle: noop,
+				ellipse: noop,
+				poly: noop,
+				stroke: noop,
+				rect: noop,
+				moveTo: noop,
+				lineTo: noop,
+				arc: noop,
+				roundRect: (x: number, _y: number, w: number, h: number) => {
+					lastRoundRect = { x, w, h };
+				},
+				fill: (opts?: { color?: number }) => {
+					// Filter strictly to the vertical spawn progress bar fill along the building's right edge (w === 4, x > b.x + 64)
+					if (
+						opts?.color === 0x38bdf8 &&
+						lastRoundRect &&
+						lastRoundRect.x > 896 &&
+						lastRoundRect.w === 4
+					) {
+						cyanFillHeight = lastRoundRect.h;
+					}
+				}
+			} as unknown as Graphics;
+
+			renderer.drawBuildingsLayer(mockGraphics, null, false);
+			return cyanFillHeight;
+		};
+
+		const emptyAtStart = measureFillHeight(10, 10);
+		const halfWay = measureFillHeight(5, 10);
+		const fullAtSpawn = measureFillHeight(0, 10);
+
+		expect(emptyAtStart).toBe(0);
+		expect(halfWay).toBeGreaterThan(emptyAtStart);
+		expect(fullAtSpawn).toBeGreaterThan(halfWay);
 	});
 });

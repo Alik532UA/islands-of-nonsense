@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Simulation } from './simulation';
-import { calculateBuildingWeightedValue, calculateDiminishingReturns } from './economySystem';
+import {
+	calculateBuildingWeightedValue,
+	calculateDiminishingReturns,
+	getIncomeIntervalForTime
+} from './economySystem';
 import type { Building } from './types';
 
 describe('Point 1: Weighted Building Value (Dx, ea, To) and Diminishing Returns', () => {
@@ -101,5 +105,42 @@ describe('Point 1: Weighted Building Value (Dx, ea, To) and Diminishing Returns'
 		const incomeWithCathedral = sim.calculateIncome('west');
 		expect(incomeWithCathedral).toBe(8);
 		expect(incomeWithCathedral).toBeGreaterThan(incomeWithBarracks);
+	});
+
+	it('scales periodic gold payout interval by +1s every minute starting at 5s', () => {
+		// Starts at 5s in minute 1 and resets back to 5s on resetRound()
+		expect(sim.incomeInterval).toBe(5);
+		expect(sim.incomeTimer).toBe(5);
+
+		expect(getIncomeIntervalForTime(0)).toBe(5); // 1st minute
+		expect(getIncomeIntervalForTime(59.9)).toBe(5); // still 1st minute
+		expect(getIncomeIntervalForTime(60)).toBe(6); // 2nd minute
+		expect(getIncomeIntervalForTime(119.9)).toBe(6); // still 2nd minute
+		expect(getIncomeIntervalForTime(120)).toBe(7); // 3rd minute
+		expect(getIncomeIntervalForTime(180)).toBe(8); // 4th minute
+		expect(getIncomeIntervalForTime(540)).toBe(14); // 10th minute
+
+		// Verify live simulation payout cadence in minute 1 (every 5s)
+		const startGold = sim.players.west.gold;
+		const expectedPayout = sim.calculateIncome('west');
+		for (let i = 0; i < 100; i++) {
+			sim.step(0.05); // 5.0s elapsed -> 1 payout
+		}
+		expect(sim.players.west.gold).toBe(startGold + expectedPayout);
+		expect(sim.incomeInterval).toBe(5);
+
+		// Jump to 2nd minute (60s) and trigger next economy tick -> interval updates to 6s
+		sim.gameTime = 60;
+		sim.economySystem.updateEconomy(0.05);
+		expect(sim.incomeInterval).toBe(6);
+
+		// Jump to 3rd minute (120s) -> interval updates to 7s
+		sim.gameTime = 120;
+		sim.economySystem.updateEconomy(0.05);
+		expect(sim.incomeInterval).toBe(7);
+
+		sim.resetRound();
+		expect(sim.incomeInterval).toBe(5);
+		expect(sim.incomeTimer).toBe(5);
 	});
 });

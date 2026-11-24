@@ -40,6 +40,7 @@
 		onUpgradeBuilding,
 		onSellBuilding,
 		onContinueConstruction,
+		onOpenCommander,
 		onMinimapClick,
 		onClearSelection,
 		touchControls
@@ -61,6 +62,7 @@
 		onUpgradeBuilding?: (instanceId: string, targetDefId: string) => void;
 		onSellBuilding?: (instanceId: string) => void;
 		onContinueConstruction?: (instanceId: string) => void;
+		onOpenCommander?: () => void;
 		onMinimapClick?: (arenaX: number, arenaY: number) => void;
 		onClearSelection?: () => void;
 		touchControls?: Snippet;
@@ -551,6 +553,7 @@
 			{onUpgradeBuilding}
 			{onSellBuilding}
 			{onContinueConstruction}
+			{onOpenCommander}
 			{onClearSelection}
 			onCloseBuilding={() => (selectedPlacedBuildingId = null)}
 			onCloseUnit={() => (selectedUnitId = null)}

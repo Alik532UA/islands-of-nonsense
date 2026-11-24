@@ -244,25 +244,27 @@ export class BotAI {
 		const myCastle = this.sim.castles[this.team];
 		const castleHpRatio = myCastle.hp / myCastle.maxHp;
 
-		// 00. Adapt Commander to Race Strategy
-		if (player.commander === 3 && player.race) {
+		// 00. Adapt Commander once Commander Hall is built
+		if (!player.commander && player.race && this.sim.hasCommanderHall(this.team, player)) {
+			let preferredCmd = 3; // Дима: +5% базової шкоди
 			if (player.race === 'Альянс' || player.race === 'Люди') {
-				player.commander = 1; // Саша: +12% доходу
+				preferredCmd = 1; // Саша: +4% доходу золота
 			} else if (player.race === 'Ельфи' || player.race === 'Небожителі') {
-				player.commander = 5; // Юра: 25% крит дальнього бою
+				preferredCmd = 5; // Юра: 5% крит дальнього бою
 			} else if (player.race === 'Північ' || player.race === 'Тролі') {
-				player.commander = 4; // Дэн: +24% швидкості атаки
+				preferredCmd = 4; // Дэн: +5% швидкості атаки
 			} else if (
 				player.race === 'Демони' ||
 				player.race === 'Хаос' ||
 				player.race === 'Елементалі'
 			) {
-				player.commander = 3; // Дима: +24% шкоди
+				preferredCmd = 3; // Дима: +5% базової шкоди
 			} else if (player.race === 'Тварини' || player.race === 'Орки') {
-				player.commander = 4; // Дэн: +24% швидкості атаки
+				preferredCmd = 4; // Дэн: +5% швидкості атаки
 			} else if (player.race === 'Техніки') {
-				player.commander = 2; // Алик: майстер кузні
+				preferredCmd = 2; // Алик: майстер кузні (-10%)
 			}
+			this.sim.selectPlayerCommander(this.team, preferredCmd, player);
 		}
 
 		// 0. Base Breach Defense & Evacuation: if enemies breached courtyard
@@ -830,6 +832,23 @@ export class BotAI {
 			const shop = SPECIAL_BUILDINGS.find((b) => b.specialType === 'shop');
 			if (shop && this.isBuildingAllowedByMode(shop)) {
 				specialCandidates.push({ building: shop, priority: 4400, cost: shop.gold_cost || 50 });
+			}
+		}
+
+		if (
+			player.gold >= 250 &&
+			(player.lumber ?? 0) >= 250 &&
+			!player.commander &&
+			!this.sim.hasCommanderHall(this.team, player) &&
+			myBuildings.length >= 3
+		) {
+			const commanderHall = SPECIAL_BUILDINGS.find((b) => b.specialType === 'commander');
+			if (commanderHall && this.isBuildingAllowedByMode(commanderHall)) {
+				specialCandidates.push({
+					building: commanderHall,
+					priority: 4300,
+					cost: commanderHall.gold_cost || 250
+				});
 			}
 		}
 

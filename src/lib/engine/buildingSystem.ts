@@ -19,11 +19,16 @@ import {
 	EAST_GRID_START_Y,
 	GRID_STEP,
 	CELL_SIZE,
-	ROAD_WIDTH,
 	ROAD_HALF_WIDTH,
-	HIGHWAY_SEGMENTS,
-	UNIT_SPEED_SCALE
+	HIGHWAY_SEGMENTS
 } from './constants';
+import {
+	getCommanderDamageBonus,
+	getCommanderAttackSpeedBonus,
+	getCommanderCritChance,
+	getCommanderEvadeChance,
+	applyCommanderForgeCostDiscount
+} from './commanders';
 import type { MatchTeam, Lane, Building, Unit, ArmorType, AttackType, PlayerState } from './types';
 import {
 	BUILDINGS_MAP,
@@ -36,9 +41,19 @@ import {
 	isLegendaryBuilding,
 	isSpecialBuilding,
 	isTowerBuilding,
+	resolveUnitMoveSpeed,
 	toPlayableRace
 } from './gameData';
 import { logService } from '../services/logService.svelte';
+
+/**
+ * UI progress ratio [0..1] for unit production: fills from 0 (start of cooldown)
+ * to 1 (full bar right as the unit spawns when spawnTimer reaches 0).
+ */
+export function computeSpawnProgressRatio(spawnTimer: number, spawnCooldown: number): number {
+	if (spawnCooldown <= 0) return 0;
+	return Math.max(0, Math.min(1, 1 - (spawnTimer || 0) / spawnCooldown));
+}
 
 /**
  * Calculates Euclidean distance from a point (px, py) to a 2D line segment (x1, y1)-(x2, y2).
@@ -270,7 +285,11 @@ export class BuildingSystem {
 		if (!bDef) return false;
 
 		const player = playerInput || this.sim.players[team];
-		const cost = bDef.gold_cost || 200;
+		const cost = applyCommanderForgeCostDiscount(
+			bDef.gold_cost || 200,
+			bDef.specialType === 'forge',
+			player
+		);
 
 		if (player.gold < cost) {
 			if (!player.isBot) this.sim.onSoundEffect?.('errorResource');
@@ -363,6 +382,19 @@ export class BuildingSystem {
 			);
 			if (existingForge) {
 				this.sim.addFloatingText('Кузня вже збудована!', worldX, worldY - 20, '#ef4444');
+				return false;
+			}
+		}
+
+		if (bDef.specialType === 'commander') {
+			const existingCommanderHall = this.sim.buildings.some(
+				(b) =>
+					b.team === team &&
+					b.specialType === 'commander' &&
+					(!player || !b.playerId || b.playerId === player.id)
+			);
+			if (existingCommanderHall) {
+				this.sim.addFloatingText('Дім командира вже збудовано!', worldX, worldY - 20, '#ef4444');
 				return false;
 			}
 		}
@@ -908,10 +940,10 @@ export class BuildingSystem {
 		}
 		let attackSpeedMult = 1.0;
 
-		// Commander 3 (Dima): +24% damage
-		if (player.commander === 3) damageBonusPct += 0.24;
-		// Commander 4 (Dan): +24% attack speed
-		if (player.commander === 4) attackSpeedMult *= 1.24;
+		// Commander 3 (Dima): +5% damage (+10% Random x2)
+		damageBonusPct += getCommanderDamageBonus(player);
+		// Commander 4 (Dan): +5% attack speed (+10% Random x2)
+		attackSpeedMult *= 1 + getCommanderAttackSpeedBonus(player);
 
 		// Bot difficulty damage bonus: docs/04 § 5 & docs/05 § 3.B
 		const cfBd = player.botDifficulty ?? (player.isBot ? this.sim.config.botDifficulty : 0);
@@ -937,10 +969,10 @@ export class BuildingSystem {
 		const hasPulverize = abilities.some((a) => a.type === 'pulverize');
 		const hasImmolation = abilities.some((a) => a.type === 'immolation');
 
-		let unitCritChance = player.commander === 5 ? 0.25 : 0;
+		let unitCritChance = getCommanderCritChance(player);
 		if (hasCrit) unitCritChance = Math.min(0.75, unitCritChance + 0.22);
 
-		let unitEvadeChance = player.commander === 6 ? 0.2 : 0;
+		let unitEvadeChance = getCommanderEvadeChance(player);
 		if (hasEvasion) unitEvadeChance = Math.min(0.75, unitEvadeChance + 0.2);
 
 		const maxMana = unitDef.maxMana ?? Number(unitDef.raw_fields?.umpm || 0);
@@ -949,8 +981,7 @@ export class BuildingSystem {
 			(unitDef.raw_fields?.umpi !== undefined ? Number(unitDef.raw_fields.umpi) : maxMana);
 		const manaRegen = unitDef.manaRegen ?? Number(unitDef.raw_fields?.umpr || 0);
 
-		const rawSpeed = Number(unitDef.raw_fields?.umvs) || 270;
-		const unitSpeed = Math.max(40, Math.round(rawSpeed * UNIT_SPEED_SCALE));
+		const unitSpeed = resolveUnitMoveSpeed(unitDef, player.race);
 		const unit: Unit = {
 			instanceId: `unit_${this.sim.nextUnitId++}`,
 			defId: unitDef.id,

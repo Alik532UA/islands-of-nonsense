@@ -9,8 +9,23 @@
 		UnitDefinition
 	} from '../engine/types';
 	import { formatRaceName, formatFactionName } from '../engine/gameData';
+	import { computeSpawnProgressRatio } from '../engine/buildingSystem';
+	import {
+		findCommander,
+		getCommanderEffectivePct,
+		getCommanderDescription
+	} from '../engine/commanders';
 	import { WORKER_MOVE_SPEED } from '../engine/constants';
-	import { Shield, Swords, Footprints, Layers, Crosshair, Zap, Feather } from 'lucide-svelte';
+	import {
+		Shield,
+		Swords,
+		Footprints,
+		Layers,
+		Crosshair,
+		Zap,
+		Feather,
+		Crown
+	} from 'lucide-svelte';
 	import CombatMatrixTooltip, {
 		ATTACK_NAMES_UK,
 		ARMOR_NAMES_UK,
@@ -56,21 +71,45 @@
 </script>
 
 {#if activeEntityType === 'worker'}
-	<!-- Minimalist Clean Worker Stats: Faction -> Name -> Speed in a compact vertical stack -->
-	<div class="flex flex-col justify-center h-full gap-1.5 py-1">
-		<span class="text-xs font-bold text-amber-300 tracking-wider uppercase">
+	{@const activeCommander = findCommander(player.commander)}
+	<!-- Minimalist Clean Worker Stats: Faction -> Name -> Speed -> Active Commander -->
+	<div class="flex flex-col justify-center h-full gap-1 py-0.5">
+		<span class="text-xs font-bold text-amber-300 tracking-wider uppercase leading-tight">
 			{formatFactionName(player.race)}
 		</span>
 		<span class="text-base font-bold text-[#fef08a] leading-tight">
 			{player.isBot ? `Бот-будівельник #${player.slot}` : 'Будівельник'}
 		</span>
-		<div class="flex items-center gap-1.5 pt-1 text-xs">
+		<div class="flex items-center gap-1.5 pt-0.5 text-xs">
 			<Footprints class="w-4 h-4 text-amber-400 shrink-0" />
 			<span class="text-[#9ca3af]">Швидкість:</span>
 			<span class="font-mono text-slate-100 font-bold text-sm">
 				{Math.round(player.worker?.speed ?? WORKER_MOVE_SPEED)}
 			</span>
 		</div>
+		{#if activeCommander}
+			{@const effectivePct = getCommanderEffectivePct(
+				activeCommander.id,
+				Boolean(player.isRandomCommander)
+			)}
+			<div
+				class="flex items-center gap-1 text-[11px] leading-tight min-w-0"
+				data-testid="worker-commander-info"
+				title="{activeCommander.name} ({activeCommander.nickname}): {getCommanderDescription(
+					activeCommander,
+					Boolean(player.isRandomCommander)
+				)}"
+			>
+				<Crown class="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+				<span class="text-[#9ca3af] shrink-0">Ком.:</span>
+				<span class="font-bold text-indigo-200 truncate">
+					{activeCommander.name}{player.isRandomCommander ? ' ×2' : ''}
+				</span>
+				<span class="text-[10px] font-mono text-purple-300 shrink-0">
+					({activeCommander.id === 2 ? `-${effectivePct}%` : `+${effectivePct}%`})
+				</span>
+			</div>
+		{/if}
 	</div>
 {:else}
 	<!-- Header: Entity Name -->
@@ -383,10 +422,9 @@
 							></div>
 						</div>
 					{:else}
-						{@const remPct = Math.max(
-							0,
-							Math.min(100, (1 - placedBuilding.spawnTimer / placedBuilding.spawnCooldown) * 100)
-						)}
+						{@const remPct =
+							computeSpawnProgressRatio(placedBuilding.spawnTimer, placedBuilding.spawnCooldown) *
+							100}
 						<span class="text-[#9ca3af] text-[10px]">
 							КД: {placedBuilding.spawnCooldown}с ({placedBuilding.spawnTimer.toFixed(1)}с)
 						</span>

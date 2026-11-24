@@ -264,6 +264,10 @@ export function drawIndividualBuildingModel(
 		drawShopModel(ctx);
 		return;
 	}
+	if (b.specialType === 'commander') {
+		drawCommanderHallModel(ctx);
+		return;
+	}
 	if (b.specialType === 'treasure') {
 		drawTreasureVaultModel(ctx);
 		return;
@@ -555,6 +559,43 @@ function drawForgeModel(ctx: BuildingModelContext): void {
 	g.fill({ color: pal.wood });
 	g.circle(cx + 20, cy + 15, 2.2);
 	g.fill({ color: 0x0284c7 });
+}
+
+function drawCommanderHallModel(ctx: BuildingModelContext): void {
+	const { g, px, py, cx, cy, roofDark, roofMid, roofLight, pal, time } = ctx;
+	drawGroundApron(g, cx, cy + 3, 29, 23, pal.ground);
+
+	// Octagonal marble command plinth & royal steps
+	g.roundRect(px + 8, py + 12, CELL_SIZE - 16, CELL_SIZE - 22, 5);
+	g.fill({ color: pal.wallDark });
+	g.stroke({ color: 0x0f172a, width: 1.6 });
+
+	g.roundRect(px + 12, py + 16, CELL_SIZE - 24, CELL_SIZE - 28, 4);
+	g.fill({ color: pal.wall });
+	g.stroke({ color: pal.wallTrim, width: 1.2 });
+
+	// Grand pitched command tent / keep roof with gold trim
+	g.poly([cx, py + 4, px + CELL_SIZE - 10, cy - 2, px + 10, cy - 2]);
+	g.fill({ color: roofDark });
+	g.stroke({ color: 0xf59e0b, width: 1.5 });
+	g.poly([cx, py + 6, px + CELL_SIZE - 14, cy - 4, cx, cy - 4]);
+	g.fill({ color: roofLight, alpha: 0.78 });
+
+	// Golden War Table & glowing tactical orb at center
+	g.circle(cx, cy + 6, 8);
+	g.fill({ color: 0x1e1b4b });
+	g.stroke({ color: 0xfbbf24, width: 1.6 });
+	const orbPulse = 0.75 + Math.sin(time * 4 + px) * 0.25;
+	g.circle(cx, cy + 6, 4.2);
+	g.fill({ color: 0x818cf8, alpha: orbPulse });
+
+	// Dual standard banners flanking entrance
+	for (const bx of [px + 12, px + CELL_SIZE - 12]) {
+		g.rect(bx - 1, py + 18, 2, 16);
+		g.fill({ color: 0xfbbf24 });
+		g.poly([bx, py + 18, bx + (bx < cx ? -6 : 6), py + 21, bx, py + 25]);
+		g.fill({ color: roofMid });
+	}
 }
 
 function drawShopModel(ctx: BuildingModelContext): void {

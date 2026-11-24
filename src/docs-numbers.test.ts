@@ -10,9 +10,9 @@ import { resolve } from 'node:path';
 describe('Docs Numbers & Facts Consistency (AI-AGENT-PITFALLS-v10)', () => {
 	const root = process.cwd();
 
-	it('PROJECT-CONTEXT.md точно відображає кількість перевірок check-rules (37)', () => {
+	it('PROJECT-CONTEXT.md точно відображає кількість перевірок check-rules (41)', () => {
 		const context = readFileSync(resolve(root, 'PROJECT-CONTEXT.md'), 'utf-8');
-		expect(context).toContain('37 інваріантів у гейті `check:rules`');
+		expect(context).toContain('41 інваріантів у гейті `check:rules`');
 	});
 
 	it('PROJECT-CONTEXT.md фіксує 11 вузлів зі строгою схемою $other: false', () => {

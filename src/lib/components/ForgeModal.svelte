@@ -2,6 +2,7 @@
 	import type { Simulation } from '../engine/simulation';
 	import type { PlayerState } from '../engine/types';
 	import { BUILDINGS_MAP } from '../engine/gameData';
+	import { getCommanderForgeDiscount, applyCommanderForgeCostDiscount } from '../engine/commanders';
 	import { sound } from '../services/audio';
 	import {
 		Hammer,
@@ -43,7 +44,9 @@
 	let activeTeam = $derived(player.team);
 	let playerGold = $derived(Math.floor(player.gold));
 	let playerLumber = $derived(Math.floor(player.lumber ?? 0));
-	let isAlik = $derived(player.commander === 2);
+	let forgeDiscount = $derived(uiTick >= 0 ? getCommanderForgeDiscount(player) : 0);
+	let forgeDiscountPct = $derived(Math.round(forgeDiscount * 100));
+	let isAlik = $derived(forgeDiscount > 0);
 	let hasForge = $derived(uiTick >= 0 ? sim.hasForge(activeTeam, player) : false);
 	let pendingForge = $derived(
 		uiTick >= 0
@@ -58,7 +61,8 @@
 	);
 
 	const forgeDef = BUILDINGS_MAP.get('cg11_forge');
-	const forgeGoldCost = forgeDef?.gold_cost ?? 100;
+	const baseForgeGoldCost = forgeDef?.gold_cost ?? 100;
+	let forgeGoldCost = $derived(applyCommanderForgeCostDiscount(baseForgeGoldCost, true, player));
 	const forgeLumberCost = forgeDef?.lumber_cost ?? 100;
 	let canAffordBuildForge = $derived(
 		playerGold >= forgeGoldCost && playerLumber >= forgeLumberCost
@@ -192,7 +196,7 @@
 								<span
 									class="px-2 py-0.5 rounded-md bg-emerald-950/80 border border-emerald-500/50 text-[10px] font-bold text-emerald-300"
 								>
-									Знижка Алика -50%
+									Знижка Алика -{forgeDiscountPct}%{player.isRandomCommander ? ' (×2)' : ''}
 								</span>
 							{/if}
 						</div>

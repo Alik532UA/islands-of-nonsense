@@ -180,7 +180,8 @@ export interface BuildingDefinition {
 	upgrade_from: string | null;
 	upgrade_extra_cost: number;
 	race?: string | null;
-	specialType?: 'treasure' | 'repair' | 'recycler' | 'tower' | 'special' | 'shop' | 'forge';
+	specialType?:
+		'treasure' | 'repair' | 'recycler' | 'tower' | 'special' | 'shop' | 'forge' | 'commander';
 	aura?: BuildingAuraDef;
 	initialSpawnDelay?: number;
 	isArtillery?: boolean;
@@ -394,7 +395,8 @@ export interface Building {
 	isUnderConstruction?: boolean;
 	buildProgress?: number;
 	maxBuildProgress?: number;
-	specialType?: 'treasure' | 'repair' | 'recycler' | 'tower' | 'special' | 'shop' | 'forge';
+	specialType?:
+		'treasure' | 'repair' | 'recycler' | 'tower' | 'special' | 'shop' | 'forge' | 'commander';
 	aura?: BuildingAuraDef;
 	attackCooldown?: number;
 	attackTimer?: number;
@@ -463,6 +465,8 @@ export interface Commander {
 	nickname: string;
 	description: string;
 	icon: string;
+	/** Base percentage bonus (doubled x2 when picked via Random Commander) */
+	baseBonusPct: number;
 }
 
 export interface WorkerState {
@@ -503,7 +507,9 @@ export interface PlayerState {
 	lumber: number;
 	food: number;
 	maxFood: number;
-	commander: number; // 1..6
+	commander: number; // 0 = not selected yet, 1..6 = chosen
+	isRandomCommander?: boolean;
+	commanderCooldown?: number; // seconds remaining until free commander change (300s = 5 min)
 	forge: ForgeLevels;
 	preferredLane: 'auto' | 'top' | 'mid' | 'bottom';
 	rescueStrikeCooldown?: number;

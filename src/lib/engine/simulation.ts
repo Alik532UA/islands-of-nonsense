@@ -19,6 +19,15 @@ import type {
 } from './types';
 import { SpatialHashGrid } from './spatialGrid';
 import { getBuilderNameForRace, RACES_LIST, PLAYABLE_RACES, formatRaceName } from './gameData';
+import {
+	getCommander,
+	findCommander,
+	pickRandomCommanderId,
+	getCommanderEffectivePct,
+	COMMANDER_CHANGE_GOLD_COST,
+	COMMANDER_CHANGE_LUMBER_COST,
+	COMMANDER_CHANGE_COOLDOWN_SEC
+} from './commanders';
 import { getRandomBoss } from './bosses';
 import { WorkerSystem } from './workerSystem';
 import { BuildingSystem } from './buildingSystem';
@@ -139,9 +148,9 @@ export class Simulation {
 	public score = { west: 0, east: 0 };
 	public bannedRaces: string[] = [];
 
-	// Economy state
-	public incomeTimer = 3.0; // Current countdown
-	public incomeInterval = 3.0;
+	// Economy state (minute 1: every 5s, minute 2: every 6s, minute 3: every 7s, ...)
+	public incomeTimer = 5.0; // Current countdown
+	public incomeInterval = 5.0;
 
 	// Race skills cooldown (unlocked at 300s, cooldown 150s)
 	public raceSkillCooldown = { west: 0, east: 0 };
@@ -437,7 +446,9 @@ export class Simulation {
 			lumber: 125,
 			food: 0,
 			maxFood: startingMaxFood,
-			commander: 2, // Alik
+			commander: 0, // Must build "Дім командира" to choose
+			isRandomCommander: false,
+			commanderCooldown: 0,
 			forge: { attack: 0, armor: 0, econ: 0 },
 			preferredLane: 'auto',
 			rescueStrikeCooldown: 0,
@@ -480,7 +491,9 @@ export class Simulation {
 			lumber: 125,
 			food: 0,
 			maxFood: startingMaxFood,
-			commander: 3, // Dima
+			commander: 0, // Must build "Дім командира" to choose
+			isRandomCommander: false,
+			commanderCooldown: 0,
 			forge: { attack: 0, armor: 0, econ: 0 },
 			preferredLane: 'auto',
 			rescueStrikeCooldown: 0,
@@ -543,7 +556,9 @@ export class Simulation {
 				lumber: 125,
 				food: 0,
 				maxFood: startingMaxFood,
-				commander: 1, // Sasha
+				commander: 0,
+				isRandomCommander: false,
+				commanderCooldown: 0,
 				forge: { attack: 0, armor: 0, econ: 0 },
 				preferredLane: 'auto',
 				rescueStrikeCooldown: 0,
@@ -586,7 +601,9 @@ export class Simulation {
 				lumber: 125,
 				food: 0,
 				maxFood: startingMaxFood,
-				commander: 4, // Dan
+				commander: 0,
+				isRandomCommander: false,
+				commanderCooldown: 0,
 				forge: { attack: 0, armor: 0, econ: 0 },
 				preferredLane: 'auto',
 				rescueStrikeCooldown: 0,
@@ -640,7 +657,9 @@ export class Simulation {
 				lumber: 125,
 				food: 0,
 				maxFood: startingMaxFood,
-				commander: 5, // Yura
+				commander: 0,
+				isRandomCommander: false,
+				commanderCooldown: 0,
 				forge: { attack: 0, armor: 0, econ: 0 },
 				preferredLane: 'auto',
 				rescueStrikeCooldown: 0,
@@ -683,7 +702,9 @@ export class Simulation {
 				lumber: 125,
 				food: 0,
 				maxFood: startingMaxFood,
-				commander: 6, // Valera
+				commander: 0,
+				isRandomCommander: false,
+				commanderCooldown: 0,
 				forge: { attack: 0, armor: 0, econ: 0 },
 				preferredLane: 'auto',
 				rescueStrikeCooldown: 0,
@@ -872,6 +893,157 @@ export class Simulation {
 		return true;
 	}
 
+	public hasCommanderHall(team: MatchTeam, player?: PlayerState): boolean {
+		return this.buildings.some(
+			(b) =>
+				b.team === team &&
+				b.specialType === 'commander' &&
+				!b.isUnderConstruction &&
+				(!player || !b.playerId || b.playerId === player.id)
+		);
+	}
+
+	public canSelectOrChangeCommander(
+		team: MatchTeam,
+		playerInput?: PlayerState
+	): {
+		allowed: boolean;
+		hasHall: boolean;
+		isFirstPick: boolean;
+		isFree: boolean;
+		cooldownLeft: number;
+		goldCost: number;
+		lumberCost: number;
+		reason?: 'no_player' | 'no_hall' | 'insufficient_resources';
+	} {
+		const player = playerInput || this.players[team];
+		if (!player) {
+			return {
+				allowed: false,
+				hasHall: false,
+				isFirstPick: true,
+				isFree: false,
+				cooldownLeft: 0,
+				goldCost: COMMANDER_CHANGE_GOLD_COST,
+				lumberCost: COMMANDER_CHANGE_LUMBER_COST,
+				reason: 'no_player'
+			};
+		}
+
+		const hasHall = this.hasCommanderHall(team, player);
+		const isFirstPick = !findCommander(player.commander);
+		const cooldownLeft = Math.max(0, player.commanderCooldown ?? 0);
+		const isFree = isFirstPick || cooldownLeft <= 0;
+		const goldCost = isFree ? 0 : COMMANDER_CHANGE_GOLD_COST;
+		const lumberCost = isFree ? 0 : COMMANDER_CHANGE_LUMBER_COST;
+
+		if (!hasHall) {
+			return {
+				allowed: false,
+				hasHall: false,
+				isFirstPick,
+				isFree,
+				cooldownLeft,
+				goldCost,
+				lumberCost,
+				reason: 'no_hall'
+			};
+		}
+
+		if (!isFree && (player.gold < goldCost || (player.lumber ?? 0) < lumberCost)) {
+			return {
+				allowed: false,
+				hasHall: true,
+				isFirstPick,
+				isFree: false,
+				cooldownLeft,
+				goldCost,
+				lumberCost,
+				reason: 'insufficient_resources'
+			};
+		}
+
+		return {
+			allowed: true,
+			hasHall: true,
+			isFirstPick,
+			isFree,
+			cooldownLeft,
+			goldCost,
+			lumberCost
+		};
+	}
+
+	/**
+	 * Assigns or changes commander inside a built Commander Hall ("Дім командира").
+	 * First selection after building is free; subsequent changes within 5 minutes (300s) cost 250g + 250w,
+	 * or are free once the 5-minute cooldown expires. Random Commander doubles bonus x2.
+	 */
+	public selectPlayerCommander(
+		team: MatchTeam,
+		choice: number | 'random',
+		playerInput?: PlayerState
+	): { commanderId: number; isRandom: boolean; ok: boolean } {
+		const player = playerInput || this.players[team];
+		if (!player) return { commanderId: 0, isRandom: false, ok: false };
+
+		const status = this.canSelectOrChangeCommander(team, player);
+		const fxX = team === 'west' ? WEST_CASTLE_X + 140 : EAST_CASTLE_X - 140;
+
+		if (!status.allowed) {
+			if (!player.isBot) {
+				this.onSoundEffect?.('errorResource');
+				if (status.reason === 'no_hall') {
+					this.addFloatingText(
+						'Спочатку збудуйте Дім командира (250g, 250w)!',
+						fxX,
+						360,
+						'#ef4444'
+					);
+				} else if (status.reason === 'insufficient_resources') {
+					this.addFloatingText(
+						`Для зміни потрібно ${status.goldCost}g та ${status.lumberCost}w!`,
+						fxX,
+						360,
+						'#ef4444'
+					);
+				}
+			}
+			return {
+				commanderId: player.commander,
+				isRandom: Boolean(player.isRandomCommander),
+				ok: false
+			};
+		}
+
+		if (status.goldCost > 0 || status.lumberCost > 0) {
+			player.gold -= status.goldCost;
+			player.stats.goldSpent += status.goldCost;
+			player.lumber = Math.max(0, (player.lumber ?? 0) - status.lumberCost);
+			player.stats.lumberSpent = (player.stats.lumberSpent || 0) + status.lumberCost;
+		}
+
+		const isRandom = choice === 'random';
+		const commanderId = isRandom ? pickRandomCommanderId() : getCommander(choice).id;
+		player.commander = commanderId;
+		player.isRandomCommander = isRandom;
+		player.commanderCooldown = COMMANDER_CHANGE_COOLDOWN_SEC;
+
+		const cmd = getCommander(commanderId);
+		const pct = getCommanderEffectivePct(commanderId, isRandom);
+		this.addFloatingText(
+			isRandom
+				? `Випадковий командир ×2: ${cmd.name} (${pct}%)!`
+				: `Командир: ${cmd.name} (${pct}%)`,
+			fxX,
+			360,
+			isRandom ? '#c084fc' : '#818cf8'
+		);
+
+		this.notifyStateChanged();
+		return { commanderId, isRandom, ok: true };
+	}
+
 	public isRaceBanned(race: string): boolean {
 		return this.bannedRaces.includes(race) || this.bannedRaces.includes(formatRaceName(race));
 	}
@@ -892,6 +1064,11 @@ export class Simulation {
 		this.round = 1;
 		this.matchWinner = null;
 		this.roundWinner = null;
+		for (const p of this.allPlayers) {
+			p.commander = 0;
+			p.isRandomCommander = false;
+			p.commanderCooldown = 0;
+		}
 		this.resetRound();
 	}
 
@@ -951,8 +1128,8 @@ export class Simulation {
 		this.castleHpLossRate = { west: 0, east: 0 };
 
 		this.gameTime = 0;
-		this.incomeTimer = 3.0;
-		this.incomeInterval = 3.0;
+		this.incomeTimer = 5.0;
+		this.incomeInterval = 5.0;
 		this.raceSkillCooldown = { west: 0, east: 0 };
 		this.castleInvulnerableTimer = { west: 0, east: 0 };
 		this.castleOverchargeTimer = { west: 0, east: 0 };
@@ -1018,6 +1195,7 @@ export class Simulation {
 			}
 			if (newCommanders?.[p.team] && p === this.players[p.team]) {
 				p.commander = newCommanders[p.team]!;
+				p.isRandomCommander = false;
 			}
 			if (p.worker) {
 				p.worker.name = getBuilderNameForRace(p.race);
@@ -1064,6 +1242,9 @@ export class Simulation {
 		for (const p of this.allPlayers) {
 			if (p.rescueStrikeCooldown !== undefined && p.rescueStrikeCooldown > 0) {
 				p.rescueStrikeCooldown = Math.max(0, p.rescueStrikeCooldown - dt);
+			}
+			if (p.commanderCooldown !== undefined && p.commanderCooldown > 0) {
+				p.commanderCooldown = Math.max(0, p.commanderCooldown - dt);
 			}
 		}
 		this.rescueStrikeCooldown.west = Math.max(0, this.rescueStrikeCooldown.west - dt);

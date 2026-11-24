@@ -33,14 +33,15 @@ describe('Worker Navigation and Building Order (v10 Canon)', () => {
 					expect(costA).toBeLessThanOrEqual(costB);
 				}
 
-				// Check that race tower, shop, forge, and treasure exist (11 reference + shop + forge = 13 total)
-				expect(buildings.length).toBe(13);
+				// Check that race tower, shop, forge, commander hall, and treasure exist (11 reference + shop + forge + commander hall = 14 total)
+				expect(buildings.length).toBe(14);
 				const raceTower = GUARD_TOWERS.find((t) => t.race === race);
 				if (raceTower) {
 					expect(specials.some((s) => s.id === raceTower.id)).toBe(true);
 				}
 				expect(specials.some((s) => s.id === 'cg10_shop')).toBe(true);
 				expect(specials.some((s) => s.id === 'cg11_forge')).toBe(true);
+				expect(specials.some((s) => s.id === 'cg12_commander')).toBe(true);
 				expect(specials.some((s) => s.id === 'h008')).toBe(true);
 			}
 		});

@@ -46,8 +46,9 @@ describe('Castle Fight Simulation - Economy & Gold', () => {
 		expect(sim.buildings.length).toBe(1);
 	});
 
-	it('should deduct gold on forge upgrades and apply Alik 50% discount', () => {
-		sim.players.west.commander = 2; // Alik: 50% forge discount
+	it('should deduct gold on forge upgrades and apply Alik 10% base / 20% random-2x discount', () => {
+		sim.players.west.commander = 2; // Alik: 10% base forge discount (20% with random x2)
+		sim.players.west.isRandomCommander = false;
 		sim.players.west.gold = 500;
 		sim.buildings.push({
 			instanceId: 'test_forge_west',
@@ -74,8 +75,12 @@ describe('Castle Fight Simulation - Economy & Gold', () => {
 		});
 
 		const basePrice = 200;
-		const discountedPrice = Math.round(basePrice * 0.5); // 100
+		const discountedPrice = Math.round(basePrice * 0.9); // 180
 		expect(sim.getForgePrice('west', 'attack')).toBe(discountedPrice);
+
+		sim.players.west.isRandomCommander = true;
+		expect(sim.getForgePrice('west', 'attack')).toBe(Math.round(basePrice * 0.8)); // 160
+		sim.players.west.isRandomCommander = false;
 
 		const upgraded = sim.upgradeForge('west', 'attack');
 		expect(upgraded).toBe(true);

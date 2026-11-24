@@ -25,4 +25,4 @@ npm run test
 
 - Використовувати Svelte 5 Runes (`$state`, `$derived`, `$props`).
 - Не використовувати `: any`.
-- Доступ до `localStorage` виключно через `$lib/services/storage.ts` з префіксом `castlefight_`.
+- Доступ до `localStorage` виключно через `$lib/services/storage.ts` з префіксом `islandsofnonsense_` (legacy fallback `castlefight_`).

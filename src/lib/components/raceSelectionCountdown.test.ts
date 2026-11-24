@@ -34,8 +34,9 @@ describe('Race Selection Countdown Overlay Invariants', () => {
 		expect(arenaContent).not.toContain('Обрано');
 	});
 
-	it('provides 1-click start on selecting any race', () => {
+	it('provides 1-click start on selecting any race without pre-match commander gating', () => {
 		expect(arenaContent).toContain('selectRaceAndStart(raceDef.race)');
 		expect(arenaContent).toContain('finishCountdownAndStartBattle()');
+		expect(arenaContent).not.toContain('data-testid="countdown-commander-step"');
 	});
 });
