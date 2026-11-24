@@ -22,7 +22,7 @@
 | **Безпека XSS & Storage** | Заборона сирого `{@html}` та неізольованого `localStorage`                   | `src/security.test.ts`                                                                |
 | **Хмарна синхронізація**  | Firebase RTDB (кімнати, лобі, пошук `seek`, присутність, чат) + Auth         | [database.rules.json](database.rules.json), суворий `$other: false`, гейт інваріантів |
 | **Error Boundary**        | `<svelte:boundary>` + `ErrorFallback.svelte`                                 | `src/routes/+layout.svelte`, `src/routes/+error.svelte`                               |
-| **Тестування та гейти**   | 52 Vitest сьютів (300+ тестів) + Playwright E2E + Axe a11y                   | `npm test`, `npm run test:e2e`, `check:build`, `audit:ci`                             |
+| **Тестування та гейти**   | 94 Vitest сьюти (540+ тестів) + Playwright E2E + Axe a11y                   | `npm test`, `npm run test:e2e`, `check:build`, `audit:ci`                             |
 | **CI/CD Автоматизація**   | Deploy + Lighthouse CI + Bundle Budgets                                      | `.github/workflows/deploy.yml`, `lighthouse.yml`, `budgets.yml`                       |
 
 ### Швидкий покажчик ключових рішень:
@@ -35,7 +35,7 @@
 - **Headless-турніри та баланс**: Автоматизований рушій `HeadlessBalanceRunner` (`src/lib/engine/balanceRunner.ts`) для симуляції сотень тіків між ботами без DOM за мілісекунди (`npm run test:balance`).
 - **Тактичний бот-супротивник**: Автономний штучний інтелект `BotAI.ts` із динамічними ярусами цін (Tier 0..4), контр-піками типів броні, пріоритетом ППО проти літаючих юнітів та штрафом за дублікати будівель (-60 очок).
 - **Безпека Firebase RTDB**: Повна фіксація схеми через `$other: false` на 11 критичних вузлах, валідація часових вікон серверного часу `now - 60000`, захист чату і присутності, 37 інваріантів у гейті `check:rules` та семантичний штамп `rules:stamp`.
-- **Контроль розміру бандлу**: Скрипт `scripts/check-bundle.mjs` у воркфлоу `budgets.yml` (ліміт: 280 KB gzip JS з PixiJS).
+- **Контроль розміру бандлу**: Скрипт `scripts/check-bundle.mjs` у воркфлоу `budgets.yml` (ліміт: 550 KB gzip JS з PixiJS та 60 KB CSS).
 
 ---
 
@@ -176,11 +176,11 @@ $$DR = \frac{0.06 \times Armor}{1 + 0.06 \times |Armor|}$$
 | `npm run check`        | GATE-SVELTE-CHECK  | Сувора перевірка типізації TypeScript та синтаксису Svelte 5 Runes                    |
 | `npm run lint`         | GATE-ESLINT        | Повний лінтинг ESLint Flat Config та форматування Prettier                            |
 | `npm run format`       | —                  | Автоматичне форматування кодової бази                                                 |
-| `npm test`             | GATE-TEST-RUNNERS  | Vitest юніт-тести рушія, кузні, командирів, сітки та безпеки (49 файлів, 280+ тестів) |
+| `npm test`             | GATE-TEST-RUNNERS  | Vitest юніт-тести рушія, кузні, командирів, сітки та безпеки (94 файли, 540+ тестів) |
 | `npm run test:balance` | GATE-BALANCE-SIM   | Headless прогін бот-турніру симуляції балансу без DOM                                 |
 | `npm run test:e2e`     | GATE-A11Y-AXE      | Playwright E2E автоматизовані браузерні тести та WCAG 2.2 AA аудит                    |
 | `npm run check:build`  | GATE-BUILD-OUTPUT  | Автоматичний гейт зібраного проєкту (`build/index.html`, `build/404.html`)            |
-| `npm run check:bundle` | GATE-BUNDLE-BUDGET | Контроль ваги бандлу JS (<280 KB gzip з PixiJS) та CSS (<60 KB gzip)                  |
+| `npm run check:bundle` | GATE-BUNDLE-BUDGET | Контроль ваги бандлу JS (<550 KB gzip з PixiJS) та CSS (<60 KB gzip)                  |
 | `npm run audit:ci`     | GATE-AUDIT         | Автоматичний аудит безпеки npm-пакетів                                                |
 | `lhci autorun`         | GATE-LIGHTHOUSE    | Lighthouse CI аудит швидкодії, доступності (minScore: 0.9), SEO та кращих практик     |
 
@@ -217,11 +217,11 @@ $$DR = \frac{0.06 \times Armor}{1 + 0.06 \times |Armor|}$$
 | **DEPENDENCIES**      |     Так     | Lockfile, `scripts/check-audit.mjs`                                                                                                                         |
 | **VERSIONING**        |     Так     | `__APP_VERSION__`, `scripts/bump-version.mjs`, версія у футері                                                                                              |
 | **ACCESSIBILITY**     |     Так     | WCAG 2.2 AA перевірки, гарячі клавіші, семантичні діалоги                                                                                                   |
-| **STORAGE-NAMESPACE** |     Так     | Префікс `castlefight_`, `src/lib/services/storage.ts`                                                                                                       |
+| **STORAGE-NAMESPACE** |     Так     | Префікс `islandsofnonsense_`, `src/lib/services/storage.ts`                                                                                                 |
 | **ERROR-HANDLING**    |     Так     | `<svelte:boundary>`, `ErrorFallback.svelte`                                                                                                                 |
 | **PURE-SIMULATION**   |     Так     | Ізольований детермінований рушій `src/lib/engine/`                                                                                                          |
 | **LIGHTHOUSE**        |     Так     | `lighthouserc.cjs` з мінімальним порогом 0.9                                                                                                                |
-| **BUNDLE-BUDGET**     |     Так     | `scripts/check-bundle.mjs`, поріг 280 KB gzip                                                                                                               |
+| **BUNDLE-BUDGET**     |     Так     | `scripts/check-bundle.mjs`, поріг 550 KB gzip                                                                                                               |
 | **DEBUGGING**         |     Так     | logService (кільцевий буфер 1000, 200 у сесії), ServiceBadge, redact PII, ErrorLogModal, 55x V/R жести, hardReset/ownScope, 5 Vitest сьютів (DEBUGGING-v10) |
 
 ---
