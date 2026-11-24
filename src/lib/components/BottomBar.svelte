@@ -428,7 +428,9 @@
 	<!-- 3. CENTER: Entity Stats & Characteristics Panel -->
 	<div
 		data-testid="hud-stats-panel"
-		class="relative flex-1 min-w-[280px] max-w-[500px] flex flex-col justify-between px-4 py-2 bg-[#131722]/95 backdrop-blur-md rounded-lg border-2 {entityTeam ===
+		class="relative flex-1 {activeEntityType === 'unit'
+			? 'min-w-[340px] max-w-[420px]'
+			: 'min-w-[280px] max-w-[500px]'} flex flex-col justify-between px-4 py-2 bg-[#131722]/95 backdrop-blur-md rounded-lg border-2 {entityTeam ===
 		'neutral'
 			? 'border-purple-600/80 shadow-[0_0_12px_rgba(168,85,247,0.4)]'
 			: isOpponent
@@ -544,7 +546,9 @@
 				{#if activeEntityType === 'worker'}
 					{@render inventorySnippet()}
 				{/if}
-				{@render commandCardSnippet()}
+				{#if activeEntityType !== 'unit'}
+					{@render commandCardSnippet()}
+				{/if}
 			</div>
 		</div>
 	{:else}
@@ -560,6 +564,9 @@
 					{#if activeEntityType === 'worker'}
 						{@render commandCardSnippet()}
 						{@render inventorySnippet()}
+						{@render statsSnippet()}
+						{@render portraitSnippet()}
+					{:else if activeEntityType === 'unit'}
 						{@render statsSnippet()}
 						{@render portraitSnippet()}
 					{:else}
@@ -587,6 +594,9 @@
 						{@render statsSnippet()}
 						{@render inventorySnippet()}
 						{@render commandCardSnippet()}
+					{:else if activeEntityType === 'unit'}
+						{@render portraitSnippet()}
+						{@render statsSnippet()}
 					{:else}
 						{@render portraitSnippet()}
 						{@render statsSnippet()}

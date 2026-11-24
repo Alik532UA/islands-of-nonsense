@@ -7,10 +7,12 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 	const bottomBarPath = path.resolve('src/lib/components/BottomBar.svelte');
 	const minimapPath = path.resolve('src/lib/components/Minimap.svelte');
 	const commandCardPath = path.resolve('src/lib/components/CommandCard.svelte');
+	const entityInspectDetailsPath = path.resolve('src/lib/components/EntityInspectDetails.svelte');
 
 	const bottomBarSrc = readFileSync(bottomBarPath, 'utf8');
 	const minimapSrc = readFileSync(minimapPath, 'utf8');
 	const commandCardSrc = readFileSync(commandCardPath, 'utf8');
+	const entityInspectDetailsSrc = readFileSync(entityInspectDetailsPath, 'utf8');
 
 	it('ensures uniform 142px height across all 5 bottom console panels', () => {
 		// All 5 core panels must declare h-[142px] for seamless horizontal alignment
@@ -123,16 +125,24 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 		expect(minimapSrc).toMatch(/pt-1/);
 	});
 
-	it('configures modern minimap header with 2 left controls, drag handle, and collapsible state', () => {
-		// Top-left controls: only terrain detail and ally colors
+	it('configures modern minimap with 4 in-canvas corner controls over water regions and collapsible state', () => {
+		// Top-left: terrain detail over top-left water corner
 		expect(minimapSrc).toContain('data-testid="minimap-terrain-btn"');
+		expect(minimapSrc).toContain('absolute top-1.5 left-1.5');
 		expect(minimapSrc).toContain('title="Перемкнути детальність рельєфу"');
+
+		// Bottom-left: ally colors over bottom-left water corner
 		expect(minimapSrc).toContain('data-testid="minimap-ally-colors-btn"');
+		expect(minimapSrc).toContain('absolute bottom-1.5 left-1.5');
 		expect(minimapSrc).toContain('title="Кольори союзників (Зелений / Ворожий)"');
 
-		// Top-right controls: drag & drop move handle and collapse arrow down
+		// Top-right: drag handle over top-right water corner
 		expect(minimapSrc).toContain('data-testid="minimap-drag-btn"');
+		expect(minimapSrc).toContain('absolute top-1.5 right-1.5');
+
+		// Bottom-right: collapse arrow down over bottom-right water corner
 		expect(minimapSrc).toContain('data-testid="minimap-collapse-btn"');
+		expect(minimapSrc).toContain('absolute bottom-1.5 right-1.5');
 
 		// Collapsed state: expand button with arrow up
 		expect(minimapSrc).toContain('data-testid="minimap-expand-btn"');
@@ -141,5 +151,24 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 		// Adheres flush to the bottom edge without bottom border gap
 		expect(minimapSrc).toContain('rounded-t-xl rounded-b-none');
 		expect(minimapSrc).toContain('border-b-0');
+	});
+
+	it('unifies combat unit inspection in hud-stats-panel with zero duplicates and avoids redundant command card', () => {
+		// All 6 core combat attributes present in EntityInspectDetails for units
+		expect(entityInspectDetailsSrc).toContain('selectedUnit.armorType');
+		expect(entityInspectDetailsSrc).toContain('selectedUnit.damageMin');
+		expect(entityInspectDetailsSrc).toContain('selectedUnit.range');
+		expect(entityInspectDetailsSrc).toContain('selectedUnit.attackCooldown');
+		expect(entityInspectDetailsSrc).toContain('selectedUnit.speed');
+		expect(entityInspectDetailsSrc).toContain('selectedUnit.flying');
+
+		// Single close button testid
+		expect(entityInspectDetailsSrc).toContain('data-testid="hud-close-unit-btn"');
+
+		// CommandCard unit profile block is preserved for future modes
+		expect(commandCardSrc).toContain("activeEntityType === 'unit' && selectedUnit");
+
+		// BottomBar skips redundant empty command card when inspecting autonomous combat units
+		expect(bottomBarSrc).toContain("activeEntityType !== 'unit'");
 	});
 });

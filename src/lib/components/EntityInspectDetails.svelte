@@ -9,7 +9,7 @@
 		UnitDefinition
 	} from '../engine/types';
 	import { formatRaceName } from '../engine/gameData';
-	import { Shield, Swords, Footprints, Layers } from 'lucide-svelte';
+	import { Shield, Swords, Footprints, Layers, Crosshair, Zap, Feather } from 'lucide-svelte';
 	import CombatMatrixTooltip, {
 		ATTACK_NAMES_UK,
 		ARMOR_NAMES_UK,
@@ -153,8 +153,95 @@
 			</div>
 		{/each}
 	</div>
+{:else if activeEntityType === 'unit' && selectedUnit}
+	<!-- Unified 6-Attribute Grid for Autonomous Combat Unit (Zero duplication) -->
+	<div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs py-1">
+		<!-- 1. Defense Row (Захист) with Damage Matrix Hover -->
+		<div
+			role="button"
+			tabindex="0"
+			class="flex items-center gap-1.5 text-slate-300 cursor-help"
+			onmouseenter={() => {
+				const norm = normalizeArmorKey(selectedUnit.armorType || 'none');
+				hoveredMatrix = {
+					kind: 'armor',
+					key: norm,
+					label: ARMOR_NAMES_UK[norm] || selectedUnit.armorType
+				};
+			}}
+			onmouseleave={() => (hoveredMatrix = null)}
+		>
+			<Shield class="w-3.5 h-3.5 text-blue-400 shrink-0" />
+			<span class="text-[#9ca3af]">Захист:</span>
+			<span
+				class="font-bold text-emerald-300 underline decoration-dotted decoration-emerald-500/50"
+			>
+				{selectedUnit.armorType} ({selectedUnit.armor})
+			</span>
+		</div>
+
+		<!-- 2. Attack Row (Атака) with Damage Matrix Hover -->
+		<div
+			role="button"
+			tabindex="0"
+			class="flex items-center gap-1.5 text-slate-300 cursor-help"
+			onmouseenter={() => {
+				if (selectedUnit.attackType) {
+					const norm = normalizeAttackKey(selectedUnit.attackType);
+					hoveredMatrix = {
+						kind: 'attack',
+						key: norm,
+						label: ATTACK_NAMES_UK[norm] || selectedUnit.attackType
+					};
+				}
+			}}
+			onmouseleave={() => (hoveredMatrix = null)}
+		>
+			<Swords class="w-3.5 h-3.5 text-rose-400 shrink-0" />
+			<span class="text-[#9ca3af]">Атака:</span>
+			<span class="font-bold text-amber-200 underline decoration-dotted decoration-amber-500/50">
+				{selectedUnit.damageMin}-{selectedUnit.damageMax} ({selectedUnit.attackType})
+			</span>
+		</div>
+
+		<!-- 3. Attack Range Row (Дистанція атаки) -->
+		<div class="flex items-center gap-1.5 text-slate-300">
+			<Crosshair class="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+			<span class="text-[#9ca3af]">Дистанція:</span>
+			<span class="font-mono text-amber-300 font-bold">
+				{selectedUnit.range} px
+			</span>
+		</div>
+
+		<!-- 4. Attack Speed / Cooldown Row (Швидкість атаки) -->
+		<div class="flex items-center gap-1.5 text-slate-300">
+			<Zap class="w-3.5 h-3.5 text-amber-400 shrink-0" />
+			<span class="text-[#9ca3af]">Швидкість атаки:</span>
+			<span class="font-mono text-slate-200">
+				{selectedUnit.attackCooldown.toFixed(1)} с
+			</span>
+		</div>
+
+		<!-- 5. Movement Speed Row (Швидкість пересування) -->
+		<div class="flex items-center gap-1.5 text-slate-300">
+			<Footprints class="w-3.5 h-3.5 text-amber-400 shrink-0" />
+			<span class="text-[#9ca3af]">Швидкість:</span>
+			<span class="font-mono text-slate-200">
+				{selectedUnit.speed}
+			</span>
+		</div>
+
+		<!-- 6. Movement Type Row (Тип пересування) -->
+		<div class="flex items-center gap-1.5 text-slate-300">
+			<Feather class="w-3.5 h-3.5 text-purple-400 shrink-0" />
+			<span class="text-[#9ca3af]">Тип пересування:</span>
+			<span class="font-bold {selectedUnit.flying ? 'text-cyan-300' : 'text-emerald-300'}">
+				{selectedUnit.flying ? 'Повітряний юніт' : 'Наземний юніт'}
+			</span>
+		</div>
+	</div>
 {:else}
-	<!-- Attributes Rows with Damage Matrix Hover Trigger -->
+	<!-- Generic 2x2 attributes for Castle, Building, Worker -->
 	<div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs py-1">
 		<!-- Defense Row -->
 		<div
@@ -163,9 +250,7 @@
 			class="flex items-center gap-1.5 text-slate-300 cursor-help"
 			onmouseenter={() => {
 				const rawArmor =
-					activeEntityType === 'castle' || activeEntityType === 'building'
-						? 'fort'
-						: selectedUnit?.armorType || 'none';
+					activeEntityType === 'castle' || activeEntityType === 'building' ? 'fort' : 'none';
 				const norm = normalizeArmorKey(rawArmor);
 				hoveredMatrix = { kind: 'armor', key: norm, label: ARMOR_NAMES_UK[norm] || rawArmor };
 			}}
@@ -182,8 +267,6 @@
 					Укріплена (15)
 				{:else if activeEntityType === 'building'}
 					Укріплена (5)
-				{:else if selectedUnit}
-					{selectedUnit.armorType} ({selectedUnit.armor})
 				{/if}
 			</span>
 		</div>
@@ -201,7 +284,7 @@
 							? placedBuilding?.specialType === 'tower'
 								? 'pierce'
 								: ''
-							: selectedUnit?.attackType || '';
+							: '';
 				if (rawAttack) {
 					const norm = normalizeAttackKey(rawAttack);
 					hoveredMatrix = {
@@ -226,8 +309,6 @@
 					{:else}
 						Немає
 					{/if}
-				{:else if selectedUnit}
-					{selectedUnit.damageMin}-{selectedUnit.damageMax} ({selectedUnit.attackType})
 				{/if}
 			</span>
 		</div>
@@ -237,11 +318,7 @@
 			<Footprints class="w-3.5 h-3.5 text-amber-400 shrink-0" />
 			<span class="text-[#9ca3af]">Швидкість:</span>
 			<span class="font-mono text-slate-200">
-				{activeEntityType === 'worker'
-					? '260'
-					: activeEntityType === 'castle'
-						? 'Нерухомо'
-						: (selectedUnit?.speed ?? 'Нерухомо')}
+				{activeEntityType === 'worker' ? '260' : 'Нерухомо'}
 			</span>
 		</div>
 
@@ -258,8 +335,6 @@
 					{:else}
 						{placedUnit ? `Спавнить ${placedUnit.name}` : 'Спеціальна'}
 					{/if}
-				{:else if activeEntityType === 'unit'}
-					{selectedUnit?.flying ? 'Літаючий' : 'Наземний'}
 				{:else}
 					Готовий до праці
 				{/if}
@@ -350,6 +425,7 @@
 		</span>
 		<button
 			onclick={() => onCloseUnit?.()}
+			data-testid="hud-close-unit-btn"
 			class="px-1.5 py-0.5 bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] rounded text-[9px] text-[#fef08a] cursor-pointer"
 		>
 			Закрити (Esc)

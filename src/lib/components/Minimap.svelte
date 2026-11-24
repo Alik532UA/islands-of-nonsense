@@ -45,7 +45,7 @@
 	let moveStart = { mouseX: 0, mouseY: 0, posX: 0, posY: 0 };
 
 	const MAP_WIDTH = 285;
-	const MAP_HEIGHT = 95;
+	const MAP_HEIGHT = 140;
 
 	function startDrag(e: MouseEvent) {
 		e.preventDefault();
@@ -425,9 +425,9 @@
 	</div>
 {/if}
 
-<!-- Expanded Minimap: Anchored flush to the bottom, top controls row with Terrain/Ally on left, Move/Hide on right -->
+<!-- Expanded Minimap: Anchored flush to the bottom with corner controls in the water regions -->
 <div
-	class="relative flex flex-col justify-between bg-[#131722]/95 backdrop-blur-md rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 border-[#544738] shadow-2xl select-none h-[142px] w-[285px] shrink-0 overflow-hidden pointer-events-auto transition-all duration-200 {isCollapsed
+	class="relative bg-[#131722]/95 backdrop-blur-md rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 border-[#544738] shadow-2xl select-none h-[142px] w-[285px] shrink-0 overflow-hidden pointer-events-auto transition-all duration-200 {isCollapsed
 		? 'hidden'
 		: ''}"
 	style="box-shadow: inset 0 0 10px rgba(0,0,0,0.8), 0 -4px 16px rgba(0,0,0,0.7); {dragPosition.x ||
@@ -435,70 +435,9 @@
 		? `transform: translate(${dragPosition.x}px, ${dragPosition.y}px);`
 		: ''}"
 >
-	<!-- Top Controls Row (Terrain, Ally colors on left; Drag & Drop, Hide on right) -->
+	<!-- Minimap Canvas Container (Full Area) with 4 In-Canvas Corner Buttons -->
 	<div
-		class="flex items-center justify-between w-full pt-1 px-1.5 pb-1 shrink-0 bg-[#0e121a]/80 border-b border-[#3b3226]"
-	>
-		<!-- Top-Left buttons: Terrain and Ally colors -->
-		<div class="flex items-center gap-1">
-			<button
-				type="button"
-				onclick={() => (simpleTerrainMode = !simpleTerrainMode)}
-				class="w-6 h-6 rounded border flex items-center justify-center transition cursor-pointer active:scale-95 shadow {simpleTerrainMode
-					? 'bg-[#3b82f6]/40 border-blue-400 text-blue-300'
-					: 'bg-[#2a241b] hover:bg-[#3d3427] border-[#78654c] text-[#c5a880]'}"
-				title="Перемкнути детальність рельєфу"
-				aria-label="Перемкнути детальність рельєфу"
-				data-testid="minimap-terrain-btn"
-			>
-				<MapIcon class="w-3.5 h-3.5" />
-			</button>
-
-			<button
-				type="button"
-				onclick={() => (allyColorsMode = !allyColorsMode)}
-				class="w-6 h-6 rounded border flex items-center justify-center transition cursor-pointer active:scale-95 shadow {allyColorsMode
-					? 'bg-emerald-950/70 border-emerald-500 text-emerald-300'
-					: 'bg-[#2a241b] hover:bg-[#3d3427] border-[#78654c] text-[#c5a880]'}"
-				title="Кольори союзників (Зелений / Ворожий)"
-				aria-label="Кольори союзників"
-				data-testid="minimap-ally-colors-btn"
-			>
-				<Users class="w-3.5 h-3.5" />
-			</button>
-		</div>
-
-		<!-- Top-Right buttons: Drag handle and Hide button -->
-		<div class="flex items-center gap-1">
-			<button
-				type="button"
-				onmousedown={startDrag}
-				ontouchstart={startDragTouch}
-				ondblclick={resetDragPosition}
-				class="w-6 h-6 rounded bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] flex items-center justify-center text-[#d4af37] transition cursor-grab active:cursor-grabbing shadow"
-				title="Перемістити мінікарту (перетягніть мишею; подвійний клік — скинути позицію)"
-				aria-label="Перемістити мінікарту"
-				data-testid="minimap-drag-btn"
-			>
-				<Move class="w-3.5 h-3.5" />
-			</button>
-
-			<button
-				type="button"
-				onclick={() => (isCollapsed = true)}
-				class="w-6 h-6 rounded bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] flex items-center justify-center text-[#d4af37] transition cursor-pointer active:scale-95 shadow"
-				title="Приховати мінікарту"
-				aria-label="Приховати мінікарту"
-				data-testid="minimap-collapse-btn"
-			>
-				<ChevronDown class="w-3.5 h-3.5" />
-			</button>
-		</div>
-	</div>
-
-	<!-- Minimap Canvas with Ornate WC3 Stone Trim (Full Width) -->
-	<div
-		class="relative overflow-hidden bg-[#0c1017] w-full flex-1 shrink-0 flex items-center justify-center"
+		class="relative overflow-hidden bg-[#0c1017] w-full h-full flex items-center justify-center pt-1"
 	>
 		<canvas
 			bind:this={canvasEl}
@@ -509,5 +448,62 @@
 			class="cursor-crosshair block w-full h-full"
 			title="Мінікарта арени. Затисніть та ведіть, щоб перемістити камеру!"
 		></canvas>
+
+		<!-- 1. Top-Left: Перемкнути детальність рельєфу -->
+		<button
+			type="button"
+			onclick={() => (simpleTerrainMode = !simpleTerrainMode)}
+			onmousedown={(e) => e.stopPropagation()}
+			class="absolute top-1.5 left-1.5 z-10 w-6 h-6 rounded border flex items-center justify-center transition cursor-pointer active:scale-95 shadow backdrop-blur-sm {simpleTerrainMode
+				? 'bg-[#3b82f6]/60 border-blue-400 text-blue-200'
+				: 'bg-[#1a1510]/85 hover:bg-[#2a241b] border-[#78654c] text-[#c5a880]'}"
+			title="Перемкнути детальність рельєфу"
+			aria-label="Перемкнути детальність рельєфу"
+			data-testid="minimap-terrain-btn"
+		>
+			<MapIcon class="w-3.5 h-3.5" />
+		</button>
+
+		<!-- 2. Bottom-Left: Кольори союзників (Зелений / Ворожий) -->
+		<button
+			type="button"
+			onclick={() => (allyColorsMode = !allyColorsMode)}
+			onmousedown={(e) => e.stopPropagation()}
+			class="absolute bottom-1.5 left-1.5 z-10 w-6 h-6 rounded border flex items-center justify-center transition cursor-pointer active:scale-95 shadow backdrop-blur-sm {allyColorsMode
+				? 'bg-emerald-950/80 border-emerald-500 text-emerald-300'
+				: 'bg-[#1a1510]/85 hover:bg-[#2a241b] border-[#78654c] text-[#c5a880]'}"
+			title="Кольори союзників (Зелений / Ворожий)"
+			aria-label="Кольори союзників"
+			data-testid="minimap-ally-colors-btn"
+		>
+			<Users class="w-3.5 h-3.5" />
+		</button>
+
+		<!-- 3. Top-Right: drag and drop (Move) -->
+		<button
+			type="button"
+			onmousedown={startDrag}
+			ontouchstart={startDragTouch}
+			ondblclick={resetDragPosition}
+			class="absolute top-1.5 right-1.5 z-10 w-6 h-6 rounded bg-[#1a1510]/85 hover:bg-[#2a241b] border border-[#78654c] flex items-center justify-center text-[#d4af37] transition cursor-grab active:cursor-grabbing shadow backdrop-blur-sm"
+			title="Перемістити мінікарту (перетягніть мишею; подвійний клік — скинути позицію)"
+			aria-label="Перемістити мінікарту"
+			data-testid="minimap-drag-btn"
+		>
+			<Move class="w-3.5 h-3.5" />
+		</button>
+
+		<!-- 4. Bottom-Right: сховати карту (ChevronDown) -->
+		<button
+			type="button"
+			onclick={() => (isCollapsed = true)}
+			onmousedown={(e) => e.stopPropagation()}
+			class="absolute bottom-1.5 right-1.5 z-10 w-6 h-6 rounded bg-[#1a1510]/85 hover:bg-[#2a241b] border border-[#78654c] flex items-center justify-center text-[#d4af37] transition cursor-pointer active:scale-95 shadow backdrop-blur-sm"
+			title="Приховати мінікарту"
+			aria-label="Приховати мінікарту"
+			data-testid="minimap-collapse-btn"
+		>
+			<ChevronDown class="w-3.5 h-3.5" />
+		</button>
 	</div>
 </div>
