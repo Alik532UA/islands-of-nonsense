@@ -299,7 +299,9 @@
 					</div>
 
 					<!-- Title Only (No Description, No (AI)) -->
-					<h2 class="text-lg font-black text-amber-100 tracking-wide text-center">
+					<h2
+						class="text-lg font-black text-[var(--color-heading,#fef08a)] tracking-wide text-center"
+					>
 						{t('menu.vsBot')}
 					</h2>
 				</button>
@@ -311,9 +313,9 @@
 				>
 					<!-- 1. Difficulty -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
-						<span class="text-slate-400 truncate">Складність:</span>
+						<span class="text-[var(--color-text-muted)] truncate">Складність:</span>
 						<div
-							class="flex items-center gap-1 bg-[#141b2a] px-1.5 py-0.5 rounded border border-slate-700/80"
+							class="flex items-center gap-1 bg-[var(--color-pill-bg,#141b2a)] px-1.5 py-0.5 rounded border border-[var(--color-pill-border,#2e3d5a)]"
 						>
 							<button
 								type="button"
@@ -321,12 +323,14 @@
 									e.stopPropagation();
 									vsBotDiffIndex = cycle(DIFFICULTIES, vsBotDiffIndex, -1);
 								}}
-								class="text-slate-400 hover:text-amber-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								title="Попередня складність"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
-							<span class="font-bold text-amber-200 text-[10px] w-24 text-center truncate">
+							<span
+								class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center truncate"
+							>
 								{getDiffName(DIFFICULTIES[vsBotDiffIndex])}
 							</span>
 							<button
@@ -335,7 +339,7 @@
 									e.stopPropagation();
 									vsBotDiffIndex = cycle(DIFFICULTIES, vsBotDiffIndex, 1);
 								}}
-								class="text-slate-400 hover:text-amber-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								title="Наступна складність"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
@@ -345,9 +349,9 @@
 
 					<!-- 2. Gold -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
-						<span class="text-slate-400 truncate">Золото:</span>
+						<span class="text-[var(--color-text-muted)] truncate">Золото:</span>
 						<div
-							class="flex items-center gap-1 bg-[#141b2a] px-1.5 py-0.5 rounded border border-slate-700/80"
+							class="flex items-center gap-1 bg-[var(--color-pill-bg,#141b2a)] px-1.5 py-0.5 rounded border border-[var(--color-pill-border,#2e3d5a)]"
 						>
 							<button
 								type="button"
@@ -355,7 +359,7 @@
 									e.stopPropagation();
 									vsBotGoldIndex = cycle(GOLDS, vsBotGoldIndex, -1);
 								}}
-								class="text-slate-400 hover:text-amber-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
@@ -368,7 +372,7 @@
 									e.stopPropagation();
 									vsBotGoldIndex = cycle(GOLDS, vsBotGoldIndex, 1);
 								}}
-								class="text-slate-400 hover:text-amber-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
 							</button>
@@ -377,9 +381,9 @@
 
 					<!-- 3. Format -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
-						<span class="text-slate-400 truncate">Формат:</span>
+						<span class="text-[var(--color-text-muted)] truncate">Формат:</span>
 						<div
-							class="flex items-center gap-1 bg-[#141b2a] px-1.5 py-0.5 rounded border border-slate-700/80"
+							class="flex items-center gap-1 bg-[var(--color-pill-bg,#141b2a)] px-1.5 py-0.5 rounded border border-[var(--color-pill-border,#2e3d5a)]"
 						>
 							<button
 								type="button"
@@ -387,11 +391,11 @@
 									e.stopPropagation();
 									vsBotTeamIndex = cycle(TEAM_SIZES, vsBotTeamIndex, -1);
 								}}
-								class="text-slate-400 hover:text-amber-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
-							<span class="font-bold text-amber-200 text-[10px] w-24 text-center">
+							<span class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center">
 								{TEAM_SIZES[vsBotTeamIndex]} на {TEAM_SIZES[vsBotTeamIndex]}
 							</span>
 							<button
@@ -400,7 +404,7 @@
 									e.stopPropagation();
 									vsBotTeamIndex = cycle(TEAM_SIZES, vsBotTeamIndex, 1);
 								}}
-								class="text-slate-400 hover:text-amber-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
 							</button>
@@ -409,9 +413,9 @@
 
 					<!-- 4. Target Wins -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
-						<span class="text-slate-400 truncate">Перемог:</span>
+						<span class="text-[var(--color-text-muted)] truncate">Перемог:</span>
 						<div
-							class="flex items-center gap-1 bg-[#141b2a] px-1.5 py-0.5 rounded border border-slate-700/80"
+							class="flex items-center gap-1 bg-[var(--color-pill-bg,#141b2a)] px-1.5 py-0.5 rounded border border-[var(--color-pill-border,#2e3d5a)]"
 						>
 							<button
 								type="button"
@@ -419,11 +423,11 @@
 									e.stopPropagation();
 									vsBotWinsIndex = cycle(TARGET_WINS, vsBotWinsIndex, -1);
 								}}
-								class="text-slate-400 hover:text-amber-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
-							<span class="font-bold text-amber-200 text-[10px] w-24 text-center">
+							<span class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center">
 								До {TARGET_WINS[vsBotWinsIndex]}
 								{TARGET_WINS[vsBotWinsIndex] === 1 ? 'перемоги' : 'перемог'}
 							</span>
@@ -433,7 +437,7 @@
 									e.stopPropagation();
 									vsBotWinsIndex = cycle(TARGET_WINS, vsBotWinsIndex, 1);
 								}}
-								class="text-slate-400 hover:text-amber-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
 							</button>
@@ -442,9 +446,9 @@
 
 					<!-- 5. Player Race -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
-						<span class="text-slate-400 truncate">Ваша раса:</span>
+						<span class="text-[var(--color-text-muted)] truncate">Ваша раса:</span>
 						<div
-							class="flex items-center gap-1 bg-[#141b2a] px-1.5 py-0.5 rounded border border-slate-700/80"
+							class="flex items-center gap-1 bg-[var(--color-pill-bg,#141b2a)] px-1.5 py-0.5 rounded border border-[var(--color-pill-border,#2e3d5a)]"
 						>
 							<button
 								type="button"
@@ -452,11 +456,13 @@
 									e.stopPropagation();
 									vsBotWestRaceIndex = cycle(PLAYER_RACES, vsBotWestRaceIndex, -1);
 								}}
-								class="text-slate-400 hover:text-amber-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
-							<span class="font-bold text-amber-200 text-[10px] w-24 text-center truncate">
+							<span
+								class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center truncate"
+							>
 								{PLAYER_RACES[vsBotWestRaceIndex].label}
 							</span>
 							<button
@@ -465,7 +471,7 @@
 									e.stopPropagation();
 									vsBotWestRaceIndex = cycle(PLAYER_RACES, vsBotWestRaceIndex, 1);
 								}}
-								class="text-slate-400 hover:text-amber-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
 							</button>
@@ -474,9 +480,9 @@
 
 					<!-- 6. Bot Race -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
-						<span class="text-slate-400 truncate">Раса бота:</span>
+						<span class="text-[var(--color-text-muted)] truncate">Раса бота:</span>
 						<div
-							class="flex items-center gap-1 bg-[#141b2a] px-1.5 py-0.5 rounded border border-slate-700/80"
+							class="flex items-center gap-1 bg-[var(--color-pill-bg,#141b2a)] px-1.5 py-0.5 rounded border border-[var(--color-pill-border,#2e3d5a)]"
 						>
 							<button
 								type="button"
@@ -484,11 +490,13 @@
 									e.stopPropagation();
 									vsBotEastRaceIndex = cycle(BOT_RACES, vsBotEastRaceIndex, -1);
 								}}
-								class="text-slate-400 hover:text-amber-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
-							<span class="font-bold text-amber-200 text-[10px] w-24 text-center truncate">
+							<span
+								class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center truncate"
+							>
 								{BOT_RACES[vsBotEastRaceIndex].label}
 							</span>
 							<button
@@ -497,7 +505,7 @@
 									e.stopPropagation();
 									vsBotEastRaceIndex = cycle(BOT_RACES, vsBotEastRaceIndex, 1);
 								}}
-								class="text-slate-400 hover:text-amber-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
 							</button>
@@ -506,9 +514,9 @@
 
 					<!-- 7. Coins -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
-						<span class="text-slate-400 truncate">Монети:</span>
+						<span class="text-[var(--color-text-muted)] truncate">Монети:</span>
 						<div
-							class="flex items-center gap-1 bg-[#141b2a] px-1.5 py-0.5 rounded border border-slate-700/80"
+							class="flex items-center gap-1 bg-[var(--color-pill-bg,#141b2a)] px-1.5 py-0.5 rounded border border-[var(--color-pill-border,#2e3d5a)]"
 						>
 							<button
 								type="button"
@@ -516,11 +524,13 @@
 									e.stopPropagation();
 									vsBotCoinIndex = cycle(COIN_MODES, vsBotCoinIndex, -1);
 								}}
-								class="text-slate-400 hover:text-amber-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
-							<span class="font-bold text-amber-200 text-[10px] w-24 text-center truncate">
+							<span
+								class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center truncate"
+							>
 								{getCoinName(COIN_MODES[vsBotCoinIndex])}
 							</span>
 							<button
@@ -529,7 +539,7 @@
 									e.stopPropagation();
 									vsBotCoinIndex = cycle(COIN_MODES, vsBotCoinIndex, 1);
 								}}
-								class="text-slate-400 hover:text-amber-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
 							</button>
@@ -538,9 +548,9 @@
 
 					<!-- 8. Fog of War -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
-						<span class="text-slate-400 truncate">Туман війни:</span>
+						<span class="text-[var(--color-text-muted)] truncate">Туман війни:</span>
 						<div
-							class="flex items-center gap-1 bg-[#141b2a] px-1.5 py-0.5 rounded border border-slate-700/80"
+							class="flex items-center gap-1 bg-[var(--color-pill-bg,#141b2a)] px-1.5 py-0.5 rounded border border-[var(--color-pill-border,#2e3d5a)]"
 						>
 							<button
 								type="button"
@@ -548,11 +558,11 @@
 									e.stopPropagation();
 									vsBotFogIndex = cycle(FOG_OPTIONS, vsBotFogIndex, -1);
 								}}
-								class="text-slate-400 hover:text-amber-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
-							<span class="font-bold text-amber-200 text-[10px] w-24 text-center">
+							<span class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center">
 								{FOG_OPTIONS[vsBotFogIndex] ? 'Увімкнено' : 'Вимкнено'}
 							</span>
 							<button
@@ -561,7 +571,7 @@
 									e.stopPropagation();
 									vsBotFogIndex = cycle(FOG_OPTIONS, vsBotFogIndex, 1);
 								}}
-								class="text-slate-400 hover:text-amber-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
 							</button>
@@ -572,7 +582,7 @@
 					<button
 						type="button"
 						onclick={() => openConfigFor('classic')}
-						class="w-full mt-2 py-1.5 px-2 rounded-lg bg-[#182133] hover:bg-[#222e47] border border-amber-500/30 text-amber-300 text-[11px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow"
+						class="w-full mt-2 py-1.5 px-2 rounded-lg bg-[var(--color-surface-hover,#182033)] hover:bg-[var(--color-surface,#131826)] border border-[var(--color-border-card,#2e3d5a)] text-[var(--color-heading,#fef08a)] text-[11px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow"
 						data-testid="customize-btn-vsBot"
 					>
 						<Sliders class="w-3.5 h-3.5" />
@@ -624,7 +634,9 @@
 					</div>
 
 					<!-- Title Only -->
-					<h2 class="text-lg font-black text-cyan-100 tracking-wide text-center">
+					<h2
+						class="text-lg font-black text-[var(--color-heading,#fef08a)] tracking-wide text-center"
+					>
 						{t('menu.sandbox')}
 					</h2>
 				</button>
@@ -636,9 +648,9 @@
 				>
 					<!-- 1. Gold -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
-						<span class="text-slate-400 truncate">Золото:</span>
+						<span class="text-[var(--color-text-muted)] truncate">Золото:</span>
 						<div
-							class="flex items-center gap-1 bg-[#14232c] px-1.5 py-0.5 rounded border border-slate-700/80"
+							class="flex items-center gap-1 bg-[var(--color-pill-bg,#141b2a)] px-1.5 py-0.5 rounded border border-[var(--color-pill-border,#2e3d5a)]"
 						>
 							<button
 								type="button"
@@ -646,7 +658,7 @@
 									e.stopPropagation();
 									sandboxGoldIndex = cycle(SANDBOX_GOLDS, sandboxGoldIndex, -1);
 								}}
-								class="text-slate-400 hover:text-cyan-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
@@ -661,7 +673,7 @@
 									e.stopPropagation();
 									sandboxGoldIndex = cycle(SANDBOX_GOLDS, sandboxGoldIndex, 1);
 								}}
-								class="text-slate-400 hover:text-cyan-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
 							</button>
@@ -670,9 +682,9 @@
 
 					<!-- 2. Coins Mode -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
-						<span class="text-slate-400 truncate">Монети:</span>
+						<span class="text-[var(--color-text-muted)] truncate">Монети:</span>
 						<div
-							class="flex items-center gap-1 bg-[#14232c] px-1.5 py-0.5 rounded border border-slate-700/80"
+							class="flex items-center gap-1 bg-[var(--color-pill-bg,#141b2a)] px-1.5 py-0.5 rounded border border-[var(--color-pill-border,#2e3d5a)]"
 						>
 							<button
 								type="button"
@@ -680,11 +692,13 @@
 									e.stopPropagation();
 									sandboxCoinIndex = cycle(COIN_MODES, sandboxCoinIndex, -1);
 								}}
-								class="text-slate-400 hover:text-cyan-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
-							<span class="font-bold text-cyan-200 text-[10px] w-24 text-center truncate">
+							<span
+								class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center truncate"
+							>
 								{getCoinName(COIN_MODES[sandboxCoinIndex])}
 							</span>
 							<button
@@ -693,7 +707,7 @@
 									e.stopPropagation();
 									sandboxCoinIndex = cycle(COIN_MODES, sandboxCoinIndex, 1);
 								}}
-								class="text-slate-400 hover:text-cyan-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
 							</button>
@@ -702,9 +716,9 @@
 
 					<!-- 3. Fog of War -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
-						<span class="text-slate-400 truncate">Туман війни:</span>
+						<span class="text-[var(--color-text-muted)] truncate">Туман війни:</span>
 						<div
-							class="flex items-center gap-1 bg-[#14232c] px-1.5 py-0.5 rounded border border-slate-700/80"
+							class="flex items-center gap-1 bg-[var(--color-pill-bg,#141b2a)] px-1.5 py-0.5 rounded border border-[var(--color-pill-border,#2e3d5a)]"
 						>
 							<button
 								type="button"
@@ -712,11 +726,11 @@
 									e.stopPropagation();
 									sandboxFogIndex = cycle(FOG_OPTIONS, sandboxFogIndex, -1);
 								}}
-								class="text-slate-400 hover:text-cyan-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
-							<span class="font-bold text-cyan-200 text-[10px] w-24 text-center">
+							<span class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center">
 								{FOG_OPTIONS[sandboxFogIndex] ? 'Увімкнено' : 'Вимкнено'}
 							</span>
 							<button
@@ -725,7 +739,7 @@
 									e.stopPropagation();
 									sandboxFogIndex = cycle(FOG_OPTIONS, sandboxFogIndex, 1);
 								}}
-								class="text-slate-400 hover:text-cyan-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
 							</button>
@@ -734,9 +748,9 @@
 
 					<!-- 4. Bot Difficulty -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
-						<span class="text-slate-400 truncate">Складність:</span>
+						<span class="text-[var(--color-text-muted)] truncate">Складність:</span>
 						<div
-							class="flex items-center gap-1 bg-[#14232c] px-1.5 py-0.5 rounded border border-slate-700/80"
+							class="flex items-center gap-1 bg-[var(--color-pill-bg,#141b2a)] px-1.5 py-0.5 rounded border border-[var(--color-pill-border,#2e3d5a)]"
 						>
 							<button
 								type="button"
@@ -744,11 +758,13 @@
 									e.stopPropagation();
 									sandboxDiffIndex = cycle(DIFFICULTIES, sandboxDiffIndex, -1);
 								}}
-								class="text-slate-400 hover:text-cyan-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
-							<span class="font-bold text-cyan-200 text-[10px] w-24 text-center truncate">
+							<span
+								class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center truncate"
+							>
 								{getDiffName(DIFFICULTIES[sandboxDiffIndex])}
 							</span>
 							<button
@@ -757,7 +773,7 @@
 									e.stopPropagation();
 									sandboxDiffIndex = cycle(DIFFICULTIES, sandboxDiffIndex, 1);
 								}}
-								class="text-slate-400 hover:text-cyan-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
 							</button>
@@ -766,9 +782,9 @@
 
 					<!-- 5. Format -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
-						<span class="text-slate-400 truncate">Формат:</span>
+						<span class="text-[var(--color-text-muted)] truncate">Формат:</span>
 						<div
-							class="flex items-center gap-1 bg-[#14232c] px-1.5 py-0.5 rounded border border-slate-700/80"
+							class="flex items-center gap-1 bg-[var(--color-pill-bg,#141b2a)] px-1.5 py-0.5 rounded border border-[var(--color-pill-border,#2e3d5a)]"
 						>
 							<button
 								type="button"
@@ -776,11 +792,11 @@
 									e.stopPropagation();
 									sandboxTeamIndex = cycle(TEAM_SIZES, sandboxTeamIndex, -1);
 								}}
-								class="text-slate-400 hover:text-cyan-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
-							<span class="font-bold text-cyan-200 text-[10px] w-24 text-center">
+							<span class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center">
 								{TEAM_SIZES[sandboxTeamIndex]} на {TEAM_SIZES[sandboxTeamIndex]}
 							</span>
 							<button
@@ -789,7 +805,7 @@
 									e.stopPropagation();
 									sandboxTeamIndex = cycle(TEAM_SIZES, sandboxTeamIndex, 1);
 								}}
-								class="text-slate-400 hover:text-cyan-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
 							</button>
@@ -798,9 +814,9 @@
 
 					<!-- 6. Target Wins -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
-						<span class="text-slate-400 truncate">Перемог:</span>
+						<span class="text-[var(--color-text-muted)] truncate">Перемог:</span>
 						<div
-							class="flex items-center gap-1 bg-[#14232c] px-1.5 py-0.5 rounded border border-slate-700/80"
+							class="flex items-center gap-1 bg-[var(--color-pill-bg,#141b2a)] px-1.5 py-0.5 rounded border border-[var(--color-pill-border,#2e3d5a)]"
 						>
 							<button
 								type="button"
@@ -808,11 +824,11 @@
 									e.stopPropagation();
 									sandboxWinsIndex = cycle(TARGET_WINS, sandboxWinsIndex, -1);
 								}}
-								class="text-slate-400 hover:text-cyan-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
-							<span class="font-bold text-cyan-200 text-[10px] w-24 text-center">
+							<span class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center">
 								До {TARGET_WINS[sandboxWinsIndex]}
 							</span>
 							<button
@@ -821,7 +837,7 @@
 									e.stopPropagation();
 									sandboxWinsIndex = cycle(TARGET_WINS, sandboxWinsIndex, 1);
 								}}
-								class="text-slate-400 hover:text-cyan-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
 							</button>
@@ -830,9 +846,9 @@
 
 					<!-- 7. Player Race -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
-						<span class="text-slate-400 truncate">Ваша раса:</span>
+						<span class="text-[var(--color-text-muted)] truncate">Ваша раса:</span>
 						<div
-							class="flex items-center gap-1 bg-[#14232c] px-1.5 py-0.5 rounded border border-slate-700/80"
+							class="flex items-center gap-1 bg-[var(--color-pill-bg,#141b2a)] px-1.5 py-0.5 rounded border border-[var(--color-pill-border,#2e3d5a)]"
 						>
 							<button
 								type="button"
@@ -840,11 +856,13 @@
 									e.stopPropagation();
 									sandboxWestRaceIndex = cycle(PLAYER_RACES, sandboxWestRaceIndex, -1);
 								}}
-								class="text-slate-400 hover:text-cyan-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
-							<span class="font-bold text-cyan-200 text-[10px] w-24 text-center truncate">
+							<span
+								class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center truncate"
+							>
 								{PLAYER_RACES[sandboxWestRaceIndex].label}
 							</span>
 							<button
@@ -853,7 +871,7 @@
 									e.stopPropagation();
 									sandboxWestRaceIndex = cycle(PLAYER_RACES, sandboxWestRaceIndex, 1);
 								}}
-								class="text-slate-400 hover:text-cyan-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
 							</button>
@@ -862,9 +880,9 @@
 
 					<!-- 8. Bot Race -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
-						<span class="text-slate-400 truncate">Раса бота:</span>
+						<span class="text-[var(--color-text-muted)] truncate">Раса бота:</span>
 						<div
-							class="flex items-center gap-1 bg-[#14232c] px-1.5 py-0.5 rounded border border-slate-700/80"
+							class="flex items-center gap-1 bg-[var(--color-pill-bg,#141b2a)] px-1.5 py-0.5 rounded border border-[var(--color-pill-border,#2e3d5a)]"
 						>
 							<button
 								type="button"
@@ -872,11 +890,13 @@
 									e.stopPropagation();
 									sandboxEastRaceIndex = cycle(BOT_RACES, sandboxEastRaceIndex, -1);
 								}}
-								class="text-slate-400 hover:text-cyan-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
-							<span class="font-bold text-cyan-200 text-[10px] w-24 text-center truncate">
+							<span
+								class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center truncate"
+							>
 								{BOT_RACES[sandboxEastRaceIndex].label}
 							</span>
 							<button
@@ -885,7 +905,7 @@
 									e.stopPropagation();
 									sandboxEastRaceIndex = cycle(BOT_RACES, sandboxEastRaceIndex, 1);
 								}}
-								class="text-slate-400 hover:text-cyan-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
 							</button>
@@ -896,7 +916,7 @@
 					<button
 						type="button"
 						onclick={() => openConfigFor('sandbox')}
-						class="w-full mt-2 py-1.5 px-2 rounded-lg bg-[#142333] hover:bg-[#1b3147] border border-cyan-500/30 text-cyan-300 text-[11px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow"
+						class="w-full mt-2 py-1.5 px-2 rounded-lg bg-[var(--color-surface-hover,#182033)] hover:bg-[var(--color-surface,#131826)] border border-[var(--color-border-card,#2e3d5a)] text-[var(--color-heading,#fef08a)] text-[11px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow"
 						data-testid="customize-btn-sandbox"
 					>
 						<Sliders class="w-3.5 h-3.5" />
@@ -948,7 +968,9 @@
 					</div>
 
 					<!-- Title Only -->
-					<h2 class="text-lg font-black text-emerald-100 tracking-wide text-center">
+					<h2
+						class="text-lg font-black text-[var(--color-heading,#fef08a)] tracking-wide text-center"
+					>
 						{t('menu.botVsBot')}
 					</h2>
 				</button>
@@ -960,9 +982,9 @@
 				>
 					<!-- 1. Format -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
-						<span class="text-slate-400 truncate">Формат:</span>
+						<span class="text-[var(--color-text-muted)] truncate">Формат:</span>
 						<div
-							class="flex items-center gap-1 bg-[#12231c] px-1.5 py-0.5 rounded border border-slate-700/80"
+							class="flex items-center gap-1 bg-[var(--color-pill-bg,#141b2a)] px-1.5 py-0.5 rounded border border-[var(--color-pill-border,#2e3d5a)]"
 						>
 							<button
 								type="button"
@@ -970,11 +992,11 @@
 									e.stopPropagation();
 									botVsBotTeamIndex = cycle(TEAM_SIZES, botVsBotTeamIndex, -1);
 								}}
-								class="text-slate-400 hover:text-emerald-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
-							<span class="font-bold text-emerald-200 text-[10px] w-24 text-center">
+							<span class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center">
 								{TEAM_SIZES[botVsBotTeamIndex]} на {TEAM_SIZES[botVsBotTeamIndex]}
 							</span>
 							<button
@@ -983,7 +1005,7 @@
 									e.stopPropagation();
 									botVsBotTeamIndex = cycle(TEAM_SIZES, botVsBotTeamIndex, 1);
 								}}
-								class="text-slate-400 hover:text-emerald-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
 							</button>
@@ -992,9 +1014,9 @@
 
 					<!-- 2. Difficulty -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
-						<span class="text-slate-400 truncate">Складність:</span>
+						<span class="text-[var(--color-text-muted)] truncate">Складність:</span>
 						<div
-							class="flex items-center gap-1 bg-[#12231c] px-1.5 py-0.5 rounded border border-slate-700/80"
+							class="flex items-center gap-1 bg-[var(--color-pill-bg,#141b2a)] px-1.5 py-0.5 rounded border border-[var(--color-pill-border,#2e3d5a)]"
 						>
 							<button
 								type="button"
@@ -1002,11 +1024,13 @@
 									e.stopPropagation();
 									botVsBotDiffIndex = cycle(DIFFICULTIES, botVsBotDiffIndex, -1);
 								}}
-								class="text-slate-400 hover:text-emerald-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
-							<span class="font-bold text-emerald-200 text-[10px] w-24 text-center truncate">
+							<span
+								class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center truncate"
+							>
 								{getDiffName(DIFFICULTIES[botVsBotDiffIndex])}
 							</span>
 							<button
@@ -1015,7 +1039,7 @@
 									e.stopPropagation();
 									botVsBotDiffIndex = cycle(DIFFICULTIES, botVsBotDiffIndex, 1);
 								}}
-								class="text-slate-400 hover:text-emerald-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
 							</button>
@@ -1024,9 +1048,9 @@
 
 					<!-- 3. Gold -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
-						<span class="text-slate-400 truncate">Золото:</span>
+						<span class="text-[var(--color-text-muted)] truncate">Золото:</span>
 						<div
-							class="flex items-center gap-1 bg-[#12231c] px-1.5 py-0.5 rounded border border-slate-700/80"
+							class="flex items-center gap-1 bg-[var(--color-pill-bg,#141b2a)] px-1.5 py-0.5 rounded border border-[var(--color-pill-border,#2e3d5a)]"
 						>
 							<button
 								type="button"
@@ -1034,7 +1058,7 @@
 									e.stopPropagation();
 									botVsBotGoldIndex = cycle(GOLDS, botVsBotGoldIndex, -1);
 								}}
-								class="text-slate-400 hover:text-emerald-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
@@ -1047,7 +1071,7 @@
 									e.stopPropagation();
 									botVsBotGoldIndex = cycle(GOLDS, botVsBotGoldIndex, 1);
 								}}
-								class="text-slate-400 hover:text-emerald-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
 							</button>
@@ -1056,9 +1080,9 @@
 
 					<!-- 4. Target Wins -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
-						<span class="text-slate-400 truncate">Перемог:</span>
+						<span class="text-[var(--color-text-muted)] truncate">Перемог:</span>
 						<div
-							class="flex items-center gap-1 bg-[#12231c] px-1.5 py-0.5 rounded border border-slate-700/80"
+							class="flex items-center gap-1 bg-[var(--color-pill-bg,#141b2a)] px-1.5 py-0.5 rounded border border-[var(--color-pill-border,#2e3d5a)]"
 						>
 							<button
 								type="button"
@@ -1066,11 +1090,11 @@
 									e.stopPropagation();
 									botVsBotWinsIndex = cycle(TARGET_WINS, botVsBotWinsIndex, -1);
 								}}
-								class="text-slate-400 hover:text-emerald-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
-							<span class="font-bold text-emerald-200 text-[10px] w-24 text-center">
+							<span class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center">
 								До {TARGET_WINS[botVsBotWinsIndex]}
 							</span>
 							<button
@@ -1079,7 +1103,7 @@
 									e.stopPropagation();
 									botVsBotWinsIndex = cycle(TARGET_WINS, botVsBotWinsIndex, 1);
 								}}
-								class="text-slate-400 hover:text-emerald-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
 							</button>
@@ -1088,9 +1112,9 @@
 
 					<!-- 5. West Bot Race -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
-						<span class="text-slate-400 truncate">Раса Заходу:</span>
+						<span class="text-[var(--color-text-muted)] truncate">Раса Заходу:</span>
 						<div
-							class="flex items-center gap-1 bg-[#12231c] px-1.5 py-0.5 rounded border border-slate-700/80"
+							class="flex items-center gap-1 bg-[var(--color-pill-bg,#141b2a)] px-1.5 py-0.5 rounded border border-[var(--color-pill-border,#2e3d5a)]"
 						>
 							<button
 								type="button"
@@ -1098,11 +1122,13 @@
 									e.stopPropagation();
 									botVsBotWestRaceIndex = cycle(BOT_RACES, botVsBotWestRaceIndex, -1);
 								}}
-								class="text-slate-400 hover:text-emerald-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
-							<span class="font-bold text-emerald-200 text-[10px] w-24 text-center truncate">
+							<span
+								class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center truncate"
+							>
 								{BOT_RACES[botVsBotWestRaceIndex].label}
 							</span>
 							<button
@@ -1111,7 +1137,7 @@
 									e.stopPropagation();
 									botVsBotWestRaceIndex = cycle(BOT_RACES, botVsBotWestRaceIndex, 1);
 								}}
-								class="text-slate-400 hover:text-emerald-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
 							</button>
@@ -1120,9 +1146,9 @@
 
 					<!-- 6. East Bot Race -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
-						<span class="text-slate-400 truncate">Раса Сходу:</span>
+						<span class="text-[var(--color-text-muted)] truncate">Раса Сходу:</span>
 						<div
-							class="flex items-center gap-1 bg-[#12231c] px-1.5 py-0.5 rounded border border-slate-700/80"
+							class="flex items-center gap-1 bg-[var(--color-pill-bg,#141b2a)] px-1.5 py-0.5 rounded border border-[var(--color-pill-border,#2e3d5a)]"
 						>
 							<button
 								type="button"
@@ -1130,11 +1156,13 @@
 									e.stopPropagation();
 									botVsBotEastRaceIndex = cycle(BOT_RACES, botVsBotEastRaceIndex, -1);
 								}}
-								class="text-slate-400 hover:text-emerald-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
-							<span class="font-bold text-emerald-200 text-[10px] w-24 text-center truncate">
+							<span
+								class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center truncate"
+							>
 								{BOT_RACES[botVsBotEastRaceIndex].label}
 							</span>
 							<button
@@ -1143,7 +1171,7 @@
 									e.stopPropagation();
 									botVsBotEastRaceIndex = cycle(BOT_RACES, botVsBotEastRaceIndex, 1);
 								}}
-								class="text-slate-400 hover:text-emerald-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
 							</button>
@@ -1152,9 +1180,9 @@
 
 					<!-- 7. Coins -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
-						<span class="text-slate-400 truncate">Монети:</span>
+						<span class="text-[var(--color-text-muted)] truncate">Монети:</span>
 						<div
-							class="flex items-center gap-1 bg-[#12231c] px-1.5 py-0.5 rounded border border-slate-700/80"
+							class="flex items-center gap-1 bg-[var(--color-pill-bg,#141b2a)] px-1.5 py-0.5 rounded border border-[var(--color-pill-border,#2e3d5a)]"
 						>
 							<button
 								type="button"
@@ -1162,11 +1190,13 @@
 									e.stopPropagation();
 									botVsBotCoinIndex = cycle(COIN_MODES, botVsBotCoinIndex, -1);
 								}}
-								class="text-slate-400 hover:text-emerald-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
-							<span class="font-bold text-emerald-200 text-[10px] w-24 text-center truncate">
+							<span
+								class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center truncate"
+							>
 								{getCoinName(COIN_MODES[botVsBotCoinIndex])}
 							</span>
 							<button
@@ -1175,7 +1205,7 @@
 									e.stopPropagation();
 									botVsBotCoinIndex = cycle(COIN_MODES, botVsBotCoinIndex, 1);
 								}}
-								class="text-slate-400 hover:text-emerald-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
 							</button>
@@ -1184,9 +1214,9 @@
 
 					<!-- 8. Fog of War -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
-						<span class="text-slate-400 truncate">Туман війни:</span>
+						<span class="text-[var(--color-text-muted)] truncate">Туман війни:</span>
 						<div
-							class="flex items-center gap-1 bg-[#12231c] px-1.5 py-0.5 rounded border border-slate-700/80"
+							class="flex items-center gap-1 bg-[var(--color-pill-bg,#141b2a)] px-1.5 py-0.5 rounded border border-[var(--color-pill-border,#2e3d5a)]"
 						>
 							<button
 								type="button"
@@ -1194,11 +1224,11 @@
 									e.stopPropagation();
 									botVsBotFogIndex = cycle(FOG_OPTIONS, botVsBotFogIndex, -1);
 								}}
-								class="text-slate-400 hover:text-emerald-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronLeft class="w-3.5 h-3.5" />
 							</button>
-							<span class="font-bold text-emerald-200 text-[10px] w-24 text-center">
+							<span class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center">
 								{FOG_OPTIONS[botVsBotFogIndex] ? 'Увімкнено' : 'Вимкнено'}
 							</span>
 							<button
@@ -1207,7 +1237,7 @@
 									e.stopPropagation();
 									botVsBotFogIndex = cycle(FOG_OPTIONS, botVsBotFogIndex, 1);
 								}}
-								class="text-slate-400 hover:text-emerald-300 p-0.5 cursor-pointer"
+								class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 							>
 								<ChevronRight class="w-3.5 h-3.5" />
 							</button>
@@ -1218,7 +1248,7 @@
 					<button
 						type="button"
 						onclick={() => openConfigFor('botVsBot')}
-						class="w-full mt-2 py-1.5 px-2 rounded-lg bg-[#14261f] hover:bg-[#1a382d] border border-emerald-500/30 text-emerald-300 text-[11px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow"
+						class="w-full mt-2 py-1.5 px-2 rounded-lg bg-[var(--color-surface-hover,#182033)] hover:bg-[var(--color-surface,#131826)] border border-[var(--color-border-card,#2e3d5a)] text-[var(--color-heading,#fef08a)] text-[11px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow"
 						data-testid="customize-btn-botVsBot"
 					>
 						<Sliders class="w-3.5 h-3.5" />
@@ -1229,7 +1259,7 @@
 
 			<!-- 4. Custom Match Mode -->
 			<div
-				class="group relative bg-[#131826] hover:bg-[#1e1730] border-2 border-[#2e3d5a] hover:border-purple-400/80 rounded-2xl shadow-xl transition-all duration-300 flex flex-col overflow-hidden"
+				class="group relative bg-[var(--color-bg-card,#131826)] hover:bg-[var(--color-bg-card-hover,#182033)] border-2 border-[var(--color-border-card,#2e3d5a)] hover:border-purple-400/80 rounded-2xl shadow-xl transition-all duration-300 flex flex-col overflow-hidden"
 				style="box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);"
 				data-testid="play-custom-card"
 			>
@@ -1270,15 +1300,21 @@
 					</div>
 
 					<!-- Title Only -->
-					<h2 class="text-lg font-black text-purple-100 tracking-wide text-center">Власний бій</h2>
+					<h2
+						class="text-lg font-black text-[var(--color-heading,#fef08a)] tracking-wide text-center"
+					>
+						Власний бій
+					</h2>
 				</button>
 
 				<!-- Quick Settings Drawer -->
 				<div
 					class="max-h-0 opacity-0 pointer-events-none group-hover:max-h-[800px] group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:max-h-[800px] group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-all duration-300 ease-in-out overflow-hidden"
 				>
-					<div class="bg-[#120f21] border-t border-slate-800/80 p-4 space-y-3 shadow-inner">
-						<p class="text-xs text-slate-300 text-center leading-relaxed">
+					<div
+						class="bg-[var(--color-pill-bg,#141b2a)] border-t border-[var(--color-border-card,#2e3d5a)] p-4 space-y-3 shadow-inner"
+					>
+						<p class="text-xs text-[var(--color-text)] text-center leading-relaxed">
 							Повна свобода правил: 12 додаткових модів, бани розширених рас, гнучкий баланс.
 						</p>
 

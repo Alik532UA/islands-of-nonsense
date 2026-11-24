@@ -1,8 +1,9 @@
 import type { Database } from 'firebase/database';
 import type { LobbyRoom } from './roomTypes';
+import { RULES_VERSION, RULES_STAMP } from './rulesVersion';
 
 export const GAME_ID = 'castlefight';
-export const RULES_VERSION = 1;
+export { RULES_VERSION, RULES_STAMP };
 
 /**
  * Publish an open room to RTDB lobby feed.

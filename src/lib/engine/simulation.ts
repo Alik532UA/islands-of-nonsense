@@ -22,6 +22,8 @@ import { getBuilderNameForRace, RACES_LIST } from './gameData';
 import { getRandomBoss } from './bosses';
 import { WorkerSystem } from './workerSystem';
 import { BuildingSystem } from './buildingSystem';
+export { SimulationError, BuildingPlacementError } from '$lib/errors';
+export { ReplaySerializer, type MatchReplayData } from './replaySerializer';
 import { CombatSystem } from './combatSystem';
 import { EconomySystem } from './economySystem';
 import { BotAI } from './botAI';

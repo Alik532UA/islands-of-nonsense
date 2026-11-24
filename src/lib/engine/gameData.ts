@@ -1,6 +1,7 @@
 import rawBuildings from '../data/buildings.json';
 import rawUnits from '../data/units.json';
 import rawRaces from '../data/races.json';
+export { RaceRegistry } from './raceRegistry';
 import type {
 	BuildingDefinition,
 	UnitDefinition,

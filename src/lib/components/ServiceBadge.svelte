@@ -10,8 +10,9 @@
 	import { fetchServedVersion } from '$lib/services/servedVersion';
 	import ErrorLogModal from '$lib/components/ErrorLogModal.svelte';
 	import PerformanceOverlay from '$lib/components/PerformanceOverlay.svelte';
+	import { APP_VERSION } from '$lib/config/version';
 
-	const version = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.1';
+	const version = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : APP_VERSION;
 	let copied = $state(false);
 	let fallbackReport = $state<string | null>(null);
 	let copyTimer: ReturnType<typeof setTimeout> | undefined;

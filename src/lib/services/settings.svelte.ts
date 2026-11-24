@@ -1,6 +1,7 @@
 import { storage } from './storage';
 import { getLocale, setLocale, type Locale } from '$lib/i18n';
 import { sound } from './audio';
+export { contrast, luminance, parseColor, AA_NORMAL, AA_LARGE } from '$lib/utils/contrast';
 
 export type UiScale = 0.85 | 1 | 1.15 | 1.3;
 export const UI_SCALES: readonly UiScale[] = [0.85, 1, 1.15, 1.3] as const;
