@@ -19,6 +19,7 @@
 	import { toast } from '$lib/controllers/toast.svelte';
 	import { FLAG_COUNTRIES, countryName } from '$lib/config/countries';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
+	import PasswordField from '$lib/components/ui/PasswordField.svelte';
 
 	const controller = new AccountController();
 
@@ -312,14 +313,14 @@
 									data-testid="input-auth-email"
 									bind:value={authEmail}
 									placeholder={t('account.auth.email')}
-									class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
+									autocomplete="email"
+									class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500"
 								/>
-								<input
-									type="password"
-									data-testid="input-auth-password"
+								<PasswordField
 									bind:value={authPassword}
 									placeholder={t('account.auth.password')}
-									class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
+									testId="input-auth-password"
+									autocomplete="current-password"
 								/>
 							</div>
 							<div class="flex flex-wrap gap-2 pt-1">
