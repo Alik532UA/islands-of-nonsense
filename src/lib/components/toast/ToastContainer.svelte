@@ -1,0 +1,82 @@
+<script lang="ts">
+	import { toast, type ToastItem } from '$lib/controllers/toast.svelte';
+	import { CheckCircle2, AlertTriangle, AlertCircle, Info, X } from 'lucide-svelte';
+
+	function getBorderAndIcon(type: ToastItem['type']) {
+		switch (type) {
+			case 'success':
+				return {
+					border: 'border-emerald-500/50 bg-slate-900/95 text-emerald-300',
+					icon: CheckCircle2,
+					iconClass: 'text-emerald-400'
+				};
+			case 'error':
+				return {
+					border: 'border-red-500/50 bg-slate-900/95 text-red-300',
+					icon: AlertCircle,
+					iconClass: 'text-red-400'
+				};
+			case 'warn':
+				return {
+					border: 'border-amber-500/50 bg-slate-900/95 text-amber-300',
+					icon: AlertTriangle,
+					iconClass: 'text-amber-400'
+				};
+			case 'info':
+			default:
+				return {
+					border: 'border-cyan-500/50 bg-slate-900/95 text-cyan-300',
+					icon: Info,
+					iconClass: 'text-cyan-400'
+				};
+		}
+	}
+</script>
+
+<!-- Toast notification layer (NOTIFICATIONS.md) -->
+{#if toast.items.length > 0}
+	<div
+		class="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-4 md:px-0"
+		aria-live="polite"
+	>
+		{#each toast.items as item (item.id)}
+			{@const styling = getBorderAndIcon(item.type)}
+			{@const Icon = styling.icon}
+			<div
+				class="pointer-events-auto rounded-xl border p-4 shadow-xl backdrop-blur-md transition-all flex items-start gap-3 relative overflow-hidden {styling.border}"
+				role={item.urgent ? 'alert' : 'status'}
+				onmouseenter={() => toast.pause(item.id)}
+				onmouseleave={() => toast.resume(item.id)}
+				onfocusin={() => toast.pause(item.id)}
+				onfocusout={() => toast.resume(item.id)}
+			>
+				<Icon class="w-5 h-5 shrink-0 mt-0.5 {styling.iconClass}" />
+				<div class="flex-1 min-w-0 pr-2">
+					<p class="text-sm font-medium text-slate-100 leading-snug break-words">
+						{item.message}
+					</p>
+					{#if item.action}
+						<button
+							type="button"
+							class="mt-2 text-xs font-semibold underline hover:text-white cursor-pointer"
+							onclick={() => {
+								item.action?.run();
+								toast.dismiss(item.id);
+							}}
+						>
+							{item.action.label}
+						</button>
+					{/if}
+				</div>
+				<button
+					type="button"
+					class="text-slate-400 hover:text-slate-100 p-1 -mr-1 -mt-1 rounded-lg transition cursor-pointer"
+					aria-label="Закрити сповіщення"
+					onclick={() => toast.dismiss(item.id)}
+				>
+					<X class="w-4 h-4" />
+				</button>
+			</div>
+		{/each}
+	</div>
+{/if}

@@ -16,6 +16,7 @@
 	import { settings } from '$lib/services/settings.svelte';
 	import { AccountController } from '$lib/controllers/account.svelte';
 	import { playerAvatar } from '$lib/services/playerAvatar.svelte';
+	import { toast } from '$lib/controllers/toast.svelte';
 	import { FLAG_COUNTRIES, countryName } from '$lib/config/countries';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
 
@@ -58,9 +59,12 @@
 		if (ok) {
 			playerAvatar.set(formAvatar);
 			savedSuccess = true;
+			toast.success(t('account.profile_saved') || 'Профіль успішно збережено');
 			setTimeout(() => {
 				savedSuccess = false;
 			}, 3000);
+		} else {
+			toast.error('Не вдалося зберегти профіль');
 		}
 	}
 

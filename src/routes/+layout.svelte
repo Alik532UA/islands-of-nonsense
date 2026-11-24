@@ -7,6 +7,7 @@
 	import GameHeader from '$lib/components/GameHeader.svelte';
 	import SettingsModal from '$lib/components/SettingsModal.svelte';
 	import ErrorFallback from '$lib/components/ErrorFallback.svelte';
+	import ToastContainer from '$lib/components/toast/ToastContainer.svelte';
 	import { logService } from '$lib/services/logService.svelte';
 	import { settings } from '$lib/services/settings.svelte';
 	import { debugMode } from '$lib/debug/debugMode.svelte';
@@ -55,4 +56,5 @@
 	{/snippet}
 </svelte:boundary>
 <SettingsModal isOpen={settings.isSettingsOpen} onClose={() => settings.closeSettings()} />
+<ToastContainer />
 <ServiceBadge />
