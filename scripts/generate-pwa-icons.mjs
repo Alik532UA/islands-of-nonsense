@@ -2,6 +2,17 @@ import zlib from 'node:zlib';
 import fs from 'node:fs';
 import path from 'node:path';
 
+/**
+ * Procedural Generator for PWA Icons and Favicons using the orange Lucide Castle icon.
+ * Outputs:
+ * - static/assets/icon-192.png (192x192, any)
+ * - static/assets/icon-512.png (512x512, any)
+ * - static/assets/icon-maskable-512.png (512x512, maskable)
+ * - static/favicon.png (64x64, any)
+ * - static/favicon.svg (SVG vector)
+ * - src/lib/assets/favicon.svg (SvelteKit asset import)
+ */
+
 function crc32(buf) {
 	let table = new Uint32Array(256);
 	for (let i = 0; i < 256; i++) {
@@ -58,135 +69,207 @@ function createPng(width, height, getPixel) {
 	return Buffer.concat([sig, ihdrChunk, idatChunk, iendChunk]);
 }
 
+function distToSegment(px, py, x1, y1, x2, y2) {
+	const dx = x2 - x1;
+	const dy = y2 - y1;
+	const lenSq = dx * dx + dy * dy;
+	if (lenSq === 0) return Math.hypot(px - x1, py - y1);
+	let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+	t = Math.max(0, Math.min(1, t));
+	return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+}
+
+function distToArc(px, py, cx, cy, r, condition) {
+	if (condition(px, py)) {
+		return Math.abs(Math.hypot(px - cx, py - cy) - r);
+	}
+	return Infinity;
+}
+
 /**
- * Procedurally draws a Castle Fight fortress emblem.
- * @param {number} x
- * @param {number} y
- * @param {number} size
- * @param {boolean} maskable
+ * Exact Signed Distance Field to the 24x24 Lucide Castle vector strokes.
  */
-function getCastlePixel(x, y, size, maskable) {
-	// Normalized coordinates (-1 to 1)
+function distToLucideCastle(x, y) {
+	return Math.min(
+		// 1. Central battlements top cutouts
+		distToSegment(x, y, 10, 5, 10, 3),
+		distToSegment(x, y, 14, 5, 14, 3),
+		// 2. Center keep side walls
+		distToSegment(x, y, 18, 3, 18, 11),
+		distToSegment(x, y, 6, 3, 6, 11),
+		// 3. Battlement floor
+		distToSegment(x, y, 6, 5, 18, 5),
+		// 4. Main parapet horizontal line
+		distToSegment(x, y, 2, 11, 22, 11),
+		// 5. Outer castle walls and bottom with rounded corners (r=2)
+		distToSegment(x, y, 22, 9, 22, 19),
+		distToArc(x, y, 20, 19, 2, (px, py) => px >= 20 && py >= 19),
+		distToSegment(x, y, 4, 21, 20, 21),
+		distToArc(x, y, 4, 19, 2, (px, py) => px <= 4 && py >= 19),
+		distToSegment(x, y, 2, 9, 2, 19),
+		// 6. Arched gate / portcullis (r=3, center 12, 18)
+		distToSegment(x, y, 15, 18, 15, 21),
+		distToArc(x, y, 12, 18, 3, (px, py) => py <= 18),
+		distToSegment(x, y, 9, 18, 9, 21)
+	);
+}
+
+/**
+ * Distance to 2D rounded rectangle (squircle).
+ */
+function distToRoundedBox(px, py, hx, hy, r) {
+	const qx = Math.abs(px) - hx + r;
+	const qy = Math.abs(py) - hy + r;
+	return Math.min(Math.max(qx, qy), 0) + Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) - r;
+}
+
+/**
+ * Calculates pixel color for Lucide Castle with anti-aliasing.
+ */
+function getOrangeCastlePixel(x, y, size, maskable) {
 	const cx = size / 2;
 	const cy = size / 2;
-	const scale = maskable ? 0.65 : 0.85;
-	const nx = (x - cx) / (cx * scale);
-	const ny = (y - cy) / (cy * scale);
 
-	const dist = Math.sqrt(nx * nx + ny * ny);
+	// Theme colors
+	const bgR = 19, bgG = 24, bgB = 38; // #131826 (Game card surface)
+	const orangeR = 249, orangeG = 115, orangeB = 22; // #f97316 (Vibrant Orange)
+	const borderR = 234, borderG = 88, borderB = 12; // #ea580c (Border Orange)
 
-	// Background color: Deep Slate / Night Sky
-	const bgR = 11,
-		bgG = 15,
-		bgB = 25;
+	// Scale & view transforms
+	// In maskable icon, keep inside central 80% circle (safe zone: scale 0.62)
+	// In standard icons, scale to 0.72 of icon
+	const scale = maskable ? 0.62 : 0.72;
+	const castleSize = size * scale;
 
-	// Circular shield background
-	if (dist > 1.05) {
-		if (maskable) {
-			// Solid background extending to all edges for maskable safe area
-			return [bgR, bgG, bgB, 255];
-		}
-		return [0, 0, 0, 0]; // Transparent outer padding for 'any' icon
-	}
+	const px = x - cx;
+	const py = y - cy;
 
-	// Golden ring border (dist between 0.95 and 1.05)
-	if (dist >= 0.92 && dist <= 1.05) {
-		const goldFactor = (1.05 - dist) / 0.13;
-		const r = Math.round(217 + (245 - 217) * goldFactor);
-		const g = Math.round(119 + (158 - 119) * goldFactor);
-		const b = Math.round(6 + (11 - 6) * goldFactor);
-		return [r, g, b, 255];
-	}
+	// Background geometry
+	let baseAlpha = 1.0;
+	let hasBorder = false;
 
-	// Inner shield gradient
-	const innerGrad = Math.max(0, 1 - dist * 0.8);
-	let pr = Math.round(15 + 25 * innerGrad);
-	let pg = Math.round(23 + 30 * innerGrad);
-	let pb = Math.round(42 + 50 * innerGrad);
+	if (maskable) {
+		// Solid background covering 100% of maskable viewport (required by PWA spec)
+		baseAlpha = 1.0;
+	} else {
+		// Rounded squircle badge for 'any' icons
+		const hx = (size / 2) * 0.90;
+		const hy = (size / 2) * 0.90;
+		const cornerR = size * 0.22;
+		const dBox = distToRoundedBox(px, py, hx, hy, cornerR);
 
-	// Castle geometry in normalized space:
-	// Base wall: nx in [-0.55, 0.55], ny in [-0.2, 0.6]
-	const inBaseWall = nx >= -0.55 && nx <= 0.55 && ny >= -0.15 && ny <= 0.55;
-
-	// Left Tower: nx in [-0.55, -0.3], ny in [-0.5, 0.55]
-	const inLeftTower = nx >= -0.55 && nx <= -0.28 && ny >= -0.5 && ny <= 0.55;
-
-	// Right Tower: nx in [0.28, 0.55], ny in [-0.5, 0.55]
-	const inRightTower = nx >= 0.28 && nx <= 0.55 && ny >= -0.5 && ny <= 0.55;
-
-	// Center Keep / Main Tower: nx in [-0.22, 0.22], ny in [-0.65, 0.55]
-	const inCenterKeep = nx >= -0.22 && nx <= 0.22 && ny >= -0.65 && ny <= 0.55;
-
-	// Crenellations (battlements) cutouts
-	const isLeftCrenel = inLeftTower && ny < -0.42 && Math.abs(nx - -0.415) < 0.045;
-	const isRightCrenel = inRightTower && ny < -0.42 && Math.abs(nx - 0.415) < 0.045;
-	const isCenterCrenel1 = inCenterKeep && ny < -0.57 && Math.abs(nx - -0.11) < 0.035;
-	const isCenterCrenel2 = inCenterKeep && ny < -0.57 && Math.abs(nx - 0.11) < 0.035;
-
-	const isCrenelCutout = isLeftCrenel || isRightCrenel || isCenterCrenel1 || isCenterCrenel2;
-
-	// Arched Portcullis (Gate): nx in [-0.14, 0.14], ny in [0.15, 0.55]
-	const inGateRect = nx >= -0.13 && nx <= 0.13 && ny >= 0.2 && ny <= 0.55;
-	const inGateArch =
-		(nx * nx) / (0.13 * 0.13) + ((ny - 0.2) * (ny - 0.2)) / (0.13 * 0.13) <= 1 && ny <= 0.2;
-	const inGate = (inGateRect || inGateArch) && ny >= 0.07;
-
-	// Roof / Spire peak on Center Keep: ny in [-0.85, -0.65], width tapering
-	const spireProgress = (-0.65 - ny) / 0.2;
-	const inSpire = ny >= -0.85 && ny < -0.65 && Math.abs(nx) <= 0.12 * (1 - spireProgress);
-
-	if (inSpire) {
-		// Golden Spire
-		return [245, 158, 11, 255];
-	}
-
-	if ((inBaseWall || inLeftTower || inRightTower || inCenterKeep) && !isCrenelCutout) {
-		if (inGate) {
-			// Deep dark glowing gate
-			return [10, 10, 18, 255];
-		}
-		// Castle Stone Color with highlights
-		const isCenter = inCenterKeep || Math.abs(nx) < 0.22;
-		const stoneBright = isCenter ? 210 : 170;
-		const stoneR = stoneBright;
-		const stoneG = Math.round(stoneBright * 0.9);
-		const stoneB = Math.round(stoneBright * 0.75);
-
-		// Stone wall border lines / edge shading
-		const isEdge =
-			Math.abs(nx - -0.55) < 0.02 ||
-			Math.abs(nx - 0.55) < 0.02 ||
-			Math.abs(nx - -0.28) < 0.02 ||
-			Math.abs(nx - 0.28) < 0.02;
-
-		if (isEdge) {
-			return [Math.round(stoneR * 0.7), Math.round(stoneG * 0.7), Math.round(stoneB * 0.7), 255];
+		if (dBox > 1.0) {
+			return [0, 0, 0, 0]; // Transparent outside badge
+		} else if (dBox > 0) {
+			baseAlpha = 1.0 - dBox;
 		}
 
-		return [stoneR, stoneG, stoneB, 255];
+		if (dBox >= -size * 0.035 && dBox <= 0.5) {
+			hasBorder = true;
+		}
 	}
 
-	// Return inner shield background
-	return [pr, pg, pb, 255];
+	// Transform pixel to 24x24 Lucide icon coordinates
+	const vx = (px / castleSize + 0.5) * 24;
+	const vy = (py / castleSize + 0.5) * 24;
+
+	// Subpixel supersampling (2x2 grid) for anti-aliasing
+	const subOffsets = [-0.25, 0.25];
+	const subStepV = 24 / castleSize;
+	let strokeHits = 0;
+	let isInsideGate = false;
+
+	if (vx >= 9 && vx <= 15 && vy >= 15 && vy <= 21) {
+		isInsideGate = true;
+	}
+
+	for (const sy of subOffsets) {
+		for (const sx of subOffsets) {
+			const svx = vx + sx * subStepV;
+			const svy = vy + sy * subStepV;
+			const dist = distToLucideCastle(svx, svy);
+			// Stroke radius is 1.0 (since stroke-width is 2.0 in 24x24)
+			const strokeRad = 1.0;
+			const aaEdge = (subStepV * 0.6);
+			if (dist <= strokeRad - aaEdge) {
+				strokeHits += 1;
+			} else if (dist <= strokeRad + aaEdge) {
+				strokeHits += Math.max(0, Math.min(1, 0.5 + (strokeRad - dist) / (2 * aaEdge)));
+			}
+		}
+	}
+
+	const strokeCoverage = strokeHits / 4;
+
+	if (strokeCoverage > 0) {
+		// Blend orange stroke over background
+		const r = Math.round(bgR + (orangeR - bgR) * strokeCoverage);
+		const g = Math.round(bgG + (orangeG - bgG) * strokeCoverage);
+		const b = Math.round(bgB + (orangeB - bgB) * strokeCoverage);
+		const a = Math.round(baseAlpha * (0.85 + 0.15 * strokeCoverage) * 255);
+		return [r, g, b, a];
+	}
+
+	// Warm subtle gate glow inside portcullis arch
+	if (isInsideGate && vy >= 15.5 && Math.hypot(vx - 12, Math.min(vy, 18) - 18) <= 3) {
+		const glowR = Math.round(bgR * 0.6 + orangeR * 0.4);
+		const glowG = Math.round(bgG * 0.6 + orangeG * 0.4);
+		const glowB = Math.round(bgB * 0.6 + orangeB * 0.4);
+		return [glowR, glowG, glowB, Math.round(baseAlpha * 255)];
+	}
+
+	if (hasBorder) {
+		return [borderR, borderG, borderB, Math.round(baseAlpha * 255)];
+	}
+
+	return [bgR, bgG, bgB, Math.round(baseAlpha * 255)];
 }
 
 const assetsDir = path.resolve('static/assets');
 if (!fs.existsSync(assetsDir)) fs.mkdirSync(assetsDir, { recursive: true });
 
-console.log('🖼️ Generating PWA Icons...');
+console.log('🏰 Generating Orange Lucide Castle PWA Icons & Favicon...');
 
-const icon192 = createPng(192, 192, (x, y, s) => getCastlePixel(x, y, s, false));
+// 1. icon-192.png (PWA standard any)
+const icon192 = createPng(192, 192, (x, y, s) => getOrangeCastlePixel(x, y, s, false));
 fs.writeFileSync(path.join(assetsDir, 'icon-192.png'), icon192);
 console.log('✅ Created static/assets/icon-192.png (192x192, any)');
 
-const icon512 = createPng(512, 512, (x, y, s) => getCastlePixel(x, y, s, false));
+// 2. icon-512.png (PWA high-res any)
+const icon512 = createPng(512, 512, (x, y, s) => getOrangeCastlePixel(x, y, s, false));
 fs.writeFileSync(path.join(assetsDir, 'icon-512.png'), icon512);
 console.log('✅ Created static/assets/icon-512.png (512x512, any)');
 
-const iconMaskable512 = createPng(512, 512, (x, y, s) => getCastlePixel(x, y, s, true));
+// 3. icon-maskable-512.png (PWA adaptive maskable)
+const iconMaskable512 = createPng(512, 512, (x, y, s) => getOrangeCastlePixel(x, y, s, true));
 fs.writeFileSync(path.join(assetsDir, 'icon-maskable-512.png'), iconMaskable512);
 console.log('✅ Created static/assets/icon-maskable-512.png (512x512, maskable)');
 
-const favicon64 = createPng(64, 64, (x, y, s) => getCastlePixel(x, y, s, false));
+// 4. favicon.png (64x64 raster)
+const favicon64 = createPng(64, 64, (x, y, s) => getOrangeCastlePixel(x, y, s, false));
 fs.writeFileSync(path.resolve('static/favicon.png'), favicon64);
 console.log('✅ Created static/favicon.png (64x64)');
+
+// 5. SVG Favicons (crisp scalable vector)
+const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <rect width="32" height="32" rx="7" fill="#131826" />
+  <g transform="translate(4, 4)" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10 5V3" />
+    <path d="M14 5V3" />
+    <path d="M15 21v-3a3 3 0 0 0-6 0v3" />
+    <path d="M18 3v8" />
+    <path d="M18 5H6" />
+    <path d="M22 11H2" />
+    <path d="M22 9v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9" />
+    <path d="M6 3v8" />
+  </g>
+</svg>
+`;
+
+fs.writeFileSync(path.resolve('static/favicon.svg'), svgContent);
+console.log('✅ Created static/favicon.svg');
+
+const libAssetsDir = path.resolve('src/lib/assets');
+if (!fs.existsSync(libAssetsDir)) fs.mkdirSync(libAssetsDir, { recursive: true });
+fs.writeFileSync(path.join(libAssetsDir, 'favicon.svg'), svgContent);
+console.log('✅ Updated src/lib/assets/favicon.svg');

@@ -56,8 +56,20 @@ describe('PWA manifest icons & maskable compliance (PWA-v10 § 4)', () => {
 		}
 	});
 
-	it('статичний favicon.png існує', () => {
+	it('статичний favicon.png та вектори favicon.svg існують з іконкою Lucide Castle', () => {
 		const favPath = resolve(root, 'static/favicon.png');
 		expect(existsSync(favPath)).toBe(true);
+
+		const staticSvg = resolve(root, 'static/favicon.svg');
+		expect(existsSync(staticSvg)).toBe(true);
+		const staticSvgContent = readFileSync(staticSvg, 'utf8');
+		expect(staticSvgContent).toContain('#f97316'); // Orange stroke
+		expect(staticSvgContent).toContain('M15 21v-3a3 3 0 0 0-6 0v3'); // Castle gate
+
+		const libSvg = resolve(root, 'src/lib/assets/favicon.svg');
+		expect(existsSync(libSvg)).toBe(true);
+		const libSvgContent = readFileSync(libSvg, 'utf8');
+		expect(libSvgContent).toContain('#f97316');
+		expect(libSvgContent).toContain('M15 21v-3a3 3 0 0 0-6 0v3');
 	});
 });

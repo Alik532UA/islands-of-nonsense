@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { AA_LARGE, AA_NORMAL, contrast, luminance, parseColor } from '$lib/utils/contrast';
+import { AA_LARGE, AA_NORMAL, contrast, parseColor } from '$lib/utils/contrast';
 
 /**
  * Тести контрасту кольорів для ВСІХ 4 тем оформлення (UI-UX-v10, WCAG 2.x).
