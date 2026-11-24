@@ -14,6 +14,8 @@ concurrency:
 jobs:
   bundle-budget:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     timeout-minutes: 15
     steps:
       - name: Checkout

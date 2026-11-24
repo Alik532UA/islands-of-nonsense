@@ -1222,7 +1222,6 @@
 						<Sliders class="w-3.5 h-3.5" />
 						<span>Налаштувати</span>
 					</button>
-				</div>
 			</div>
 		</div>
 
