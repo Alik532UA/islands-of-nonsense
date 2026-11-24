@@ -3,6 +3,7 @@ import type { Simulation } from '../engine/simulation';
 import type { Unit } from '../engine/types';
 import { CELL_SIZE } from '../engine/constants';
 import type { SelectedEntity } from './entityRenderer';
+import { drawRaceWorkerModel } from './workerModels';
 
 /**
  * UnitRenderer handles rendering of workers, combat units, stylized 2.5D archetypes
@@ -113,56 +114,6 @@ export class UnitRenderer {
 				g.fill({ color: playerColor, alpha: 0.09 });
 			}
 
-			// Striding Boots
-			const stepShift = distToTarget > 6 ? Math.sin(this.sim.gameTime * 14 + slot) * 3.5 : 0;
-			g.roundRect(wx - 7 + stepShift, wy + 10 + bob * 0.4, 5, 6, 2);
-			g.roundRect(wx + 2 - stepShift, wy + 10 + bob * 0.4, 5, 6, 2);
-			g.fill({ color: 0x292524 });
-
-			// Worker Body & Tunic
-			g.beginPath();
-			g.roundRect(wx - 9, wy - 5 + bob, 18, 17, 5);
-			g.fill({ color: playerColor });
-			g.stroke({ color: 0x0f172a, width: 1.5 });
-			g.beginPath();
-			g.roundRect(wx - 7, wy - 4 + bob, 14, 6, 3);
-			g.fill({ color: 0xffffff, alpha: 0.22 });
-
-			// Leather toolbelt & brass buckle
-			g.beginPath();
-			g.rect(wx - 8, wy + 5 + bob, 16, 3);
-			g.fill({ color: 0x78350f });
-			g.rect(wx - 2, wy + 4.5 + bob, 4, 4);
-			g.fill({ color: 0xfbbf24 });
-
-			// Head & Skin Color
-			const race = player.race?.toLowerCase() || '';
-			const skinColor = race.includes('орк')
-				? 0x16a34a
-				: race.includes('нежить')
-					? 0x94a3b8
-					: race.includes('ельф')
-						? 0xfef08a
-						: 0xfcd34d;
-			g.beginPath();
-			g.circle(wx, wy - 11 + bob, 8);
-			g.fill({ color: skinColor });
-			g.stroke({ color: 0x78350f, width: 1.2 });
-
-			// Builder cap
-			g.poly([
-				wx - 8,
-				wy - 13 + bob,
-				wx + 8,
-				wy - 13 + bob,
-				wx + 5,
-				wy - 19 + bob,
-				wx - 5,
-				wy - 19 + bob
-			]);
-			g.fill({ color: this.shadeHexColor(playerColor, 0.72) });
-			g.stroke({ color: 0x0f172a, width: 1.2 });
-
 			let facing = isWest ? 1 : -1;
 			if (w.isBuilding && w.targetBuildingId) {
 				const bld = this.sim.buildings.find((b) => b.instanceId === w.targetBuildingId);
@@ -176,36 +127,19 @@ export class UnitRenderer {
 				facing = w.targetX < w.x ? -1 : 1;
 			}
 
-			// Eyes
-			g.beginPath();
-			g.circle(wx + facing * 3, wy - 11 + bob, 2.2);
-			g.fill({ color: 0x0f172a });
-			g.beginPath();
-			g.circle(wx + facing * 3.4, wy - 11.6 + bob, 0.9);
-			g.fill({ color: 0xffffff });
-
-			// Hammer
-			const isSwinging = w.isBuilding || w.isRepairing;
-			const hammerSwing = isSwinging ? Math.sin(this.sim.gameTime * 20 + slot) * 14 : 0;
-			const hx = wx + facing * 12;
-			const hy = wy + bob - 3 + hammerSwing;
-
-			g.beginPath();
-			g.moveTo(hx - facing * 3, hy + 9);
-			g.lineTo(hx + facing * 4, hy - 5);
-			g.stroke({ color: 0x92400e, width: 3 });
-			g.beginPath();
-			g.rect(facing === 1 ? hx + 1 : hx - 9, hy - 8, 8, 6);
-			g.fill({ color: 0x94a3b8 });
-			g.stroke({ color: 0x334155, width: 1 });
-
-			if (isSwinging) {
-				const spX = hx + facing * 6 + Math.sin(this.sim.gameTime * 30) * 6;
-				const spY = hy + Math.cos(this.sim.gameTime * 30) * 6;
-				g.beginPath();
-				g.circle(spX, spY, 3);
-				g.fill({ color: 0xfef08a });
-			}
+			drawRaceWorkerModel({
+				g,
+				wx,
+				wy,
+				bob,
+				facing,
+				isMoving: distToTarget > 6,
+				isSwinging: Boolean(w.isBuilding || w.isRepairing),
+				slot,
+				time: this.sim.gameTime,
+				playerColor,
+				race: player.race
+			});
 		}
 	}
 

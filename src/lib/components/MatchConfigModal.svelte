@@ -83,7 +83,7 @@
 			coinSpawnInterval === 40 &&
 			coinCount === 1 &&
 			!botVsBot &&
-			(westRace === 'in_game' || westRace === 'Люди') &&
+			(westRace === 'in_game' || westRace === 'Альянс' || westRace === 'Люди') &&
 			eastRace === 'random' &&
 			selectedMode === 'standard' &&
 			bannedRaces.length === 0

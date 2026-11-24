@@ -887,7 +887,7 @@
 			clearInterval(countdownTimer);
 			countdownTimer = null;
 		}
-		const finalRace = chosenWestRace || 'Люди';
+		const finalRace = chosenWestRace || 'Альянс';
 		sim.setPlayerRace('west', finalRace);
 		matchPhase = 'BATTLE';
 		sim.isRunning = true;

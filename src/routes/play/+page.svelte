@@ -5,7 +5,8 @@
 	import { t } from '$lib/i18n';
 	import { settings } from '$lib/services/settings.svelte';
 	import { storage } from '$lib/services/storage';
-	import type { SimulationConfig } from '$lib/engine/simulation';
+	import { type SimulationConfig } from '$lib/engine/simulation';
+	import { PLAYABLE_RACES } from '$lib/engine/gameData';
 	import MatchConfigModal from '$lib/components/MatchConfigModal.svelte';
 
 	// State for MatchConfigModal
@@ -38,32 +39,12 @@
 	const PLAYER_RACES = [
 		{ id: 'in_game', label: 'В грі (15с)' },
 		{ id: 'random', label: 'Випадкова' },
-		{ id: 'Люди', label: 'Люди' },
-		{ id: 'Наги', label: 'Наги' },
-		{ id: 'Хаос', label: 'Хаос' },
-		{ id: 'Ельфи', label: 'Ельфи' },
-		{ id: 'Нежить', label: 'Нежить' },
-		{ id: 'Орки', label: 'Орки' },
-		{ id: 'Північ', label: 'Північ' },
-		{ id: 'Порча', label: 'Порча' },
-		{ id: 'Нічні ельфи', label: 'Нічні ельфи' },
-		{ id: 'Техніки', label: 'Техніки' },
-		{ id: 'Збирачі', label: 'Збирачі' }
+		...PLAYABLE_RACES.map((race) => ({ id: race, label: race }))
 	] as const;
 
 	const BOT_RACES = [
 		{ id: 'random', label: 'Випадкова' },
-		{ id: 'Люди', label: 'Люди' },
-		{ id: 'Наги', label: 'Наги' },
-		{ id: 'Хаос', label: 'Хаос' },
-		{ id: 'Ельфи', label: 'Ельфи' },
-		{ id: 'Нежить', label: 'Нежить' },
-		{ id: 'Орки', label: 'Орки' },
-		{ id: 'Північ', label: 'Північ' },
-		{ id: 'Порча', label: 'Порча' },
-		{ id: 'Нічні ельфи', label: 'Нічні ельфи' },
-		{ id: 'Техніки', label: 'Техніки' },
-		{ id: 'Збирачі', label: 'Збирачі' }
+		...PLAYABLE_RACES.map((race) => ({ id: race, label: race }))
 	] as const;
 
 	// Mode 1: vsBot state

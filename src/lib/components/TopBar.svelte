@@ -82,7 +82,7 @@
 		Math.max(0, Math.min(100, Math.round((eastHp / (eastMaxHp || 1)) * 100)))
 	);
 
-	let raceAbility = $derived(uiTick >= 0 ? getRaceAbility(player.race) : getRaceAbility('Люди'));
+	let raceAbility = $derived(uiTick >= 0 ? getRaceAbility(player.race) : getRaceAbility('Альянс'));
 	let canCastRaceSkill = $derived(uiTick >= 0 ? sim.canUseRaceSkill('west') : false);
 
 	const availableSpeeds = [1, 2, 3, 5, 10, 50, 100];

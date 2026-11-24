@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { RaceRegistry, type CustomRaceDefinition } from './raceRegistry.js';
+import { PLAYABLE_RACES, RACES_LIST, getBaseBuildingsForRace } from './gameData';
+import { getRaceAbility } from './raceAbilities';
+import { getRacePalette } from '../renderer/buildingModels';
 
 describe('RaceRegistry & Extensible Faction Verification', () => {
 	let registry: RaceRegistry;
@@ -63,5 +66,31 @@ describe('RaceRegistry & Extensible Faction Verification', () => {
 		const list = registry.list();
 		expect(list.length).toBe(1);
 		expect(list[0].id).toBe('celestial');
+	});
+
+	it('enforces the canonical 12 playable races across data, abilities, and building visuals', () => {
+		const expectedCanonicalRaces = [
+			'Нежить',
+			'Орки',
+			'Демони',
+			'Техніки',
+			'Північ',
+			'Ельфи',
+			'Небожителі',
+			'Тролі',
+			'Елементалі',
+			'Тварини',
+			'Наги',
+			'Альянс'
+		] as const;
+
+		expect(PLAYABLE_RACES).toEqual(expectedCanonicalRaces);
+
+		for (const race of PLAYABLE_RACES) {
+			expect(RACES_LIST.some((r) => r.race === race)).toBe(true);
+			expect(getRaceAbility(race).race).toBe(race);
+			expect(getBaseBuildingsForRace(race).length).toBeGreaterThanOrEqual(11);
+			expect(getRacePalette(race).style).toBe(race);
+		}
 	});
 });

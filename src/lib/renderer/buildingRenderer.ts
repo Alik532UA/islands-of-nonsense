@@ -2,12 +2,14 @@ import type { Graphics } from 'pixi.js';
 import type { Simulation } from '../engine/simulation';
 import type { Castle } from '../engine/types';
 import { CELL_SIZE } from '../engine/constants';
-import { getBuildingVisualRank } from '../engine/gameData';
+import { BUILDINGS_MAP, getBuildingVisualRank, isLegendaryBuilding } from '../engine/gameData';
 import type { SelectedEntity } from './entityRenderer';
+import { drawIndividualBuildingModel, shadeHexColor } from './buildingModels';
 
 /**
- * BuildingRenderer handles rendering of placed buildings, construction scaffolding,
- * health bars, upgrade rank gems, and multi-stage authentic castle fortresses.
+ * BuildingRenderer handles rendering of placed buildings via individual 2.5D Warcraft III-style
+ * architectural silhouettes (delegated to buildingModels), construction scaffolding overlays,
+ * status bars, and multi-stage castle fortresses.
  */
 export class BuildingRenderer {
 	private sim: Simulation;
@@ -21,7 +23,7 @@ export class BuildingRenderer {
 	}
 
 	// =========================================================================
-	// 1. 2.5D SPYRO-STYLED BUILDINGS LAYER
+	// 1. 2.5D STYLIZED RTS BUILDINGS LAYER
 	// =========================================================================
 	public drawBuildingsLayer(
 		g: Graphics,
@@ -30,6 +32,7 @@ export class BuildingRenderer {
 		bounds?: { minX: number; minY: number; maxX: number; maxY: number }
 	): void {
 		g.clear();
+		const time = this.sim.gameTime;
 
 		for (const b of this.sim.buildings) {
 			if (
@@ -48,222 +51,55 @@ export class BuildingRenderer {
 			) {
 				continue;
 			}
+
 			const px = b.x;
 			const py = b.y;
+			const half = CELL_SIZE / 2;
 			const isWest = b.team === 'west';
 			const isSelected = selectedPlacedId === b.instanceId;
 
-			// 1. 2.5D Drop Shadow on grass
-			g.roundRect(px + 4, py + 8, CELL_SIZE, CELL_SIZE, 8);
-			g.fill({ color: 0x000000, alpha: 0.35 });
-
-			// Selection halo
-			if (isSelected) {
-				g.beginPath();
-				g.roundRect(px - 3, py - 3, CELL_SIZE + 6, CELL_SIZE + 6, 10);
-				g.stroke({ color: 0xf59e0b, width: 3.5 });
-			}
-
-			// 2. Volumetric Stone Foundation Slab (2x2 footprint)
-			g.beginPath();
-			g.roundRect(px, py + 4, CELL_SIZE, CELL_SIZE - 4, 6);
-			g.fill({ color: 0x475569 });
-			g.beginPath();
-			g.roundRect(px, py, CELL_SIZE, CELL_SIZE - 4, 6);
-			g.fill({ color: 0x64748b });
-			g.stroke({ color: isSelected ? 0xfbbf24 : 0x334155, width: 2 });
-
-			// Mortar cross-lines dividing the 2x2 quadrants
-			const half = CELL_SIZE / 2;
-			g.beginPath();
-			g.moveTo(px + half, py + 2);
-			g.lineTo(px + half, py + CELL_SIZE - 6);
-			g.stroke({ color: 0x334155, width: 1.5, alpha: 0.6 });
-			g.beginPath();
-			g.moveTo(px + 2, py + half - 2);
-			g.lineTo(px + CELL_SIZE - 2, py + half - 2);
-			g.stroke({ color: 0x334155, width: 1.5, alpha: 0.6 });
-
-			// 3. Steep-Pitched 2.5D Shingled Roof with Real Player/Bot Color
 			const player = b.playerSlot
 				? this.sim.allPlayers.find((p) => p.slot === b.playerSlot)
 				: this.sim.players[b.team];
 			const playerColor = player?.color?.num ?? (isWest ? 0x0042ff : 0xff0303);
 
-			g.roundRect(px + 6, py + 5, CELL_SIZE - 12, CELL_SIZE - 14, 5);
-			g.fill({ color: playerColor });
-			// Roof top highlight
-			g.roundRect(px + 8, py + 6, CELL_SIZE - 16, (CELL_SIZE - 14) / 2, 4);
-			g.fill({ color: 0xffffff, alpha: 0.22 });
-
-			// 4 Corner Stone Bastions with Verdigris Caps
-			const cornerPositions = [
-				{ x: px + 2, y: py + 2 },
-				{ x: px + CELL_SIZE - 14, y: py + 2 },
-				{ x: px + 2, y: py + CELL_SIZE - 16 },
-				{ x: px + CELL_SIZE - 14, y: py + CELL_SIZE - 16 }
-			];
-			for (const cp of cornerPositions) {
-				g.beginPath();
-				g.roundRect(cp.x, cp.y, 12, 12, 3);
-				g.fill({ color: 0x94a3b8 });
-				g.stroke({ color: 0x334155, width: 1 });
-				g.beginPath();
-				g.circle(cp.x + 6, cp.y + 6, 4);
-				g.fill({ color: 0x0f766e });
-			}
-
-			// 4. Central Tactical Dice Pip Face / Special Emblem
-			// Clearly conveys building strength/tier (1..6 dice pips) and building role
-			const cx = px + half;
-			const cy = py + half;
 			const rankInfo = getBuildingVisualRank(b.defId, b.race);
 			const isUpgraded = rankInfo.isUpgrade;
+			const isLegendary = isLegendaryBuilding(BUILDINGS_MAP.get(b.defId));
 
-			// Inset emblem panel
-			g.beginPath();
-			g.roundRect(cx - 13, cy - 13, 26, 26, 4);
-			g.fill({ color: 0x090d16, alpha: 0.85 });
-			g.stroke({
-				color: isUpgraded ? 0xf59e0b : 0x475569,
-				width: isUpgraded ? 2 : 1
-			});
+			// Individual 2.5D Building Silhouette (no uniform square box slab)
+			drawIndividualBuildingModel(
+				g,
+				b,
+				playerColor,
+				rankInfo.rank,
+				isUpgraded,
+				isLegendary,
+				isSelected,
+				time
+			);
 
-			// If upgraded building: golden chevron rank indicator above dice
-			if (isUpgraded) {
-				g.beginPath();
-				g.moveTo(cx - 6, cy - 14);
-				g.lineTo(cx, cy - 19);
-				g.lineTo(cx + 6, cy - 14);
-				g.stroke({ color: 0xfbbf24, width: 2 });
-			}
-
-			if (rankInfo.specialType) {
-				switch (rankInfo.specialType) {
-					case 'tower':
-						// Stone battlements and glowing arrow slit
-						g.beginPath();
-						g.roundRect(cx - 6, cy - 1, 12, 8, 1);
-						g.fill({ color: 0x94a3b8 });
-						g.beginPath();
-						g.rect(cx - 7, cy - 6, 4, 5);
-						g.rect(cx + 3, cy - 6, 4, 5);
-						g.fill({ color: 0x94a3b8 });
-						g.beginPath();
-						g.rect(cx - 1, cy + 1, 2, 4);
-						g.fill({ color: 0xfef08a });
-						break;
-					case 'treasure':
-						// Golden embossed treasure coin
-						g.beginPath();
-						g.circle(cx, cy, 7);
-						g.fill({ color: 0xf59e0b });
-						g.stroke({ color: 0xfde047, width: 1.5 });
-						g.beginPath();
-						g.circle(cx, cy, 3);
-						g.fill({ color: 0xffffff });
-						break;
-					case 'repair':
-						// Emerald restorative cross
-						g.beginPath();
-						g.roundRect(cx - 2.5, cy - 7, 5, 14, 1);
-						g.roundRect(cx - 7, cy - 2.5, 14, 5, 1);
-						g.fill({ color: 0x10b981 });
-						break;
-					case 'recycler':
-					default:
-						// Salvage recycling triangular nodes
-						for (let a = 0; a < 3; a++) {
-							const ang = a * ((Math.PI * 2) / 3) - Math.PI / 2;
-							g.beginPath();
-							g.circle(cx + Math.cos(ang) * 6, cy + Math.sin(ang) * 6, 2.5);
-							g.fill({ color: 0x38bdf8 });
-						}
-						break;
-				}
-			} else {
-				// Dice pips 1..6 representing building tier
-				const pipColor = isUpgraded ? 0xfbbf24 : 0xf8fafc;
-				const pipGlow = isUpgraded ? 0xfef08a : 0xffffff;
-				const d = 6;
-				const pipR = 2.4;
-
-				const drawPip = (x: number, y: number) => {
-					g.beginPath();
-					g.circle(x, y, pipR);
-					g.fill({ color: pipColor });
-					g.beginPath();
-					g.circle(x - 0.5, y - 0.5, 1);
-					g.fill({ color: pipGlow });
-				};
-
-				switch (rankInfo.rank) {
-					case 1:
-						drawPip(cx, cy);
-						break;
-					case 2:
-						drawPip(cx - d, cy - d);
-						drawPip(cx + d, cy + d);
-						break;
-					case 3:
-						drawPip(cx - d, cy - d);
-						drawPip(cx, cy);
-						drawPip(cx + d, cy + d);
-						break;
-					case 4:
-						drawPip(cx - d, cy - d);
-						drawPip(cx + d, cy - d);
-						drawPip(cx - d, cy + d);
-						drawPip(cx + d, cy + d);
-						break;
-					case 5:
-						drawPip(cx - d, cy - d);
-						drawPip(cx + d, cy - d);
-						drawPip(cx, cy);
-						drawPip(cx - d, cy + d);
-						drawPip(cx + d, cy + d);
-						break;
-					case 6:
-					default:
-						drawPip(cx - d, cy - d);
-						drawPip(cx + d, cy - d);
-						drawPip(cx - d, cy);
-						drawPip(cx + d, cy);
-						drawPip(cx - d, cy + d);
-						drawPip(cx + d, cy + d);
-						break;
-				}
-			}
-
-			// Arched doorway facing movement direction
-			const doorX = isWest ? px + CELL_SIZE - 5 : px + 1;
-			const doorY = py + half - 6;
-			g.beginPath();
-			g.roundRect(doorX, doorY, 4, 12, 2);
-			g.fill({ color: 0x0f172a });
-
-			// Under construction visual overlay & scaffolding
+			// Under-Construction Blueprint / Scaffolding Overlay
 			if (b.isUnderConstruction) {
 				const isGhost = (b.buildProgress || 0) === 0;
 				if (isGhost) {
 					g.beginPath();
-					g.roundRect(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4, 6);
-					g.fill({ color: 0x0284c7, alpha: 0.45 });
-					g.stroke({ color: 0x38bdf8, width: 2, alpha: 0.85 });
+					g.roundRect(px + 4, py + 4, CELL_SIZE - 8, CELL_SIZE - 8, 10);
+					g.fill({ color: 0x0284c7, alpha: 0.42 });
+					g.stroke({ color: 0x38bdf8, width: 2, alpha: 0.9 });
 
-					// Shift-Queue Indicator badge for queued foundations
 					const worker = this.sim.players[b.team]?.worker;
 					const queueIdx = worker?.buildQueue?.indexOf(b.instanceId) ?? -1;
 					if (queueIdx >= 0) {
 						g.beginPath();
-						g.circle(px + CELL_SIZE - 12, py + 12, 7);
+						g.circle(px + CELL_SIZE - 12, py + 12, 6.5);
 						g.fill({ color: 0xf59e0b });
 						g.stroke({ color: 0xfef08a, width: 1.5 });
 					}
 				} else {
 					g.beginPath();
-					g.roundRect(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4, 6);
-					g.fill({ color: 0x78350f, alpha: 0.65 });
+					g.roundRect(px + 5, py + 5, CELL_SIZE - 10, CELL_SIZE - 10, 8);
+					g.fill({ color: 0x78350f, alpha: 0.52 });
 					g.stroke({ color: 0xd97706, width: 2 });
 
 					for (let sx = 0; sx < 2; sx++) {
@@ -271,13 +107,11 @@ export class BuildingRenderer {
 							const qx = px + sx * half;
 							const qy = py + sy * half;
 							g.beginPath();
-							g.moveTo(qx + 4, qy + 4);
-							g.lineTo(qx + half - 4, qy + half - 4);
-							g.stroke({ color: 0xfbbf24, width: 2, alpha: 0.85 });
-							g.beginPath();
-							g.moveTo(qx + half - 4, qy + 4);
-							g.lineTo(qx + 4, qy + half - 4);
-							g.stroke({ color: 0xfbbf24, width: 2, alpha: 0.85 });
+							g.moveTo(qx + 6, qy + 6);
+							g.lineTo(qx + half - 6, qy + half - 6);
+							g.moveTo(qx + half - 6, qy + 6);
+							g.lineTo(qx + 6, qy + half - 6);
+							g.stroke({ color: 0xfbbf24, width: 1.8, alpha: 0.85 });
 						}
 					}
 				}
@@ -286,9 +120,9 @@ export class BuildingRenderer {
 				const bMax = b.maxBuildProgress || 3.5;
 				const progPct = Math.max(0, Math.min(1, bProg / bMax));
 
-				const barX = px + 4;
-				const barY = py - 8;
-				const barW = CELL_SIZE - 8;
+				const barX = px + 6;
+				const barY = py - 9;
+				const barW = CELL_SIZE - 12;
 				const barH = 4;
 
 				g.roundRect(barX - 1, barY - 1, barW + 2, barH + 2, 2);
@@ -296,11 +130,10 @@ export class BuildingRenderer {
 				g.roundRect(barX, barY, barW * progPct, barH, 1.5);
 				g.fill({ color: 0xf59e0b });
 			} else {
-				// Horizontal HP status bar across top of building
 				const hpPct = Math.max(0, Math.min(1, b.hp / b.maxHp));
-				const barX = px + 4;
-				const barY = py - 8;
-				const barW = CELL_SIZE - 8;
+				const barX = px + 6;
+				const barY = py - 9;
+				const barW = CELL_SIZE - 12;
 				const barH = 4;
 
 				g.roundRect(barX - 1, barY - 1, barW + 2, barH + 2, 2);
@@ -316,15 +149,15 @@ export class BuildingRenderer {
 			if (!b.isUnderConstruction && b.spawnCooldown > 0) {
 				const pct = Math.max(0, Math.min(1, (b.spawnTimer || 0) / b.spawnCooldown));
 				const vBarX = px + CELL_SIZE + 2;
-				const vBarY = py + 4;
+				const vBarY = py + 6;
 				const vBarW = 4;
-				const vBarH = CELL_SIZE - 8;
+				const vBarH = CELL_SIZE - 12;
 
 				g.roundRect(vBarX - 1, vBarY - 1, vBarW + 2, vBarH + 2, 2);
 				g.fill({ color: 0x090d16 });
 				if (pct > 0) {
 					const fillH = Math.max(2, Math.round(vBarH * pct));
-					const fillY = vBarY + vBarH - fillH; // Fills vertically upwards from bottom to top
+					const fillY = vBarY + vBarH - fillH;
 					g.roundRect(vBarX, fillY, vBarW, fillH, 1.5);
 					g.fill({ color: 0x38bdf8 });
 				}
@@ -340,14 +173,7 @@ export class BuildingRenderer {
 	}
 
 	private shadeHexColor(hex: number, factor: number): number {
-		const r0 = (hex >> 16) & 0xff;
-		const g0 = (hex >> 8) & 0xff;
-		const b0 = hex & 0xff;
-		const mix = (c: number) =>
-			factor >= 1
-				? Math.min(255, Math.round(c + (255 - c) * Math.min(1, factor - 1)))
-				: Math.max(0, Math.round(c * Math.max(0, factor)));
-		return (mix(r0) << 16) | (mix(g0) << 8) | mix(b0);
+		return shadeHexColor(hex, factor);
 	}
 
 	private drawTowerTurret(
