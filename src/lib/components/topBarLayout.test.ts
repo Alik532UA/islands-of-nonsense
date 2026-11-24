@@ -47,13 +47,31 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 	});
 
 	it('speed controls are decoupled from center banner to prevent squeezing round info', () => {
-		// Speed controls must have shrink-0 and reside in the controls/resource section
+		// Speed controls must have shrink-0 and reside in the controls/resource section, hidden in online matches
+		expect(topBarContent).toContain('{#if !isOnline}');
 		expect(topBarContent).toContain('data-testid="speed-controls"');
 		expect(topBarContent).toContain(
 			'<!-- 3. RIGHT: Controls, Resources Bar & Castle HP Meters -->'
 		);
 		expect(topBarContent).toContain('data-testid="resource-boxes"');
 		expect(topBarContent).toContain('data-testid="castle-hp-meters"');
+	});
+
+	it('includes full speed range [1, 2, 3, 5, 10, 50, 100] across all environments with hover dropdown', () => {
+		expect(topBarContent).toContain('const availableSpeeds = [1, 2, 3, 5, 10, 50, 100];');
+		expect(topBarContent).toContain('group/speed');
+	});
+
+	it('removes periodic gold income progress bar from resource boxes to maximize space', () => {
+		expect(topBarContent).not.toContain('title="Періодичний дохід золота');
+		expect(topBarContent).not.toContain('style="width: {incomePct}%"');
+	});
+
+	it('left navigation buttons are icon-only with custom stylish floating tooltips', () => {
+		expect(topBarContent).not.toContain('<span class="hidden md:inline">Довідник</span>');
+		expect(topBarContent).not.toContain('<span class="hidden md:inline">Кузня</span>');
+		expect(topBarContent).not.toContain('<span class="hidden md:inline">Магазин</span>');
+		expect(topBarContent).toContain('group/tip');
 	});
 
 	it('castle HP meters use responsive width (w-24 / xl:w-28 / 2xl:w-32) preventing overflow on standard resolutions', () => {
