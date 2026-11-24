@@ -18,11 +18,15 @@
 	let {
 		sim,
 		uiTick = 0,
+		isOnline = false,
+		isOnlineHost = true,
 		onNextRound,
 		onReselectCommander
 	}: {
 		sim: Simulation;
 		uiTick?: number;
+		isOnline?: boolean;
+		isOnlineHost?: boolean;
 		onNextRound: () => void;
 		onReselectCommander?: () => void;
 	} = $props();
@@ -53,7 +57,9 @@
 			} else {
 				countdown = 0;
 				clearInterval(timer);
-				onNextRound();
+				if (!isOnline || isOnlineHost) {
+					onNextRound();
+				}
 			}
 		}, 1000);
 

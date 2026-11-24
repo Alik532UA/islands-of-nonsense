@@ -14,6 +14,8 @@ export const VALID_ACTION_TYPES = [
 	'SURRENDER',
 	'PAUSE',
 	'RESUME',
+	'NEXT_ROUND',
+	'RESTART_MATCH',
 	'HEARTBEAT',
 	'CHECKSUM',
 	'CHAT'
@@ -171,6 +173,13 @@ export function validatePlayerMove(raw: unknown): ValidationResult {
 			return { valid: false, error: 'Invalid race value' };
 		}
 		sanitizedPayload.race = p.race.trim();
+	}
+
+	if ('round' in p) {
+		if (typeof p.round !== 'number' || !Number.isInteger(p.round) || p.round < 1 || p.round > 20) {
+			return { valid: false, error: 'Invalid round value' };
+		}
+		sanitizedPayload.round = p.round;
 	}
 
 	return {

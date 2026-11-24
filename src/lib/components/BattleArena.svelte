@@ -38,7 +38,6 @@
 	import type { MatchSync } from '$lib/net/matchSync';
 	import {
 		BATTLE_COMMAND_ROUTER_KEY,
-		applyOnlineRosterToSimulation,
 		createOnlineSimulation,
 		type BattleCommandRouter
 	} from '$lib/net/onlineMatchSetup';
@@ -189,19 +188,27 @@
 	let allowNavigation = false;
 
 	function openPauseMenu() {
-		sim.isRunning = false;
+		if (!matchSync) {
+			sim.isRunning = false;
+		}
 		isPauseMenuOpen = true;
 		uiTick = sim.stateVersion;
 	}
 
 	function resumeFromPauseMenu() {
 		isPauseMenuOpen = false;
-		sim.isRunning = true;
+		if (!matchSync) {
+			sim.isRunning = true;
+		}
 		uiTick = sim.stateVersion;
 	}
 
 	function handleRestartMatch() {
 		isPauseMenuOpen = false;
+		if (matchSync) {
+			void matchSync.dispatch('RESTART_MATCH');
+			return;
+		}
 		handleStartNewMatch(sim.config);
 	}
 
@@ -224,6 +231,7 @@
 	let unlistenAudio: (() => void) | null = null;
 	let stopOnlineStatusWatch: (() => void) | null = null;
 	let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+	let isOnlineHost = $state(false);
 	let peerOnline = $state(false);
 	let peerPingMs = $state<number | null>(null);
 	let networkNotice = $state<string | null>(null);
@@ -382,8 +390,16 @@
 				uiTick = sim.stateVersion;
 			} else if (letter === 'p' && !e.repeat && !hasBlockingModal) {
 				e.preventDefault();
-				sim.isRunning = !sim.isRunning;
-				battleAnnouncer.announce(sim.isRunning ? 'Гру відновлено' : 'Гру призупинено', 'polite');
+				if (matchSync) {
+					void matchSync.dispatch(sim.isRunning ? 'PAUSE' : 'RESUME');
+					battleAnnouncer.announce(
+						sim.isRunning ? 'Надіслано запит паузи' : 'Надіслано запит відновлення',
+						'polite'
+					);
+				} else {
+					sim.isRunning = !sim.isRunning;
+					battleAnnouncer.announce(sim.isRunning ? 'Гру відновлено' : 'Гру призупинено', 'polite');
+				}
 				uiTick = sim.stateVersion;
 			} else if (letter === 'f' && !e.repeat && (!isWorkerGridActive || e.altKey)) {
 				openExclusiveModal('forge', true);
@@ -618,6 +634,7 @@
 
 				const transport = await liveNet.roomTransport(urlRoom);
 				let onlineStarted = Boolean(roomInfo?.status === 'playing');
+				isOnlineHost = Boolean(roomInfo?.hostUid === uid);
 				matchSync = new MS({
 					sim,
 					transport,
@@ -625,6 +642,7 @@
 					localTeam: roomLocalTeam,
 					localSlot: roomLocalSlot,
 					uidToSlot: onlineInit?.uidToSlot,
+					commandLeadTicks: 3,
 					onPeerStatusChange: (status) => {
 						peerOnline = status.online;
 						if (status.online && networkNotice?.includes('офлайн')) {
@@ -643,17 +661,35 @@
 					onGone: (reason) => {
 						networkNotice = `Мережева сесія завершена: ${reason}`;
 					},
-					onCommandApplied: () => {
+					onCommandApplied: (move) => {
+						if (move.type === 'NEXT_ROUND' || move.type === 'RESTART_MATCH') {
+							selectedBuildingId = null;
+							selectedPlacedBuildingId = null;
+							selectedUnitId = null;
+							selectedEntity = null;
+							isCommanderOpen = false;
+							isForgeOpen = false;
+							isShopOpen = false;
+							renderer?.resetCastleVisuals();
+						}
 						uiTick = sim.stateVersion;
 					}
 				});
 
 				stopOnlineStatusWatch = transport.watch((snap) => {
+					isOnlineHost = snap.info.hostUid === uid;
 					if (snap.info.status === 'playing' && !onlineStarted) {
 						onlineStarted = true;
-						const rosterSync = applyOnlineRosterToSimulation(sim, snap.info, snap.members, uid);
-						matchSync?.setRosterSlots(rosterSync.uidToSlot);
-						controlledPlayerSlot = rosterSync.localSlot;
+						const fresh = createOnlineSimulation(snap.info, snap.members, uid);
+						sim = fresh.sim;
+						matchSync?.setRosterSlots(fresh.uidToSlot);
+						matchSync?.setSimulation(sim);
+						controlledPlayerSlot = fresh.localSlot;
+						perfMonitor.attachSim(sim);
+						if (unlistenAudio) unlistenAudio();
+						unlistenAudio = attachAudioBridge(sim, sound);
+						renderer?.setSimulation(sim);
+						renderer?.resetCastleVisuals();
 						sim.isRunning = true;
 						sound.playHorn();
 						uiTick = sim.stateVersion;
@@ -795,12 +831,22 @@
 			lastTime = now;
 
 			if (sim.isRunning && !isSettingsOpen) {
-				accumulator += rawDelta * sim.speed;
+				const stepMultiplier = matchSync ? 1 : sim.speed;
+				accumulator += rawDelta * stepMultiplier;
 				let stepsCount = 0;
-				const subDt = sim.speed >= 50 ? 1 / 15 : sim.speed >= 10 ? 1 / 30 : FIXED_STEP;
-				const maxStepsPerFrame = sim.speed >= 50 ? 15 : sim.speed >= 10 ? 12 : 8;
+				const subDt = matchSync
+					? FIXED_STEP
+					: sim.speed >= 50
+						? 1 / 15
+						: sim.speed >= 10
+							? 1 / 30
+							: FIXED_STEP;
+				const maxStepsPerFrame = matchSync ? 8 : sim.speed >= 50 ? 15 : sim.speed >= 10 ? 12 : 8;
 
 				while (accumulator >= subDt && stepsCount < maxStepsPerFrame) {
+					if (matchSync) {
+						matchSync.flushTick(sim.tick);
+					}
 					sim.step(subDt);
 					if (matchSync && sim.tick > 0 && sim.tick % 300 === 0 && sim.tick !== lastChecksumTick) {
 						lastChecksumTick = sim.tick;
@@ -951,6 +997,14 @@
 	}
 
 	function handleNextRound() {
+		if (matchSync) {
+			if (sim.matchWinner) {
+				void matchSync.dispatch('RESTART_MATCH');
+			} else {
+				void matchSync.dispatch('NEXT_ROUND', { round: sim.round });
+			}
+			return;
+		}
 		if (sim.matchWinner) {
 			sim.startNewMatch();
 		} else {
@@ -1026,7 +1080,7 @@
 
 	function handleRequestLeave(targetUrl: string): boolean {
 		if (matchPhase === 'BATTLE' && sim.castles.west.hp > 0 && sim.castles.east.hp > 0) {
-			sim.isRunning = false;
+			if (!matchSync) sim.isRunning = false;
 			pendingLeaveUrl = targetUrl;
 			isPauseMenuOpen = false;
 			isLeaveModalOpen = true;
@@ -1046,7 +1100,12 @@
 	function handleCancelLeave() {
 		isLeaveModalOpen = false;
 		pendingLeaveUrl = null;
-		if (matchPhase === 'BATTLE' && sim.castles.west.hp > 0 && sim.castles.east.hp > 0) {
+		if (
+			!matchSync &&
+			matchPhase === 'BATTLE' &&
+			sim.castles.west.hp > 0 &&
+			sim.castles.east.hp > 0
+		) {
 			sim.isRunning = true;
 		}
 		uiTick = sim.stateVersion;
@@ -1056,7 +1115,7 @@
 		if (allowNavigation) return;
 		if (matchPhase === 'BATTLE' && sim.castles.west.hp > 0 && sim.castles.east.hp > 0) {
 			cancel();
-			sim.isRunning = false;
+			if (!matchSync) sim.isRunning = false;
 			pendingLeaveUrl = to?.url.pathname || resolve('/play');
 			isPauseMenuOpen = false;
 			isLeaveModalOpen = true;
@@ -1479,6 +1538,8 @@
 	<VictoryModal
 		{sim}
 		{uiTick}
+		isOnline={Boolean(matchSync)}
+		{isOnlineHost}
 		onNextRound={handleNextRound}
 		onReselectCommander={() => {
 			isCommanderOpen = true;

@@ -10,6 +10,7 @@ export interface MatchSyncOptions {
 	localTeam: 'west' | 'east';
 	localSlot?: number;
 	uidToSlot?: Record<string, number>;
+	commandLeadTicks?: number;
 	onCommandApplied?: (move: Move) => void;
 	onGone?: (reason: string) => void;
 	onPeerStatusChange?: (status: { peerUid: string; online: boolean }) => void;
@@ -18,6 +19,17 @@ export interface MatchSyncOptions {
 }
 
 const MAX_CHECKPOINT_HISTORY = 40;
+
+const IMMEDIATE_MOVE_TYPES = new Set([
+	'HEARTBEAT',
+	'CHECKSUM',
+	'CHAT',
+	'PAUSE',
+	'RESUME',
+	'SURRENDER',
+	'NEXT_ROUND',
+	'RESTART_MATCH'
+]);
 
 export function computeSimStateChecksum(sim: Simulation): string {
 	const westHp = Math.round(sim.castles?.west?.hp ?? 0);
@@ -32,9 +44,10 @@ export function computeSimStateChecksum(sim: Simulation): string {
 		)
 		.join('|');
 	const buildingsCount = sim.buildings?.length ?? 0;
+	const buildingsHp = (sim.buildings ?? []).reduce((sum, b) => sum + Math.round(b.hp), 0);
 	const unitsCount = sim.units?.length ?? 0;
 
-	const raw = `${sim.tick}:r${sim.round}:${sim.score.west}-${sim.score.east}:${sim.brokenBridge ?? 'none'}:${westHp},${eastHp}:${playerSignatures}:b${buildingsCount}:u${unitsCount}`;
+	const raw = `${sim.tick}:t${Math.round(sim.gameTime * 10)}:r${sim.round}:${sim.score.west}-${sim.score.east}:${sim.brokenBridge ?? 'none'}:${westHp},${eastHp}:${playerSignatures}:b${buildingsCount}/${buildingsHp}:u${unitsCount}`;
 	let hash = 5381;
 	for (let i = 0; i < raw.length; i++) {
 		hash = ((hash << 5) + hash + raw.charCodeAt(i)) & 0xffffffff;
@@ -45,7 +58,7 @@ export function computeSimStateChecksum(sim: Simulation): string {
 /**
  * Deterministic RTS match synchronizer.
  * Ingests local player commands, serializes them as monotonic Move records over RoomTransport,
- * executes remote and local commands deterministically on the local Simulation instance,
+ * executes remote and local commands deterministically at scheduled simulation ticks,
  * and validates lockstep parity on matching simulation ticks.
  */
 export class MatchSync {
@@ -55,6 +68,7 @@ export class MatchSync {
 	public localTeam: 'west' | 'east';
 	public localSlot: number;
 
+	private commandLeadTicks: number;
 	private uidToSlot = new Map<string, number>();
 	private nextSeq = 1;
 	private appliedSeq = 0;
@@ -71,6 +85,7 @@ export class MatchSync {
 	private peerRtt = new Map<string, number>();
 	private checksumHistory = new Map<number, string>();
 	private pendingRemoteChecksums = new Map<number, { peerUid: string; checksum: string }[]>();
+	private pendingMoves: Move[] = [];
 
 	constructor(options: MatchSyncOptions) {
 		this.sim = options.sim;
@@ -78,6 +93,7 @@ export class MatchSync {
 		this.localUid = options.localUid;
 		this.localTeam = options.localTeam;
 		this.localSlot = options.localSlot ?? (options.localTeam === 'east' ? 2 : 1);
+		this.commandLeadTicks = Math.max(0, Math.floor(options.commandLeadTicks ?? 0));
 		if (options.uidToSlot) {
 			this.setRosterSlots(options.uidToSlot);
 		}
@@ -91,6 +107,9 @@ export class MatchSync {
 				if (snapshot.moves.length === 0 && this.appliedSeq > 0) {
 					this.appliedSeq = 0;
 					this.nextSeq = 1;
+					this.pendingMoves = [];
+					this.checksumHistory.clear();
+					this.pendingRemoteChecksums.clear();
 				}
 				this.processMoves(snapshot.moves);
 				this.checkMembers(snapshot.members);
@@ -99,6 +118,13 @@ export class MatchSync {
 				options.onGone?.(reason);
 			}
 		);
+	}
+
+	setSimulation(sim: Simulation) {
+		this.sim = sim;
+		this.pendingMoves = [];
+		this.checksumHistory.clear();
+		this.pendingRemoteChecksums.clear();
 	}
 
 	setRosterSlots(mapping: Record<string, number>) {
@@ -118,8 +144,38 @@ export class MatchSync {
 		return this.appliedSeq;
 	}
 
+	getPendingMoveCount(): number {
+		return this.pendingMoves.length;
+	}
+
 	getSimChecksum(): string {
 		return computeSimStateChecksum(this.sim);
+	}
+
+	/**
+	 * Executes any buffered tick-scheduled commands whose target tick has been reached.
+	 * Should be invoked right before `sim.step(...)` in the fixed-step simulation loop.
+	 */
+	flushTick(tick: number = this.sim.tick): number {
+		if (this.pendingMoves.length === 0) return 0;
+		const ready: Move[] = [];
+		const remaining: Move[] = [];
+		for (const move of this.pendingMoves) {
+			const targetTick = move.payload?.tick ?? 0;
+			if (targetTick <= tick) {
+				ready.push(move);
+			} else {
+				remaining.push(move);
+			}
+		}
+		if (ready.length === 0) return 0;
+		this.pendingMoves = remaining;
+		ready.sort((a, b) => (a.payload?.tick ?? 0) - (b.payload?.tick ?? 0) || a.seq - b.seq);
+		for (const move of ready) {
+			this.applyMoveToSimulation(move);
+			this.onCommandApplied?.(move);
+		}
+		return ready.length;
 	}
 
 	/**
@@ -155,7 +211,7 @@ export class MatchSync {
 
 	async sendHeartbeat(): Promise<boolean> {
 		return this.dispatch('HEARTBEAT', {
-			clientTime: Date.now(),
+			clientTime: Math.floor(this.transport.now()),
 			tick: this.sim.tick
 		});
 	}
@@ -169,8 +225,17 @@ export class MatchSync {
 	}
 
 	private checkMembers(members: readonly { uid: string; slot?: number }[]) {
+		const presentUids = new Set(members.map((m) => m.uid));
+		if (this.onPeerStatusChange) {
+			for (const prevUid of [...this.peerSeen.keys()]) {
+				if (!presentUids.has(prevUid)) {
+					this.peerSeen.delete(prevUid);
+					this.onPeerStatusChange({ peerUid: prevUid, online: false });
+				}
+			}
+		}
 		for (const m of members) {
-			if (typeof m.slot === 'number' && !this.uidToSlot.has(m.uid)) {
+			if (this.uidToSlot.size === 0 && typeof m.slot === 'number') {
 				this.uidToSlot.set(m.uid, m.slot);
 			}
 			if (this.onPeerStatusChange && m.uid !== this.localUid) {
@@ -185,12 +250,15 @@ export class MatchSync {
 	 */
 	async dispatch(type: string, payload: Partial<MovePayload> = {}): Promise<boolean> {
 		const seq = this.nextSeq++;
+		const scheduledTick = IMMEDIATE_MOVE_TYPES.has(type)
+			? this.sim.tick
+			: this.sim.tick + (this.sim.isRunning ? this.commandLeadTicks : 0);
 		const move: Move = {
 			seq,
 			by: this.localUid,
 			type,
 			payload: {
-				tick: this.sim.tick,
+				tick: scheduledTick,
 				team: this.localTeam,
 				playerSlot: this.localSlot,
 				...payload
@@ -218,10 +286,21 @@ export class MatchSync {
 			}
 			const move = validation.sanitized;
 
-			this.applyMoveToSimulation(move);
 			this.appliedSeq = move.seq;
 			this.nextSeq = Math.max(this.nextSeq, move.seq + 1);
 
+			const targetTick = move.payload?.tick;
+			if (
+				!IMMEDIATE_MOVE_TYPES.has(move.type) &&
+				typeof targetTick === 'number' &&
+				targetTick > this.sim.tick &&
+				this.sim.isRunning
+			) {
+				this.pendingMoves.push(move);
+				continue;
+			}
+
+			this.applyMoveToSimulation(move);
 			this.onCommandApplied?.(move);
 		}
 	}
@@ -318,9 +397,32 @@ export class MatchSync {
 				this.sim.isRunning = true;
 				break;
 
+			case 'NEXT_ROUND':
+				if (typeof p.round !== 'number' || p.round === this.sim.round) {
+					this.pendingMoves = [];
+					this.checksumHistory.clear();
+					this.pendingRemoteChecksums.clear();
+					if (this.sim.matchWinner) {
+						this.sim.startNewMatch();
+					} else {
+						this.sim.round++;
+						this.sim.resetRound();
+					}
+					this.sim.isRunning = true;
+				}
+				break;
+
+			case 'RESTART_MATCH':
+				this.pendingMoves = [];
+				this.checksumHistory.clear();
+				this.pendingRemoteChecksums.clear();
+				this.sim.startNewMatch();
+				this.sim.isRunning = true;
+				break;
+
 			case 'HEARTBEAT':
 				if (typeof p.clientTime === 'number' && move.by !== this.localUid) {
-					const rtt = Math.max(0, Date.now() - p.clientTime);
+					const rtt = Math.max(0, Math.round(this.transport.now() - p.clientTime));
 					this.peerRtt.set(move.by, rtt);
 					this.onPeerPing?.({ peerUid: move.by, rtt });
 				}
@@ -371,6 +473,7 @@ export class MatchSync {
 			this.unwatch();
 			this.unwatch = null;
 		}
+		this.pendingMoves = [];
 		this.checksumHistory.clear();
 		this.pendingRemoteChecksums.clear();
 	}

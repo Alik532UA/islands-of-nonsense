@@ -23,6 +23,7 @@ import {
 	rosterToRecord,
 	type RawInfo
 } from './roomShape';
+import { pickNextTeamSlot } from './onlineMatchSetup';
 
 export interface NewRoomOptions {
 	gameId: string;
@@ -322,15 +323,25 @@ export async function joinRoom(code: string, entry: RoomEntry): Promise<void> {
 	const { get, ref, set } = await import('firebase/database');
 
 	const membersSnap = await get(ref(db, `rooms/${code}/members`));
-	const currentMembers = membersSnap.val() as Record<string, unknown> | null;
-	const count = currentMembers ? Object.keys(currentMembers).length : 0;
+	const currentMembers = membersSnap.val() as Record<
+		string,
+		{ team?: string; slot?: number; order?: number }
+	> | null;
+	const memberList = currentMembers ? Object.values(currentMembers) : [];
+	const count = memberList.length;
 	const team = entry.team ?? (count % 2 === 0 ? 'west' : 'east');
+	const existingSelf = currentMembers?.[uid];
+	const order = typeof existingSelf?.order === 'number' ? existingSelf.order : count + 1;
+	const slot =
+		typeof existingSelf?.slot === 'number' && existingSelf.team === team
+			? existingSelf.slot
+			: pickNextTeamSlot(memberList, team);
 
 	await set(ref(db, `rooms/${code}/members/${uid}`), {
 		name: entry.name,
 		role: entry.role,
-		order: count + 1,
-		slot: Math.min(6, count + 1),
+		order,
+		slot,
 		...(entry.country ? { country: entry.country } : {}),
 		...(entry.avatar ? { avatar: entry.avatar } : {}),
 		team,

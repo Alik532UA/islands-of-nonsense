@@ -20,6 +20,23 @@ const TEAM_SLOTS: Record<'west' | 'east', readonly number[]> = {
 };
 
 /**
+ * Computes the next available deterministic slot (1/3/5 for west, 2/4/6 for east)
+ * given existing room members.
+ */
+export function pickNextTeamSlot(
+	members: ReadonlyArray<{ team?: string; slot?: number }>,
+	team: 'west' | 'east'
+): number {
+	const pool = TEAM_SLOTS[team];
+	const taken = new Set(
+		members
+			.filter((m) => m.team === team && typeof m.slot === 'number')
+			.map((m) => m.slot as number)
+	);
+	return pool.find((s) => !taken.has(s)) ?? pool[0];
+}
+
+/**
  * Builds deterministic SimulationConfig from authoritative RTDB RoomInfo.
  */
 export function buildOnlineSimulationConfig(info: RoomInfo): SimulationConfig {
@@ -104,17 +121,18 @@ export function applyOnlineRosterToSimulation(
 
 			if (!isAllRandom && entry.race && entry.race !== 'in_game') {
 				if (entry.race === 'random') {
-					const available = PLAYABLE_RACES.filter((r) => !sim.isRaceBanned(r));
-					const picked = available[Math.floor(sim.nextRandom() * available.length)] ?? available[0];
-					targetPlayer.race = picked;
-					targetPlayer.isRandomRace = true;
-					if (!targetPlayer.randomGoldGranted) {
+					if (info.status === 'playing' && !targetPlayer.randomGoldGranted) {
+						const available = PLAYABLE_RACES.filter((r) => !sim.isRaceBanned(r));
+						const picked =
+							available[Math.floor(sim.nextRandom() * available.length)] ?? available[0];
+						targetPlayer.race = picked;
+						targetPlayer.isRandomRace = true;
 						const startGold = sim.config.startGold ?? 500;
 						targetPlayer.gold += Math.round(startGold * 0.3);
 						targetPlayer.randomGoldGranted = true;
-					}
-					if (targetPlayer.worker) {
-						targetPlayer.worker.name = getBuilderNameForRace(picked);
+						if (targetPlayer.worker) {
+							targetPlayer.worker.name = getBuilderNameForRace(picked);
+						}
 					}
 				} else if (formatRaceName(targetPlayer.race) !== formatRaceName(entry.race)) {
 					targetPlayer.race = entry.race;

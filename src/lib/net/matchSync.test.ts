@@ -286,4 +286,99 @@ describe('MatchSync', () => {
 		syncA.dispose();
 		syncB.dispose();
 	});
+
+	it('schedules gameplay moves for exact targetTick with commandLeadTicks and flushes deterministically', async () => {
+		const seededA = new Simulation({
+			botDifficulty: 0,
+			startGold: 1000,
+			seed: 999,
+			isRunning: true
+		});
+		const seededB = new Simulation({
+			botDifficulty: 0,
+			startGold: 1000,
+			seed: 999,
+			isRunning: true
+		});
+
+		const syncA = new MatchSync({
+			sim: seededA,
+			transport: room.transport({ as: 'player_a' }),
+			localUid: 'player_a',
+			localTeam: 'west',
+			commandLeadTicks: 3
+		});
+		const syncB = new MatchSync({
+			sim: seededB,
+			transport: room.transport({ as: 'player_b' }),
+			localUid: 'player_b',
+			localTeam: 'east',
+			commandLeadTicks: 3
+		});
+
+		await syncA.dispatch('BUILD', { buildingType: 'h05X', x: 25, y: 20 });
+
+		// Scheduled for tick 3, so neither simulation applies it at tick 0..2
+		expect(seededA.buildings.length).toBe(0);
+		expect(seededB.buildings.length).toBe(0);
+		expect(syncA.getPendingMoveCount()).toBe(1);
+		expect(syncB.getPendingMoveCount()).toBe(1);
+
+		for (let t = 0; t < 3; t++) {
+			syncA.flushTick(seededA.tick);
+			syncB.flushTick(seededB.tick);
+			seededA.step(1 / 60);
+			seededB.step(1 / 60);
+		}
+		expect(seededA.buildings.length).toBe(0);
+		expect(seededB.buildings.length).toBe(0);
+
+		// At tick 3 both simulations execute the move identically
+		syncA.flushTick(seededA.tick);
+		syncB.flushTick(seededB.tick);
+		expect(seededA.buildings.length).toBe(1);
+		expect(seededB.buildings.length).toBe(1);
+		expect(syncA.getSimChecksum()).toBe(syncB.getSimChecksum());
+
+		syncA.dispose();
+		syncB.dispose();
+	});
+
+	it('synchronizes NEXT_ROUND idempotently and RESTART_MATCH across peers', async () => {
+		const syncA = new MatchSync({
+			sim: simA,
+			transport: room.transport({ as: 'player_a' }),
+			localUid: 'player_a',
+			localTeam: 'west'
+		});
+		const syncB = new MatchSync({
+			sim: simB,
+			transport: room.transport({ as: 'player_b' }),
+			localUid: 'player_b',
+			localTeam: 'east'
+		});
+
+		simA.round = 1;
+		simB.round = 1;
+		simA.winner = 'west';
+		simB.winner = 'west';
+
+		await syncA.dispatch('NEXT_ROUND', { round: 1 });
+		// Duplicate NEXT_ROUND for round 1 must not skip round 2
+		await syncB.dispatch('NEXT_ROUND', { round: 1 });
+
+		expect(simA.round).toBe(2);
+		expect(simB.round).toBe(2);
+		expect(simA.winner).toBeNull();
+		expect(simB.winner).toBeNull();
+
+		await syncA.dispatch('RESTART_MATCH');
+		expect(simA.round).toBe(1);
+		expect(simB.round).toBe(1);
+		expect(simA.score).toEqual({ west: 0, east: 0 });
+		expect(simB.score).toEqual({ west: 0, east: 0 });
+
+		syncA.dispose();
+		syncB.dispose();
+	});
 });

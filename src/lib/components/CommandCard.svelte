@@ -30,6 +30,36 @@
 			sim.orderBridgeRepair(player.team, player);
 		}
 	}
+
+	function dispatchBuyItem(itemId: string) {
+		if (!sim.canBuyCastleItem(player.team, itemId, player)) {
+			sound.playErrorResource();
+			return;
+		}
+		if (!routeBattleCommand?.('BUY_ITEM', { team: player.team, playerSlot: player.slot, itemId })) {
+			const success = sim.buyCastleItem(player.team, itemId, player);
+			if (success) sound.playCoin();
+			else sound.playErrorResource();
+			return;
+		}
+		sound.playCoin();
+	}
+
+	function dispatchUpgradeForge(forgeType: 'attack' | 'armor' | 'econ') {
+		if (
+			!routeBattleCommand?.('UPGRADE_FORGE', {
+				team: player.team,
+				playerSlot: player.slot,
+				forgeType
+			})
+		) {
+			const ok = sim.upgradeForge(player.team, forgeType, player);
+			if (ok) sound.playForgeUpgrade();
+			else sound.playErrorResource();
+			return;
+		}
+		sound.playForgeUpgrade();
+	}
 	import {
 		Trash2,
 		X,
@@ -234,12 +264,7 @@
 								{@const canAfford = playerGold >= item.cost}
 								{@const canBuy = canAfford && cd <= 0}
 								<button
-									onclick={() => {
-										if (sim.canBuyCastleItem(player.team, item.id, player)) {
-											const success = sim.buyCastleItem(player.team, item.id, player);
-											if (success) sound.playCoin();
-										}
-									}}
+									onclick={() => dispatchBuyItem(item.id)}
 									onmouseenter={() => (hoveredItem = item)}
 									onmouseleave={() => (hoveredItem = null)}
 									disabled={!canBuy}
@@ -339,7 +364,7 @@
 						</div>
 						<div class="grid grid-cols-3 gap-1.5 pt-1">
 							<button
-								onclick={() => sim.upgradeForge(player.team, 'attack', player)}
+								onclick={() => dispatchUpgradeForge('attack')}
 								disabled={!canAtk}
 								class="h-16 rounded border flex flex-col items-center justify-between p-1 transition cursor-pointer {canAtk
 									? 'bg-rose-950/60 hover:bg-rose-900/80 border-rose-500/70 text-white shadow'
@@ -372,7 +397,7 @@
 							</button>
 
 							<button
-								onclick={() => sim.upgradeForge(player.team, 'armor', player)}
+								onclick={() => dispatchUpgradeForge('armor')}
 								disabled={!canArm}
 								class="h-16 rounded border flex flex-col items-center justify-between p-1 transition cursor-pointer {canArm
 									? 'bg-blue-950/60 hover:bg-blue-900/80 border-blue-500/70 text-white shadow'
@@ -405,7 +430,7 @@
 							</button>
 
 							<button
-								onclick={() => sim.upgradeForge(player.team, 'econ', player)}
+								onclick={() => dispatchUpgradeForge('econ')}
 								disabled={!canEco}
 								class="h-16 rounded border flex flex-col items-center justify-between p-1 transition cursor-pointer {canEco
 									? 'bg-emerald-950/60 hover:bg-emerald-900/80 border-emerald-500/70 text-white shadow'

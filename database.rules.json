@@ -2,7 +2,7 @@
 	"rules": {
 		"__rulesVersion": {
 			"$v": {
-				".read": "auth != null && $v === '370d14960459'"
+				".read": "auth != null && $v === '62adf6869f54'"
 			}
 		},
 		"rooms": {
@@ -162,7 +162,7 @@
 							".validate": "newData.val() === auth.uid"
 						},
 						"type": {
-							".validate": "newData.isString() && (newData.val() === 'BUILD' || newData.val() === 'UPGRADE' || newData.val() === 'SELL' || newData.val() === 'REPAIR' || newData.val() === 'USE_ABILITY' || newData.val() === 'BUY_ITEM' || newData.val() === 'UPGRADE_FORGE' || newData.val() === 'SELECT_COMMANDER' || newData.val() === 'BRIDGE_REPAIR' || newData.val() === 'RESCUE_STRIKE' || newData.val() === 'SURRENDER' || newData.val() === 'PAUSE' || newData.val() === 'RESUME' || newData.val() === 'HEARTBEAT' || newData.val() === 'CHECKSUM' || newData.val() === 'CHAT')"
+							".validate": "newData.isString() && (newData.val() === 'BUILD' || newData.val() === 'UPGRADE' || newData.val() === 'SELL' || newData.val() === 'REPAIR' || newData.val() === 'USE_ABILITY' || newData.val() === 'BUY_ITEM' || newData.val() === 'UPGRADE_FORGE' || newData.val() === 'SELECT_COMMANDER' || newData.val() === 'BRIDGE_REPAIR' || newData.val() === 'RESCUE_STRIKE' || newData.val() === 'SURRENDER' || newData.val() === 'PAUSE' || newData.val() === 'RESUME' || newData.val() === 'NEXT_ROUND' || newData.val() === 'RESTART_MATCH' || newData.val() === 'HEARTBEAT' || newData.val() === 'CHECKSUM' || newData.val() === 'CHAT')"
 						},
 						"at": {
 							".validate": "newData.isNumber() && newData.val() <= now && newData.val() > now - 60000"
@@ -171,6 +171,9 @@
 							".validate": "newData.hasChildren()",
 							"tick": {
 								".validate": "newData.isNumber() && newData.val() >= 0"
+							},
+							"round": {
+								".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 20"
 							},
 							"team": {
 								".validate": "newData.val() === 'west' || newData.val() === 'east'"

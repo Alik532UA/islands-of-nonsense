@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { MatchSync, computeSimStateChecksum } from './matchSync';
 import { LocalRoom } from './localRoom';
-import { createOnlineSimulation } from './onlineMatchSetup';
+import { createOnlineSimulation, pickNextTeamSlot } from './onlineMatchSetup';
 import { validatePlayerMove } from './actionValidation';
 import type { Member, RoomInfo } from './roomTypes';
 
@@ -191,5 +191,31 @@ describe('Online Deterministic Parity & Team Slot Sync', () => {
 			payload: { tick: 100, team: 'west', playerSlot: 3, commanderId: 99 }
 		});
 		expect(badCmd.valid).toBe(false);
+	});
+
+	it('keeps deterministic random race parity between lobby-init and playing-init peers', () => {
+		const lobbyInfo: RoomInfo = {
+			...baseInfo,
+			status: 'lobby',
+			roster: undefined
+		};
+
+		// Peer A enters in lobby first, then transitions to playing with a fresh simulation
+		const lobbyInit = createOnlineSimulation(lobbyInfo, members, 'u_west_1');
+		expect(lobbyInit.sim.players.west.randomGoldGranted).toBeFalsy();
+
+		const playingAfterLobby = createOnlineSimulation(baseInfo, members, 'u_west_1');
+		const playingDirect = createOnlineSimulation(baseInfo, members, 'u_east_2');
+
+		expect(playingAfterLobby.sim.allPlayers.map((p) => p.race)).toEqual(
+			playingDirect.sim.allPlayers.map((p) => p.race)
+		);
+		expect(playingAfterLobby.sim.brokenBridge).toBe(playingDirect.sim.brokenBridge);
+		expect(computeSimStateChecksum(playingAfterLobby.sim)).toBe(
+			computeSimStateChecksum(playingDirect.sim)
+		);
+
+		expect(pickNextTeamSlot([{ team: 'west', slot: 1 }], 'west')).toBe(3);
+		expect(pickNextTeamSlot([{ team: 'west', slot: 1 }], 'east')).toBe(2);
 	});
 });

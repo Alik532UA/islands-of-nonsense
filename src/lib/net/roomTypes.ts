@@ -75,6 +75,7 @@ export interface RoomInfo {
 
 export interface MovePayload {
 	tick?: number;
+	round?: number;
 	team?: MatchTeamId;
 	playerSlot?: number;
 	actionType?: string;
