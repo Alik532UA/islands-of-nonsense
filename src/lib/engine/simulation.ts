@@ -86,6 +86,7 @@ export interface SimulationConfig {
 	teamSizeEast?: 1 | 2 | 3;
 	botVsBot?: boolean; // Spectator mode: bots play against each other without human player
 	randomColors?: boolean; // Default true: randomizes player and bot colors across match
+	seed?: number; // Deterministic PRNG seed for headless benchmarks and replays
 	isRunning?: boolean;
 }
 
@@ -701,7 +702,7 @@ export class Simulation {
 		this.economySystem = new EconomySystem(this);
 
 		// Initialize procedural decorations across both islands
-		this.initDecorations(1337);
+		this.initDecorations(config.seed ?? 1337);
 	}
 
 	public randomizePlayerColors(fixed = false): void {
@@ -923,7 +924,7 @@ export class Simulation {
 		const bridges: ('top' | 'mid' | 'bottom')[] = ['top', 'mid', 'bottom'];
 		this.brokenBridge = bridges[Math.floor(Math.random() * 3)];
 		this.bridgeRepairProgress = 0;
-		this.initDecorations(1337 + this.round * 31);
+		this.initDecorations((this.config.seed ?? 1337) + this.round * 31);
 		this.winner = null;
 		this.roundWinner = null;
 		this.buildingStats = {};
