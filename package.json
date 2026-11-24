@@ -1,6 +1,6 @@
 {
 	"name": "islands-of-nonsense",
-	"version": "0.0.166",
+	"version": "0.0.167",
 	"private": true,
 	"type": "module",
 	"imports": {
@@ -24,7 +24,8 @@
 		"rules:stamp": "node scripts/rules-stamp.mjs",
 		"rules:stamp:check": "node scripts/rules-stamp.mjs --check",
 		"rooms:sweep": "node scripts/sweep-rooms.mjs",
-		"check:rules": "node scripts/check-rules.mjs && node scripts/rules-stamp.mjs --check",
+		"check:rules": "node scripts/check-rules.mjs && node scripts/rules-stamp.mjs --check && node scripts/check-rules-emulator.mjs",
+		"check:rules:static": "node scripts/check-rules.mjs && node scripts/rules-stamp.mjs --check",
 		"check:build": "npm run check:rules && node scripts/check-build.mjs",
 		"check:bundle": "node scripts/check-bundle.mjs",
 		"test:balance": "vitest run src/lib/engine/balanceRunner.test.ts",

@@ -219,21 +219,49 @@ describe('database.rules.json security invariants & Firebase architecture', () =
 		expect(handle['.validate']).toContain('newData.val() === auth.uid');
 	});
 
-	it('plans database room sweep for stale rooms older than 24 hours', () => {
+	it('plans database room sweep for stale rooms older than 2 hours', () => {
 		const now = Date.now();
 		const staleTime = now - (SWEEP_MAX_AGE_MS + 1000);
 		const freshTime = now - 60000;
 
 		const mockRooms = {
-			STALE1: { info: { createdAt: staleTime, hostUid: 'host1' } },
-			FRESH1: { info: { createdAt: freshTime, hostUid: 'host2' } },
+			STALE1: { info: { createdAt: staleTime, hostUid: 'host1', gameId: 'islands-of-nonsense' } },
+			FRESH1: { info: { createdAt: freshTime, hostUid: 'host2', gameId: 'islands-of-nonsense' } },
 			EMPTY1: {}
 		};
 
-		const toDelete = planRoomSweep(mockRooms, now);
+		const toDelete = planRoomSweep(mockRooms, now, {
+			lobbyByGame: {
+				'islands-of-nonsense': {
+					STALE1: { createdAt: staleTime },
+					ORPHAN: { createdAt: freshTime },
+					FRESH1: { createdAt: freshTime }
+				}
+			},
+			seekByGame: {
+				'islands-of-nonsense': {
+					oldSeek: { at: staleTime },
+					newSeek: { at: freshTime }
+				}
+			},
+			myRooms: {
+				host1: {
+					STALE1: { createdAt: staleTime },
+					GONE99: { createdAt: freshTime },
+					FRESH1: { createdAt: freshTime }
+				}
+			}
+		});
 		expect(toDelete).toContain('rooms/STALE1');
-		expect(toDelete).toContain('lobby/STALE1');
+		expect(toDelete).toContain('lobby/islands-of-nonsense/STALE1');
+		expect(toDelete).toContain('lobby/islands-of-nonsense/ORPHAN');
+		expect(toDelete).toContain('seek/islands-of-nonsense/oldSeek');
+		expect(toDelete).toContain('myRooms/host1/STALE1');
+		expect(toDelete).toContain('myRooms/host1/GONE99');
 		expect(toDelete).toContain('rooms/EMPTY1');
 		expect(toDelete).not.toContain('rooms/FRESH1');
+		expect(toDelete).not.toContain('lobby/islands-of-nonsense/FRESH1');
+		expect(toDelete).not.toContain('seek/islands-of-nonsense/newSeek');
+		expect(toDelete).not.toContain('myRooms/host1/FRESH1');
 	});
 });

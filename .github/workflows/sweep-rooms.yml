@@ -1,0 +1,60 @@
+name: Sweep Stale Rooms
+
+on:
+  schedule:
+    - cron: '17 */2 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run without deleting RTDB entries'
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: sweep-rooms
+  cancel-in-progress: true
+
+jobs:
+  sweep-rooms:
+    runs-on: ubuntu-latest
+    permissions: {}
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Setup Java (Emulator Smoke)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Run RTDB room sweep
+        if: ${{ vars.FIREBASE_DATABASE_URL != '' && secrets.FIREBASE_DATABASE_SECRET != '' }}
+        env:
+          FIREBASE_DATABASE_URL: ${{ vars.FIREBASE_DATABASE_URL }}
+          FIREBASE_DATABASE_SECRET: ${{ secrets.FIREBASE_DATABASE_SECRET }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            node scripts/sweep-rooms.mjs
+          else
+            node scripts/sweep-rooms.mjs --apply
+          fi
+
+      - name: Smoke-test sweep planner on Firebase Emulator
+        if: ${{ vars.FIREBASE_DATABASE_URL == '' || secrets.FIREBASE_DATABASE_SECRET == '' }}
+        run: |
+          if command -v java >/dev/null 2>&1; then
+            node scripts/sweep-rooms.mjs --emulator
+          else
+            npm run test:unit -- src/lib/net/database.rules.test.ts
+          fi
