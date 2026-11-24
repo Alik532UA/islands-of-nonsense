@@ -256,4 +256,34 @@ describe('MatchSync', () => {
 		syncA.dispose();
 		syncB.dispose();
 	});
+
+	it('synchronizes RESUME and UPGRADE_FORGE across peers without any cast', async () => {
+		const syncA = new MatchSync({
+			sim: simA,
+			transport: room.transport({ as: 'player_a' }),
+			localUid: 'player_a',
+			localTeam: 'west'
+		});
+		const syncB = new MatchSync({
+			sim: simB,
+			transport: room.transport({ as: 'player_b' }),
+			localUid: 'player_b',
+			localTeam: 'east'
+		});
+
+		expect(simA.isRunning).toBe(false);
+		expect(simB.isRunning).toBe(false);
+
+		const resumed = await syncA.dispatch('RESUME');
+		expect(resumed).toBe(true);
+		expect(simA.isRunning).toBe(true);
+		expect(simB.isRunning).toBe(true);
+
+		const forged = await syncA.dispatch('UPGRADE_FORGE', { forgeType: 'attack' });
+		expect(forged).toBe(true);
+		expect(syncB.getAppliedSeq()).toBeGreaterThanOrEqual(2);
+
+		syncA.dispose();
+		syncB.dispose();
+	});
 });

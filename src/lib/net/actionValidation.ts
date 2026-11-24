@@ -123,6 +123,25 @@ export function validatePlayerMove(raw: unknown): ValidationResult {
 		sanitizedPayload.clientTime = p.clientTime;
 	}
 
+	if ('itemId' in p) {
+		if (
+			typeof p.itemId !== 'string' ||
+			p.itemId.length === 0 ||
+			p.itemId.length > 64 ||
+			!/^[a-zA-Z0-9_-]+$/.test(p.itemId)
+		) {
+			return { valid: false, error: 'Invalid itemId format' };
+		}
+		sanitizedPayload.itemId = p.itemId;
+	}
+
+	if ('forgeType' in p) {
+		if (p.forgeType !== 'attack' && p.forgeType !== 'armor' && p.forgeType !== 'econ') {
+			return { valid: false, error: 'Invalid forgeType value' };
+		}
+		sanitizedPayload.forgeType = p.forgeType;
+	}
+
 	return {
 		valid: true,
 		sanitized: {

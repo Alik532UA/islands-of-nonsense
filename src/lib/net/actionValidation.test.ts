@@ -92,4 +92,40 @@ describe('actionValidation (безпека та валідація дій гра
 
 		expect(validatePlayerMove(malformedChecksum).valid).toBe(false);
 	});
+
+	it('валідує itemId та forgeType для покупок і кузні', () => {
+		const validItem = validatePlayerMove({
+			seq: 12,
+			by: 'user_123',
+			type: 'BUY_ITEM',
+			payload: { tick: 20, team: 'west', itemId: 'cheese_blade' }
+		});
+		expect(validItem.valid).toBe(true);
+		expect(validItem.sanitized?.payload?.itemId).toBe('cheese_blade');
+
+		const badItem = validatePlayerMove({
+			seq: 13,
+			by: 'user_123',
+			type: 'BUY_ITEM',
+			payload: { tick: 20, team: 'west', itemId: '<script>' }
+		});
+		expect(badItem.valid).toBe(false);
+
+		const validForge = validatePlayerMove({
+			seq: 14,
+			by: 'user_123',
+			type: 'UPGRADE_FORGE',
+			payload: { tick: 20, team: 'east', forgeType: 'attack' }
+		});
+		expect(validForge.valid).toBe(true);
+		expect(validForge.sanitized?.payload?.forgeType).toBe('attack');
+
+		const badForge = validatePlayerMove({
+			seq: 15,
+			by: 'user_123',
+			type: 'UPGRADE_FORGE',
+			payload: { tick: 20, team: 'east', forgeType: 'godmode' }
+		});
+		expect(badForge.valid).toBe(false);
+	});
 });

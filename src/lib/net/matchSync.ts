@@ -203,8 +203,8 @@ export class MatchSync {
 				break;
 
 			case 'UPGRADE_FORGE':
-				if (typeof p.forgeType === 'string') {
-					this.sim.upgradeForge(team, p.forgeType as any);
+				if (p.forgeType === 'attack' || p.forgeType === 'armor' || p.forgeType === 'econ') {
+					this.sim.upgradeForge(team, p.forgeType);
 				}
 				break;
 

@@ -5,15 +5,20 @@ import { RULES_VERSION, RULES_STAMP } from './rulesVersion';
 export const GAME_ID = 'castlefight';
 export { RULES_VERSION, RULES_STAMP };
 
+export type LobbyPublishInput = Omit<LobbyRoom, 'createdAt'> & { createdAt?: number };
+
 /**
- * Publish an open room to RTDB lobby feed.
+ * Publish an open room to RTDB lobby feed using serverTimestamp().
  */
-export async function publishToLobby(db: Database, room: LobbyRoom): Promise<() => void> {
+export async function publishToLobby(db: Database, room: LobbyPublishInput): Promise<() => void> {
 	const dbModule = await import('firebase/database');
-	const { ref, set, onDisconnect, remove } = dbModule;
+	const { ref, set, onDisconnect, remove, serverTimestamp } = dbModule;
 	const lobbyRef = ref(db, `lobby/${GAME_ID}/${room.code}`);
 
-	await set(lobbyRef, room);
+	await set(lobbyRef, {
+		...room,
+		createdAt: serverTimestamp()
+	});
 	const disconnectHandler = onDisconnect(lobbyRef);
 	void disconnectHandler.remove();
 
@@ -21,6 +26,18 @@ export async function publishToLobby(db: Database, room: LobbyRoom): Promise<() 
 		void remove(lobbyRef);
 		void disconnectHandler.cancel();
 	};
+}
+
+/**
+ * Update player count in an open lobby room.
+ */
+export async function updateLobbyPlayers(
+	db: Database,
+	code: string,
+	players: number
+): Promise<void> {
+	const { ref, update } = await import('firebase/database');
+	await update(ref(db, `lobby/${GAME_ID}/${code}`), { players });
 }
 
 /**

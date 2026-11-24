@@ -7,9 +7,15 @@
 	import { settings } from '$lib/services/settings.svelte';
 	import { PlayerIdentity } from '$lib/controllers/playerIdentity.svelte';
 	import { connect } from '$lib/net/firebase';
-	import { subscribeLobby, publishToLobby, GAME_ID, RULES_VERSION } from '$lib/net/lobby';
+	import {
+		subscribeLobby,
+		publishToLobby,
+		updateLobbyPlayers,
+		GAME_ID,
+		RULES_VERSION
+	} from '$lib/net/lobby';
+	import { liveNet } from '$lib/net/roomNet';
 	import { seekMatch } from '$lib/net/seek';
-	import { generateRoomCode } from '$lib/net/roomCode';
 	import type { LobbyRoom } from '$lib/net/roomTypes';
 
 	import PlayerBar from '$lib/components/online/PlayerBar.svelte';
@@ -22,6 +28,7 @@
 
 	let openWindow = $state<'hub' | 'search' | 'create' | 'join'>('hub');
 	let busy = $state(false);
+	let errorMessage = $state<string | null>(null);
 	let rooms = $state<LobbyRoom[]>([]);
 	let searchController: AbortController | null = null;
 
@@ -52,15 +59,16 @@
 	async function handleQuickSearch() {
 		openWindow = 'search';
 		busy = true;
+		errorMessage = null;
 		searchController = new AbortController();
 
 		try {
-			const { db } = await connect();
+			const { db, uid } = await connect();
 			const entryName = player.forEntry(settings.locale);
 			const result = await seekMatch(
 				db,
 				{
-					uid: player.avatar ? `${player.avatar}_${Date.now()}` : `user_${Date.now()}`,
+					uid,
 					name: entryName,
 					country: player.country,
 					avatar: player.avatar
@@ -71,7 +79,11 @@
 			await goto(
 				`${resolve('/play/battle')}?room=${encodeURIComponent(result.code)}${result.isHost ? '&host=1' : ''}`
 			);
-		} catch {
+		} catch (err) {
+			if (!searchController?.signal.aborted) {
+				errorMessage =
+					err instanceof Error ? err.message : 'Не вдалося підключитися до пошуку матчів';
+			}
 			openWindow = 'hub';
 		} finally {
 			busy = false;
@@ -89,13 +101,31 @@
 
 	async function handleCreate(config: { modeId: string; teamSize: 1 | 2 | 3; isPrivate: boolean }) {
 		busy = true;
+		errorMessage = null;
 		try {
 			const { db, uid } = await connect();
 			const entryName = player.forEntry(settings.locale);
-			const code = generateRoomCode();
+			const seed = Math.floor(Math.random() * 1_000_000);
+			const code = await liveNet.createRoom({
+				gameId: GAME_ID,
+				rulesVersion: RULES_VERSION,
+				seed,
+				config: {
+					modeId: config.modeId,
+					teamSize: config.teamSize,
+					allRandom: config.modeId === 'allRandom',
+					targetWins: 2,
+					isPrivate: config.isPrivate
+				},
+				name: entryName,
+				country: player.country,
+				avatar: player.avatar,
+				team: 'west',
+				isPrivate: config.isPrivate
+			});
 
 			if (!config.isPrivate) {
-				const lobbyEntry: LobbyRoom = {
+				await publishToLobby(db, {
 					code,
 					hostUid: uid,
 					hostName: entryName,
@@ -105,13 +135,13 @@
 					rulesVersion: RULES_VERSION,
 					players: 1,
 					maxPlayers: config.teamSize * 2,
-					modeId: config.modeId,
-					createdAt: Date.now()
-				};
-				await publishToLobby(db, lobbyEntry);
+					modeId: config.modeId
+				});
 			}
 
 			await goto(`${resolve('/play/battle')}?room=${encodeURIComponent(code)}&host=1`);
+		} catch (err) {
+			errorMessage = err instanceof Error ? err.message : 'Не вдалося створити кімнату';
 		} finally {
 			busy = false;
 		}
@@ -119,9 +149,36 @@
 
 	async function handleJoin(code: string) {
 		busy = true;
+		errorMessage = null;
 		try {
-			player.forEntry(settings.locale);
-			await goto(`${resolve('/play/battle')}?room=${encodeURIComponent(code)}`);
+			const normalizedCode = code.trim().toUpperCase();
+			const info = await liveNet.peekRoom(normalizedCode);
+			if (!info) {
+				errorMessage = `Кімнату ${normalizedCode} не знайдено або вона вже закрита`;
+				return;
+			}
+			const members = (await liveNet.peekMembers(normalizedCode)) ?? [];
+			const maxPlayers = (info.config?.teamSize ?? 1) * 2;
+			if (members.length >= maxPlayers && info.status !== 'playing') {
+				errorMessage = `Кімната ${normalizedCode} вже заповнена`;
+				return;
+			}
+			const entryName = player.forEntry(settings.locale);
+			const role = info.status === 'playing' ? 'spectator' : 'player';
+			await liveNet.joinRoom(normalizedCode, {
+				name: entryName,
+				role,
+				country: player.country,
+				avatar: player.avatar,
+				team: members.length % 2 === 0 ? 'west' : 'east'
+			});
+
+			const { db } = await connect();
+			await updateLobbyPlayers(db, normalizedCode, members.length + 1).catch(() => {});
+
+			await goto(`${resolve('/play/battle')}?room=${encodeURIComponent(normalizedCode)}`);
+		} catch (err) {
+			errorMessage = err instanceof Error ? err.message : 'Не вдалося увійти в кімнату';
 		} finally {
 			busy = false;
 		}
@@ -133,6 +190,22 @@
 </svelte:head>
 
 <div class="menu-page fill min-h-screen">
+	{#if errorMessage}
+		<div
+			role="alert"
+			class="w-full max-w-xl mx-auto mb-4 px-4 py-3 rounded-xl bg-rose-950/90 border border-rose-500/60 text-rose-200 text-sm flex items-center justify-between gap-3"
+			data-testid="online-error-alert"
+		>
+			<span>{errorMessage}</span>
+			<button
+				type="button"
+				onclick={() => (errorMessage = null)}
+				class="px-2 py-1 text-xs font-bold rounded bg-rose-500/20 hover:bg-rose-500/30"
+			>
+				✕
+			</button>
+		</div>
+	{/if}
 	{#if openWindow === 'search'}
 		<SearchWindow onCancel={cancelSearch} />
 	{:else if openWindow === 'create'}
