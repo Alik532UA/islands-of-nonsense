@@ -77,7 +77,9 @@ html[data-theme='green'],
 }
 
 body {
-	background-color: var(--color-bg-menu);
+	background: var(--color-bg-menu);
+	background-attachment: fixed;
+	min-height: 100vh;
 	color: var(--color-text);
 	font-family:
 		system-ui,
@@ -240,9 +242,9 @@ body {
 	width: 100%;
 	height: 56px;
 	padding: 0 var(--space-md);
-	background: rgba(11, 15, 25, 0.85);
+	background: var(--color-header-bg, rgba(11, 15, 25, 0.85));
 	backdrop-filter: blur(12px);
-	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+	border-bottom: 1px solid var(--color-header-border, rgba(255, 255, 255, 0.08));
 	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 	position: sticky;
 	top: 0;
@@ -256,16 +258,16 @@ body {
 	width: 38px;
 	height: 38px;
 	border-radius: var(--radius-sm);
-	background-color: rgba(255, 255, 255, 0.04);
-	border: 1px solid rgba(255, 255, 255, 0.08);
-	color: #f1f5f9;
+	background-color: var(--color-header-btn-bg, rgba(255, 255, 255, 0.04));
+	border: 1px solid var(--color-header-btn-border, rgba(255, 255, 255, 0.08));
+	color: var(--color-text, #f1f5f9);
 	cursor: pointer;
 	text-decoration: none;
 	transition: all 0.2s ease;
 }
 
 .header-btn:hover {
-	background-color: rgba(255, 255, 255, 0.1);
+	background-color: var(--color-bg-card-hover, rgba(255, 255, 255, 0.1));
 	border-color: rgba(245, 158, 11, 0.5);
 	color: #fef08a;
 }

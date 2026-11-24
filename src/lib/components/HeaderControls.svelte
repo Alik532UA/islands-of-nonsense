@@ -2,7 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { CircleUser, Volume2, VolumeX, Maximize2, Minimize2, Sliders } from 'lucide-svelte';
 	import { settings } from '$lib/services/settings.svelte';
-	import { fullscreen, canFullscreen } from '$lib/services/fullscreen.svelte';
+	import { fullscreen, canFullscreen, isStandalone } from '$lib/services/fullscreen.svelte';
 	import { playerAvatar } from '$lib/services/playerAvatar.svelte';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
 	import { t } from '$lib/i18n';
@@ -74,13 +74,13 @@
 	</a>
 
 	<!-- Fullscreen toggle -->
-	{#if canFullscreen()}
+	{#if canFullscreen() || !isStandalone()}
 		<button
 			type="button"
-			class="header-btn"
+			class="header-btn fullscreen-btn"
 			onclick={() => fullscreen.toggle()}
-			title="Повноекранний режим"
-			aria-label="Повноекранний режим"
+			title={fullscreen.active ? t('fullscreen.exit') : t('fullscreen.enter')}
+			aria-label={fullscreen.active ? t('fullscreen.exit') : t('fullscreen.enter')}
 			data-testid="header-fullscreen-toggle"
 		>
 			{#if fullscreen.active}

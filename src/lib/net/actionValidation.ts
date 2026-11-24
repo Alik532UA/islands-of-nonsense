@@ -49,7 +49,10 @@ export function validatePlayerMove(raw: unknown): ValidationResult {
 		return { valid: false, error: `Unsupported or unknown action type: ${String(m.type)}` };
 	}
 
-	const p = (m.payload && typeof m.payload === 'object' ? m.payload : {}) as Record<string, unknown>;
+	const p = (m.payload && typeof m.payload === 'object' ? m.payload : {}) as Record<
+		string,
+		unknown
+	>;
 	const sanitizedPayload: Partial<MovePayload> = {};
 
 	if ('tick' in p) {
@@ -67,7 +70,11 @@ export function validatePlayerMove(raw: unknown): ValidationResult {
 	}
 
 	if ('buildingType' in p) {
-		if (typeof p.buildingType !== 'string' || p.buildingType.length > 16 || !/^[a-zA-Z0-9_]+$/.test(p.buildingType)) {
+		if (
+			typeof p.buildingType !== 'string' ||
+			p.buildingType.length > 16 ||
+			!/^[a-zA-Z0-9_]+$/.test(p.buildingType)
+		) {
 			return { valid: false, error: 'Invalid buildingType format' };
 		}
 		sanitizedPayload.buildingType = p.buildingType;
@@ -95,7 +102,11 @@ export function validatePlayerMove(raw: unknown): ValidationResult {
 	}
 
 	if ('checksum' in p) {
-		if (typeof p.checksum !== 'string' || p.checksum.length > 32 || !/^[a-fA-F0-9]+$/.test(p.checksum)) {
+		if (
+			typeof p.checksum !== 'string' ||
+			p.checksum.length > 32 ||
+			!/^[a-fA-F0-9]+$/.test(p.checksum)
+		) {
 			return { valid: false, error: 'Invalid simulation checksum format' };
 		}
 		sanitizedPayload.checksum = p.checksum;

@@ -45,30 +45,66 @@ for (const node of requiredNodes) {
 // 3. Room enumeration protection & room code validation
 assertRule(rules.rooms['.read'] === undefined, 'rooms collection must not allow list enumeration');
 const infoWrite = rules.rooms?.$code?.info?.['.write'] || '';
-assertRule(infoWrite.includes('$code.matches(/^[0-9A-Z]{2,6}$/)'), 'Room info must enforce 2-6 char alphanumeric room code pattern');
+assertRule(
+	infoWrite.includes('$code.matches(/^[0-9A-Z]{2,6}$/)'),
+	'Room info must enforce 2-6 char alphanumeric room code pattern'
+);
 
 // 4. Append-only moves enforcement
 const movesSeqWrite = rules.rooms?.$code?.moves?.$seq?.['.write'] || '';
-assertRule(movesSeqWrite.includes('!data.exists() && newData.exists()'), 'rooms/$code/moves/$seq must enforce append-only via "!data.exists() && newData.exists()"');
-assertRule(movesSeqWrite.includes("newData.child('by').val() === auth.uid"), 'Move author must match authenticated UID');
+assertRule(
+	movesSeqWrite.includes('!data.exists() && newData.exists()'),
+	'rooms/$code/moves/$seq must enforce append-only via "!data.exists() && newData.exists()"'
+);
+assertRule(
+	movesSeqWrite.includes("newData.child('by').val() === auth.uid"),
+	'Move author must match authenticated UID'
+);
 
 // 5. Move payload schema bounds
 const payload = rules.rooms?.$code?.moves?.$seq?.payload || {};
 assertRule(payload.tick?.['.validate']?.includes('>= 0'), 'Move tick must be non-negative');
-assertRule(payload.team?.['.validate']?.includes("'west' || newData.val() === 'east'"), 'Move team must be west or east');
-assertRule(payload.x?.['.validate']?.includes('<= 120'), 'Move x coordinate must be within grid boundary <= 120');
-assertRule(payload.y?.['.validate']?.includes('<= 60'), 'Move y coordinate must be within grid boundary <= 60');
-assertRule(payload.buildingType?.['.validate']?.includes('length <= 16'), 'Building type string length must be bounded');
-assertRule(payload.checksum?.['.validate']?.includes('length <= 32'), 'State checksum must be bounded');
+assertRule(
+	payload.team?.['.validate']?.includes("'west' || newData.val() === 'east'"),
+	'Move team must be west or east'
+);
+assertRule(
+	payload.x?.['.validate']?.includes('<= 120'),
+	'Move x coordinate must be within grid boundary <= 120'
+);
+assertRule(
+	payload.y?.['.validate']?.includes('<= 60'),
+	'Move y coordinate must be within grid boundary <= 60'
+);
+assertRule(
+	payload.buildingType?.['.validate']?.includes('length <= 16'),
+	'Building type string length must be bounded'
+);
+assertRule(
+	payload.checksum?.['.validate']?.includes('length <= 32'),
+	'State checksum must be bounded'
+);
 
 // 6. Presence & Chat validation
 const presence = rules.rooms?.$code?.presence?.$uid || {};
-assertRule(presence['.write']?.includes('$uid === auth.uid'), 'Presence write must be scoped to $uid === auth.uid');
-assertRule(presence.online?.['.validate']?.includes('isBoolean()'), 'Presence online flag must be boolean');
+assertRule(
+	presence['.write']?.includes('$uid === auth.uid'),
+	'Presence write must be scoped to $uid === auth.uid'
+);
+assertRule(
+	presence.online?.['.validate']?.includes('isBoolean()'),
+	'Presence online flag must be boolean'
+);
 
 const chat = rules.rooms?.$code?.chat?.$msgId || {};
-assertRule(chat['.write']?.includes("newData.child('senderUid').val() === auth.uid"), 'Chat message sender must match auth.uid');
-assertRule(chat.text?.['.validate']?.includes('length <= 200'), 'Chat message must be bounded to 200 chars');
+assertRule(
+	chat['.write']?.includes("newData.child('senderUid').val() === auth.uid"),
+	'Chat message sender must match auth.uid'
+);
+assertRule(
+	chat.text?.['.validate']?.includes('length <= 200'),
+	'Chat message must be bounded to 200 chars'
+);
 
 // 7. Schema lock with $other: false
 const nodesEnforcingStrictSchema = [
@@ -86,19 +122,33 @@ const nodesEnforcingStrictSchema = [
 ];
 
 for (const { name, node } of nodesEnforcingStrictSchema) {
-	assertRule(node?.$other?.['.validate'] === false, `Node "${name}" must lock schema with $other: { .validate: false }`);
+	assertRule(
+		node?.$other?.['.validate'] === false,
+		`Node "${name}" must lock schema with $other: { .validate: false }`
+	);
 }
 
 // 8. User scoping on play data
 const playWrite = rules.users?.$uid?.play?.['.write'] || '';
-assertRule(playWrite.includes('$uid === auth.uid'), 'users/$uid/play must be scoped to $uid === auth.uid');
+assertRule(
+	playWrite.includes('$uid === auth.uid'),
+	'users/$uid/play must be scoped to $uid === auth.uid'
+);
 
 // 9. IndexOn for leaders
 const leadersIndex = rules.leaders?.['.indexOn'];
-assertRule(Array.isArray(leadersIndex) && leadersIndex.includes('score'), 'leaders must have ".indexOn" including "score"');
+assertRule(
+	Array.isArray(leadersIndex) && leadersIndex.includes('score'),
+	'leaders must have ".indexOn" including "score"'
+);
 
 // 10. Handle uniqueness validation
 const handleWrite = rules.handles?.$handle?.['.write'] || '';
-assertRule(handleWrite.includes('$handle.matches(/^[a-z0-9_]{3,20}$/)'), 'Handle must follow regex pattern /^[a-z0-9_]{3,20}$/');
+assertRule(
+	handleWrite.includes('$handle.matches(/^[a-z0-9_]{3,20}$/)'),
+	'Handle must follow regex pattern /^[a-z0-9_]{3,20}$/'
+);
 
-console.log(`✅ check-rules passed: all ${checksPassed} security rules invariants and anti-cheat constraints verified.`);
+console.log(
+	`✅ check-rules passed: all ${checksPassed} security rules invariants and anti-cheat constraints verified.`
+);

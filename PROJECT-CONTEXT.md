@@ -22,7 +22,7 @@
 | **Безпека XSS & Storage** | Заборона сирого `{@html}` та неізольованого `localStorage`                   | `src/security.test.ts`                                                                |
 | **Хмарна синхронізація**  | Firebase RTDB (кімнати, лобі, пошук `seek`, присутність, чат) + Auth         | [database.rules.json](database.rules.json), суворий `$other: false`, гейт інваріантів |
 | **Error Boundary**        | `<svelte:boundary>` + `ErrorFallback.svelte`                                 | `src/routes/+layout.svelte`, `src/routes/+error.svelte`                               |
-| **Тестування та гейти**   | 94 Vitest сьюти (540+ тестів) + Playwright E2E + Axe a11y                   | `npm test`, `npm run test:e2e`, `check:build`, `audit:ci`                             |
+| **Тестування та гейти**   | 94 Vitest сьюти (540+ тестів) + Playwright E2E + Axe a11y                    | `npm test`, `npm run test:e2e`, `check:build`, `audit:ci`                             |
 | **CI/CD Автоматизація**   | Deploy + Lighthouse CI + Bundle Budgets                                      | `.github/workflows/deploy.yml`, `lighthouse.yml`, `budgets.yml`                       |
 
 ### Швидкий покажчик ключових рішень:
@@ -171,18 +171,18 @@ $$DR = \frac{0.06 \times Armor}{1 + 0.06 \times |Armor|}$$
 
 ## 8. Політика перевірок та гейтів якості (CODE-QUALITY-v10)
 
-| Команда                | Гейт canon.json    | Опис перевірки                                                                        |
-| :--------------------- | :----------------- | :------------------------------------------------------------------------------------ |
-| `npm run check`        | GATE-SVELTE-CHECK  | Сувора перевірка типізації TypeScript та синтаксису Svelte 5 Runes                    |
-| `npm run lint`         | GATE-ESLINT        | Повний лінтинг ESLint Flat Config та форматування Prettier                            |
-| `npm run format`       | —                  | Автоматичне форматування кодової бази                                                 |
+| Команда                | Гейт canon.json    | Опис перевірки                                                                       |
+| :--------------------- | :----------------- | :----------------------------------------------------------------------------------- |
+| `npm run check`        | GATE-SVELTE-CHECK  | Сувора перевірка типізації TypeScript та синтаксису Svelte 5 Runes                   |
+| `npm run lint`         | GATE-ESLINT        | Повний лінтинг ESLint Flat Config та форматування Prettier                           |
+| `npm run format`       | —                  | Автоматичне форматування кодової бази                                                |
 | `npm test`             | GATE-TEST-RUNNERS  | Vitest юніт-тести рушія, кузні, командирів, сітки та безпеки (94 файли, 540+ тестів) |
-| `npm run test:balance` | GATE-BALANCE-SIM   | Headless прогін бот-турніру симуляції балансу без DOM                                 |
-| `npm run test:e2e`     | GATE-A11Y-AXE      | Playwright E2E автоматизовані браузерні тести та WCAG 2.2 AA аудит                    |
-| `npm run check:build`  | GATE-BUILD-OUTPUT  | Автоматичний гейт зібраного проєкту (`build/index.html`, `build/404.html`)            |
-| `npm run check:bundle` | GATE-BUNDLE-BUDGET | Контроль ваги бандлу JS (<550 KB gzip з PixiJS) та CSS (<60 KB gzip)                  |
-| `npm run audit:ci`     | GATE-AUDIT         | Автоматичний аудит безпеки npm-пакетів                                                |
-| `lhci autorun`         | GATE-LIGHTHOUSE    | Lighthouse CI аудит швидкодії, доступності (minScore: 0.9), SEO та кращих практик     |
+| `npm run test:balance` | GATE-BALANCE-SIM   | Headless прогін бот-турніру симуляції балансу без DOM                                |
+| `npm run test:e2e`     | GATE-A11Y-AXE      | Playwright E2E автоматизовані браузерні тести та WCAG 2.2 AA аудит                   |
+| `npm run check:build`  | GATE-BUILD-OUTPUT  | Автоматичний гейт зібраного проєкту (`build/index.html`, `build/404.html`)           |
+| `npm run check:bundle` | GATE-BUNDLE-BUDGET | Контроль ваги бандлу JS (<550 KB gzip з PixiJS) та CSS (<60 KB gzip)                 |
+| `npm run audit:ci`     | GATE-AUDIT         | Автоматичний аудит безпеки npm-пакетів                                               |
+| `lhci autorun`         | GATE-LIGHTHOUSE    | Lighthouse CI аудит швидкодії, доступності (minScore: 0.9), SEO та кращих практик    |
 
 ### CI/CD Пайплайни GitHub Actions:
 

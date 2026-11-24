@@ -324,355 +324,353 @@
 				</div>
 			</div>
 		</div>
-				<!-- 1. Player & Opponent Race Setup -->
-				<div class="bg-[#121622] border border-slate-800 rounded-2xl p-4 space-y-4">
-					<div class="flex items-center justify-between">
-						<span class="font-bold text-sm text-amber-200 flex items-center gap-2">
-							<Shield class="w-4 h-4 text-cyan-400" />
-							Вибір рас для битви
-						</span>
-						<span class="text-[11px] text-slate-400 font-mono">
-							Захід (Ви) vs Схід (Супротивник)
-						</span>
-					</div>
+		<!-- 1. Player & Opponent Race Setup -->
+		<div class="bg-[#121622] border border-slate-800 rounded-2xl p-4 space-y-4">
+			<div class="flex items-center justify-between">
+				<span class="font-bold text-sm text-amber-200 flex items-center gap-2">
+					<Shield class="w-4 h-4 text-cyan-400" />
+					Вибір рас для битви
+				</span>
+				<span class="text-[11px] text-slate-400 font-mono"> Захід (Ви) vs Схід (Супротивник) </span>
+			</div>
 
-					<!-- Player Race Picker -->
-					<div class="space-y-1.5">
-						<div class="flex items-center justify-between">
-							<span class="text-xs font-bold text-slate-300"> Ваша раса (Гравець): </span>
-							<span class="text-xs text-cyan-300 font-bold font-mono">
-								{#if westRace === 'in_game'}
-									🎯 Обрати в грі (15с на арені)
-								{:else if westRace === 'random'}
-									🎲 Випадкова (+30% золота)
-								{:else}
-									{westRace}
-								{/if}
-							</span>
-						</div>
-						<div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-1.5">
-							<!-- Default: In-Game Choice -->
-							<button
-								type="button"
-								onclick={() => (westRace = 'in_game')}
-								class="py-2 px-2 rounded-xl border text-left transition cursor-pointer flex items-center justify-between {westRace ===
-								'in_game'
-									? 'bg-cyan-950/80 border-cyan-400 ring-2 ring-cyan-500/40 text-cyan-200 font-bold shadow-md'
-									: 'bg-[#181d28] border-slate-800 hover:border-slate-700 text-slate-400'}"
-								data-testid="race-option-in_game"
-							>
-								<span class="text-[11px] font-bold truncate">🎯 В грі (15с)</span>
-								{#if westRace === 'in_game'}
-									<Check class="w-3.5 h-3.5 text-cyan-400 shrink-0 ml-1" />
-								{/if}
-							</button>
-
-							<!-- Random Race -->
-							<button
-								type="button"
-								onclick={() => (westRace = 'random')}
-								class="py-2 px-2 rounded-xl border text-left transition cursor-pointer flex items-center justify-between {westRace ===
-								'random'
-									? 'bg-purple-950/80 border-purple-400 ring-2 ring-purple-500/40 text-purple-200 font-bold shadow-md'
-									: 'bg-[#181d28] border-slate-800 hover:border-slate-700 text-slate-400'}"
-								data-testid="race-option-random"
-							>
-								<span class="text-[11px] font-bold truncate">🎲 Випадкова</span>
-								{#if westRace === 'random'}
-									<Check class="w-3.5 h-3.5 text-purple-400 shrink-0 ml-1" />
-								{/if}
-							</button>
-
-							{#each RACES_LIST as r}
-								<button
-									type="button"
-									onclick={() => (westRace = r.race)}
-									class="py-2 px-2 rounded-xl border text-left transition cursor-pointer flex items-center justify-between {westRace ===
-									r.race
-										? 'bg-cyan-950/80 border-cyan-400 ring-2 ring-cyan-500/40 text-cyan-200 font-bold shadow-md'
-										: 'bg-[#181d28] border-slate-800 hover:border-slate-700 text-slate-400'}"
-									data-testid="race-option-{r.race}"
-								>
-									<span class="text-[11px] truncate">{r.race}</span>
-									{#if westRace === r.race}
-										<Check class="w-3.5 h-3.5 text-cyan-400 shrink-0 ml-1" />
-									{/if}
-								</button>
-							{/each}
-						</div>
-					</div>
-
-					<!-- Bot Race Picker -->
-					<div class="space-y-1.5 pt-2 border-t border-slate-800">
-						<div class="flex items-center justify-between">
-							<span class="text-xs font-bold text-slate-300"> Раса суперника (Бот): </span>
-							<span class="text-xs text-rose-300 font-bold font-mono">
-								{eastRace === 'random' ? '🎲 Випадкова' : eastRace}
-							</span>
-						</div>
-						<div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-1.5">
-							<button
-								type="button"
-								onclick={() => (eastRace = 'random')}
-								class="py-2 px-2 rounded-xl border text-left transition cursor-pointer flex items-center justify-between {eastRace ===
-								'random'
-									? 'bg-rose-950/80 border-rose-400 ring-2 ring-rose-500/40 text-rose-200 font-bold shadow-md'
-									: 'bg-[#181d28] border-slate-800 hover:border-slate-700 text-slate-400'}"
-								data-testid="bot-race-random"
-							>
-								<span class="text-[11px] font-bold truncate">🎲 Випадкова</span>
-								{#if eastRace === 'random'}
-									<Check class="w-3.5 h-3.5 text-rose-400 shrink-0 ml-1" />
-								{/if}
-							</button>
-
-							{#each RACES_LIST as r}
-								<button
-									type="button"
-									onclick={() => (eastRace = r.race)}
-									class="py-2 px-2 rounded-xl border text-left transition cursor-pointer flex items-center justify-between {eastRace ===
-									r.race
-										? 'bg-rose-950/80 border-rose-400 ring-2 ring-rose-500/40 text-rose-200 font-bold shadow-md'
-										: 'bg-[#181d28] border-slate-800 hover:border-slate-700 text-slate-400'}"
-									data-testid="bot-race-{r.race}"
-								>
-									<span class="text-[11px] truncate">{r.race}</span>
-									{#if eastRace === r.race}
-										<Check class="w-3.5 h-3.5 text-rose-400 shrink-0 ml-1" />
-									{/if}
-								</button>
-							{/each}
-						</div>
-					</div>
+			<!-- Player Race Picker -->
+			<div class="space-y-1.5">
+				<div class="flex items-center justify-between">
+					<span class="text-xs font-bold text-slate-300"> Ваша раса (Гравець): </span>
+					<span class="text-xs text-cyan-300 font-bold font-mono">
+						{#if westRace === 'in_game'}
+							🎯 Обрати в грі (15с на арені)
+						{:else if westRace === 'random'}
+							🎲 Випадкова (+30% золота)
+						{:else}
+							{westRace}
+						{/if}
+					</span>
 				</div>
+				<div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-1.5">
+					<!-- Default: In-Game Choice -->
+					<button
+						type="button"
+						onclick={() => (westRace = 'in_game')}
+						class="py-2 px-2 rounded-xl border text-left transition cursor-pointer flex items-center justify-between {westRace ===
+						'in_game'
+							? 'bg-cyan-950/80 border-cyan-400 ring-2 ring-cyan-500/40 text-cyan-200 font-bold shadow-md'
+							: 'bg-[#181d28] border-slate-800 hover:border-slate-700 text-slate-400'}"
+						data-testid="race-option-in_game"
+					>
+						<span class="text-[11px] font-bold truncate">🎯 В грі (15с)</span>
+						{#if westRace === 'in_game'}
+							<Check class="w-3.5 h-3.5 text-cyan-400 shrink-0 ml-1" />
+						{/if}
+					</button>
 
-				<!-- 2. Core Match Parameters Grid -->
-				<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-					<!-- Bot Difficulty -->
-					<div class="space-y-1.5" data-testid="setup-bot-difficulty">
-						<label class="text-xs font-bold text-slate-300 flex items-center gap-1">
-							<Bot class="w-3.5 h-3.5 text-amber-400" />
-							Складність бота:
-						</label>
-						<div class="grid grid-cols-2 gap-1.5">
-							{#each [{ val: 0, label: 'Легкий (0%)', icon: '🌱' }, { val: 15, label: 'Звичайний (15%)', icon: '⚔️' }, { val: 30, label: 'Складний (30%)', icon: '🛡️' }, { val: 80, label: 'Божевільний (80%)', icon: '🔥' }] as diff}
-								<button
-									type="button"
-									onclick={() => (botDifficulty = diff.val)}
-									class="py-2 px-1.5 rounded-lg border text-center transition cursor-pointer flex items-center justify-center gap-1 text-[11px] {botDifficulty ===
-									diff.val
-										? 'bg-amber-500/20 border-amber-500 text-amber-200 font-bold ring-1 ring-amber-500/40 shadow-sm'
-										: 'bg-[#181d28] border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
-									data-testid="difficulty-btn-{diff.val}"
-								>
-									<span>{diff.icon}</span>
-									<span>{diff.label}</span>
-								</button>
-							{/each}
-						</div>
-					</div>
+					<!-- Random Race -->
+					<button
+						type="button"
+						onclick={() => (westRace = 'random')}
+						class="py-2 px-2 rounded-xl border text-left transition cursor-pointer flex items-center justify-between {westRace ===
+						'random'
+							? 'bg-purple-950/80 border-purple-400 ring-2 ring-purple-500/40 text-purple-200 font-bold shadow-md'
+							: 'bg-[#181d28] border-slate-800 hover:border-slate-700 text-slate-400'}"
+						data-testid="race-option-random"
+					>
+						<span class="text-[11px] font-bold truncate">🎲 Випадкова</span>
+						{#if westRace === 'random'}
+							<Check class="w-3.5 h-3.5 text-purple-400 shrink-0 ml-1" />
+						{/if}
+					</button>
 
-					<!-- Starting Gold -->
-					<div class="space-y-1.5" data-testid="setup-start-gold">
-						<label class="text-xs font-bold text-slate-300 flex items-center gap-1">
-							<Coins class="w-3.5 h-3.5 text-amber-400" />
-							Стартове золото:
-						</label>
-						<div class="grid grid-cols-2 gap-1.5">
-							{#each [{ val: 150, label: '150 🪙' }, { val: 300, label: '300 🪙' }, { val: 500, label: '500 🪙' }, { val: 1000, label: '1000 🪙' }] as gold}
-								<button
-									type="button"
-									onclick={() => (startGold = gold.val)}
-									class="py-2 px-1.5 rounded-lg border text-center transition cursor-pointer flex items-center justify-center text-[11px] {startGold ===
-									gold.val
-										? 'bg-amber-500/20 border-amber-500 text-amber-200 font-bold ring-1 ring-amber-500/40 shadow-sm'
-										: 'bg-[#181d28] border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
-									data-testid="gold-btn-{gold.val}"
-								>
-									<span>{gold.label}</span>
-								</button>
-							{/each}
-						</div>
-					</div>
-
-					<!-- Team Size -->
-					<div class="space-y-1.5" data-testid="setup-team-size">
-						<label class="text-xs font-bold text-slate-300 flex items-center gap-1">
-							<Users class="w-3.5 h-3.5 text-cyan-400" />
-							Формат гри:
-						</label>
-						<div class="grid grid-cols-3 gap-1.5">
-							{#each [{ val: 1 as const, label: '1 на 1', sub: 'Соло' }, { val: 2 as const, label: '2 на 2', sub: 'Команда' }, { val: 3 as const, label: '3 на 3', sub: 'Масова' }] as fmt}
-								<button
-									type="button"
-									onclick={() => (teamSize = fmt.val)}
-									class="py-2 px-1 rounded-lg border text-center transition cursor-pointer flex flex-col items-center justify-center {teamSize ===
-									fmt.val
-										? 'bg-cyan-500/20 border-cyan-500 text-cyan-200 font-bold ring-1 ring-cyan-500/40 shadow-sm'
-										: 'bg-[#181d28] border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
-									data-testid="teamsize-btn-{fmt.val}"
-								>
-									<span class="text-[11px] font-bold">{fmt.label}</span>
-									<span class="text-[9px] text-slate-500">{fmt.sub}</span>
-								</button>
-							{/each}
-						</div>
-					</div>
-
-					<!-- Rounds to Win -->
-					<div class="space-y-1.5" data-testid="setup-target-wins">
-						<label class="text-xs font-bold text-slate-300 flex items-center gap-1">
-							<Trophy class="w-3.5 h-3.5 text-emerald-400" />
-							Перемог у матчі:
-						</label>
-						<div class="grid grid-cols-3 gap-1.5">
-							{#each [{ val: 1, label: 'До 1', sub: 'Бліц' }, { val: 2, label: 'До 2', sub: 'Bo3' }, { val: 3, label: 'До 3', sub: 'Bo5' }] as wins}
-								<button
-									type="button"
-									onclick={() => (targetWins = wins.val)}
-									class="py-2 px-1 rounded-lg border text-center transition cursor-pointer flex flex-col items-center justify-center {targetWins ===
-									wins.val
-										? 'bg-emerald-500/20 border-emerald-500 text-emerald-200 font-bold ring-1 ring-emerald-500/40 shadow-sm'
-										: 'bg-[#181d28] border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
-									data-testid="targetwins-btn-{wins.val}"
-								>
-									<span class="text-[11px] font-bold">{wins.label}</span>
-									<span class="text-[9px] text-slate-500">{wins.sub}</span>
-								</button>
-							{/each}
-						</div>
-					</div>
+					{#each RACES_LIST as r}
+						<button
+							type="button"
+							onclick={() => (westRace = r.race)}
+							class="py-2 px-2 rounded-xl border text-left transition cursor-pointer flex items-center justify-between {westRace ===
+							r.race
+								? 'bg-cyan-950/80 border-cyan-400 ring-2 ring-cyan-500/40 text-cyan-200 font-bold shadow-md'
+								: 'bg-[#181d28] border-slate-800 hover:border-slate-700 text-slate-400'}"
+							data-testid="race-option-{r.race}"
+						>
+							<span class="text-[11px] truncate">{r.race}</span>
+							{#if westRace === r.race}
+								<Check class="w-3.5 h-3.5 text-cyan-400 shrink-0 ml-1" />
+							{/if}
+						</button>
+					{/each}
 				</div>
+			</div>
 
-				<!-- 3. Modes, Bans & Tactical Rules -->
-				<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-					<!-- Game Modes -->
-					<div class="bg-[#121622] border border-slate-800 rounded-2xl p-4 space-y-2">
+			<!-- Bot Race Picker -->
+			<div class="space-y-1.5 pt-2 border-t border-slate-800">
+				<div class="flex items-center justify-between">
+					<span class="text-xs font-bold text-slate-300"> Раса суперника (Бот): </span>
+					<span class="text-xs text-rose-300 font-bold font-mono">
+						{eastRace === 'random' ? '🎲 Випадкова' : eastRace}
+					</span>
+				</div>
+				<div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-1.5">
+					<button
+						type="button"
+						onclick={() => (eastRace = 'random')}
+						class="py-2 px-2 rounded-xl border text-left transition cursor-pointer flex items-center justify-between {eastRace ===
+						'random'
+							? 'bg-rose-950/80 border-rose-400 ring-2 ring-rose-500/40 text-rose-200 font-bold shadow-md'
+							: 'bg-[#181d28] border-slate-800 hover:border-slate-700 text-slate-400'}"
+						data-testid="bot-race-random"
+					>
+						<span class="text-[11px] font-bold truncate">🎲 Випадкова</span>
+						{#if eastRace === 'random'}
+							<Check class="w-3.5 h-3.5 text-rose-400 shrink-0 ml-1" />
+						{/if}
+					</button>
+
+					{#each RACES_LIST as r}
+						<button
+							type="button"
+							onclick={() => (eastRace = r.race)}
+							class="py-2 px-2 rounded-xl border text-left transition cursor-pointer flex items-center justify-between {eastRace ===
+							r.race
+								? 'bg-rose-950/80 border-rose-400 ring-2 ring-rose-500/40 text-rose-200 font-bold shadow-md'
+								: 'bg-[#181d28] border-slate-800 hover:border-slate-700 text-slate-400'}"
+							data-testid="bot-race-{r.race}"
+						>
+							<span class="text-[11px] truncate">{r.race}</span>
+							{#if eastRace === r.race}
+								<Check class="w-3.5 h-3.5 text-rose-400 shrink-0 ml-1" />
+							{/if}
+						</button>
+					{/each}
+				</div>
+			</div>
+		</div>
+
+		<!-- 2. Core Match Parameters Grid -->
+		<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+			<!-- Bot Difficulty -->
+			<div class="space-y-1.5" data-testid="setup-bot-difficulty">
+				<label class="text-xs font-bold text-slate-300 flex items-center gap-1">
+					<Bot class="w-3.5 h-3.5 text-amber-400" />
+					Складність бота:
+				</label>
+				<div class="grid grid-cols-2 gap-1.5">
+					{#each [{ val: 0, label: 'Легкий (0%)', icon: '🌱' }, { val: 15, label: 'Звичайний (15%)', icon: '⚔️' }, { val: 30, label: 'Складний (30%)', icon: '🛡️' }, { val: 80, label: 'Божевільний (80%)', icon: '🔥' }] as diff}
+						<button
+							type="button"
+							onclick={() => (botDifficulty = diff.val)}
+							class="py-2 px-1.5 rounded-lg border text-center transition cursor-pointer flex items-center justify-center gap-1 text-[11px] {botDifficulty ===
+							diff.val
+								? 'bg-amber-500/20 border-amber-500 text-amber-200 font-bold ring-1 ring-amber-500/40 shadow-sm'
+								: 'bg-[#181d28] border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
+							data-testid="difficulty-btn-{diff.val}"
+						>
+							<span>{diff.icon}</span>
+							<span>{diff.label}</span>
+						</button>
+					{/each}
+				</div>
+			</div>
+
+			<!-- Starting Gold -->
+			<div class="space-y-1.5" data-testid="setup-start-gold">
+				<label class="text-xs font-bold text-slate-300 flex items-center gap-1">
+					<Coins class="w-3.5 h-3.5 text-amber-400" />
+					Стартове золото:
+				</label>
+				<div class="grid grid-cols-2 gap-1.5">
+					{#each [{ val: 150, label: '150 🪙' }, { val: 300, label: '300 🪙' }, { val: 500, label: '500 🪙' }, { val: 1000, label: '1000 🪙' }] as gold}
+						<button
+							type="button"
+							onclick={() => (startGold = gold.val)}
+							class="py-2 px-1.5 rounded-lg border text-center transition cursor-pointer flex items-center justify-center text-[11px] {startGold ===
+							gold.val
+								? 'bg-amber-500/20 border-amber-500 text-amber-200 font-bold ring-1 ring-amber-500/40 shadow-sm'
+								: 'bg-[#181d28] border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
+							data-testid="gold-btn-{gold.val}"
+						>
+							<span>{gold.label}</span>
+						</button>
+					{/each}
+				</div>
+			</div>
+
+			<!-- Team Size -->
+			<div class="space-y-1.5" data-testid="setup-team-size">
+				<label class="text-xs font-bold text-slate-300 flex items-center gap-1">
+					<Users class="w-3.5 h-3.5 text-cyan-400" />
+					Формат гри:
+				</label>
+				<div class="grid grid-cols-3 gap-1.5">
+					{#each [{ val: 1 as const, label: '1 на 1', sub: 'Соло' }, { val: 2 as const, label: '2 на 2', sub: 'Команда' }, { val: 3 as const, label: '3 на 3', sub: 'Масова' }] as fmt}
+						<button
+							type="button"
+							onclick={() => (teamSize = fmt.val)}
+							class="py-2 px-1 rounded-lg border text-center transition cursor-pointer flex flex-col items-center justify-center {teamSize ===
+							fmt.val
+								? 'bg-cyan-500/20 border-cyan-500 text-cyan-200 font-bold ring-1 ring-cyan-500/40 shadow-sm'
+								: 'bg-[#181d28] border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
+							data-testid="teamsize-btn-{fmt.val}"
+						>
+							<span class="text-[11px] font-bold">{fmt.label}</span>
+							<span class="text-[9px] text-slate-500">{fmt.sub}</span>
+						</button>
+					{/each}
+				</div>
+			</div>
+
+			<!-- Rounds to Win -->
+			<div class="space-y-1.5" data-testid="setup-target-wins">
+				<label class="text-xs font-bold text-slate-300 flex items-center gap-1">
+					<Trophy class="w-3.5 h-3.5 text-emerald-400" />
+					Перемог у матчі:
+				</label>
+				<div class="grid grid-cols-3 gap-1.5">
+					{#each [{ val: 1, label: 'До 1', sub: 'Бліц' }, { val: 2, label: 'До 2', sub: 'Bo3' }, { val: 3, label: 'До 3', sub: 'Bo5' }] as wins}
+						<button
+							type="button"
+							onclick={() => (targetWins = wins.val)}
+							class="py-2 px-1 rounded-lg border text-center transition cursor-pointer flex flex-col items-center justify-center {targetWins ===
+							wins.val
+								? 'bg-emerald-500/20 border-emerald-500 text-emerald-200 font-bold ring-1 ring-emerald-500/40 shadow-sm'
+								: 'bg-[#181d28] border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
+							data-testid="targetwins-btn-{wins.val}"
+						>
+							<span class="text-[11px] font-bold">{wins.label}</span>
+							<span class="text-[9px] text-slate-500">{wins.sub}</span>
+						</button>
+					{/each}
+				</div>
+			</div>
+		</div>
+
+		<!-- 3. Modes, Bans & Tactical Rules -->
+		<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+			<!-- Game Modes -->
+			<div class="bg-[#121622] border border-slate-800 rounded-2xl p-4 space-y-2">
+				<label class="font-bold text-slate-300 flex items-center gap-1.5 text-xs">
+					<Swords class="w-4 h-4 text-amber-400" />
+					Режим гри:
+				</label>
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1">
+					{#each Object.values(GAME_MODES) as mode}
+						<button
+							type="button"
+							onclick={() => (selectedMode = mode.id)}
+							class="p-2 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between {selectedMode ===
+							mode.id
+								? 'bg-amber-600/30 border-amber-500 text-amber-200 font-bold ring-1 ring-amber-500/50 shadow-sm'
+								: 'bg-[#181d28] border-slate-800 hover:border-slate-700 text-slate-400'}"
+						>
+							<div class="text-[11px] font-bold truncate">{mode.nameUk}</div>
+							<div class="text-[9px] text-slate-400 line-clamp-1 mt-0.5">
+								{mode.descriptionUk}
+							</div>
+						</button>
+					{/each}
+				</div>
+			</div>
+
+			<!-- Bans, Coins & Fog -->
+			<div class="bg-[#121622] border border-slate-800 rounded-2xl p-4 space-y-3">
+				<!-- Banned Races Draft -->
+				<div>
+					<div class="flex items-center justify-between mb-1">
 						<label class="font-bold text-slate-300 flex items-center gap-1.5 text-xs">
-							<Swords class="w-4 h-4 text-amber-400" />
-							Режим гри:
+							<Ban class="w-4 h-4 text-red-400" />
+							<span>Бан рас (до 2):</span>
 						</label>
-						<div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1">
-							{#each Object.values(GAME_MODES) as mode}
-								<button
-									type="button"
-									onclick={() => (selectedMode = mode.id)}
-									class="p-2 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between {selectedMode ===
-									mode.id
-										? 'bg-amber-600/30 border-amber-500 text-amber-200 font-bold ring-1 ring-amber-500/50 shadow-sm'
-										: 'bg-[#181d28] border-slate-800 hover:border-slate-700 text-slate-400'}"
-								>
-									<div class="text-[11px] font-bold truncate">{mode.nameUk}</div>
-									<div class="text-[9px] text-slate-400 line-clamp-1 mt-0.5">
-										{mode.descriptionUk}
-									</div>
-								</button>
-							{/each}
+						{#if bannedRaces.length > 0}
+							<button
+								type="button"
+								onclick={() => (bannedRaces = [])}
+								class="text-[10px] text-red-400 hover:text-red-300 underline cursor-pointer"
+							>
+								Скинути бани
+							</button>
+						{/if}
+					</div>
+					<div class="grid grid-cols-3 sm:grid-cols-4 gap-1">
+						{#each RACES_LIST as raceDef}
+							{@const isBanned = bannedRaces.includes(raceDef.race)}
+							<button
+								type="button"
+								onclick={() => toggleBanRace(raceDef.race)}
+								class="py-1 px-1 rounded-lg border text-center transition cursor-pointer text-[10px] truncate {isBanned
+									? 'bg-red-950/80 border-red-500 text-red-200 font-bold line-through'
+									: 'bg-[#181d28] border-slate-800 text-slate-400 hover:border-slate-700'}"
+							>
+								{raceDef.race}
+							</button>
+						{/each}
+					</div>
+				</div>
+
+				<!-- Tactical Toggles: Fog & Coins -->
+				<div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
+					<!-- Fog of War -->
+					<div>
+						<span class="text-[10px] font-bold text-slate-300 block mb-1">Туман війни:</span>
+						<div class="grid grid-cols-2 gap-1">
+							<button
+								type="button"
+								onclick={() => (fogOfWar = true)}
+								class="py-1 px-1 rounded-lg border text-[10px] font-bold transition cursor-pointer {fogOfWar
+									? 'bg-cyan-600/30 border-cyan-500 text-cyan-200'
+									: 'bg-[#181d28] border-slate-800 text-slate-400'}"
+							>
+								Вкл
+							</button>
+							<button
+								type="button"
+								onclick={() => (fogOfWar = false)}
+								class="py-1 px-1 rounded-lg border text-[10px] font-bold transition cursor-pointer {!fogOfWar
+									? 'bg-amber-600/30 border-amber-500 text-amber-200'
+									: 'bg-[#181d28] border-slate-800 text-slate-400'}"
+							>
+								Викл
+							</button>
 						</div>
 					</div>
 
-					<!-- Bans, Coins & Fog -->
-					<div class="bg-[#121622] border border-slate-800 rounded-2xl p-4 space-y-3">
-						<!-- Banned Races Draft -->
-						<div>
-							<div class="flex items-center justify-between mb-1">
-								<label class="font-bold text-slate-300 flex items-center gap-1.5 text-xs">
-									<Ban class="w-4 h-4 text-red-400" />
-									<span>Бан рас (до 2):</span>
-								</label>
-								{#if bannedRaces.length > 0}
-									<button
-										type="button"
-										onclick={() => (bannedRaces = [])}
-										class="text-[10px] text-red-400 hover:text-red-300 underline cursor-pointer"
-									>
-										Скинути бани
-									</button>
-								{/if}
-							</div>
-							<div class="grid grid-cols-3 sm:grid-cols-4 gap-1">
-								{#each RACES_LIST as raceDef}
-									{@const isBanned = bannedRaces.includes(raceDef.race)}
-									<button
-										type="button"
-										onclick={() => toggleBanRace(raceDef.race)}
-										class="py-1 px-1 rounded-lg border text-center transition cursor-pointer text-[10px] truncate {isBanned
-											? 'bg-red-950/80 border-red-500 text-red-200 font-bold line-through'
-											: 'bg-[#181d28] border-slate-800 text-slate-400 hover:border-slate-700'}"
-									>
-										{raceDef.race}
-									</button>
-								{/each}
-							</div>
-						</div>
-
-						<!-- Tactical Toggles: Fog & Coins -->
-						<div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
-							<!-- Fog of War -->
-							<div>
-								<span class="text-[10px] font-bold text-slate-300 block mb-1">Туман війни:</span>
-								<div class="grid grid-cols-2 gap-1">
-									<button
-										type="button"
-										onclick={() => (fogOfWar = true)}
-										class="py-1 px-1 rounded-lg border text-[10px] font-bold transition cursor-pointer {fogOfWar
-											? 'bg-cyan-600/30 border-cyan-500 text-cyan-200'
-											: 'bg-[#181d28] border-slate-800 text-slate-400'}"
-									>
-										Вкл
-									</button>
-									<button
-										type="button"
-										onclick={() => (fogOfWar = false)}
-										class="py-1 px-1 rounded-lg border text-[10px] font-bold transition cursor-pointer {!fogOfWar
-											? 'bg-amber-600/30 border-amber-500 text-amber-200'
-											: 'bg-[#181d28] border-slate-800 text-slate-400'}"
-									>
-										Викл
-									</button>
-								</div>
-							</div>
-
-							<!-- Coins Mode -->
-							<div>
-								<span class="text-[10px] font-bold text-slate-300 block mb-1">Монети:</span>
-								<div class="grid grid-cols-3 gap-1">
-									<button
-										type="button"
-										onclick={() => (coinMode = 'none')}
-										class="py-1 px-0.5 rounded-lg border text-[10px] font-bold transition cursor-pointer {coinMode ===
-										'none'
-											? 'bg-red-600/30 border-red-500 text-red-200'
-											: 'bg-[#181d28] border-slate-800 text-slate-400'}"
-									>
-										Ні
-									</button>
-									<button
-										type="button"
-										onclick={() => (coinMode = 'normal')}
-										class="py-1 px-0.5 rounded-lg border text-[10px] font-bold transition cursor-pointer {coinMode ===
-										'normal'
-											? 'bg-amber-600/30 border-amber-500 text-amber-200'
-											: 'bg-[#181d28] border-slate-800 text-slate-400'}"
-									>
-										40с
-									</button>
-									<button
-										type="button"
-										onclick={() => (coinMode = 'crazy')}
-										class="py-1 px-0.5 rounded-lg border text-[10px] font-bold transition cursor-pointer {coinMode ===
-										'crazy'
-											? 'bg-purple-600/30 border-purple-500 text-purple-200'
-											: 'bg-[#181d28] border-slate-800 text-slate-400'}"
-									>
-										5/20с
-									</button>
-								</div>
-							</div>
+					<!-- Coins Mode -->
+					<div>
+						<span class="text-[10px] font-bold text-slate-300 block mb-1">Монети:</span>
+						<div class="grid grid-cols-3 gap-1">
+							<button
+								type="button"
+								onclick={() => (coinMode = 'none')}
+								class="py-1 px-0.5 rounded-lg border text-[10px] font-bold transition cursor-pointer {coinMode ===
+								'none'
+									? 'bg-red-600/30 border-red-500 text-red-200'
+									: 'bg-[#181d28] border-slate-800 text-slate-400'}"
+							>
+								Ні
+							</button>
+							<button
+								type="button"
+								onclick={() => (coinMode = 'normal')}
+								class="py-1 px-0.5 rounded-lg border text-[10px] font-bold transition cursor-pointer {coinMode ===
+								'normal'
+									? 'bg-amber-600/30 border-amber-500 text-amber-200'
+									: 'bg-[#181d28] border-slate-800 text-slate-400'}"
+							>
+								40с
+							</button>
+							<button
+								type="button"
+								onclick={() => (coinMode = 'crazy')}
+								class="py-1 px-0.5 rounded-lg border text-[10px] font-bold transition cursor-pointer {coinMode ===
+								'crazy'
+									? 'bg-purple-600/30 border-purple-500 text-purple-200'
+									: 'bg-[#181d28] border-slate-800 text-slate-400'}"
+							>
+								5/20с
+							</button>
 						</div>
 					</div>
 				</div>
 			</div>
+		</div>
+	</div>
 
 	<!-- Footer (fixed at bottom) -->
 	<div

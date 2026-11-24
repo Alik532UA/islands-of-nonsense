@@ -8,10 +8,12 @@
 	import ServiceBadge from '$lib/components/ServiceBadge.svelte';
 	import GameHeader from '$lib/components/GameHeader.svelte';
 	import SettingsModal from '$lib/components/SettingsModal.svelte';
+	import FullscreenModal from '$lib/components/FullscreenModal.svelte';
 	import ErrorFallback from '$lib/components/ErrorFallback.svelte';
 	import ToastContainer from '$lib/components/toast/ToastContainer.svelte';
 	import { logService } from '$lib/services/logService.svelte';
 	import { settings } from '$lib/services/settings.svelte';
+	import { fullscreen } from '$lib/services/fullscreen.svelte';
 	import { debugMode } from '$lib/debug/debugMode.svelte';
 	import { hardReset } from '$lib/debug/hardReset';
 	import { createKeySequence, listenForSequences } from '$lib/debug/keySequence';
@@ -32,6 +34,11 @@
 		if (!willUnload && updated.current && to?.url) {
 			location.href = to.url.href;
 		}
+	});
+
+	$effect(() => {
+		const unwatch = fullscreen.watch();
+		return () => unwatch();
 	});
 
 	$effect(() =>
@@ -57,12 +64,22 @@
 </svelte:head>
 
 <GameHeader />
-<svelte:boundary onerror={(error) => logService.error('render', 'Layout boundary caught render error', error)}>
+<svelte:boundary
+	onerror={(error) => logService.error('render', 'Layout boundary caught render error', error)}
+>
 	{@render children()}
 	{#snippet failed(_error, reset)}
 		<ErrorFallback onretry={reset} />
 	{/snippet}
 </svelte:boundary>
 <SettingsModal isOpen={settings.isSettingsOpen} onClose={() => settings.closeSettings()} />
+{#if fullscreen.isModalOpen}
+	<FullscreenModal
+		mode={fullscreen.modalMode}
+		onclose={() => {
+			fullscreen.isModalOpen = false;
+		}}
+	/>
+{/if}
 <ToastContainer />
 <ServiceBadge />

@@ -1,4 +1,5 @@
 import { browser } from '$app/env';
+import { logService } from '$lib/services/logService.svelte';
 
 interface FullscreenDocument extends Document {
 	webkitFullscreenElement?: Element;
@@ -24,23 +25,63 @@ export function isStandalone(): boolean {
 	);
 }
 
+export type FullscreenAction = 'exit' | 'enter' | 'offer' | 'blocked' | 'hidden';
+
+export function buttonAction(state: {
+	active: boolean;
+	can: boolean;
+	installed: boolean;
+}): FullscreenAction {
+	if (state.active) return 'exit';
+	if (state.can) return state.installed ? 'enter' : 'offer';
+	return state.installed ? 'hidden' : 'blocked';
+}
+
+function settle(result: Promise<void> | undefined, action: string): void {
+	result?.catch((error: unknown) => logService.warn('ui', `Fullscreen ${action} refused`, error));
+}
+
 class FullscreenState {
 	active = $state(false);
+	isModalOpen = $state(false);
+	modalMode = $state<'choice' | 'blocked'>('choice');
 
 	toggle(): void {
-		if (!canFullscreen()) return;
+		const action = buttonAction({
+			active: this.active,
+			can: canFullscreen(),
+			installed: isStandalone()
+		});
 
-		const doc = document as FullscreenDocument;
-		const root = document.documentElement as FullscreenHTMLElement;
-
-		if (doc.fullscreenElement || doc.webkitFullscreenElement) {
-			const exit = doc.exitFullscreen ?? doc.webkitExitFullscreen;
-			void exit?.call(doc)?.catch(() => {});
+		if (action === 'exit') {
+			const doc = document as FullscreenDocument;
+			settle((doc.exitFullscreen ?? doc.webkitExitFullscreen)?.call(doc), 'exit');
 			return;
 		}
 
-		const request = root.requestFullscreen ?? root.webkitRequestFullscreen;
-		void request?.call(root)?.catch(() => {});
+		if (action === 'enter') {
+			const root = document.documentElement as FullscreenHTMLElement;
+			settle((root.requestFullscreen ?? root.webkitRequestFullscreen)?.call(root), 'enter');
+			return;
+		}
+
+		if (action === 'offer') {
+			this.modalMode = 'choice';
+			this.isModalOpen = true;
+			return;
+		}
+
+		if (action === 'blocked') {
+			this.modalMode = 'blocked';
+			this.isModalOpen = true;
+			return;
+		}
+	}
+
+	enterDirect(): void {
+		if (!canFullscreen()) return;
+		const root = document.documentElement as FullscreenHTMLElement;
+		settle((root.requestFullscreen ?? root.webkitRequestFullscreen)?.call(root), 'enter');
 	}
 
 	watch(): () => void {

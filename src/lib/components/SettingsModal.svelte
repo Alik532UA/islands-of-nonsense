@@ -11,8 +11,8 @@
 		Sparkles,
 		Check
 	} from 'lucide-svelte';
-	import { settings, UI_SCALES } from '$lib/services/settings.svelte';
-	import { fullscreen, canFullscreen } from '$lib/services/fullscreen.svelte';
+	import { settings, UI_SCALES, APP_THEMES } from '$lib/services/settings.svelte';
+	import { fullscreen, canFullscreen, isStandalone } from '$lib/services/fullscreen.svelte';
 	import { sound } from '$lib/services/audio';
 	import { t } from '$lib/i18n';
 
@@ -263,6 +263,53 @@
 					</div>
 				{:else if activeTab === 'interface'}
 					<div class="space-y-4 animate-in fade-in duration-100">
+						<!-- Theme Selector (from Slovko) -->
+						<div class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 space-y-3">
+							<div class="space-y-0.5">
+								<div class="text-xs font-bold text-slate-200">{t('settings.theme')}</div>
+								<div class="text-[11px] text-slate-400">{t('settings.themeDesc')}</div>
+							</div>
+
+							<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+								{#each APP_THEMES as themeId}
+									<button
+										type="button"
+										class="p-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-between gap-2 cursor-pointer {settings.theme ===
+										themeId
+											? 'bg-amber-500/20 border-amber-500/60 text-amber-200 shadow-sm'
+											: 'bg-[#0f131d] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
+										onclick={() => settings.setTheme(themeId)}
+										data-testid={`settings-theme-${themeId}`}
+									>
+										<!-- Theme Color Preview Swatch -->
+										<div
+											class="w-full h-8 rounded-lg flex items-center justify-center relative overflow-hidden border border-white/10"
+											style={themeId === 'dark-gray'
+												? 'background: #0b0f19;'
+												: themeId === 'light-gray'
+													? 'background: #f5f6fa;'
+													: themeId === 'orange'
+														? 'background: linear-gradient(135deg, #77216f, #e95420);'
+														: 'background: #b2f7b8;'}
+										>
+											{#if settings.theme === themeId}
+												<span
+													class="p-0.5 rounded-full {themeId === 'light-gray' || themeId === 'green'
+														? 'bg-slate-900/60 text-amber-300'
+														: 'bg-black/60 text-amber-300'}"
+												>
+													<Check class="w-3.5 h-3.5" />
+												</span>
+											{/if}
+										</div>
+										<span class="text-[11px] font-semibold truncate w-full text-center">
+											{t(`settings.theme.${themeId}`)}
+										</span>
+									</button>
+								{/each}
+							</div>
+						</div>
+
 						<!-- UI Scale Presets -->
 						<div class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 space-y-3">
 							<div class="space-y-0.5">
@@ -305,7 +352,7 @@
 								<div class="text-[11px] text-slate-400">{t('settings.fullscreenDesc')}</div>
 							</div>
 
-							{#if canFullscreen()}
+							{#if canFullscreen() || !isStandalone()}
 								<button
 									type="button"
 									onclick={() => fullscreen.toggle()}

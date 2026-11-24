@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
 	import {
@@ -18,11 +17,23 @@
 	import type { SimulationConfig } from '$lib/engine/simulation';
 	import MatchConfigModal from '$lib/components/MatchConfigModal.svelte';
 
-	onMount(() => settings.claimHeader(t('menu.singleplayer'), () => goto(resolve('/'))));
-
 	// State for MatchConfigModal
 	let isConfigOpen = $state(false);
 	let configInitialParams = $state<Partial<SimulationConfig>>({});
+
+	$effect(() => {
+		const release = settings.claimHeader(
+			isConfigOpen ? 'Конфігурація матчу' : t('menu.singleplayer'),
+			() => {
+				if (isConfigOpen) {
+					isConfigOpen = false;
+				} else {
+					goto(resolve('/'));
+				}
+			}
+		);
+		return release;
+	});
 
 	// Quick adjustments constants
 	const DIFFICULTIES = [0, 15, 30, 80] as const;
@@ -241,19 +252,7 @@
 	<title>Castle Fight Web — {t('menu.singleplayer')}</title>
 </svelte:head>
 
-<div class="menu-page fill min-h-screen py-6 px-4 flex flex-col items-center justify-between">
-	<!-- Header -->
-	<header class="w-full max-w-4xl text-center mb-6">
-		<h1 class="text-3xl md:text-4xl font-extrabold text-amber-300 tracking-wider uppercase mb-2">
-			{t('menu.singleplayer')}
-		</h1>
-		<p class="text-sm text-slate-400">
-			{isConfigOpen
-				? 'Тонкі налаштування рас, правил, складності та балансу гри'
-				: t('menu.singleplayerDesc')}
-		</p>
-	</header>
-
+<div class="menu-page fill min-h-screen px-4 flex flex-col items-center pt-[15vh] pb-16 relative">
 	{#if !isConfigOpen}
 		<!-- 4 Modes in a Row (Adaptive: 4 in a row on desktop lg, 2 on tablet sm, 1 on mobile) -->
 		<div
@@ -261,7 +260,7 @@
 		>
 		<!-- 1. Classic Battle vs Computer -->
 		<div
-			class="group relative bg-[#131826] hover:bg-[#182033] border-2 border-[#2e3d5a] hover:border-amber-400/80 rounded-2xl shadow-xl transition-all duration-300 flex flex-col overflow-hidden"
+			class="group relative bg-[var(--color-bg-card,#131826)] hover:bg-[var(--color-bg-card-hover,#182033)] border-2 border-[var(--color-border-card,#2e3d5a)] hover:border-amber-400/80 rounded-2xl group-hover:rounded-b-none shadow-xl transition-colors duration-200 flex flex-col"
 			style="box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);"
 			data-testid="play-battle-card"
 		>
@@ -305,11 +304,11 @@
 				</h2>
 			</button>
 
-			<!-- Quick Settings Drawer (Hidden by default, reveals on hover/focus-within) -->
+			<!-- Quick Settings Drawer (Floats downward without shifting neighboring elements) -->
 			<div
-				class="max-h-0 opacity-0 pointer-events-none group-hover:max-h-[800px] group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:max-h-[800px] group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-all duration-300 ease-in-out overflow-hidden"
+				class="absolute top-full -left-[2px] -right-[2px] z-40 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-all duration-200 bg-[var(--color-bg-card,#131826)] border-2 border-t-0 border-amber-400/80 rounded-b-2xl shadow-2xl p-3 space-y-1.5"
+				style="box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6);"
 			>
-				<div class="bg-[#0b0f19] border-t border-slate-800/80 p-3 space-y-1.5 shadow-inner">
 					<!-- 1. Difficulty -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
 						<span class="text-slate-400 truncate">Складність:</span>
@@ -579,13 +578,12 @@
 						<Sliders class="w-3.5 h-3.5" />
 						<span>Налаштувати</span>
 					</button>
-				</div>
 			</div>
 		</div>
 
 		<!-- 2. Sandbox Testing Mode -->
 		<div
-			class="group relative bg-[#131826] hover:bg-[#152331] border-2 border-[#2e3d5a] hover:border-cyan-400/80 rounded-2xl shadow-xl transition-all duration-300 flex flex-col overflow-hidden"
+			class="group relative bg-[var(--color-bg-card,#131826)] hover:bg-[var(--color-bg-card-hover,#152331)] border-2 border-[var(--color-border-card,#2e3d5a)] hover:border-cyan-400/80 rounded-2xl group-hover:rounded-b-none shadow-xl transition-colors duration-200 flex flex-col"
 			style="box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);"
 			data-testid="play-sandbox-card"
 		>
@@ -629,11 +627,11 @@
 				</h2>
 			</button>
 
-			<!-- Quick Settings Drawer -->
+			<!-- Quick Settings Drawer (Floats downward without shifting neighboring elements) -->
 			<div
-				class="max-h-0 opacity-0 pointer-events-none group-hover:max-h-[800px] group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:max-h-[800px] group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-all duration-300 ease-in-out overflow-hidden"
+				class="absolute top-full -left-[2px] -right-[2px] z-40 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-all duration-200 bg-[var(--color-bg-card,#131826)] border-2 border-t-0 border-cyan-400/80 rounded-b-2xl shadow-2xl p-3 space-y-1.5"
+				style="box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6);"
 			>
-				<div class="bg-[#0b1319] border-t border-slate-800/80 p-3 space-y-1.5 shadow-inner">
 					<!-- 1. Gold -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
 						<span class="text-slate-400 truncate">Золото:</span>
@@ -902,13 +900,12 @@
 						<Sliders class="w-3.5 h-3.5" />
 						<span>Налаштувати</span>
 					</button>
-				</div>
 			</div>
 		</div>
 
 		<!-- 3. AI vs AI Spectator Mode -->
 		<div
-			class="group relative bg-[#131826] hover:bg-[#14241e] border-2 border-[#2e3d5a] hover:border-emerald-400/80 rounded-2xl shadow-xl transition-all duration-300 flex flex-col overflow-hidden"
+			class="group relative bg-[var(--color-bg-card,#131826)] hover:bg-[var(--color-bg-card-hover,#14241e)] border-2 border-[var(--color-border-card,#2e3d5a)] hover:border-emerald-400/80 rounded-2xl group-hover:rounded-b-none shadow-xl transition-colors duration-200 flex flex-col"
 			style="box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);"
 			data-testid="play-spectator-card"
 		>
@@ -954,11 +951,11 @@
 				</h2>
 			</button>
 
-			<!-- Quick Settings Drawer -->
+			<!-- Quick Settings Drawer (Floats downward without shifting neighboring elements) -->
 			<div
-				class="max-h-0 opacity-0 pointer-events-none group-hover:max-h-[800px] group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:max-h-[800px] group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-all duration-300 ease-in-out overflow-hidden"
+				class="absolute top-full -left-[2px] -right-[2px] z-40 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-all duration-200 bg-[var(--color-bg-card,#131826)] border-2 border-t-0 border-emerald-400/80 rounded-b-2xl shadow-2xl p-3 space-y-1.5"
+				style="box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6);"
 			>
-				<div class="bg-[#0b1612] border-t border-slate-800/80 p-3 space-y-1.5 shadow-inner">
 					<!-- 1. Format -->
 					<div class="flex items-center justify-between text-[11px] py-0.5">
 						<span class="text-slate-400 truncate">Формат:</span>

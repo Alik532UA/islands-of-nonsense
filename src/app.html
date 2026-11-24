@@ -41,6 +41,31 @@
 			name="twitter:image"
 			content="https://alik532ua.github.io/islands-of-nonsense/assets/castles/east_castle_stage_0.webp"
 		/>
+		<style>
+			html.no-fullscreen .fullscreen-btn {
+				display: none;
+			}
+		</style>
+		<script>
+			(function () {
+				try {
+					var can = document.fullscreenEnabled || document.webkitFullscreenEnabled;
+					var standalone =
+						navigator.standalone === true ||
+						window.matchMedia('(display-mode: standalone)').matches === true;
+					if (!can && standalone) document.documentElement.classList.add('no-fullscreen');
+				} catch (e) {}
+				try {
+					window.addEventListener('beforeinstallprompt', function (event) {
+						event.preventDefault();
+						window.__pwaInstallPrompt = event;
+					});
+					window.addEventListener('appinstalled', function () {
+						window.__pwaInstallPrompt = null;
+					});
+				} catch (e) {}
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body

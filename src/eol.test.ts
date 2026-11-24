@@ -62,7 +62,10 @@ describe('закінчення рядків (AI-AGENT-PITFALLS-v10 § 1.5)', () 
 		const sources = text
 			.map((e) => e.path)
 			.filter((p) => /\.(?:[cm]?[jt]s|svelte|json|css|html|md|ya?ml)$/.test(p));
-		expect(sources.length, 'у переліку немає джерел — атрибут перевіряти нема на чому').toBeGreaterThan(0);
+		expect(
+			sources.length,
+			'у переліку немає джерел — атрибут перевіряти нема на чому'
+		).toBeGreaterThan(0);
 
 		const out = execFileSync('git', ['check-attr', '-z', '--stdin', 'text', 'eol'], {
 			input: sources.join('\0'),

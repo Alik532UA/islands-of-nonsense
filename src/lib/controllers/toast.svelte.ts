@@ -59,7 +59,7 @@ export class ToastController {
 			remaining: duration,
 			paused: false,
 			action: options?.action,
-			urgent: options?.urgent ?? (type === 'error'),
+			urgent: options?.urgent ?? type === 'error',
 			startTime: Date.now()
 		};
 
