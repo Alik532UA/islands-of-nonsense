@@ -501,6 +501,26 @@ export function getUnit(id: string): UnitDefinition | undefined {
 	return UNITS_MAP.get(id);
 }
 
+/**
+ * Resolves the authentic WC3 gold bounty awarded when an enemy unit is killed.
+ * Uses `raw_fields.ubba` when present (100/109 units), or scales consistently
+ * from building gold cost / unit maxHp for base units missing `ubba`.
+ */
+export function resolveUnitKillBounty(
+	unitDef?: UnitDefinition,
+	buildingGoldCost = 0,
+	fallbackMaxHp = 400
+): number {
+	const rawUbba = Number(unitDef?.raw_fields?.ubba);
+	if (Number.isFinite(rawUbba) && rawUbba > 0) {
+		return Math.round(rawUbba);
+	}
+	if (buildingGoldCost > 0) {
+		return Math.max(3, Math.round(buildingGoldCost / 30));
+	}
+	return Math.max(3, Math.min(25, Math.round(fallbackMaxHp / 80)));
+}
+
 export function getBuildingsForRace(raceName: string): BuildingDefinition[] {
 	const canonical = formatRaceName(raceName);
 	const seen = new Set<string>();

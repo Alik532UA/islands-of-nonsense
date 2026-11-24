@@ -360,6 +360,13 @@ export interface Unit {
 	playerSlot?: number;
 	timedLife?: number;
 	isSummoned?: boolean;
+	bounty?: number;
+}
+
+export interface DamageKillOptions {
+	bountyMultiplier?: number;
+	killerPlayer?: PlayerState;
+	suppressKillFloatingText?: boolean;
 }
 
 export interface BuildingPerformance {

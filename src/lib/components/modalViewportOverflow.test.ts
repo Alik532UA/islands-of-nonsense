@@ -32,6 +32,12 @@ describe('Modal Viewport Constraints, Multi-Column Layout & Scroll Overflow Inva
 			viewportConstraint: true
 		},
 		{
+			file: 'GuideModal.svelte',
+			hasScroll: true,
+			hasMultiColumn: false,
+			viewportConstraint: true
+		},
+		{
 			file: 'HotkeysHelpModal.svelte',
 			hasScroll: true,
 			hasMultiColumn: false,

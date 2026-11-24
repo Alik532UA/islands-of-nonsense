@@ -42,6 +42,7 @@ import {
 	isSpecialBuilding,
 	isTowerBuilding,
 	resolveUnitMoveSpeed,
+	resolveUnitKillBounty,
 	toPlayableRace
 } from './gameData';
 import { logService } from '../services/logService.svelte';
@@ -1044,7 +1045,8 @@ export class BuildingSystem {
 			buildingDefId: building.defId,
 			buildingName: building.name,
 			playerId: player.id,
-			playerSlot: player.slot
+			playerSlot: player.slot,
+			bounty: resolveUnitKillBounty(unitDef, building.goldCost, unitDef.hp ?? 300)
 		};
 
 		this.sim.units.push(unit);

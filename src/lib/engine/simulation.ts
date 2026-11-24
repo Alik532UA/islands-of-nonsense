@@ -1804,7 +1804,7 @@ export class Simulation {
 	public triggerRescueStrike(
 		team: MatchTeam,
 		player?: PlayerState
-	): { hitCount: number; damageDealt: number } | null {
+	): { hitCount: number; damageDealt: number; killCount: number; bountyEarned: number } | null {
 		return this.economySystem.triggerRescueStrike(team, player);
 	}
 

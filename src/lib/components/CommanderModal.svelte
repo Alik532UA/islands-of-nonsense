@@ -8,17 +8,7 @@
 	} from '../engine/commanders';
 	import { BUILDINGS_MAP } from '../engine/gameData';
 	import CommanderPickerGrid from './CommanderPickerGrid.svelte';
-	import {
-		Coins,
-		Crown,
-		Sword,
-		Shield,
-		X,
-		BookOpen,
-		Keyboard,
-		TreePine,
-		Clock
-	} from 'lucide-svelte';
+	import { Coins, Crown, X, TreePine, Clock } from 'lucide-svelte';
 
 	let {
 		sim,
@@ -34,7 +24,6 @@
 		onBuildCommanderHall?: () => void;
 	} = $props();
 
-	let activeTab = $state<'commanders' | 'guide'>('commanders');
 	let player = $derived(activePlayer ?? sim.players.west);
 	let playerGold = $derived(uiTick >= 0 ? Math.floor(player.gold) : 0);
 	let playerLumber = $derived(uiTick >= 0 ? Math.floor(player.lumber ?? 0) : 0);
@@ -73,7 +62,8 @@
 	<div
 		role="dialog"
 		aria-modal="true"
-		aria-label="Командири та правила гри"
+		aria-label="Командири"
+		data-testid="commander-modal"
 		class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
 	>
 		<div
@@ -84,286 +74,155 @@
 			<button
 				type="button"
 				onclick={() => (isOpen = false)}
-				class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+				data-testid="commander-close-btn"
+				class="absolute top-4 right-4 text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition cursor-pointer"
 				aria-label="Закрити"
 			>
 				<X class="w-5 h-5" />
 			</button>
 
-			<!-- Header with Tabs -->
-			<div class="flex items-center justify-between border-b border-[#3b3226] pb-3 mb-4">
-				<div class="flex items-center gap-3">
-					<button
-						type="button"
-						onclick={() => (activeTab = 'commanders')}
-						class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition cursor-pointer {activeTab ===
-						'commanders'
-							? 'bg-indigo-600/30 border border-indigo-400 text-indigo-200'
-							: 'text-slate-400 hover:text-slate-200'}"
-					>
-						<Sword class="w-4 h-4 text-indigo-400" />
-						Командири
-					</button>
-
-					<button
-						type="button"
-						onclick={() => (activeTab = 'guide')}
-						class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition cursor-pointer {activeTab ===
-						'guide'
-							? 'bg-amber-600/30 border border-amber-400 text-amber-200'
-							: 'text-slate-400 hover:text-slate-200'}"
-					>
-						<BookOpen class="w-4 h-4 text-amber-400" />
-						Довідник (F9)
-					</button>
+			<!-- Header -->
+			<div class="flex items-center gap-3 border-b border-[#3b3226] pb-3.5 mb-4 shrink-0">
+				<div class="p-2 rounded-xl bg-indigo-500/15 border border-indigo-500/40 text-indigo-300">
+					<Crown class="w-5 h-5" />
+				</div>
+				<div>
+					<h2 class="text-base font-bold text-indigo-200 flex items-center gap-2">
+						<span>Командири</span>
+						<span
+							class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/50 border border-indigo-500/40 text-indigo-300"
+						>
+							C
+						</span>
+					</h2>
+					<p class="text-xs text-slate-400">
+						Оберіть стратегічного командира для бонусу команді (Випадковий = ×2)
+					</p>
 				</div>
 			</div>
 
-			<!-- Tab 1: Commanders Grid -->
-			{#if activeTab === 'commanders'}
-				<div class="overflow-y-auto pr-1 flex-1 space-y-3">
-					{#if pendingHall}
-						{@const pct = Math.max(
-							0,
-							Math.min(100, Math.round((pendingHall.hp / (pendingHall.maxHp || 1)) * 100))
-						)}
-						<div
-							class="px-3.5 py-2.5 bg-[#161524] border border-indigo-500/60 rounded-xl flex items-center justify-between gap-3"
-							data-testid="commander-hall-building-progress"
-						>
-							<div class="flex items-center gap-2.5 min-w-0">
-								<Crown class="w-4 h-4 text-indigo-400 animate-pulse shrink-0" />
-								<div class="text-xs font-bold text-indigo-200">
-									Дім командира зводиться робітником ({pct}%)
-								</div>
+			<!-- Commanders Grid -->
+			<div class="overflow-y-auto pr-1 flex-1 space-y-3">
+				{#if pendingHall}
+					{@const pct = Math.max(
+						0,
+						Math.min(100, Math.round((pendingHall.hp / (pendingHall.maxHp || 1)) * 100))
+					)}
+					<div
+						class="px-3.5 py-2.5 bg-[#161524] border border-indigo-500/60 rounded-xl flex items-center justify-between gap-3"
+						data-testid="commander-hall-building-progress"
+					>
+						<div class="flex items-center gap-2.5 min-w-0">
+							<Crown class="w-4 h-4 text-indigo-400 animate-pulse shrink-0" />
+							<div class="text-xs font-bold text-indigo-200">
+								Дім командира зводиться робітником ({pct}%)
 							</div>
+						</div>
+						<div class="w-28 h-2 bg-[#0a0d14] rounded-full overflow-hidden border border-[#544738]">
 							<div
-								class="w-28 h-2 bg-[#0a0d14] rounded-full overflow-hidden border border-[#544738]"
+								class="h-full bg-gradient-to-r from-indigo-500 to-purple-400 transition-all duration-150"
+								style="width: {pct}%"
+							></div>
+						</div>
+					</div>
+				{:else if !hallStatus.hasHall}
+					<div
+						class="p-3.5 bg-gradient-to-r from-[#1a182b] via-[#171625] to-[#131825] border border-indigo-500/60 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+						data-testid="commander-hall-not-built-banner"
+					>
+						<div class="flex items-start gap-2.5 min-w-0">
+							<div
+								class="p-2 rounded-lg bg-indigo-500/15 border border-indigo-500/40 text-indigo-300 shrink-0"
 							>
-								<div
-									class="h-full bg-gradient-to-r from-indigo-500 to-purple-400 transition-all duration-150"
-									style="width: {pct}%"
-								></div>
+								<Crown class="w-4 h-4" />
+							</div>
+							<div class="min-w-0">
+								<div class="text-xs font-bold text-indigo-200">Дім командира ще не збудовано</div>
+								<div class="text-[11px] text-slate-400 mt-0.5">
+									Збудуйте Дім командира (250 золота та 250 деревини), щоб вибрати або змінювати
+									командира
+								</div>
 							</div>
 						</div>
-					{:else if !hallStatus.hasHall}
-						<div
-							class="p-3.5 bg-gradient-to-r from-[#1a182b] via-[#171625] to-[#131825] border border-indigo-500/60 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-							data-testid="commander-hall-not-built-banner"
-						>
-							<div class="flex items-start gap-2.5 min-w-0">
-								<div
-									class="p-2 rounded-lg bg-indigo-500/15 border border-indigo-500/40 text-indigo-300 shrink-0"
-								>
-									<Crown class="w-4 h-4" />
-								</div>
-								<div class="min-w-0">
-									<div class="text-xs font-bold text-indigo-200">Дім командира ще не збудовано</div>
-									<div class="text-[11px] text-slate-400 mt-0.5">
-										Збудуйте Дім командира (250 золота та 250 деревини), щоб вибрати або змінювати
-										командира
-									</div>
-								</div>
-							</div>
 
-							{#if onBuildCommanderHall}
-								<button
-									type="button"
-									onclick={onBuildCommanderHall}
-									disabled={!canAffordBuildHall}
-									data-testid="commander-hall-build-btn"
-									class="px-3.5 py-2 rounded-xl border-2 text-xs font-bold transition flex items-center justify-center gap-2 shrink-0 cursor-pointer active:scale-95 {canAffordBuildHall
-										? 'bg-gradient-to-b from-indigo-500 to-indigo-700 hover:from-indigo-400 hover:to-indigo-600 border-indigo-300 text-white shadow-lg'
-										: 'bg-[#181d28] border-[#3b3226] text-slate-400 opacity-75 cursor-not-allowed'}"
+						{#if onBuildCommanderHall}
+							<button
+								type="button"
+								onclick={onBuildCommanderHall}
+								disabled={!canAffordBuildHall}
+								data-testid="commander-hall-build-btn"
+								class="px-3.5 py-2 rounded-xl border-2 text-xs font-bold transition flex items-center justify-center gap-2 shrink-0 cursor-pointer active:scale-95 {canAffordBuildHall
+									? 'bg-gradient-to-b from-indigo-500 to-indigo-700 hover:from-indigo-400 hover:to-indigo-600 border-indigo-300 text-white shadow-lg'
+									: 'bg-[#181d28] border-[#3b3226] text-slate-400 opacity-75 cursor-not-allowed'}"
+							>
+								<Crown class="w-3.5 h-3.5 shrink-0" />
+								<span>Будувати</span>
+								<span
+									class="flex items-center gap-1.5 font-mono text-[11px] pl-1.5 border-l border-white/20"
 								>
-									<Crown class="w-3.5 h-3.5 shrink-0" />
-									<span>Будувати</span>
 									<span
-										class="flex items-center gap-1.5 font-mono text-[11px] pl-1.5 border-l border-white/20"
+										class="flex items-center gap-0.5 {playerGold >= hallGoldCost
+											? ''
+											: 'text-rose-400'}"
 									>
-										<span
-											class="flex items-center gap-0.5 {playerGold >= hallGoldCost
-												? ''
-												: 'text-rose-400'}"
-										>
-											<Coins class="w-3 h-3" />
-											{hallGoldCost}
-										</span>
-										<span
-											class="flex items-center gap-0.5 {playerLumber >= hallLumberCost
-												? 'text-emerald-300'
-												: 'text-rose-400'}"
-										>
-											<TreePine class="w-3 h-3" />
-											{hallLumberCost}
-										</span>
+										<Coins class="w-3 h-3" />
+										{hallGoldCost}
 									</span>
-								</button>
-							{/if}
-						</div>
-					{:else}
-						<div
-							class="px-3.5 py-2 rounded-xl border flex flex-wrap items-center justify-between gap-2 text-xs {hallStatus.isFree
-								? 'bg-emerald-950/35 border-emerald-500/40 text-emerald-200'
-								: hallStatus.allowed
-									? 'bg-amber-950/35 border-amber-500/40 text-amber-200'
-									: 'bg-rose-950/35 border-rose-500/40 text-rose-200'}"
-							data-testid="commander-change-status"
-						>
-							<div class="flex items-center gap-2">
-								{#if hallStatus.isFirstPick}
-									<span class="font-bold">Перший вибір командира — безкоштовно</span>
-								{:else if hallStatus.isFree}
-									<span class="font-bold">Кулдаун завершено — зміна командира безкоштовна</span>
-								{:else}
-									<Clock class="w-3.5 h-3.5 text-amber-300 shrink-0" />
-									<span>
-										Безкоштовна зміна через
-										<strong class="font-mono">{formatCooldown(hallStatus.cooldownLeft)}</strong>
-										· зараз: <strong>{hallStatus.goldCost}g + {hallStatus.lumberCost}w</strong>
+									<span
+										class="flex items-center gap-0.5 {playerLumber >= hallLumberCost
+											? 'text-emerald-300'
+											: 'text-rose-400'}"
+									>
+										<TreePine class="w-3 h-3" />
+										{hallLumberCost}
 									</span>
-								{/if}
-							</div>
-							{#if activeCommander}
-								<span class="text-[11px] text-indigo-300 font-bold">
-									Поточний: {activeCommander.name}{player.isRandomCommander ? ' (×2)' : ''}
+								</span>
+							</button>
+						{/if}
+					</div>
+				{:else}
+					<div
+						class="px-3.5 py-2 rounded-xl border flex flex-wrap items-center justify-between gap-2 text-xs {hallStatus.isFree
+							? 'bg-emerald-950/35 border-emerald-500/40 text-emerald-200'
+							: hallStatus.allowed
+								? 'bg-amber-950/35 border-amber-500/40 text-amber-200'
+								: 'bg-rose-950/35 border-rose-500/40 text-rose-200'}"
+						data-testid="commander-change-status"
+					>
+						<div class="flex items-center gap-2">
+							{#if hallStatus.isFirstPick}
+								<span class="font-bold">Перший вибір командира — безкоштовно</span>
+							{:else if hallStatus.isFree}
+								<span class="font-bold">Кулдаун завершено — зміна командира безкоштовна</span>
+							{:else}
+								<Clock class="w-3.5 h-3.5 text-amber-300 shrink-0" />
+								<span>
+									Безкоштовна зміна через
+									<strong class="font-mono">{formatCooldown(hallStatus.cooldownLeft)}</strong>
+									· зараз: <strong>{hallStatus.goldCost}g + {hallStatus.lumberCost}w</strong>
 								</span>
 							{/if}
 						</div>
-					{/if}
-
-					<CommanderPickerGrid
-						selectedCommanderId={activeCommander?.id ?? null}
-						isRandomBoostActive={Boolean(player.isRandomCommander)}
-						disabled={!hallStatus.allowed}
-						onSelect={(choice) => {
-							const res = sim.selectPlayerCommander(player.team, choice, player);
-							if (res.ok) {
-								isOpen = false;
-							}
-						}}
-					/>
-				</div>
-			{:else}
-				<!-- Tab 2: Authentic Warcraft III Castle Fight Guide (Довідник F9) -->
-				<div class="overflow-y-auto pr-2 space-y-4 text-xs text-slate-300 flex-1">
-					<!-- Hotkeys Section -->
-					<div class="bg-[#181d28] p-3.5 rounded-xl border border-slate-800">
-						<h3 class="font-bold text-sm text-amber-300 flex items-center gap-1.5 mb-2">
-							<Keyboard class="w-4 h-4 text-amber-400" />
-							Гарячі клавіші управління
-						</h3>
-						<div class="grid grid-cols-2 gap-2 text-[11px]">
-							<div>
-								<kbd
-									class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-amber-300 font-mono"
-								>
-									Q..V
-								</kbd>
-								— Командна сітка для будівництва споруд
-							</div>
-							<div>
-								<kbd
-									class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-amber-300 font-mono"
-								>
-									F9
-								</kbd>
-								— Довідник гри та Дім командира
-							</div>
-							<div>
-								<kbd
-									class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-amber-300 font-mono"
-								>
-									F
-								</kbd>
-								— Військова Кузня (Атака, Броня, Економіка)
-							</div>
-							<div>
-								<kbd
-									class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-amber-300 font-mono"
-								>
-									B
-								</kbd>
-								— Магазин замку (Золотий сир, Сувої)
-							</div>
-							<div>
-								<kbd
-									class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-amber-300 font-mono"
-								>
-									R
-								</kbd>
-								— Ультимативна здібність вашої раси
-							</div>
-							<div>
-								<kbd
-									class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-amber-300 font-mono"
-								>
-									E
-								</kbd>
-								— Рятівний артилерійський удар біля замку
-							</div>
-							<div>
-								<kbd
-									class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-amber-300 font-mono"
-								>
-									Пробіл
-								</kbd>
-								— Пауза / Продовжити симуляцію
-							</div>
-							<div>
-								<kbd
-									class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-amber-300 font-mono"
-								>
-									Esc
-								</kbd>
-								— Скасувати будівництво / виділити робітника
-							</div>
-						</div>
+						{#if activeCommander}
+							<span class="text-[11px] text-indigo-300 font-bold">
+								Поточний: {activeCommander.name}{player.isRandomCommander ? ' (×2)' : ''}
+							</span>
+						{/if}
 					</div>
+				{/if}
 
-					<!-- Rules & Economy Section -->
-					<div class="bg-[#181d28] p-3.5 rounded-xl border border-slate-800">
-						<h3 class="font-bold text-sm text-emerald-300 flex items-center gap-1.5 mb-2">
-							<Coins class="w-4 h-4 text-emerald-400" />
-							Економіка та правила матчу
-						</h3>
-						<p class="leading-relaxed">
-							• Кожні 5+ секунд (інтервал росте щохвилини) гравці отримують дохід золота + прибуток
-							від Скринь скарбів.<br />
-							• Збудуйте Дім командира (250g + 250w), щоб обрати командира. Зміна коштує 250g + 250w або
-							стає безкоштовною кожні 5 хвилин.<br />
-							• Легендарні споруди (коштом від 450g) потребують ліміту Їжі (Food). Збільшуйте ліміт у
-							магазині замку (B), купуючи Золотий Сир!
-						</p>
-					</div>
-
-					<!-- Damage & Armor Matrix -->
-					<div class="bg-[#181d28] p-3.5 rounded-xl border border-slate-800">
-						<h3 class="font-bold text-sm text-blue-300 flex items-center gap-1.5 mb-2">
-							<Shield class="w-4 h-4 text-blue-400" />
-							Матриця ефективності: Типи атаки та броні
-						</h3>
-						<div class="grid grid-cols-4 gap-2 text-[10px] text-center font-mono">
-							<div class="p-1.5 bg-slate-900 rounded border border-slate-700">
-								<strong class="text-amber-300 block">Звичайна</strong>
-								150% по Середній<br />100% по Легкій<br />70% по Укріпленій
-							</div>
-							<div class="p-1.5 bg-slate-900 rounded border border-slate-700">
-								<strong class="text-emerald-300 block">Колюча</strong>
-								150% по Без броні<br />200% по Легкій<br />35% по Укріпленій
-							</div>
-							<div class="p-1.5 bg-slate-900 rounded border border-slate-700">
-								<strong class="text-blue-300 block">Магічна</strong>
-								200% по Важкій<br />125% по Легкій<br />35% по Укріпленій
-							</div>
-							<div class="p-1.5 bg-slate-900 rounded border border-slate-700">
-								<strong class="text-rose-300 block">Облогова</strong>
-								150% по Укріпленій<br />150% по Без броні<br />50% по Середній
-							</div>
-						</div>
-					</div>
-				</div>
-			{/if}
+				<CommanderPickerGrid
+					selectedCommanderId={activeCommander?.id ?? null}
+					isRandomBoostActive={Boolean(player.isRandomCommander)}
+					disabled={!hallStatus.allowed}
+					onSelect={(choice) => {
+						const res = sim.selectPlayerCommander(player.team, choice, player);
+						if (res.ok) {
+							isOpen = false;
+						}
+					}}
+				/>
+			</div>
 		</div>
 	</div>
 {/if}

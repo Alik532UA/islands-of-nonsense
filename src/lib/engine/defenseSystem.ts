@@ -1,5 +1,14 @@
 import type { Simulation } from './simulation';
-import type { Unit, Building, Castle, MatchTeam, Team, AttackType } from './types';
+import type {
+	Unit,
+	Building,
+	Castle,
+	MatchTeam,
+	Team,
+	AttackType,
+	PlayerState,
+	DamageKillOptions
+} from './types';
 import { calculateDamage } from './damageMatrix';
 import { CELL_SIZE } from './constants';
 import { getBuilding, isLegendaryBuilding } from './gameData';
@@ -16,7 +25,8 @@ export class DefenseSystem {
 				attackType: AttackType,
 				attackerTeam: Team,
 				isCrit?: boolean,
-				attackerUnit?: Unit
+				attackerUnit?: Unit,
+				options?: DamageKillOptions
 			) => void;
 			triggerSplashDamage: (
 				targetX: number,
@@ -25,7 +35,8 @@ export class DefenseSystem {
 				rawDamage: number,
 				attackType: AttackType,
 				attackerTeam: Team,
-				primaryTargetId?: string
+				primaryTargetId?: string,
+				killerPlayer?: PlayerState
 			) => void;
 		}
 	) {}
@@ -340,6 +351,13 @@ export class DefenseSystem {
 			const step = p.speed * dt;
 			if (dist <= step) {
 				const attackerUnit = this.sim.units.find((u) => u.instanceId === p.sourceUnitId);
+				const sourceTower = p.sourceUnitId.startsWith('bld_')
+					? this.sim.buildings.find((b) => b.instanceId === p.sourceUnitId)
+					: undefined;
+				const ownerPlayerId = attackerUnit?.playerId ?? sourceTower?.playerId;
+				const killerPlayer = ownerPlayerId
+					? this.sim.allPlayers.find((pl) => pl.id === ownerPlayerId)
+					: undefined;
 				if (p.isArtillery) {
 					// Ground-impact detonation: AoE splash at ground target point
 					const radius = p.splashRadius || 120;
@@ -350,7 +368,8 @@ export class DefenseSystem {
 						p.damage,
 						p.attackType,
 						p.team,
-						undefined // Hits any enemy currently in impact zone; units that dodged take 0
+						undefined, // Hits any enemy currently in impact zone; units that dodged take 0
+						killerPlayer
 					);
 
 					// Building damage if ground impact point is within radius of target building
@@ -393,7 +412,8 @@ export class DefenseSystem {
 							p.attackType,
 							p.team,
 							p.isCrit,
-							attackerUnit
+							attackerUnit,
+							killerPlayer ? { killerPlayer } : undefined
 						);
 
 						// Tower special on-hit effects & stats

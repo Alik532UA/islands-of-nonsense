@@ -33,8 +33,7 @@
 		Coins,
 		TreePine,
 		Shield,
-		Lightbulb,
-		CircleSlash
+		Lightbulb
 	} from 'lucide-svelte';
 	import { CASTLE_ITEMS_LIST, type CastleItem } from '../engine/items';
 	import { settings } from '../services/settings.svelte';
@@ -776,7 +775,7 @@
 			</div>
 		</div>
 	{:else if activeEntityType === 'worker'}
-		<!-- 5x3 Grid for 13 Base Buildings + Bridge Repair / Spacer + Cancel Button (15 slots) -->
+		<!-- 5x3 Grid for Base Buildings + Bridge Repair (15 slots max, Esc/RMB cancels) -->
 		<div class="grid grid-cols-5 gap-1.5 w-[325px]">
 			{#each availableBuildings as bld, idx}
 				{@const isSelected = selectedBuildingId === bld.id}
@@ -887,7 +886,7 @@
 				</button>
 			{/each}
 
-			<!-- Slot 14: Bridge Repair or Spacer -->
+			<!-- Slot 15: Bridge Repair when a bridge is broken -->
 			{#if sim.brokenBridge}
 				<button
 					type="button"
@@ -918,36 +917,7 @@
 						Міст
 					</span>
 				</button>
-			{:else if availableBuildings.length < 14}
-				<div class="w-[61px] h-[39px]"></div>
 			{/if}
-
-			<!-- Slot 15: Authentic Warcraft III Cancel Button (Red crossed circle, Esc) -->
-			<button
-				onclick={() => {
-					onSelectBuilding(null);
-					onClearSelection?.();
-				}}
-				data-testid="hud-clear-selection-btn"
-				class="relative w-[61px] h-[39px] rounded-[3px] border border-rose-800/80 bg-gradient-to-b from-rose-950/80 to-[#180a0a] hover:from-rose-900 hover:to-rose-950 text-rose-300 flex items-center justify-center overflow-hidden transition cursor-pointer shadow group touch-manipulation"
-				title="Скасувати / Очистити вибір (Esc / B)"
-			>
-				<div class="absolute top-0.5 left-0.5 flex items-center justify-center pointer-events-none">
-					<CircleSlash
-						class="w-3 h-3 text-rose-500 drop-shadow-[0_0_4px_rgba(244,63,94,0.6)] group-hover:scale-110 transition-transform"
-					/>
-				</div>
-				<span
-					class="absolute top-0 right-0 px-1 py-0.2 rounded-bl-[3px] text-[7.5px] font-mono font-bold leading-none bg-black/70 text-rose-400 border-l border-b border-rose-900/60"
-				>
-					Esc
-				</span>
-				<span
-					class="text-[8px] font-bold text-rose-300 leading-tight select-none pointer-events-none"
-				>
-					Скасувати
-				</span>
-			</button>
 		</div>
 	{/if}
 

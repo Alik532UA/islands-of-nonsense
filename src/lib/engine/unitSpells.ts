@@ -1,5 +1,5 @@
 import type { Simulation } from './simulation';
-import type { Unit, Team, AttackType } from './types';
+import type { Unit, Team, AttackType, DamageKillOptions } from './types';
 
 export const SPELL_MANA_COSTS: Record<string, number> = {
 	heal: 25,
@@ -26,7 +26,8 @@ export type DamageApplicator = (
 	attackType: AttackType,
 	attackerTeam: Team,
 	isCrit?: boolean,
-	attackerUnit?: Unit
+	attackerUnit?: Unit,
+	options?: DamageKillOptions
 ) => boolean | void;
 
 /**

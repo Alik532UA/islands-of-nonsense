@@ -78,7 +78,7 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 		// Command card root and action buttons
 		expect(commandCardSrc).toContain('data-testid="hud-command-card"');
 		expect(commandCardSrc).toContain('data-testid="hud-build-btn-');
-		expect(commandCardSrc).toContain('data-testid="hud-clear-selection-btn"');
+		expect(commandCardSrc).toContain('data-testid="hud-close-building-btn"');
 		expect(commandCardSrc).toContain('data-testid="hud-upgrade-btn-');
 		expect(commandCardSrc).toContain('data-testid="hud-repair-btn"');
 		expect(commandCardSrc).toContain('data-testid="hud-sell-btn"');
@@ -153,9 +153,9 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 		expect(commandCardSrc).toContain('shortenName(bld.name)');
 		expect(commandCardSrc).toContain('truncate max-w-[46px]');
 
-		// Authentic cancel button uses CircleSlash SVG icon without square brackets
-		expect(commandCardSrc).toContain('<CircleSlash');
-		expect(commandCardSrc).toContain('data-testid="hud-clear-selection-btn"');
+		// Redundant Esc Cancel button removed from worker 5x3 grid to prevent 4th-row overflow
+		expect(commandCardSrc).not.toContain('data-testid="hud-clear-selection-btn"');
+		expect(commandCardSrc).toContain('grid-cols-5 gap-1.5 w-[325px]');
 
 		// Zero emojis in CommandCard and BottomBar
 		const emojiRegex = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u;

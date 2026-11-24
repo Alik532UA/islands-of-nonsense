@@ -16,13 +16,13 @@ import {
  */
 
 const CONFIG = {
-	apiKey: 'AIzaSyA_islands_nonsense_demo_key_92834',
+	apiKey: 'AIzaSyAGPJH2zgOcKwgSYPSrfWrQN0HHELi_XLI',
 	authDomain: 'islands-of-nonsense.firebaseapp.com',
 	databaseURL: 'https://islands-of-nonsense-default-rtdb.europe-west1.firebasedatabase.app',
 	projectId: 'islands-of-nonsense',
 	storageBucket: 'islands-of-nonsense.firebasestorage.app',
-	messagingSenderId: '829104819201',
-	appId: '1:829104819201:web:910bf81726a917263b8'
+	messagingSenderId: '473794906278',
+	appId: '1:473794906278:web:50dda3aec697a2159e0c67'
 };
 
 const EMULATOR_CONFIG = {

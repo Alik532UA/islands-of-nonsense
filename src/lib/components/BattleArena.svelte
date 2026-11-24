@@ -20,6 +20,7 @@
 	import RadialMenu from '$lib/components/RadialMenu.svelte';
 	import ForgeModal from '$lib/components/ForgeModal.svelte';
 	import CommanderModal from '$lib/components/CommanderModal.svelte';
+	import GuideModal from '$lib/components/GuideModal.svelte';
 	import VictoryModal from '$lib/components/VictoryModal.svelte';
 	import ShopModal from '$lib/components/ShopModal.svelte';
 	import MatchConfigModal from '$lib/components/MatchConfigModal.svelte';
@@ -128,11 +129,41 @@
 
 	let isForgeOpen = $state(false);
 	let isCommanderOpen = $state(false);
+	let isGuideOpen = $state(false);
 	let isShopOpen = $state(false);
 	let isSettingsOpen = $state(false);
 	let isPauseMenuOpen = $state(false);
 	let isLeaveModalOpen = $state(false);
 	let isHelpOpen = $state(false);
+
+	function openExclusiveModal(
+		target: 'forge' | 'commander' | 'guide' | 'shop' | 'help' | 'settings',
+		toggle = false
+	): void {
+		const alreadyOpen =
+			(target === 'forge' && isForgeOpen) ||
+			(target === 'commander' && isCommanderOpen) ||
+			(target === 'guide' && isGuideOpen) ||
+			(target === 'shop' && isShopOpen) ||
+			(target === 'help' && isHelpOpen) ||
+			(target === 'settings' && isSettingsOpen);
+
+		isForgeOpen = false;
+		isCommanderOpen = false;
+		isGuideOpen = false;
+		isShopOpen = false;
+		isHelpOpen = false;
+		isSettingsOpen = false;
+
+		if (toggle && alreadyOpen) return;
+
+		if (target === 'forge') isForgeOpen = true;
+		else if (target === 'commander') isCommanderOpen = true;
+		else if (target === 'guide') isGuideOpen = true;
+		else if (target === 'shop') isShopOpen = true;
+		else if (target === 'help') isHelpOpen = true;
+		else if (target === 'settings') isSettingsOpen = true;
+	}
 	let pendingLeaveUrl = $state<string | null>(null);
 	let allowNavigation = false;
 
@@ -283,6 +314,7 @@
 				selectedEntity !== null ||
 				isForgeOpen ||
 				isCommanderOpen ||
+				isGuideOpen ||
 				isShopOpen ||
 				isSettingsOpen ||
 				isHelpOpen;
@@ -293,6 +325,7 @@
 			selectedEntity = null;
 			isForgeOpen = false;
 			isCommanderOpen = false;
+			isGuideOpen = false;
 			isShopOpen = false;
 			isSettingsOpen = false;
 			isHelpOpen = false;
@@ -302,24 +335,14 @@
 			}
 		} else if (e.key === 'F9') {
 			e.preventDefault();
-			isCommanderOpen = !isCommanderOpen;
+			openExclusiveModal('guide', true);
 		} else {
+			const hasBlockingModal =
+				isForgeOpen || isCommanderOpen || isGuideOpen || isShopOpen || isSettingsOpen || isHelpOpen;
 			const isWorkerGridActive =
-				selectedEntity?.type === 'worker' &&
-				!selectedPlacedBuildingId &&
-				!isForgeOpen &&
-				!isCommanderOpen &&
-				!isShopOpen &&
-				!isSettingsOpen;
+				selectedEntity?.type === 'worker' && !selectedPlacedBuildingId && !hasBlockingModal;
 
-			if (
-				e.code === 'Space' &&
-				!e.repeat &&
-				!isForgeOpen &&
-				!isCommanderOpen &&
-				!isShopOpen &&
-				!isSettingsOpen
-			) {
+			if (e.code === 'Space' && !e.repeat && !hasBlockingModal) {
 				e.preventDefault();
 				const targetPlayer = controlledPlayer;
 				selectedBuildingId = null;
@@ -333,30 +356,23 @@
 				}
 				lastSpaceTime = now;
 				uiTick = sim.stateVersion;
-			} else if (
-				letter === 'p' &&
-				!e.repeat &&
-				!isForgeOpen &&
-				!isCommanderOpen &&
-				!isShopOpen &&
-				!isSettingsOpen
-			) {
+			} else if (letter === 'p' && !e.repeat && !hasBlockingModal) {
 				e.preventDefault();
 				sim.isRunning = !sim.isRunning;
 				battleAnnouncer.announce(sim.isRunning ? 'Гру відновлено' : 'Гру призупинено', 'polite');
 				uiTick = sim.stateVersion;
 			} else if (letter === 'f' && !e.repeat && (!isWorkerGridActive || e.altKey)) {
-				isForgeOpen = !isForgeOpen;
+				openExclusiveModal('forge', true);
 			} else if (letter === 'c' && !e.repeat && (!isWorkerGridActive || e.altKey)) {
-				isCommanderOpen = !isCommanderOpen;
+				openExclusiveModal('commander', true);
 			} else if (letter === 'b' && !e.repeat && (!isWorkerGridActive || e.altKey)) {
-				isShopOpen = !isShopOpen;
+				openExclusiveModal('shop', true);
 			} else if (
 				(letter === 'h' || e.key === '?') &&
 				!e.repeat &&
 				(!isWorkerGridActive || e.altKey)
 			) {
-				isHelpOpen = !isHelpOpen;
+				openExclusiveModal('help', true);
 			} else if (settings.controlPreset === 'islands-of-nonsense') {
 				if (letter === 'e' && !e.repeat && !e.ctrlKey && !e.altKey) {
 					toggleRadial('army');
@@ -366,7 +382,7 @@
 					toggleRadial('abilities');
 				}
 			} else {
-				if (letter === 'r' && !e.repeat && !isForgeOpen && !isCommanderOpen && !isShopOpen) {
+				if (letter === 'r' && !e.repeat && !hasBlockingModal) {
 					if (selectedPlacedBuildingId) {
 						const bld = sim.buildings.find((b) => b.instanceId === selectedPlacedBuildingId);
 						if (bld && (isBotVsBot || bld.team === localTeam) && bld.hp < bld.maxHp) {
@@ -420,9 +436,7 @@
 				} else if (
 					letter === 'e' &&
 					!e.repeat &&
-					!isForgeOpen &&
-					!isCommanderOpen &&
-					!isShopOpen &&
+					!hasBlockingModal &&
 					(!isWorkerGridActive || e.altKey)
 				) {
 					const activePlayer = controlledPlayer;
@@ -851,6 +865,7 @@
 		isSettingsOpen = false;
 		isPauseMenuOpen = false;
 		isCommanderOpen = false;
+		isGuideOpen = false;
 		isForgeOpen = false;
 		isShopOpen = false;
 
@@ -980,9 +995,10 @@
 			{uiTick}
 			isOnline={Boolean(matchSync)}
 			activePlayer={controlledPlayer}
-			onOpenForge={() => (isForgeOpen = true)}
-			onOpenCommander={() => (isCommanderOpen = true)}
-			onOpenShop={() => (isShopOpen = true)}
+			onOpenForge={() => openExclusiveModal('forge')}
+			onOpenCommander={() => openExclusiveModal('commander')}
+			onOpenGuide={() => openExclusiveModal('guide')}
+			onOpenShop={() => openExclusiveModal('shop')}
 			onOpenSettings={openPauseMenu}
 			onBeforeLeave={handleRequestLeave}
 		/>
@@ -1192,8 +1208,8 @@
 			<button
 				type="button"
 				onclick={() => {
-					const isWest = (matchSync?.localTeam ?? 'west') === 'west';
-					renderer?.setCamera(isWest ? 800 : 6400, 1200);
+					const activeCastle = sim.castles[controlledPlayer.team];
+					renderer?.setCamera(activeCastle.x, activeCastle.y);
 				}}
 				class="w-6 h-6 rounded bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] text-[#d4af37] flex items-center justify-center shadow transition active:scale-95 cursor-pointer touch-manipulation"
 				title="Центрувати на замку"
@@ -1358,5 +1374,6 @@
 		onCancel={handleCancelLeave}
 	/>
 	<HotkeysHelpModal isOpen={isHelpOpen} onClose={() => (isHelpOpen = false)} />
+	<GuideModal bind:isOpen={isGuideOpen} />
 	<A11yAnnouncer />
 </main>

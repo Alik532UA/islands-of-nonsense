@@ -934,7 +934,7 @@ export class EconomySystem {
 	public triggerRescueStrike(
 		team: MatchTeam,
 		playerInput?: PlayerState
-	): { hitCount: number; damageDealt: number } | null {
+	): { hitCount: number; damageDealt: number; killCount: number; bountyEarned: number } | null {
 		if (!this.canUseRescueStrike(team, playerInput)) return null;
 
 		const targetPlayer = playerInput || this.sim.players?.[team];
@@ -960,20 +960,31 @@ export class EconomySystem {
 		});
 
 		let hitCount = 0;
+		let killCount = 0;
 		let damageDealt = 0;
 		const strikeDamage = 950;
+		const goldBefore = targetPlayer?.gold ?? 0;
 
 		for (const u of this.sim.units) {
 			if (u.team === enemyTeam && u.state !== 'DEAD') {
 				const dx = u.x - castle.x;
 				const dy = u.y - castle.y;
 				if (dx * dx + dy * dy <= radiusSq) {
-					this.sim.combatSystem.applyUnitDamage(u, strikeDamage, 'siege', team, true);
+					this.sim.combatSystem.applyUnitDamage(u, strikeDamage, 'siege', team, true, undefined, {
+						bountyMultiplier: 2,
+						killerPlayer: targetPlayer,
+						suppressKillFloatingText: true
+					});
 					hitCount++;
 					damageDealt += strikeDamage;
+					if ((u.state as string) === 'DEAD') {
+						killCount++;
+					}
 				}
 			}
 		}
+
+		const bountyEarned = Math.max(0, (targetPlayer?.gold ?? goldBefore) - goldBefore);
 
 		this.sim.addFloatingText(
 			`РЯТІВНИЙ УДАР! (-${strikeDamage})`,
@@ -981,6 +992,14 @@ export class EconomySystem {
 			castle.y - 75,
 			'#f97316'
 		);
+		if (bountyEarned > 0) {
+			this.sim.addFloatingText(
+				`+${bountyEarned}g (Рятівний удар ×2!)`,
+				castle.x,
+				castle.y - 108,
+				'#fbbf24'
+			);
+		}
 		this.sim.onSoundEffect?.('rescueStrike');
 		this.sim.onRescueStrikeWarning?.({
 			team,
@@ -991,6 +1010,6 @@ export class EconomySystem {
 		});
 
 		this.sim.notifyStateChanged();
-		return { hitCount, damageDealt };
+		return { hitCount, damageDealt, killCount, bountyEarned };
 	}
 }

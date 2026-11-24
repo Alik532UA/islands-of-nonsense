@@ -40,6 +40,7 @@
 		activePlayer = null,
 		onOpenForge,
 		onOpenCommander,
+		onOpenGuide,
 		onOpenShop,
 		onOpenSettings,
 		onBeforeLeave
@@ -50,6 +51,7 @@
 		activePlayer?: PlayerState | null;
 		onOpenForge: () => void;
 		onOpenCommander: () => void;
+		onOpenGuide?: () => void;
 		onOpenShop?: () => void;
 		onOpenSettings?: () => void;
 		onBeforeLeave?: (targetUrl: string) => boolean;
@@ -75,6 +77,11 @@
 	let incomeEvery = $derived(uiTick >= 0 ? Math.round(sim.incomeInterval) : 5);
 	let incomeIn = $derived(uiTick >= 0 ? Math.max(0, Math.ceil(sim.incomeTimer)) : 5);
 	let commander = $derived(uiTick >= 0 ? findCommander(player.commander) : null);
+	let commanderStatus = $derived(
+		uiTick >= 0
+			? sim.canSelectOrChangeCommander(player.team, player)
+			: sim.canSelectOrChangeCommander(player.team, player)
+	);
 
 	let westHp = $derived(
 		uiTick >= 0 ? Math.max(0, Math.ceil(westCastle.hp)) : Math.round(westCastle.maxHp)
@@ -190,15 +197,13 @@
 				</div>
 			</div>
 
-			<!-- Guide / Manual (F9) -->
+			<!-- Pure Reference Guide / Manual (F9) -->
 			<div class="relative group/tip flex items-center">
 				<button
-					onclick={onOpenCommander}
-					data-testid="hud-commander-btn"
+					onclick={() => onOpenGuide?.()}
+					data-testid="hud-guide-btn"
 					class={neutralBtnClass}
-					aria-label="Довідник гри та командир: {commander
-						? `${commander.name}${player.isRandomCommander ? ' (×2)' : ''} (${commander.nickname})`
-						: 'не обрано'}"
+					aria-label="Довідник гри: правила, економіка та гарячі клавіші (F9)"
 					aria-keyshortcuts="F9"
 				>
 					<BookOpen class="w-4 h-4 text-amber-400 shrink-0" />
@@ -206,11 +211,7 @@
 				<div
 					class="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-amber-100 flex items-center gap-1.5"
 				>
-					<span>
-						Довідник гри ({commander
-							? `${commander.name}${player.isRandomCommander ? ' ×2' : ''}`
-							: 'Командир'})
-					</span>
+					<span>Довідник гри</span>
 					<span
 						class="text-[9px] font-mono font-bold text-amber-400 bg-black/60 px-1 rounded border border-[#544738]"
 					>
@@ -543,8 +544,55 @@
 			</div>
 		{/if}
 
-		<!-- Dock 3B: In-Game Action Buttons (Кузня, Магазин, Супер сила, Рятівний удар) -->
+		<!-- Dock 3B: In-Game Action Buttons (Командири, Кузня, Магазин, Супер сила, Рятівний удар) -->
 		<div class={dockClass} data-testid="topbar-game-actions-dock">
+			<!-- Commanders (C) -->
+			<div class="relative group/tip flex items-center">
+				<button
+					onclick={onOpenCommander}
+					data-testid="hud-commander-btn"
+					class="{baseBtnClass} bg-[#16192b] hover:bg-[#222745] border-indigo-500/70 hover:border-indigo-400 text-indigo-200 {commanderStatus.isFree &&
+					!commander
+						? 'ring-2 ring-indigo-400/50'
+						: ''}"
+					aria-label="Командири: {commander
+						? `${commander.name}${player.isRandomCommander ? ' ×2' : ''} (${commander.nickname})`
+						: commanderStatus.hasHall
+							? 'доступний вибір командира'
+							: 'потрібен Дім командира'} (Гаряча клавіша: C)"
+					aria-keyshortcuts="c"
+				>
+					<Crown class="w-4 h-4 shrink-0 {commander ? 'text-indigo-300' : 'text-indigo-400/80'}" />
+					{#if commanderStatus.isFree && !commander}
+						<span
+							class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-indigo-400 ring-2 ring-[#131722] animate-pulse"
+						></span>
+					{:else if commander}
+						<span
+							class="absolute -bottom-1 -right-1 text-[8px] font-mono bg-indigo-600 px-1 py-0.5 rounded text-white font-bold leading-none border border-indigo-300/60"
+						>
+							{player.isRandomCommander ? '×2' : '✓'}
+						</span>
+					{/if}
+				</button>
+				<div
+					class="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-indigo-200 flex items-center gap-1.5"
+				>
+					<span>
+						Командир: {commander
+							? `${commander.name}${player.isRandomCommander ? ' (×2)' : ''}`
+							: commanderStatus.hasHall
+								? 'Можна обрати'
+								: 'Не обрано'}
+					</span>
+					<span
+						class="text-[9px] font-mono font-bold text-indigo-300 bg-black/60 px-1 rounded border border-indigo-500/60"
+					>
+						C
+					</span>
+				</div>
+			</div>
+
 			<!-- War Forge (F) -->
 			<div class="relative group/tip flex items-center">
 				<button
@@ -602,7 +650,7 @@
 			<div class="relative group/tip flex items-center">
 				<button
 					onclick={() => {
-						if (canCastRaceSkill) sim.useRaceSkill('west');
+						if (canCastRaceSkill) sim.useRaceSkill(player.team, player);
 					}}
 					disabled={!canCastRaceSkill}
 					data-testid="hud-race-ability-btn"
@@ -652,7 +700,7 @@
 					class="{baseBtnClass} {canUseRescue
 						? 'bg-rose-950/90 hover:bg-rose-900 border-rose-500 text-rose-100 ring-2 ring-rose-500/50'
 						: 'bg-[#181d28] border-[#3b3226] text-slate-500 cursor-not-allowed opacity-60'}"
-					aria-label="Рятівний Удар навколо вашого замку (-950 облогової шкоди ворогам у 750px, особистий КД 180с, клавіша E)"
+					aria-label="Рятівний Удар навколо вашого замку (-950 облогової шкоди ворогам у 750px, 2× золото за вбитих, особистий КД 180с, клавіша E)"
 					aria-keyshortcuts="e"
 				>
 					<Flame
@@ -680,7 +728,7 @@
 						</span>
 					</div>
 					<span class="text-[10px] text-slate-300 font-normal">
-						950 шкоди ворогам у 750px біля замку • Ваш КД: 180с
+						950 шкоди ворогам у 750px • 2× золото за знищених • КД: 180с
 					</span>
 				</div>
 			</div>

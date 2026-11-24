@@ -41,24 +41,27 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 		expect(centerIdx).toBeGreaterThan(leftIdx);
 		expect(rightIdx).toBeGreaterThan(centerIdx);
 
-		// System buttons live in LEFT section
+		// System buttons live in LEFT section (Guide moved separately from Commander action)
 		const leftSection = topBarContent.slice(leftIdx, centerIdx);
 		expect(leftSection).toContain('data-testid="topbar-back-link"');
 		expect(leftSection).toContain('data-testid="topbar-home-link"');
-		expect(leftSection).toContain('data-testid="hud-commander-btn"');
+		expect(leftSection).toContain('data-testid="hud-guide-btn"');
+		expect(leftSection).not.toContain('data-testid="hud-commander-btn"');
 		expect(leftSection).toContain('data-testid="hud-menu-btn"');
 		expect(leftSection).toContain('data-testid="topbar-sound-toggle"');
 		expect(leftSection).toContain('data-testid="topbar-fullscreen-toggle"');
 		expect(leftSection).toContain('data-testid="topbar-locale-toggle"');
 		expect(leftSection).toContain('data-testid="topbar-settings-btn"');
 
-		// Gameplay buttons and resources live in RIGHT section
+		// Gameplay buttons (including Commanders) and resources live in RIGHT section
 		const rightSection = topBarContent.slice(rightIdx);
+		expect(rightSection).toContain('data-testid="hud-commander-btn"');
 		expect(rightSection).toContain('data-testid="hud-forge-btn"');
 		expect(rightSection).toContain('data-testid="hud-shop-btn"');
 		expect(rightSection).toContain('data-testid="hud-race-ability-btn"');
 		expect(rightSection).toContain('data-testid="hud-rescue-strike-btn"');
 		expect(rightSection).toContain('data-testid="resource-boxes"');
+		expect(rightSection).toContain('sim.useRaceSkill(player.team, player)');
 	});
 
 	it('left and right navigation button tooltips and speed dropdown are positioned with top-full and high z-index without vertical clipping', () => {
@@ -140,6 +143,7 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 	it('standardizes HUD quick-action testids conforming to TESTID-AND-NAMING canon', () => {
 		expect(topBarContent).toContain('data-testid="topbar-back-link"');
 		expect(topBarContent).toContain('data-testid="topbar-home-link"');
+		expect(topBarContent).toContain('data-testid="hud-guide-btn"');
 		expect(topBarContent).toContain('data-testid="hud-commander-btn"');
 		expect(topBarContent).toContain('data-testid="hud-menu-btn"');
 		expect(topBarContent).toContain('data-testid="topbar-sound-toggle"');

@@ -10,7 +10,18 @@ import {
 	WEST_ROAD_MERGE_X,
 	EAST_ROAD_MERGE_X
 } from './constants';
-import type { Unit, Building, Castle, MatchTeam, Team, Lane, AttackType } from './types';
+import type {
+	Unit,
+	Building,
+	Castle,
+	MatchTeam,
+	Team,
+	Lane,
+	AttackType,
+	PlayerState,
+	DamageKillOptions
+} from './types';
+import { getUnit, resolveUnitKillBounty } from './gameData';
 import { calculateDamage, getDamageMultiplier } from './damageMatrix';
 import { DefenseSystem } from './defenseSystem';
 import { UnitSpellSystem, SPELL_MANA_COSTS } from './unitSpells';
@@ -31,13 +42,37 @@ export class CombatSystem {
 	constructor(private sim: Simulation) {
 		this.spellSystem = new UnitSpellSystem(
 			sim,
-			(target, rawDamage, attackType, attackerTeam, isCrit, attackerUnit) =>
-				this.applyUnitDamage(target, rawDamage, attackType, attackerTeam, !!isCrit, attackerUnit)
+			(target, rawDamage, attackType, attackerTeam, isCrit, attackerUnit, options) =>
+				this.applyUnitDamage(
+					target,
+					rawDamage,
+					attackType,
+					attackerTeam,
+					!!isCrit,
+					attackerUnit,
+					options
+				)
 		);
 		this.navigation = new UnitNavigation(sim);
 		this.defenseSystem = new DefenseSystem(sim, {
-			applyUnitDamage: (target, rawDamage, attackType, attackerTeam, isCrit, attackerUnit) =>
-				this.applyUnitDamage(target, rawDamage, attackType, attackerTeam, !!isCrit, attackerUnit),
+			applyUnitDamage: (
+				target,
+				rawDamage,
+				attackType,
+				attackerTeam,
+				isCrit,
+				attackerUnit,
+				options
+			) =>
+				this.applyUnitDamage(
+					target,
+					rawDamage,
+					attackType,
+					attackerTeam,
+					!!isCrit,
+					attackerUnit,
+					options
+				),
 			triggerSplashDamage: (
 				targetX,
 				targetY,
@@ -45,7 +80,8 @@ export class CombatSystem {
 				rawDamage,
 				attackType,
 				attackerTeam,
-				primaryTargetId
+				primaryTargetId,
+				killerPlayer
 			) =>
 				this.triggerSplashDamage(
 					targetX,
@@ -54,7 +90,9 @@ export class CombatSystem {
 					rawDamage,
 					attackType,
 					attackerTeam,
-					primaryTargetId
+					primaryTargetId,
+					undefined,
+					killerPlayer
 				)
 		});
 	}
@@ -725,6 +763,9 @@ export class CombatSystem {
 
 			// Melee AoE Splash
 			if (attacker.splashRadius) {
+				const attackerOwner = attacker.playerId
+					? this.sim.allPlayers.find((p) => p.id === attacker.playerId)
+					: undefined;
 				this.triggerSplashDamage(
 					target.x,
 					target.y,
@@ -733,7 +774,8 @@ export class CombatSystem {
 					attacker.attackType,
 					attacker.team,
 					target.instanceId,
-					attacker.lane
+					attacker.lane,
+					attackerOwner
 				);
 			}
 
@@ -764,7 +806,8 @@ export class CombatSystem {
 		attackType: AttackType,
 		attackerTeam: Team,
 		primaryTargetId?: string,
-		lane?: Lane
+		lane?: Lane,
+		killerPlayer?: PlayerState
 	): void {
 		this.sim.splashEffects.push({
 			x,
@@ -799,8 +842,38 @@ export class CombatSystem {
 			}
 
 			const splashDmg = Math.max(1, Math.round(damage * factor));
-			this.applyUnitDamage(u, splashDmg, attackType, attackerTeam, false);
+			this.applyUnitDamage(u, splashDmg, attackType, attackerTeam, false, undefined, {
+				killerPlayer
+			});
 		}
+	}
+
+	private resolveKillerPlayer(
+		attackerTeam: MatchTeam,
+		attackerUnit?: Unit,
+		explicitPlayer?: PlayerState
+	): PlayerState {
+		if (explicitPlayer) return explicitPlayer;
+		if (attackerUnit?.playerId) {
+			const owner = this.sim.allPlayers.find((p) => p.id === attackerUnit.playerId);
+			if (owner) return owner;
+		}
+		if (attackerUnit?.playerSlot != null) {
+			const owner = this.sim.allPlayers.find((p) => p.slot === attackerUnit.playerSlot);
+			if (owner) return owner;
+		}
+		return this.sim.players[attackerTeam];
+	}
+
+	private resolveEnemyUnitBounty(target: Unit): number {
+		if (target.isSummoned) {
+			return 2;
+		}
+		if (target.bounty !== undefined && target.bounty > 0) {
+			return target.bounty;
+		}
+		const uDef = target.defId && target.defId !== 'test' ? getUnit(target.defId) : undefined;
+		return resolveUnitKillBounty(uDef, 0, target.maxHp);
 	}
 
 	public applyUnitDamage(
@@ -809,8 +882,13 @@ export class CombatSystem {
 		attackType: AttackType,
 		attackerTeam: Team,
 		isCrit: boolean,
-		attackerUnit?: Unit
+		attackerUnit?: Unit,
+		options?: DamageKillOptions
 	): void {
+		if (target.state === 'DEAD') {
+			return;
+		}
+
 		// Cyclone: invulnerable
 		if (target.isCycloned || target.buffs?.some((b) => b.type === 'cyclone')) {
 			return;
@@ -882,7 +960,7 @@ export class CombatSystem {
 		);
 
 		// WC3 Threat: Direct Attacker Retaliation & Call For Help
-		if (attackerUnit && target.state !== 'DEAD' && target.team !== attackerUnit.team) {
+		if (attackerUnit && target.team !== attackerUnit.team) {
 			target.lastAttackerId = attackerUnit.instanceId;
 			target.lastAttackedTime = this.sim.gameTime;
 
@@ -1035,8 +1113,28 @@ export class CombatSystem {
 					}
 					this.sim.addFloatingText(`+${bounty}g за Боса!`, target.x, target.y - 30, '#fbbf24');
 				}
-			} else if (attackerTeam === 'west' || attackerTeam === 'east') {
-				this.sim.players[attackerTeam].stats.unitsKilled++;
+			} else if (
+				(attackerTeam === 'west' || attackerTeam === 'east') &&
+				attackerTeam !== target.team
+			) {
+				const killerPlayer = this.resolveKillerPlayer(
+					attackerTeam,
+					attackerUnit,
+					options?.killerPlayer
+				);
+				const baseBounty = this.resolveEnemyUnitBounty(target);
+				const mult = options?.bountyMultiplier ?? 1;
+				const bounty = Math.max(1, Math.round(baseBounty * mult));
+				killerPlayer.gold += bounty;
+				killerPlayer.stats.unitsKilled++;
+				if (!options?.suppressKillFloatingText) {
+					this.sim.addFloatingText(
+						mult > 1 ? `+${bounty}g (×${mult})` : `+${bounty}g`,
+						target.x,
+						target.y - 26,
+						'#fbbf24'
+					);
+				}
 			}
 		}
 	}
