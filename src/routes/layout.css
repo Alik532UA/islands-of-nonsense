@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 
-:root {
+:root,
+[data-theme='dark-gray'] {
 	--ui-scale: 1;
 	--fill-u: clamp(14px, 1.8vmin, 22px);
 	--space-xs: 4px;
@@ -14,12 +15,65 @@
 	--radius-md: 12px;
 	--radius-lg: 20px;
 
+	/* Theme: Dark Gray (Default) */
 	--color-bg-menu: #0b0f19;
-	--color-bg-card: #151b28;
-	--color-bg-card-hover: #1e2638;
-	--color-border-card: #2e384d;
+	--color-bg-card: #131826;
+	--color-bg-card-hover: #182033;
+	--color-border-card: #2e3d5a;
 	--color-text: #f1f5f9;
 	--color-text-muted: #94a3b8;
+	--color-header-bg: rgba(11, 15, 25, 0.85);
+	--color-header-border: rgba(255, 255, 255, 0.08);
+	--color-header-btn-bg: rgba(255, 255, 255, 0.04);
+	--color-header-btn-border: rgba(255, 255, 255, 0.08);
+	color-scheme: dark;
+}
+
+html[data-theme='light-gray'] {
+	/* Theme: Light Gray (from Slovko) */
+	--color-bg-menu: #f5f6fa;
+	--color-bg-card: #ffffff;
+	--color-bg-card-hover: #eef0f6;
+	--color-border-card: #d1d5db;
+	--color-text: #1f2937;
+	--color-text-muted: #4b5563;
+	--color-header-bg: rgba(245, 246, 250, 0.85);
+	--color-header-border: rgba(0, 0, 0, 0.1);
+	--color-header-btn-bg: rgba(0, 0, 0, 0.04);
+	--color-header-btn-border: rgba(0, 0, 0, 0.1);
+	color-scheme: only light;
+}
+
+html[data-theme='orange'],
+[data-theme='orange'] {
+	/* Theme: Orange / Ubuntu (from Slovko) */
+	--color-bg-menu: linear-gradient(135deg, #77216f, #e95420);
+	--color-bg-card: #3d0a35;
+	--color-bg-card-hover: #520f48;
+	--color-border-card: rgba(255, 255, 255, 0.25);
+	--color-text: #ffffff;
+	--color-text-muted: #e2e8f0;
+	--color-header-bg: rgba(61, 10, 53, 0.85);
+	--color-header-border: rgba(255, 255, 255, 0.15);
+	--color-header-btn-bg: rgba(255, 255, 255, 0.1);
+	--color-header-btn-border: rgba(255, 255, 255, 0.2);
+	color-scheme: dark;
+}
+
+html[data-theme='green'],
+[data-theme='green'] {
+	/* Theme: Green / Emerald (from Slovko) */
+	--color-bg-menu: #b2f7b8;
+	--color-bg-card: #e6ffe6;
+	--color-bg-card-hover: #d1fae5;
+	--color-border-card: #6ee7b7;
+	--color-text: #064e3b;
+	--color-text-muted: #065f46;
+	--color-header-bg: rgba(230, 255, 230, 0.85);
+	--color-header-border: rgba(5, 150, 105, 0.2);
+	--color-header-btn-bg: rgba(5, 150, 105, 0.1);
+	--color-header-btn-border: rgba(5, 150, 105, 0.2);
+	color-scheme: only light;
 }
 
 body {

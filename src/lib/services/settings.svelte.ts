@@ -3,8 +3,15 @@ import { getLocale, setLocale, type Locale } from '$lib/i18n';
 import { sound } from './audio';
 
 export type UiScale = 0.85 | 1 | 1.15 | 1.3;
-
 export const UI_SCALES: readonly UiScale[] = [0.85, 1, 1.15, 1.3] as const;
+
+export type AppTheme = 'dark-gray' | 'light-gray' | 'orange' | 'green';
+export const APP_THEMES: readonly AppTheme[] = [
+	'dark-gray',
+	'light-gray',
+	'orange',
+	'green'
+] as const;
 
 function detectInitialLocale(): Locale {
 	if (typeof window !== 'undefined') {
@@ -30,6 +37,26 @@ function detectInitialUiScale(): UiScale {
 	return 1;
 }
 
+function detectInitialTheme(): AppTheme {
+	const saved = storage.getJSON<AppTheme>('settings_theme', 'dark-gray');
+	if (APP_THEMES.includes(saved)) {
+		return saved;
+	}
+	return 'dark-gray';
+}
+
+function applyTheme(theme: AppTheme): void {
+	if (typeof document !== 'undefined') {
+		document.documentElement.setAttribute('data-theme', theme);
+		const isDark = theme === 'dark-gray' || theme === 'orange';
+		if (isDark) {
+			document.documentElement.classList.add('dark');
+		} else {
+			document.documentElement.classList.remove('dark');
+		}
+	}
+}
+
 function applyUiScale(scale: UiScale): void {
 	if (typeof document !== 'undefined') {
 		document.documentElement.style.setProperty('--ui-scale', String(scale));
@@ -43,6 +70,7 @@ class SettingsService {
 	#volume = $state(storage.getJSON<number>('settings_volume', 0.8));
 	#locale = $state<Locale>(detectInitialLocale());
 	#uiScale = $state<UiScale>(detectInitialUiScale());
+	#theme = $state<AppTheme>(detectInitialTheme());
 	#isSettingsOpen = $state(false);
 
 	constructor() {
@@ -50,6 +78,7 @@ class SettingsService {
 		sound.setEnabled(this.#sound);
 		sound.setVolume(this.#volume);
 		applyUiScale(this.#uiScale);
+		applyTheme(this.#theme);
 	}
 
 	get headerTitle(): string | null {
@@ -74,6 +103,10 @@ class SettingsService {
 
 	get uiScale(): UiScale {
 		return this.#uiScale;
+	}
+
+	get theme(): AppTheme {
+		return this.#theme;
 	}
 
 	get isSettingsOpen(): boolean {
@@ -103,6 +136,12 @@ class SettingsService {
 		this.#uiScale = scale;
 		storage.setJSON('settings_ui_scale', scale);
 		applyUiScale(scale);
+	}
+
+	setTheme(theme: AppTheme): void {
+		this.#theme = theme;
+		storage.setJSON('settings_theme', theme);
+		applyTheme(theme);
 	}
 
 	openSettings(): void {

@@ -23,7 +23,7 @@
 </script>
 
 {#if !isBattle}
-	<header class="game-header" data-testid="game-header">
+	<header class="game-header relative" data-testid="game-header">
 		<div class="flex items-center gap-2">
 			{#if !isHome}
 				<a
@@ -36,26 +36,30 @@
 				>
 					<ArrowLeft class="w-4 h-4" />
 				</a>
-
-				<a
-					href={resolve('/')}
-					class="header-btn"
-					title="Головне меню"
-					aria-label="Головне меню"
-					data-testid="header-home-link"
-				>
-					<House class="w-4 h-4" />
-				</a>
 			{/if}
 
-			<a href={resolve('/')} class="flex items-center gap-2 no-underline text-inherit group ml-1">
-				<Castle class="w-6 h-6 text-amber-400 group-hover:scale-110 transition-transform" />
-				<span
-					class="font-black text-amber-300 text-sm md:text-base tracking-wider uppercase hidden sm:inline"
-				>
-					{settings.headerTitle || t('menu.title')}
-				</span>
+			<a
+				href={resolve('/')}
+				class="header-btn group"
+				title="Головне меню"
+				aria-label="Головне меню"
+				data-testid="header-home-link"
+			>
+				<Castle
+					class="lucide-icon lucide lucide-castle w-6 h-6 text-amber-400 group-hover:scale-110 transition-transform"
+				/>
 			</a>
+		</div>
+
+		<!-- Centered non-clickable page title without icon -->
+		<div
+			class="absolute left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-none select-none text-center px-4"
+		>
+			<span
+				class="font-black text-amber-300 text-sm md:text-base tracking-wider uppercase truncate max-w-[200px] sm:max-w-xs md:max-w-md"
+			>
+				{settings.headerTitle || t('menu.title')}
+			</span>
 		</div>
 
 		<HeaderControls />
