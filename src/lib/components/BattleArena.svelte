@@ -185,7 +185,8 @@
 
 				const now = Date.now();
 				if (now - lastSpaceTime < 350) {
-					const w = sim.players.west.worker;
+					const localT = matchSync?.localTeam ?? 'west';
+					const w = localT === 'east' ? sim.players.east.worker : sim.players.west.worker;
 					if (w) {
 						renderer?.setCamera(w.x, w.y);
 					}
@@ -948,6 +949,41 @@
 				</div>
 			</div>
 		{/if}
+
+		<!-- Floating Bottom Bar: Buildings Grid, Tooltip, Portrait & Minimap HUD -->
+		<BottomBar
+			{sim}
+			{uiTick}
+			{cameraX}
+			{cameraY}
+			{zoom}
+			{selectedEntity}
+			{touchControls}
+			localTeam={matchSync?.localTeam ?? 'west'}
+			selectedGroup={selectedEntity?.type === 'group' ? selectedEntity.unitIds : null}
+			bind:selectedBuildingId
+			bind:selectedPlacedBuildingId
+			bind:selectedUnitId
+			onSelectBuilding={(id: string | null) => {
+				selectedBuildingId = id;
+				if (id) {
+					selectedPlacedBuildingId = null;
+					selectedUnitId = null;
+					selectedEntity = { type: 'worker' };
+				}
+			}}
+			onUpgradeBuilding={handleUpgradeBuilding}
+			onSellBuilding={handleSellBuilding}
+			onContinueConstruction={handleContinueConstruction}
+			onMinimapClick={(ax: number, ay: number) => renderer?.setCamera(ax, ay)}
+			onClearSelection={() => {
+				selectedEntity = null;
+				selectedBuildingId = null;
+				selectedPlacedBuildingId = null;
+				selectedUnitId = null;
+				uiTick = sim.stateVersion;
+			}}
+		/>
 	</div>
 
 	{#snippet touchControls()}
@@ -1008,49 +1044,18 @@
 		</div>
 	{/snippet}
 
-	<!-- Bottom Bar: Buildings Grid 4x3, Tooltip, Race & Lane Selectors -->
-	<BottomBar
-		{sim}
-		{uiTick}
-		{cameraX}
-		{cameraY}
-		{zoom}
-		{selectedEntity}
-		{touchControls}
-		selectedGroup={selectedEntity?.type === 'group' ? selectedEntity.unitIds : null}
-		bind:selectedBuildingId
-		bind:selectedPlacedBuildingId
-		bind:selectedUnitId
-		onSelectBuilding={(id: string | null) => {
-			selectedBuildingId = id;
-			if (id) {
-				selectedPlacedBuildingId = null;
-				selectedUnitId = null;
-				selectedEntity = { type: 'worker' };
-			}
-		}}
-		onUpgradeBuilding={handleUpgradeBuilding}
-		onSellBuilding={handleSellBuilding}
-		onContinueConstruction={handleContinueConstruction}
-		onMinimapClick={(ax: number, ay: number) => renderer?.setCamera(ax, ay)}
-		onClearSelection={() => {
-			selectedEntity = null;
-			selectedBuildingId = null;
-			selectedPlacedBuildingId = null;
-			selectedUnitId = null;
-			uiTick = sim.stateVersion;
-		}}
-	/>
-
 	<!-- Radial Action Menu (E / R / Q) -->
 	<RadialMenu
 		isOpen={isRadialOpen}
 		category={radialCategory}
 		{sim}
-		armyBuildings={getBaseBuildingsForRace(sim.players.west.race).filter((b) => !b.specialType)}
-		specialBuildings={getBaseBuildingsForRace(sim.players.west.race).filter((b) =>
-			Boolean(b.specialType)
-		)}
+		localTeam={matchSync?.localTeam ?? 'west'}
+		armyBuildings={getBaseBuildingsForRace(
+			(matchSync?.localTeam === 'east' ? sim.players.east : sim.players.west).race
+		).filter((b) => !b.specialType)}
+		specialBuildings={getBaseBuildingsForRace(
+			(matchSync?.localTeam === 'east' ? sim.players.east : sim.players.west).race
+		).filter((b) => Boolean(b.specialType))}
 		onSelectBuilding={(defId) => {
 			selectedBuildingId = defId;
 			selectedPlacedBuildingId = null;

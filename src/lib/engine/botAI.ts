@@ -620,8 +620,7 @@ export class BotAI {
 		const enemyUnits = this.sim.units.filter((u) => u.team === enemyTeam && u.state !== 'DEAD');
 
 		const hasArmyAdvantage =
-			myUnits.length >= 6 &&
-			(myUnits.length >= enemyUnits.length * 1.5 || enemyUnits.length <= 2);
+			myUnits.length >= 6 && (myUnits.length >= enemyUnits.length * 1.5 || enemyUnits.length <= 2);
 
 		if (!hasArmyAdvantage) {
 			return false;

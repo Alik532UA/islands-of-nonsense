@@ -29,6 +29,7 @@
 		isOpen = false,
 		category = 'army',
 		sim,
+		localTeam = 'west',
 		armyBuildings = [],
 		specialBuildings = [],
 		onSelectBuilding,
@@ -39,6 +40,7 @@
 		isOpen: boolean;
 		category: RadialCategory;
 		sim: Simulation;
+		localTeam?: 'west' | 'east';
 		armyBuildings?: BuildingDefinition[];
 		specialBuildings?: BuildingDefinition[];
 		onSelectBuilding: (defId: string) => void;
@@ -47,7 +49,7 @@
 		onClose: () => void;
 	} = $props();
 
-	let player = $derived(sim.players.west);
+	let player = $derived(localTeam === 'east' ? sim.players.east : sim.players.west);
 	let gold = $derived(player.gold);
 	let lumber = $derived(player.lumber ?? 0);
 
@@ -58,10 +60,10 @@
 			costText: 'Готовий',
 			hotkey: '1',
 			icon: 'rescue',
-			enabled: sim.canUseRescueStrike('west'),
+			enabled: sim.canUseRescueStrike(localTeam),
 			action: () => {
-				if (sim.canUseRescueStrike('west')) {
-					sim.triggerRescueStrike('west');
+				if (sim.canUseRescueStrike(localTeam)) {
+					sim.triggerRescueStrike(localTeam);
 					sound.playRescueStrike();
 					onClose();
 				} else {
@@ -75,10 +77,10 @@
 			costText: 'Безкоштовно',
 			hotkey: '2',
 			icon: 'repair',
-			enabled: sim.castles.west.hp < sim.castles.west.maxHp,
+			enabled: sim.castles[localTeam].hp < sim.castles[localTeam].maxHp,
 			action: () => {
-				if (sim.castles.west.hp < sim.castles.west.maxHp) {
-					sim.repairBuilding('west', 'castle_west');
+				if (sim.castles[localTeam].hp < sim.castles[localTeam].maxHp) {
+					sim.repairBuilding(localTeam, `castle_${localTeam}`);
 					sound.playRepair();
 					onClose();
 				} else {
@@ -95,7 +97,7 @@
 			enabled: Boolean(sim.brokenBridge) && lumber >= 50,
 			action: () => {
 				if (sim.brokenBridge && lumber >= 50) {
-					sim.orderBridgeRepair('west');
+					sim.orderBridgeRepair(localTeam);
 					sound.playBuild();
 					onClose();
 				} else {
@@ -133,10 +135,10 @@
 			costText: 'Магія',
 			hotkey: '6',
 			icon: 'skill',
-			enabled: sim.canUseRaceSkill('west'),
+			enabled: sim.canUseRaceSkill(localTeam),
 			action: () => {
-				if (sim.canUseRaceSkill('west')) {
-					sim.useRaceSkill('west');
+				if (sim.canUseRaceSkill(localTeam)) {
+					sim.useRaceSkill(localTeam);
 					sound.playUpgrade();
 					onClose();
 				} else {
