@@ -15,6 +15,23 @@ export const BUILDINGS_MAP = new Map<string, BuildingDefinition>();
 export const UNITS_MAP = new Map<string, UnitDefinition>();
 export const RACES_LIST: RaceDefinition[] = rawRaces as RaceDefinition[];
 
+export const PLAYABLE_RACES = [
+	'Нежить',
+	'Орки',
+	'Демони',
+	'Техніки',
+	'Північ',
+	'Ельфи',
+	'Небожителі',
+	'Тролі',
+	'Елементалі',
+	'Тварини',
+	'Наги',
+	'Альянс'
+] as const;
+
+export type PlayableRace = (typeof PLAYABLE_RACES)[number];
+
 export const SPECIAL_BUILDINGS: BuildingDefinition[] = [
 	{
 		id: 'cg10_shop',
@@ -382,9 +399,10 @@ export function getUnit(id: string): UnitDefinition | undefined {
 }
 
 export function getBuildingsForRace(raceName: string): BuildingDefinition[] {
+	const canonical = formatRaceName(raceName);
 	const buildings: BuildingDefinition[] = [];
 	for (const b of BUILDINGS_MAP.values()) {
-		if (b.race === raceName) {
+		if (b.race === raceName || (b.race && formatRaceName(b.race) === canonical)) {
 			buildings.push(b);
 		}
 	}
@@ -392,8 +410,13 @@ export function getBuildingsForRace(raceName: string): BuildingDefinition[] {
 }
 
 export function getBaseBuildingsForRace(raceName: string): BuildingDefinition[] {
-	const validRace = raceName === 'in_game' || !raceName ? 'Люди' : raceName;
-	const raceEntry = RACES_LIST.find((r) => r.race === validRace) || RACES_LIST[0];
+	const canonical = formatRaceName(raceName);
+	const validRace = raceName === 'in_game' || !raceName ? 'Альянс' : raceName;
+	const raceEntry =
+		RACES_LIST.find((r) => r.race === validRace) ||
+		RACES_LIST.find((r) => r.race === canonical) ||
+		RACES_LIST.find((r) => r.race === 'Альянс') ||
+		RACES_LIST[0];
 
 	// 1. Reference buildings for this race (11 buildings from races.json)
 	const refBuildings: BuildingDefinition[] = [];
@@ -1381,17 +1404,24 @@ export function isTowerBuilding(def?: BuildingDefinition | Building): boolean {
  * Localizes and formats race names into standard Ukrainian canon.
  */
 export function formatRaceName(race: string): string {
-	if (!race || race.toLowerCase() === 'in_game') return 'Люди';
+	if (!race || race.toLowerCase() === 'in_game') return 'Альянс';
 	const map: Record<string, string> = {
 		Север: 'Північ',
 		Північ: 'Північ',
-		Люди: 'Люди',
+		Люди: 'Альянс',
+		Альянс: 'Альянс',
+		Окри: 'Орки',
 		Орки: 'Орки',
 		Нежить: 'Нежить',
 		Эльфы: 'Ельфи',
 		Ельфи: 'Ельфи',
-		Хаос: 'Хаос',
+		Хаос: 'Демони',
+		Демони: 'Демони',
 		Наги: 'Наги',
+		Тролі: 'Тролі',
+		Тварини: 'Тварини',
+		Елементалі: 'Елементалі',
+		Небожителі: 'Небожителі',
 		Порча: 'Порча',
 		'Ночные эльфы': 'Нічні ельфи',
 		'Ночні ельфи': 'Нічні ельфи',
@@ -1411,6 +1441,7 @@ export function formatRaceName(race: string): string {
 export function formatFactionName(race: string): string {
 	const canonical = formatRaceName(race);
 	switch (canonical) {
+		case 'Альянс':
 		case 'Люди':
 			return 'Альянс';
 		case 'Орки':
@@ -1418,15 +1449,24 @@ export function formatFactionName(race: string): string {
 		case 'Нежить':
 			return 'Нежить';
 		case 'Ельфи':
-			return 'Нічні Ельфи';
+			return 'Ельфи';
+		case 'Демони':
 		case 'Хаос':
-			return 'Легіон';
+			return 'Демони';
 		case 'Північ':
 			return 'Північ';
 		case 'Наги':
 			return 'Наги';
-		case 'Механіки':
-			return 'Механіки';
+		case 'Техніки':
+			return 'Техніки';
+		case 'Тролі':
+			return 'Тролі';
+		case 'Тварини':
+			return 'Тварини';
+		case 'Елементалі':
+			return 'Елементалі';
+		case 'Небожителі':
+			return 'Небожителі';
 		default:
 			return canonical;
 	}
@@ -1436,22 +1476,34 @@ export function formatFactionName(race: string): string {
  * Returns canonical Ukrainian builder unit name for a given race.
  */
 export function getBuilderNameForRace(race: string): string {
+	if (race === 'Люди') return 'Будівельник Людей';
 	const canonical = formatRaceName(race);
 	switch (canonical) {
-		case 'Північ':
-			return 'Північний будівельник';
+		case 'Альянс':
+			return 'Будівельник Альянсу';
 		case 'Люди':
 			return 'Будівельник Людей';
+		case 'Північ':
+			return 'Північний будівельник';
 		case 'Орки':
 			return 'Будівельник Орків';
 		case 'Нежить':
 			return 'Будівельник Нежиті';
 		case 'Ельфи':
 			return 'Будівельник Ельфів';
+		case 'Демони':
 		case 'Хаос':
-			return 'Будівельник Хаосу';
+			return 'Будівельник Демонів';
 		case 'Наги':
 			return 'Будівельник Наг';
+		case 'Тролі':
+			return 'Будівельник Тролів';
+		case 'Тварини':
+			return 'Будівельник Тварин';
+		case 'Елементалі':
+			return 'Будівельник Елементалів';
+		case 'Небожителі':
+			return 'Будівельник Небожителів';
 		case 'Порча':
 			return 'Будівельник Скверни';
 		case 'Нічні ельфи':
@@ -1461,6 +1513,6 @@ export function getBuilderNameForRace(race: string): string {
 		case 'Збирачі':
 			return 'Будівельник Збирачів';
 		default:
-			return 'Північний будівельник';
+			return `Будівельник (${canonical})`;
 	}
 }

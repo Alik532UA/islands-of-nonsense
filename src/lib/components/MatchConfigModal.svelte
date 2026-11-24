@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { SimulationConfig } from '../engine/simulation';
 	import { GAME_MODES } from '../engine/gameModes';
-	import { RACES_LIST } from '../engine/gameData';
+	import { RACES_LIST, PLAYABLE_RACES } from '../engine/gameData';
 	import { storage } from '../services/storage';
 	import {
 		Swords,
@@ -62,7 +62,7 @@
 			bannedRaces = bannedRaces.filter((r) => r !== race);
 		} else {
 			// Can ban any number of races, but at least 1 must remain available
-			if (bannedRaces.length < RACES_LIST.length - 1) {
+			if (bannedRaces.length < PLAYABLE_RACES.length - 1) {
 				bannedRaces = [...bannedRaces, race];
 				// If bot was explicitly set to this race, revert to random
 				if (eastRace === race) {
@@ -331,7 +331,7 @@
 					{/if}
 				</button>
 
-				{#each RACES_LIST as r}
+				{#each RACES_LIST.filter( (r) => (PLAYABLE_RACES as readonly string[]).includes(r.race) ) as r}
 					<button
 						type="button"
 						onclick={() => (westRace = r.race)}
@@ -924,7 +924,7 @@
 					{/if}
 				</button>
 
-				{#each RACES_LIST as r}
+				{#each RACES_LIST.filter( (r) => (PLAYABLE_RACES as readonly string[]).includes(r.race) ) as r}
 					{@const isBanned = bannedRaces.includes(r.race)}
 					<div
 						class="relative group/race flex items-center rounded-xl border transition {isBanned

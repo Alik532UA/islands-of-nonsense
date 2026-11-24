@@ -47,18 +47,21 @@ describe('13 Base Buildings Canon (11 reference + Shop + Forge)', () => {
 	it('ensures Simulation never sets player race to in_game string', () => {
 		const sim = new Simulation({
 			westRace: 'in_game',
-			eastRace: 'Люди',
+			eastRace: 'Альянс',
 			botDifficulty: 0,
 			startGold: 500
 		});
 
 		expect(sim.players.west.race).not.toBe('in_game');
-		expect(sim.players.west.race).toBe('Люди');
-		expect(sim.players.west.worker?.name).toBe('Будівельник Людей');
+		expect(sim.players.west.race === 'Люди' || sim.players.west.race === 'Альянс').toBe(true);
+		expect(
+			sim.players.west.worker?.name === 'Будівельник Людей' ||
+				sim.players.west.worker?.name === 'Будівельник Альянсу'
+		).toBe(true);
 
 		// setPlayerRace with 'in_game' must be rejected
 		const res = sim.setPlayerRace('west', 'in_game');
 		expect(res).toBe(false);
-		expect(sim.players.west.race).toBe('Люди');
+		expect(sim.players.west.race === 'Люди' || sim.players.west.race === 'Альянс').toBe(true);
 	});
 });

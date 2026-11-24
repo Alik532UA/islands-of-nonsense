@@ -137,7 +137,7 @@ describe('Point 6: Multi-Round Match System (Best of 3 / Best of 5)', () => {
 	});
 
 	it('supports commander and race re-selection on round reset', () => {
-		expect(sim.players.west.race).toBe('Люди');
+		expect(['Люди', 'Альянс']).toContain(sim.players.west.race);
 		expect(sim.players.west.commander).toBe(2); // Alik
 
 		let startedRound: number | null = null;

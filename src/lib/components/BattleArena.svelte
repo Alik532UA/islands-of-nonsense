@@ -7,7 +7,7 @@
 	import { ArenaRenderer, type SelectedEntity } from '$lib/renderer/ArenaRenderer';
 	import { sound } from '$lib/services/audio';
 	import { attachAudioBridge } from '$lib/services/audioBridge';
-	import { RACES_LIST, getBaseBuildingsForRace } from '$lib/engine/gameData';
+	import { RACES_LIST, PLAYABLE_RACES, getBaseBuildingsForRace } from '$lib/engine/gameData';
 	import TopBar from '$lib/components/TopBar.svelte';
 	import BottomBar from '$lib/components/BottomBar.svelte';
 	import RadialMenu from '$lib/components/RadialMenu.svelte';
@@ -907,7 +907,7 @@
 
 					<!-- Race pick chips (Only the playable races) -->
 					<div class="grid grid-cols-3 sm:grid-cols-4 gap-2 text-xs">
-						{#each RACES_LIST as raceDef}
+						{#each RACES_LIST.filter( (r) => (PLAYABLE_RACES as readonly string[]).includes(r.race) ) as raceDef}
 							{@const isBanned = sim.isRaceBanned(raceDef.race)}
 							{@const isOpponentOccupied =
 								sim.gameModeConfig.uniqueRaces && sim.players.east.race === raceDef.race}

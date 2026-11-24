@@ -27,7 +27,8 @@ import {
 	getBuildingVisualRank,
 	UNITS_MAP,
 	SPECIAL_BUILDINGS,
-	GUARD_TOWERS
+	GUARD_TOWERS,
+	formatRaceName
 } from './gameData';
 
 export interface EnemyArmyScan {
@@ -246,14 +247,22 @@ export class BotAI {
 
 		// 00. Adapt Commander to Race Strategy
 		if (player.commander === 3 && player.race) {
-			if (player.race === 'Люди') {
+			if (player.race === 'Альянс' || player.race === 'Люди') {
 				player.commander = 1; // Саша: +12% доходу
-			} else if (player.race === 'Ельфи') {
+			} else if (player.race === 'Ельфи' || player.race === 'Небожителі') {
 				player.commander = 5; // Юра: 25% крит дальнього бою
-			} else if (player.race === 'Північ') {
+			} else if (player.race === 'Північ' || player.race === 'Тролі') {
 				player.commander = 4; // Дэн: +24% швидкості атаки
-			} else if (player.race === 'Хаос') {
+			} else if (
+				player.race === 'Демони' ||
+				player.race === 'Хаос' ||
+				player.race === 'Елементалі'
+			) {
 				player.commander = 3; // Дима: +24% шкоди
+			} else if (player.race === 'Тварини' || player.race === 'Орки') {
+				player.commander = 4; // Дэн: +24% швидкості атаки
+			} else if (player.race === 'Техніки') {
+				player.commander = 2; // Алик: майстер кузні
 			}
 		}
 
@@ -738,8 +747,9 @@ export class BotAI {
 
 		if (isAirThreat && towerCount < 2) {
 			const raceTower =
-				GUARD_TOWERS.find((t) => t.race === player.race) ||
-				GUARD_TOWERS.find((t) => t.id === 'h006');
+				GUARD_TOWERS.find(
+					(t) => t.race === player.race || t.race === formatRaceName(player.race)
+				) || GUARD_TOWERS.find((t) => t.id === 'h006');
 			if (
 				raceTower &&
 				(raceTower.lumber_cost || 0) <= (player.lumber ?? 0) &&

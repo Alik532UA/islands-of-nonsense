@@ -18,7 +18,7 @@ import type {
 	Corpse
 } from './types';
 import { SpatialHashGrid } from './spatialGrid';
-import { getBuilderNameForRace, RACES_LIST } from './gameData';
+import { getBuilderNameForRace, RACES_LIST, PLAYABLE_RACES, formatRaceName } from './gameData';
 import { getRandomBoss } from './bosses';
 import { WorkerSystem } from './workerSystem';
 import { BuildingSystem } from './buildingSystem';
@@ -344,9 +344,16 @@ export class Simulation {
 			east: { team: 'east', x: EAST_CASTLE_X, y: EAST_CASTLE_Y, hp: castleHp, maxHp: castleHp }
 		};
 
-		const availableRaces = RACES_LIST.map((r) => r.race).filter(
-			(r) => !this.bannedRaces.includes(r)
-		);
+		const isRaceAvailable = (r: string): boolean => {
+			const canonical = formatRaceName(r);
+			return !this.bannedRaces.includes(r) && !this.bannedRaces.includes(canonical);
+		};
+
+		const availableRaces = RACES_LIST.filter((r) =>
+			(PLAYABLE_RACES as readonly string[]).includes(r.race)
+		)
+			.map((r) => r.race)
+			.filter((r) => isRaceAvailable(r));
 		const isAllRandom = !!config.allRandom;
 		const isUniqueRaces = !!config.uniqueRaces;
 
@@ -360,22 +367,16 @@ export class Simulation {
 				}
 				return { race: picked, isRandom: true };
 			}
-			if (
-				requested &&
-				!this.bannedRaces.includes(requested) &&
-				remainingRaces.includes(requested)
-			) {
+			if (requested && requested !== 'in_game' && isRaceAvailable(requested)) {
+				const canonical = formatRaceName(requested);
 				if (isUniqueRaces) {
-					remainingRaces.splice(remainingRaces.indexOf(requested), 1);
+					const remIdx = remainingRaces.findIndex(
+						(r) => r === requested || formatRaceName(r) === canonical
+					);
+					if (remIdx !== -1) {
+						remainingRaces.splice(remIdx, 1);
+					}
 				}
-				return { race: requested, isRandom: false };
-			}
-			if (
-				requested &&
-				requested !== 'in_game' &&
-				!this.bannedRaces.includes(requested) &&
-				availableRaces.includes(requested)
-			) {
 				return { race: requested, isRandom: false };
 			}
 			const idx = Math.floor(Math.random() * remainingRaces.length);
@@ -387,22 +388,19 @@ export class Simulation {
 		};
 
 		const initialWestReq =
-			config.westRace &&
-			config.westRace !== 'in_game' &&
-			!this.bannedRaces.includes(config.westRace)
+			config.westRace && config.westRace !== 'in_game' && isRaceAvailable(config.westRace)
 				? config.westRace
 				: undefined;
+		const defaultRace =
+			availableRaces.find((r) => r === 'Альянс' || r === 'Люди') || availableRaces[0];
 		const westChoice = takeRace(
-			initialWestReq ||
-				(isAllRandom || config.westRace === 'random' ? undefined : availableRaces[0]),
+			initialWestReq || (isAllRandom || config.westRace === 'random' ? undefined : defaultRace),
 			isAllRandom || config.westRace === 'random'
 		);
 		const eastIsRandomReq =
 			isAllRandom || config.eastRace === 'random' || (!config.eastRace && config.botDifficulty > 0);
 		const initialEastReq =
-			config.eastRace &&
-			config.eastRace !== 'in_game' &&
-			!this.bannedRaces.includes(config.eastRace)
+			config.eastRace && config.eastRace !== 'in_game' && isRaceAvailable(config.eastRace)
 				? config.eastRace
 				: undefined;
 		const eastChoice = takeRace(
@@ -787,9 +785,11 @@ export class Simulation {
 
 		const otherTeam = team === 'west' ? 'east' : 'west';
 		const otherPlayer = this.players[otherTeam];
-		const availableRaces = RACES_LIST.map((r) => r.race).filter(
-			(r) => !this.bannedRaces.includes(r)
-		);
+		const availableRaces = RACES_LIST.filter((r) =>
+			(PLAYABLE_RACES as readonly string[]).includes(r.race)
+		)
+			.map((r) => r.race)
+			.filter((r) => !this.bannedRaces.includes(r));
 
 		if (race === 'random') {
 			let pool = availableRaces;
@@ -822,11 +822,17 @@ export class Simulation {
 		}
 
 		// Direct race selection
-		if (race === 'in_game' || !availableRaces.includes(race)) {
+		const canonicalRace = formatRaceName(race);
+		const isValidRace =
+			availableRaces.includes(race) ||
+			availableRaces.includes(canonicalRace) ||
+			RACES_LIST.some((r) => r.race === race || formatRaceName(r.race) === canonicalRace);
+
+		if (race === 'in_game' || !isValidRace) {
 			return false;
 		}
 
-		if (this.bannedRaces.includes(race)) {
+		if (this.bannedRaces.includes(race) || this.bannedRaces.includes(canonicalRace)) {
 			this.addFloatingText(
 				'Раса заблокована (-ban)!',
 				team === 'west' ? 300 : 1600,
@@ -836,7 +842,11 @@ export class Simulation {
 			return false;
 		}
 
-		if (this.config.uniqueRaces && otherPlayer && otherPlayer.race === race) {
+		if (
+			this.config.uniqueRaces &&
+			otherPlayer &&
+			(otherPlayer.race === race || formatRaceName(otherPlayer.race) === canonicalRace)
+		) {
 			this.addFloatingText('Раса вже зайнята (-ur)!', team === 'west' ? 300 : 1600, 400, '#ef4444');
 			return false;
 		}
@@ -858,7 +868,7 @@ export class Simulation {
 	}
 
 	public isRaceBanned(race: string): boolean {
-		return this.bannedRaces.includes(race);
+		return this.bannedRaces.includes(race) || this.bannedRaces.includes(formatRaceName(race));
 	}
 
 	public getAvailableRaces(): string[] {
@@ -990,12 +1000,12 @@ export class Simulation {
 				damageByAttackType: {},
 				damageByArmorType: {}
 			};
-			if (
-				newRaces?.[p.team] &&
-				p === this.players[p.team] &&
-				!this.bannedRaces.includes(newRaces[p.team]!)
-			) {
-				p.race = newRaces[p.team]!;
+			if (newRaces?.[p.team] && p === this.players[p.team]) {
+				const req = newRaces[p.team]!;
+				const canReq = formatRaceName(req);
+				if (!this.bannedRaces.includes(req) && !this.bannedRaces.includes(canReq)) {
+					p.race = req;
+				}
 			}
 			if (newCommanders?.[p.team] && p === this.players[p.team]) {
 				p.commander = newCommanders[p.team]!;

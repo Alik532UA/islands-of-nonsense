@@ -558,6 +558,68 @@ export class EconomySystem {
 					'#84cc16'
 				);
 				break;
+			case 'as_regen':
+				for (const u of this.sim.units) {
+					if (u.team === team && u.state !== 'DEAD') {
+						u.buffs = u.buffs || [];
+						u.buffs.push({ type: 'as', timer: 10, value: 0.25 });
+						u.hp = Math.min(u.maxHp, u.hp + 50);
+					}
+				}
+				this.sim.addFloatingText(
+					`${ability.nameUk}! (+25% швидкості, регенерація)`,
+					this.sim.castles[team].x,
+					this.sim.castles[team].y - 60,
+					'#eab308'
+				);
+				break;
+			case 'hp_speed':
+				for (const u of this.sim.units) {
+					if (u.team === team && u.state !== 'DEAD') {
+						u.buffs = u.buffs || [];
+						u.buffs.push({ type: 'bloodlust', timer: 12, value: 0.2 });
+						u.hp = Math.min(u.maxHp * 1.2, u.hp + Math.round(u.maxHp * 0.2));
+					}
+				}
+				this.sim.addFloatingText(
+					`${ability.nameUk}! (+20% HP, дикий біг)`,
+					this.sim.castles[team].x,
+					this.sim.castles[team].y - 60,
+					'#22c55e'
+				);
+				break;
+			case 'nuke_elemental':
+				for (const u of this.sim.units) {
+					if (u.team === enemyTeam && u.state !== 'DEAD') {
+						u.hp -= 100;
+						u.buffs = u.buffs || [];
+						u.buffs.push({ type: 'slow', timer: 3, value: 0.5 });
+						this.sim.addFloatingText('-100', u.x, u.y - 15, '#38bdf8');
+						if (u.hp <= 0) u.state = 'DEAD';
+					}
+				}
+				this.sim.addFloatingText(
+					`${ability.nameUk}! (Шок та стихія)`,
+					this.sim.castles[enemyTeam].x,
+					this.sim.castles[enemyTeam].y - 60,
+					'#38bdf8'
+				);
+				break;
+			case 'heal_cleanse':
+				for (const u of this.sim.units) {
+					if (u.team === team && u.state !== 'DEAD') {
+						u.hp = Math.min(u.maxHp, u.hp + 200);
+						u.buffs = (u.buffs || []).filter((b) => b.type !== 'slow' && b.type !== 'infect');
+						this.sim.addFloatingText('+200', u.x, u.y - 15, '#fbbf24');
+					}
+				}
+				this.sim.addFloatingText(
+					`${ability.nameUk}! (Зцілення та очищення)`,
+					this.sim.castles[team].x,
+					this.sim.castles[team].y - 60,
+					'#fbbf24'
+				);
+				break;
 		}
 
 		this.sim.onSoundEffect?.('upgrade');
