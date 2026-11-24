@@ -122,4 +122,24 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 		expect(minimapSrc).toMatch(/h-\[142px\]/);
 		expect(minimapSrc).toMatch(/pt-1/);
 	});
+
+	it('configures modern minimap header with 2 left controls, drag handle, and collapsible state', () => {
+		// Top-left controls: only terrain detail and ally colors
+		expect(minimapSrc).toContain('data-testid="minimap-terrain-btn"');
+		expect(minimapSrc).toContain('title="Перемкнути детальність рельєфу"');
+		expect(minimapSrc).toContain('data-testid="minimap-ally-colors-btn"');
+		expect(minimapSrc).toContain('title="Кольори союзників (Зелений / Ворожий)"');
+
+		// Top-right controls: drag & drop move handle and collapse arrow down
+		expect(minimapSrc).toContain('data-testid="minimap-drag-btn"');
+		expect(minimapSrc).toContain('data-testid="minimap-collapse-btn"');
+
+		// Collapsed state: expand button with arrow up
+		expect(minimapSrc).toContain('data-testid="minimap-expand-btn"');
+		expect(minimapSrc).toContain('ChevronUp');
+
+		// Adheres flush to the bottom edge without bottom border gap
+		expect(minimapSrc).toContain('rounded-t-xl rounded-b-none');
+		expect(minimapSrc).toContain('border-b-0');
+	});
 });

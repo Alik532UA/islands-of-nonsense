@@ -522,19 +522,19 @@
 <!-- Authentic Floating HUD Bottom Console (No solid background shelf) -->
 <div
 	data-testid="bottom-bar"
-	class="absolute bottom-2 left-0 right-0 px-3 flex items-center justify-center gap-2.5 text-white select-none z-20 pointer-events-none transition-all duration-300"
+	class="absolute bottom-0 left-0 right-0 px-3 flex items-center justify-center gap-2.5 text-white select-none z-20 pointer-events-none transition-all duration-300"
 >
 	{#if settings.uiLayoutPreset === 'warcraft3'}
 		<!-- Authentic Warcraft III HUD: Left Minimap, Center/Right Action Panels -->
-		<div class="w-full flex items-center justify-start gap-2.5 pointer-events-none">
-			<!-- 1. LEFT: Interactive Real-time Minimap with authentic WC3 buttons -->
-			<div class="flex items-center shrink-0 pointer-events-auto">
+		<div class="w-full flex items-end justify-start gap-2.5 pointer-events-none">
+			<!-- 1. LEFT: Interactive Real-time Minimap flush to bottom -->
+			<div class="flex items-center shrink-0 pointer-events-auto self-end">
 				<Minimap {sim} {uiTick} {cameraX} {cameraY} {zoom} {onMinimapClick} {touchControls} />
 			</div>
 
 			<!-- Action & Inspect Panels: slide down smoothly when unselected -->
 			<div
-				class="flex items-center gap-2.5 transition-all duration-300 ease-out {activeEntityType ===
+				class="flex items-center gap-2.5 transition-all duration-300 ease-out mb-1.5 {activeEntityType ===
 				'none'
 					? 'translate-y-[170%] opacity-0 pointer-events-none invisible'
 					: 'translate-y-0 opacity-100 pointer-events-auto'}"
@@ -549,10 +549,10 @@
 		</div>
 	{:else}
 		<!-- Islands of Nonsense Modern HUD: Minimap Centered, Left (Player/Allied) vs Right (Enemy/Boss) -->
-		<div class="w-full flex items-center justify-between gap-2.5 pointer-events-none">
+		<div class="w-full flex items-end justify-between gap-2.5 pointer-events-none">
 			<!-- Left Cluster (Player/Allied if localTeam='west', Opponent if localTeam='east') -->
 			<div
-				class="flex-1 flex items-center justify-end gap-2.5 transition-all duration-300 ease-out {showOnLeft
+				class="flex-1 flex items-center justify-end gap-2.5 transition-all duration-300 ease-out mb-1.5 {showOnLeft
 					? 'translate-y-0 opacity-100 pointer-events-auto'
 					: 'translate-y-[170%] opacity-0 pointer-events-none invisible'}"
 			>
@@ -570,14 +570,14 @@
 				{/if}
 			</div>
 
-			<!-- Center Minimap: strictly centered -->
-			<div class="flex items-center shrink-0 pointer-events-auto z-30">
+			<!-- Center Minimap: strictly centered and flush to bottom -->
+			<div class="flex items-center shrink-0 pointer-events-auto z-30 self-end">
 				<Minimap {sim} {uiTick} {cameraX} {cameraY} {zoom} {onMinimapClick} {touchControls} />
 			</div>
 
 			<!-- Right Cluster (Opponent/Enemy/Boss if localTeam='west', Allied if localTeam='east') -->
 			<div
-				class="flex-1 flex items-center justify-start gap-2.5 transition-all duration-300 ease-out {showOnRight
+				class="flex-1 flex items-center justify-start gap-2.5 transition-all duration-300 ease-out mb-1.5 {showOnRight
 					? 'translate-y-0 opacity-100 pointer-events-auto'
 					: 'translate-y-[170%] opacity-0 pointer-events-none invisible'}"
 			>

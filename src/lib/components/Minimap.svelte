@@ -10,7 +10,7 @@
 		BRIDGE_SPAN_MIN_X,
 		BRIDGE_SPAN_MAX_X
 	} from '../engine/constants';
-	import { Crosshair, Map as MapIcon, Users, Castle } from 'lucide-svelte';
+	import { Map as MapIcon, Users, Move, ChevronDown, ChevronUp } from 'lucide-svelte';
 	import { sound } from '../services/audio';
 
 	import type { Snippet } from 'svelte';
@@ -22,7 +22,7 @@
 		cameraY = 1200,
 		zoom = 0.85,
 		onMinimapClick,
-		touchControls
+		touchControls: _touchControls
 	}: {
 		sim: Simulation;
 		uiTick?: number;
@@ -39,8 +39,79 @@
 	let lastPing = $state<{ x: number; y: number; timer: number } | null>(null);
 	let isDragging = $state(false);
 
-	const MAP_WIDTH = 270;
-	const MAP_HEIGHT = 90;
+	let isCollapsed = $state(false);
+	let dragPosition = $state<{ x: number; y: number }>({ x: 0, y: 0 });
+	let isMoving = $state(false);
+	let moveStart = { mouseX: 0, mouseY: 0, posX: 0, posY: 0 };
+
+	const MAP_WIDTH = 285;
+	const MAP_HEIGHT = 95;
+
+	function startDrag(e: MouseEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		isMoving = true;
+		moveStart = {
+			mouseX: e.clientX,
+			mouseY: e.clientY,
+			posX: dragPosition.x,
+			posY: dragPosition.y
+		};
+		window.addEventListener('mousemove', onDragMove);
+		window.addEventListener('mouseup', onDragEnd);
+	}
+
+	function onDragMove(e: MouseEvent) {
+		if (!isMoving) return;
+		const dx = e.clientX - moveStart.mouseX;
+		const dy = e.clientY - moveStart.mouseY;
+		dragPosition = {
+			x: moveStart.posX + dx,
+			y: moveStart.posY + dy
+		};
+	}
+
+	function onDragEnd() {
+		isMoving = false;
+		window.removeEventListener('mousemove', onDragMove);
+		window.removeEventListener('mouseup', onDragEnd);
+	}
+
+	function startDragTouch(e: TouchEvent) {
+		if (e.touches.length !== 1) return;
+		const touch = e.touches[0];
+		isMoving = true;
+		moveStart = {
+			mouseX: touch.clientX,
+			mouseY: touch.clientY,
+			posX: dragPosition.x,
+			posY: dragPosition.y
+		};
+		window.addEventListener('touchmove', onDragMoveTouch, { passive: false });
+		window.addEventListener('touchend', onDragEndTouch);
+	}
+
+	function onDragMoveTouch(e: TouchEvent) {
+		if (!isMoving || e.touches.length !== 1) return;
+		e.preventDefault();
+		const touch = e.touches[0];
+		const dx = touch.clientX - moveStart.mouseX;
+		const dy = touch.clientY - moveStart.mouseY;
+		dragPosition = {
+			x: moveStart.posX + dx,
+			y: moveStart.posY + dy
+		};
+	}
+
+	function onDragEndTouch() {
+		isMoving = false;
+		window.removeEventListener('touchmove', onDragMoveTouch);
+		window.removeEventListener('touchend', onDragEndTouch);
+	}
+
+	function resetDragPosition() {
+		dragPosition = { x: 0, y: 0 };
+	}
 
 	function triggerPing(x: number, y: number) {
 		lastPing = { x, y, timer: 1.5 };
@@ -320,17 +391,114 @@
 		return () => {
 			cancelAnimationFrame(animId);
 			window.removeEventListener('mouseup', handleMouseUp);
+			window.removeEventListener('mousemove', onDragMove);
+			window.removeEventListener('mouseup', onDragEnd);
+			window.removeEventListener('touchmove', onDragMoveTouch);
+			window.removeEventListener('touchend', onDragEndTouch);
 		};
 	});
 </script>
 
+{#if isCollapsed}
+	<!-- Collapsed Minimap Tab: Glued to the bottom with Expand Button (Up Arrow) -->
+	<div
+		class="relative flex items-center justify-center shrink-0 pointer-events-auto select-none"
+		style={dragPosition.x || dragPosition.y
+			? `transform: translate(${dragPosition.x}px, ${dragPosition.y}px);`
+			: ''}
+	>
+		<button
+			type="button"
+			onclick={() => {
+				isCollapsed = false;
+				setTimeout(() => renderMinimap(), 16);
+			}}
+			class="flex items-center gap-1.5 px-3 py-1.5 bg-[#131722]/95 hover:bg-[#1f2638] border-t-2 border-x-2 border-b-0 border-[#544738] rounded-t-lg text-amber-300 shadow-2xl transition cursor-pointer active:scale-95 backdrop-blur-md"
+			title="Показати мінікарту"
+			aria-label="Показати мінікарту"
+			data-testid="minimap-expand-btn"
+		>
+			<MapIcon class="w-3.5 h-3.5 text-amber-400" />
+			<ChevronUp class="w-4 h-4 text-amber-300" />
+			<span class="text-[9.5px] font-bold uppercase tracking-wider">Карта</span>
+		</button>
+	</div>
+{/if}
+
+<!-- Expanded Minimap: Anchored flush to the bottom, top controls row with Terrain/Ally on left, Move/Hide on right -->
 <div
-	class="relative flex flex-col justify-between bg-[#131722] p-1.5 rounded-lg border-2 border-[#544738] shadow-2xl select-none h-[142px] w-[285px] shrink-0 overflow-hidden"
-	style="box-shadow: inset 0 0 10px rgba(0,0,0,0.8), 0 4px 12px rgba(0,0,0,0.7);"
+	class="relative flex flex-col justify-between bg-[#131722]/95 backdrop-blur-md rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 border-[#544738] shadow-2xl select-none h-[142px] w-[285px] shrink-0 overflow-hidden pointer-events-auto transition-all duration-200 {isCollapsed
+		? 'hidden'
+		: ''}"
+	style="box-shadow: inset 0 0 10px rgba(0,0,0,0.8), 0 -4px 16px rgba(0,0,0,0.7); {dragPosition.x ||
+	dragPosition.y
+		? `transform: translate(${dragPosition.x}px, ${dragPosition.y}px);`
+		: ''}"
 >
+	<!-- Top Controls Row (Terrain, Ally colors on left; Drag & Drop, Hide on right) -->
+	<div
+		class="flex items-center justify-between w-full pt-1 px-1.5 pb-1 shrink-0 bg-[#0e121a]/80 border-b border-[#3b3226]"
+	>
+		<!-- Top-Left buttons: Terrain and Ally colors -->
+		<div class="flex items-center gap-1">
+			<button
+				type="button"
+				onclick={() => (simpleTerrainMode = !simpleTerrainMode)}
+				class="w-6 h-6 rounded border flex items-center justify-center transition cursor-pointer active:scale-95 shadow {simpleTerrainMode
+					? 'bg-[#3b82f6]/40 border-blue-400 text-blue-300'
+					: 'bg-[#2a241b] hover:bg-[#3d3427] border-[#78654c] text-[#c5a880]'}"
+				title="Перемкнути детальність рельєфу"
+				aria-label="Перемкнути детальність рельєфу"
+				data-testid="minimap-terrain-btn"
+			>
+				<MapIcon class="w-3.5 h-3.5" />
+			</button>
+
+			<button
+				type="button"
+				onclick={() => (allyColorsMode = !allyColorsMode)}
+				class="w-6 h-6 rounded border flex items-center justify-center transition cursor-pointer active:scale-95 shadow {allyColorsMode
+					? 'bg-emerald-950/70 border-emerald-500 text-emerald-300'
+					: 'bg-[#2a241b] hover:bg-[#3d3427] border-[#78654c] text-[#c5a880]'}"
+				title="Кольори союзників (Зелений / Ворожий)"
+				aria-label="Кольори союзників"
+				data-testid="minimap-ally-colors-btn"
+			>
+				<Users class="w-3.5 h-3.5" />
+			</button>
+		</div>
+
+		<!-- Top-Right buttons: Drag handle and Hide button -->
+		<div class="flex items-center gap-1">
+			<button
+				type="button"
+				onmousedown={startDrag}
+				ontouchstart={startDragTouch}
+				ondblclick={resetDragPosition}
+				class="w-6 h-6 rounded bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] flex items-center justify-center text-[#d4af37] transition cursor-grab active:cursor-grabbing shadow"
+				title="Перемістити мінікарту (перетягніть мишею; подвійний клік — скинути позицію)"
+				aria-label="Перемістити мінікарту"
+				data-testid="minimap-drag-btn"
+			>
+				<Move class="w-3.5 h-3.5" />
+			</button>
+
+			<button
+				type="button"
+				onclick={() => (isCollapsed = true)}
+				class="w-6 h-6 rounded bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] flex items-center justify-center text-[#d4af37] transition cursor-pointer active:scale-95 shadow"
+				title="Приховати мінікарту"
+				aria-label="Приховати мінікарту"
+				data-testid="minimap-collapse-btn"
+			>
+				<ChevronDown class="w-3.5 h-3.5" />
+			</button>
+		</div>
+	</div>
+
 	<!-- Minimap Canvas with Ornate WC3 Stone Trim (Full Width) -->
 	<div
-		class="relative overflow-hidden rounded border border-[#3b3226] bg-[#0c1017] w-full h-[90px] shrink-0"
+		class="relative overflow-hidden bg-[#0c1017] w-full flex-1 shrink-0 flex items-center justify-center"
 	>
 		<canvas
 			bind:this={canvasEl}
@@ -341,60 +509,5 @@
 			class="cursor-crosshair block w-full h-full"
 			title="Мінікарта арени. Затисніть та ведіть, щоб перемістити камеру!"
 		></canvas>
-	</div>
-
-	<!-- Bottom Controls Row: Authentic Warcraft III Minimap Buttons & Touch Controls -->
-	<div class="flex items-center justify-between w-full pt-1 px-0.5">
-		<!-- Minimap Buttons (Ping, Terrain, Ally colors, Center Base) -->
-		<div class="flex items-center gap-1">
-			<!-- Ping / Signal button -->
-			<button
-				type="button"
-				onclick={() => triggerPing(cameraX, cameraY)}
-				class="w-6 h-6 rounded bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] flex items-center justify-center text-[#d4af37] transition cursor-pointer active:scale-95 shadow"
-				title="Подати сигнал на карті (Ping)"
-			>
-				<Crosshair class="w-3.5 h-3.5" />
-			</button>
-
-			<!-- Toggle Terrain Mode -->
-			<button
-				type="button"
-				onclick={() => (simpleTerrainMode = !simpleTerrainMode)}
-				class="w-6 h-6 rounded border flex items-center justify-center transition cursor-pointer active:scale-95 shadow {simpleTerrainMode
-					? 'bg-[#3b82f6]/30 border-blue-400 text-blue-300'
-					: 'bg-[#2a241b] hover:bg-[#3d3427] border-[#78654c] text-[#c5a880]'}"
-				title="Перемкнути детальність рельєфу"
-			>
-				<MapIcon class="w-3.5 h-3.5" />
-			</button>
-
-			<!-- Toggle Ally Colors -->
-			<button
-				type="button"
-				onclick={() => (allyColorsMode = !allyColorsMode)}
-				class="w-6 h-6 rounded border flex items-center justify-center transition cursor-pointer active:scale-95 shadow {allyColorsMode
-					? 'bg-emerald-950/60 border-emerald-500 text-emerald-300'
-					: 'bg-[#2a241b] hover:bg-[#3d3427] border-[#78654c] text-[#c5a880]'}"
-				title="Кольори союзників (Зелений / Ворожий)"
-			>
-				<Users class="w-3.5 h-3.5" />
-			</button>
-
-			<!-- Center Castle/Base -->
-			<button
-				type="button"
-				onclick={() => onMinimapClick?.(sim.castles.west.x + 300, sim.castles.west.y)}
-				class="w-6 h-6 rounded bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] flex items-center justify-center text-[#d4af37] transition cursor-pointer active:scale-95 shadow"
-				title="Центрувати на базу гравця"
-			>
-				<Castle class="w-3.5 h-3.5" />
-			</button>
-		</div>
-
-		<!-- Arena Viewport & Help Touch Controls transferred under map -->
-		{#if touchControls}
-			{@render touchControls()}
-		{/if}
 	</div>
 </div>
