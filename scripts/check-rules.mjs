@@ -91,8 +91,8 @@ assertRule(
 assertRule(
 	payload.forgeType?.['.validate']?.includes("'attack'") &&
 		payload.forgeType?.['.validate']?.includes("'armor'") &&
-		payload.forgeType?.['.validate']?.includes("'economy'"),
-	'Forge upgrade type must be attack, armor, or economy'
+		payload.forgeType?.['.validate']?.includes("'econ'"),
+	'Forge upgrade type must be attack, armor, or econ'
 );
 assertRule(
 	payload.shiftKey?.['.validate']?.includes('isBoolean()'),

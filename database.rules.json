@@ -2,7 +2,7 @@
 	"rules": {
 		"__rulesVersion": {
 			"$v": {
-				".read": "auth != null && $v === 'e7c0076bdb55'"
+				".read": "auth != null && $v === '14c85f530668'"
 			}
 		},
 		"rooms": {
@@ -135,7 +135,7 @@
 								".validate": "newData.isString() && newData.val().length <= 64"
 							},
 							"forgeType": {
-								".validate": "newData.val() === 'attack' || newData.val() === 'armor' || newData.val() === 'economy'"
+								".validate": "newData.val() === 'attack' || newData.val() === 'armor' || newData.val() === 'econ'"
 							},
 							"shiftKey": {
 								".validate": "newData.isBoolean()"

@@ -101,7 +101,7 @@ describe('database.rules.json security invariants & Firebase architecture', () =
 		expect(payloadRules.itemId['.validate']).toContain('newData.val().length <= 64');
 		expect(payloadRules.forgeType['.validate']).toContain("'attack'");
 		expect(payloadRules.forgeType['.validate']).toContain("'armor'");
-		expect(payloadRules.forgeType['.validate']).toContain("'economy'");
+		expect(payloadRules.forgeType['.validate']).toContain("'econ'");
 		expect(payloadRules.shiftKey['.validate']).toContain('isBoolean()');
 	});
 
