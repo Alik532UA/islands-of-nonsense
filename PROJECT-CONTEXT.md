@@ -22,7 +22,7 @@
 | **Безпека XSS & Storage** | Заборона сирого `{@html}` та неізольованого `localStorage`                   | `src/security.test.ts`                                                                |
 | **Хмарна синхронізація**  | Firebase RTDB (кімнати, лобі, пошук `seek`, присутність, чат) + Auth         | [database.rules.json](database.rules.json), суворий `$other: false`, гейт інваріантів |
 | **Error Boundary**        | `<svelte:boundary>` + `ErrorFallback.svelte`                                 | `src/routes/+layout.svelte`, `src/routes/+error.svelte`                               |
-| **Тестування та гейти**   | 94 Vitest сьюти (540+ тестів) + Playwright E2E + Axe a11y                    | `npm test`, `npm run test:e2e`, `check:build`, `audit:ci`                             |
+| **Тестування та гейти**   | 131 Vitest сьют (780 тестів) + Playwright E2E + Axe a11y                     | `npm test`, `npm run test:e2e`, `check:build`, `audit:ci`                             |
 | **CI/CD Автоматизація**   | Deploy + Lighthouse CI + Bundle Budgets                                      | `.github/workflows/deploy.yml`, `lighthouse.yml`, `budgets.yml`                       |
 
 ### Швидкий покажчик ключових рішень:
@@ -114,7 +114,7 @@
 $$DR = \frac{0.06 \times Armor}{1 + 0.06 \times |Armor|}$$
 
 3. **Просторова оптимізація Boids та колізій (`SpatialHashGrid`)**:
-   - Розмір комірки: 128 px.
+   - Розмір комірки: 80 px (`cellSize = 80`).
    - Складність: перевірка колізій та пошук найближчої цілі знижено з $O(N^2)$ до $O(N)$ для 300+ юнітів на екрані.
    - Витрати пам'яті: < 2 МБ при піковому навантаженні (500 одночасних сутностей).
 
@@ -144,7 +144,7 @@ $$DR = \frac{0.06 \times Armor}{1 + 0.06 \times |Armor|}$$
   - `style-src: 'self' 'unsafe-inline'`
   - `font-src: 'self' data:`
   - `img-src: 'self' data: blob:`
-  - `connect-src: 'self'`
+  - `connect-src: 'self'` + Firebase Realtime Database (`https/wss *.firebasedatabase.app`, `*.firebaseio.com`) та Firebase Auth (`identitytoolkit.googleapis.com`, `securetoken.googleapis.com`); локальні порти емулятора лише поза production
   - `worker-src: 'self' blob:`
   - `object-src: 'none'`
   - `base-uri: 'self'`
@@ -174,22 +174,22 @@ $$DR = \frac{0.06 \times Armor}{1 + 0.06 \times |Armor|}$$
 
 ## 8. Політика перевірок та гейтів якості (CODE-QUALITY-v10)
 
-| Команда                | Гейт canon.json    | Опис перевірки                                                                       |
-| :--------------------- | :----------------- | :----------------------------------------------------------------------------------- |
-| `npm run check`        | GATE-SVELTE-CHECK  | Сувора перевірка типізації TypeScript та синтаксису Svelte 5 Runes                   |
-| `npm run lint`         | GATE-ESLINT        | Повний лінтинг ESLint Flat Config та форматування Prettier                           |
-| `npm run format`       | —                  | Автоматичне форматування кодової бази                                                |
-| `npm test`             | GATE-TEST-RUNNERS  | Vitest юніт-тести рушія, кузні, командирів, сітки та безпеки (94 файли, 540+ тестів) |
-| `npm run test:balance` | GATE-BALANCE-SIM   | Headless прогін бот-турніру симуляції балансу без DOM                                |
-| `npm run test:e2e`     | GATE-A11Y-AXE      | Playwright E2E автоматизовані браузерні тести та WCAG 2.2 AA аудит                   |
-| `npm run check:build`  | GATE-BUILD-OUTPUT  | Автоматичний гейт зібраного проєкту (`build/index.html`, `build/404.html`)           |
-| `npm run check:bundle` | GATE-BUNDLE-BUDGET | Контроль ваги бандлу JS (<550 KB gzip з PixiJS) та CSS (<60 KB gzip)                 |
-| `npm run audit:ci`     | GATE-AUDIT         | Автоматичний аудит безпеки npm-пакетів                                               |
-| `lhci autorun`         | GATE-LIGHTHOUSE    | Lighthouse CI аудит швидкодії, доступності (minScore: 0.9), SEO та кращих практик    |
+| Команда                | Гейт canon.json    | Опис перевірки                                                                      |
+| :--------------------- | :----------------- | :---------------------------------------------------------------------------------- |
+| `npm run check`        | GATE-SVELTE-CHECK  | Сувора перевірка типізації TypeScript та синтаксису Svelte 5 Runes                  |
+| `npm run lint`         | GATE-ESLINT        | Повний лінтинг ESLint Flat Config та форматування Prettier                          |
+| `npm run format`       | —                  | Автоматичне форматування кодової бази                                               |
+| `npm test`             | GATE-TEST-RUNNERS  | Vitest юніт-тести рушія, кузні, командирів, сітки та безпеки (131 сьют, 780 тестів) |
+| `npm run test:balance` | GATE-BALANCE-SIM   | Headless прогін бот-турніру симуляції балансу без DOM                               |
+| `npm run test:e2e`     | GATE-A11Y-AXE      | Playwright E2E автоматизовані браузерні тести та WCAG 2.2 AA аудит                  |
+| `npm run check:build`  | GATE-BUILD-OUTPUT  | Автоматичний гейт зібраного проєкту (`build/index.html`, `build/404.html`)          |
+| `npm run check:bundle` | GATE-BUNDLE-BUDGET | Контроль ваги бандлу JS (<550 KB gzip з PixiJS) та CSS (<60 KB gzip)                |
+| `npm run audit:ci`     | GATE-AUDIT         | Автоматичний аудит безпеки npm-пакетів                                              |
+| `lhci autorun`         | GATE-LIGHTHOUSE    | Lighthouse CI аудит швидкодії, доступності (minScore: 0.9), SEO та кращих практик   |
 
 ### CI/CD Пайплайни GitHub Actions:
 
-1. `.github/workflows/deploy.yml` — деплой на GitHub Pages після проходження гейтів якості.
+1. `.github/workflows/deploy.yml` — деплой на GitHub Pages після `audit:ci`, `check:i18n`, `check:tests`, `check:rules`, `check`, `lint`, `test`, `build`, `check:build`, `check:bundle` (`BUDGET_SOFT=1`) та Playwright E2E.
 2. `.github/workflows/lighthouse.yml` — окремий важкий аудит Lighthouse після завершення релізу.
 3. `.github/workflows/budgets.yml` — контроль ваги бандлу на кожному pull request та пуші.
 
