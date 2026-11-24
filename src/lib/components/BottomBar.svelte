@@ -220,7 +220,7 @@
 	<!-- 2. Entity Portrait & Health / Mana Vital Bars -->
 	<div
 		data-testid="hud-portrait-panel"
-		class="flex flex-col items-center justify-between px-3 py-2 bg-[#131722]/95 backdrop-blur-md rounded-lg border-2 {entityTeam ===
+		class="flex flex-col items-center justify-between px-3 py-2 bg-[#131722]/95 backdrop-blur-md rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 {entityTeam ===
 		'neutral'
 			? 'border-purple-600/80 shadow-[0_0_12px_rgba(168,85,247,0.4)]'
 			: isOpponent
@@ -430,7 +430,7 @@
 		data-testid="hud-stats-panel"
 		class="relative flex-1 {activeEntityType === 'unit'
 			? 'min-w-[340px] max-w-[420px]'
-			: 'min-w-[280px] max-w-[500px]'} flex flex-col justify-between px-4 py-2 bg-[#131722]/95 backdrop-blur-md rounded-lg border-2 {entityTeam ===
+			: 'min-w-[280px] max-w-[500px]'} flex flex-col justify-between px-4 py-2 bg-[#131722]/95 backdrop-blur-md rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 {entityTeam ===
 		'neutral'
 			? 'border-purple-600/80 shadow-[0_0_12px_rgba(168,85,247,0.4)]'
 			: isOpponent
@@ -460,7 +460,7 @@
 	<!-- 4. CENTER-RIGHT: Authentic Warcraft III 6-Slot Inventory ("Предмети") -->
 	<div
 		data-testid="hud-inventory-panel"
-		class="flex flex-col items-center justify-between px-2.5 py-2 bg-[#131722]/95 backdrop-blur-md rounded-lg border-2 border-[#544738] shadow-inner shrink-0 w-28 h-[142px] pointer-events-auto"
+		class="flex flex-col items-center justify-between px-2.5 py-2 bg-[#131722]/95 backdrop-blur-md rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 border-[#544738] shadow-inner shrink-0 w-28 h-[142px] pointer-events-auto"
 		style="box-shadow: inset 0 0 10px rgba(0,0,0,0.85);"
 	>
 		<span class="text-[10px] font-bold uppercase tracking-wider text-[#b89758] leading-none">
@@ -536,7 +536,7 @@
 
 			<!-- Action & Inspect Panels: slide down smoothly when unselected -->
 			<div
-				class="flex items-center gap-2.5 transition-all duration-300 ease-out mb-1.5 {activeEntityType ===
+				class="flex items-end gap-2.5 transition-all duration-300 ease-out {activeEntityType ===
 				'none'
 					? 'translate-y-[170%] opacity-0 pointer-events-none invisible'
 					: 'translate-y-0 opacity-100 pointer-events-auto'}"
@@ -556,7 +556,7 @@
 		<div class="w-full flex items-end justify-between gap-2.5 pointer-events-none">
 			<!-- Left Cluster (Player/Allied if localTeam='west', Opponent if localTeam='east') -->
 			<div
-				class="flex-1 flex items-center justify-end gap-2.5 transition-all duration-300 ease-out mb-1.5 {showOnLeft
+				class="flex-1 flex items-end justify-end gap-2.5 transition-all duration-300 ease-out {showOnLeft
 					? 'translate-y-0 opacity-100 pointer-events-auto'
 					: 'translate-y-[170%] opacity-0 pointer-events-none invisible'}"
 			>
@@ -584,7 +584,7 @@
 
 			<!-- Right Cluster (Opponent/Enemy/Boss if localTeam='west', Allied if localTeam='east') -->
 			<div
-				class="flex-1 flex items-center justify-start gap-2.5 transition-all duration-300 ease-out mb-1.5 {showOnRight
+				class="flex-1 flex items-end justify-start gap-2.5 transition-all duration-300 ease-out {showOnRight
 					? 'translate-y-0 opacity-100 pointer-events-auto'
 					: 'translate-y-[170%] opacity-0 pointer-events-none invisible'}"
 			>

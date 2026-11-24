@@ -171,4 +171,16 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 		// BottomBar skips redundant empty command card when inspecting autonomous combat units
 		expect(bottomBarSrc).toContain("activeEntityType !== 'unit'");
 	});
+
+	it('anchors all bottom console panels flush to the bottom without margin gaps (FLUID-SIZING-v10)', () => {
+		// No bottom margins between panels and screen bottom
+		expect(bottomBarSrc).not.toContain('mb-1.5');
+
+		// All panels must adhere flush with rounded-t-xl rounded-b-none and border-b-0
+		expect(bottomBarSrc).toContain('rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0');
+		expect(commandCardSrc).toContain(
+			'rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0'
+		);
+		expect(minimapSrc).toContain('rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0');
+	});
 });

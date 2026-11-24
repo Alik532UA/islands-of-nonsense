@@ -126,7 +126,7 @@
 
 <div
 	data-testid="hud-command-card"
-	class="relative flex items-center justify-center p-1.5 bg-[#11151e] rounded-lg border-2 border-[#544738] shadow-inner shrink-0 h-[142px]"
+	class="relative flex items-center justify-center p-1.5 bg-[#11151e] rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 border-[#544738] shadow-inner shrink-0 h-[142px]"
 	style="box-shadow: inset 0 0 10px rgba(0,0,0,0.85);"
 >
 	{#if placedBuilding}
