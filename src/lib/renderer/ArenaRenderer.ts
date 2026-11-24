@@ -118,6 +118,8 @@ export class ArenaRenderer {
 
 	private hoveredTile: { x: number; y: number } | null = null;
 	private isDestroyed = false;
+	private tickerFn: (() => void) | null = null;
+	private windowMouseUpHandler: ((e: MouseEvent) => void) | null = null;
 	private canvasEl: HTMLCanvasElement | null = null;
 	private lastDrawnBrokenBridge: 'top' | 'mid' | 'bottom' | null = undefined as unknown as null;
 
@@ -316,12 +318,13 @@ export class ArenaRenderer {
 		this.setupInteraction(canvas);
 		this.drawStaticTerrain();
 
-		this.app.ticker.add(() => {
+		this.tickerFn = () => {
 			if (!this.isDestroyed) {
 				this.updateCamera();
 				this.render();
 			}
-		});
+		};
+		this.app.ticker.add(this.tickerFn);
 	}
 
 	public getVisibleWorldBounds(): { minX: number; minY: number; maxX: number; maxY: number } {
@@ -595,7 +598,7 @@ export class ArenaRenderer {
 		});
 
 		// 4. Mouse Up / Click
-		window.addEventListener('mouseup', (e: MouseEvent) => {
+		this.windowMouseUpHandler = (e: MouseEvent) => {
 			if (this.isPanning) {
 				this.isPanning = false;
 				return;
@@ -636,7 +639,8 @@ export class ArenaRenderer {
 			this.isBoxSelecting = false;
 			this.boxStartWorld = null;
 			this.boxCurrentWorld = null;
-		});
+		};
+		window.addEventListener('mouseup', this.windowMouseUpHandler);
 
 		canvas.addEventListener('mouseleave', () => {
 			this.isMouseOverCanvas = false;
@@ -1037,9 +1041,41 @@ export class ArenaRenderer {
 		}
 	}
 
+	public get destroyed(): boolean {
+		return this.isDestroyed;
+	}
+
 	public destroy(): void {
+		if (this.isDestroyed) return;
 		this.isDestroyed = true;
-		this.overlayRenderer.destroy();
-		this.app.destroy(true, { children: true });
+
+		if (typeof window !== 'undefined' && this.windowMouseUpHandler) {
+			window.removeEventListener('mouseup', this.windowMouseUpHandler);
+			this.windowMouseUpHandler = null;
+		}
+
+		if (this.tickerFn && this.app?.ticker) {
+			this.app.ticker.remove(this.tickerFn);
+			this.tickerFn = null;
+		}
+
+		this.overlayRenderer?.destroy();
+
+		if (this.app) {
+			try {
+				this.app.ticker?.stop();
+				this.app.destroy(true, { children: true });
+			} catch {
+				// Prevent crashes during headless/mocked teardown
+			}
+		}
+
+		this.canvasEl = null;
+		this.westCastleTextures = [];
+		this.eastCastleTextures = [];
+		this.westCastleBaseSprite = null;
+		this.westCastleFadeSprite = null;
+		this.eastCastleBaseSprite = null;
+		this.eastCastleFadeSprite = null;
 	}
 }
