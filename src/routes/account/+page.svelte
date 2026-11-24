@@ -20,6 +20,7 @@
 	import { FLAG_COUNTRIES, countryName } from '$lib/config/countries';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
+	import { ReplaySerializer, type MatchReplayData } from '$lib/engine/replaySerializer';
 
 	const controller = new AccountController();
 
@@ -37,6 +38,20 @@
 	let authErrorMessage = $state('');
 	let authInfoMessage = $state('');
 	let savedSuccess = $state(false);
+	let replayJsonInput = $state('');
+	let replayStatus = $state<'idle' | 'valid' | 'invalid'>('idle');
+	let parsedReplay = $state<MatchReplayData | null>(null);
+
+	function handleVerifyReplay() {
+		const decoded = ReplaySerializer.deserialize(replayJsonInput.trim());
+		if (decoded.success && decoded.data) {
+			parsedReplay = decoded.data;
+			replayStatus = 'valid';
+		} else {
+			parsedReplay = null;
+			replayStatus = 'invalid';
+		}
+	}
 
 	onMount(() => {
 		const release = settings.claimHeader(t('account.title'), () => goto(resolve('/')));
@@ -581,6 +596,45 @@
 							{t('account.stats.best')}
 						</div>
 						<div class="text-2xl font-black text-amber-300">{gameRecord.best}</div>
+					</div>
+				</div>
+
+				<div class="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-3">
+					<h3 class="text-xs uppercase tracking-wider text-slate-300 font-bold">
+						{t('account.replay.title')}
+					</h3>
+					<textarea
+						bind:value={replayJsonInput}
+						data-testid="replay-json-input"
+						rows="3"
+						placeholder={t('account.replay.placeholder')}
+						class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-slate-100 focus:outline-none focus:border-amber-500"
+					></textarea>
+					<div class="flex flex-wrap items-center justify-between gap-3">
+						<button
+							type="button"
+							data-testid="replay-verify-btn"
+							onclick={handleVerifyReplay}
+							class="min-h-[44px] px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 font-bold rounded-xl text-xs transition cursor-pointer"
+						>
+							{t('account.replay.verify')}
+						</button>
+						{#if replayStatus === 'valid' && parsedReplay}
+							<span
+								class="text-xs text-emerald-400 font-semibold"
+								data-testid="replay-verify-status"
+							>
+								{t('account.replay.valid')} · {t('account.replay.summary', {
+									mode: parsedReplay.gameMode,
+									winner: parsedReplay.result?.winner ?? '—',
+									actions: parsedReplay.actions.length
+								})}
+							</span>
+						{:else if replayStatus === 'invalid'}
+							<span class="text-xs text-rose-400 font-semibold" data-testid="replay-verify-status">
+								{t('account.replay.invalid')}
+							</span>
+						{/if}
 					</div>
 				</div>
 			</div>

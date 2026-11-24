@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { RaceRegistry, type CustomRaceDefinition } from './raceRegistry.js';
-import { PLAYABLE_RACES, RACES_LIST, getBaseBuildingsForRace } from './gameData';
+import {
+	PLAYABLE_RACES,
+	RACES_LIST,
+	getAllPlayableRaces,
+	getBaseBuildingsForRace
+} from './gameData';
 import { getRaceAbility } from './raceAbilities';
 import { getRacePalette } from '../renderer/buildingModels';
 
@@ -92,5 +97,15 @@ describe('RaceRegistry & Extensible Faction Verification', () => {
 			expect(getBaseBuildingsForRace(race).length).toBeGreaterThanOrEqual(11);
 			expect(getRacePalette(race).style).toBe(race);
 		}
+	});
+
+	it('wires RaceRegistry custom races into getAllPlayableRaces and getBaseBuildingsForRace', () => {
+		registry.register(validRace);
+
+		expect(getAllPlayableRaces()).toContain('Celestial Vanguard');
+		const buildings = getBaseBuildingsForRace('Celestial Vanguard');
+		expect(buildings).toHaveLength(1);
+		expect(buildings[0].id).toBe('holy_sanctum');
+		expect(buildings[0].gold_cost).toBe(150);
 	});
 });

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 const BASE = process.env.BASE_PATH ?? '/islands-of-nonsense';
 
-test.describe('Castle Fight Web — Smoke and Interaction E2E', () => {
+test.describe('Islands of Nonsense — Smoke and Interaction E2E', () => {
 	test('renders main landing menu with Play, Play Online, and Order links', async ({ page }) => {
 		await page.goto(`${BASE}/`);
 
@@ -24,18 +24,14 @@ test.describe('Castle Fight Web — Smoke and Interaction E2E', () => {
 		await page.getByTestId('menu-play-link').click();
 		await expect(page).toHaveURL(new RegExp(`${BASE}/play`));
 
-		// Verify all 4 game mode tiles exist on /play
+		// Verify all 4 mode actions exist on /play
 		await expect(page.getByTestId('play-battle-link')).toBeVisible();
 		await expect(page.getByTestId('play-sandbox-link')).toBeVisible();
 		await expect(page.getByTestId('play-spectator-link')).toBeVisible();
-		await expect(page.getByTestId('play-allrandom-link')).toBeVisible();
+		await expect(page.getByTestId('open-custom-config-btn')).toBeVisible();
 
-		// Click Battle vs AI -> leads to Match Setup lobby
+		// Click Battle vs AI -> leads directly to Battle arena
 		await page.getByTestId('play-battle-link').click();
-		await expect(page).toHaveURL(new RegExp(`${BASE}/play/setup`));
-
-		// Click Start Match from Setup lobby -> leads to Battle
-		await page.getByTestId('setup-start-match-btn').click();
 		await expect(page).toHaveURL(new RegExp(`${BASE}/play/battle`));
 
 		// Verify arena container exists
@@ -125,9 +121,10 @@ test.describe('Castle Fight Web — Smoke and Interaction E2E', () => {
 		await expect(page.getByTestId('tab-stats')).toBeVisible();
 		await expect(page.getByTestId('tab-leaders')).toBeVisible();
 
-		// Switch to stats
+		// Switch to stats and verify replay inspector exists
 		await page.getByTestId('tab-stats').click();
-		await expect(page.getByText('Загальний рахунок')).toBeVisible();
+		await expect(page.getByText(/Загальний рахунок|Total Score/i)).toBeVisible();
+		await expect(page.getByTestId('replay-verify-btn')).toBeVisible();
 
 		// Switch to leaders
 		await page.getByTestId('tab-leaders').click();
