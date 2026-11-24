@@ -58,6 +58,22 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 		expect(paddingMargin).toBeGreaterThanOrEqual(4);
 	});
 
+	it('standardizes HUD bottom bar & command card testids conforming to TESTID-AND-NAMING canon', () => {
+		// Bottom bar console subpanels
+		expect(bottomBarSrc).toContain('data-testid="hud-portrait-panel"');
+		expect(bottomBarSrc).toContain('data-testid="hud-stats-panel"');
+		expect(bottomBarSrc).toContain('data-testid="hud-inventory-panel"');
+		expect(bottomBarSrc).toContain('data-testid="hud-inventory-slot-');
+
+		// Command card root and action buttons
+		expect(commandCardSrc).toContain('data-testid="hud-command-card"');
+		expect(commandCardSrc).toContain('data-testid="hud-build-btn-');
+		expect(commandCardSrc).toContain('data-testid="hud-clear-selection-btn"');
+		expect(commandCardSrc).toContain('data-testid="hud-upgrade-btn-');
+		expect(commandCardSrc).toContain('data-testid="hud-repair-btn"');
+		expect(commandCardSrc).toContain('data-testid="hud-sell-btn"');
+	});
+
 	it('guarantees unique Warcraft 3 hotkeys across all 12 command card slots without duplicate [V]', () => {
 		const hotkeys = ['Q', 'W', 'E', 'R', 'A', 'S', 'D', 'F', 'Z', 'X', 'C', 'Esc'];
 

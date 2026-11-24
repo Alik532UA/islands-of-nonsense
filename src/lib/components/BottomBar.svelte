@@ -172,6 +172,7 @@
 
 	<!-- 2. CENTER-LEFT: Entity Portrait & Health / Mana Vital Bars -->
 	<div
+		data-testid="hud-portrait-panel"
 		class="flex flex-col items-center justify-between px-3 py-2 bg-[#131722] rounded-lg border-2 border-[#544738] shadow-inner shrink-0 w-36 h-[142px]"
 		style="box-shadow: inset 0 0 10px rgba(0,0,0,0.8);"
 	>
@@ -372,6 +373,7 @@
 
 	<!-- 3. CENTER: Entity Stats & Characteristics Panel -->
 	<div
+		data-testid="hud-stats-panel"
 		class="relative flex-1 min-w-[280px] max-w-[500px] flex flex-col justify-between px-4 py-2 bg-[#131722] rounded-lg border-2 border-[#544738] shadow-inner h-[142px] overflow-hidden"
 		style="box-shadow: inset 0 0 10px rgba(0,0,0,0.8);"
 	>
@@ -394,6 +396,7 @@
 
 	<!-- 4. CENTER-RIGHT: Authentic Warcraft III 6-Slot Inventory ("Предмети") -->
 	<div
+		data-testid="hud-inventory-panel"
 		class="flex flex-col items-center justify-between px-2.5 py-2 bg-[#131722] rounded-lg border-2 border-[#544738] shadow-inner shrink-0 w-28 h-[142px]"
 		style="box-shadow: inset 0 0 10px rgba(0,0,0,0.85);"
 	>
@@ -405,6 +408,7 @@
 		<div class="grid grid-cols-2 gap-1 my-auto">
 			{#each [0, 1, 2, 3, 4, 5] as slotIdx}
 				<div
+					data-testid="hud-inventory-slot-{slotIdx}"
 					class="relative w-8 h-8 rounded bg-gradient-to-b from-[#18130d] to-[#0d0a07] border border-[#5c4934] flex items-center justify-center text-xs shadow-inner cursor-pointer hover:border-[#8c7456] transition"
 					title={slotIdx === 0 && player.maxFood > 0
 						? 'Золотий Сир (+1 Ліміт їжі)'

@@ -160,6 +160,7 @@
 		<!-- Guide / Manual (F9) -->
 		<button
 			onclick={onOpenCommander}
+			data-testid="hud-commander-btn"
 			class="flex items-center gap-1 bg-[#251e16] hover:bg-[#382d21] border border-[#8c7456] px-2 py-1 rounded text-xs font-semibold text-[#fef08a] transition cursor-pointer active:scale-95 shadow shrink-0"
 			title="Довідник гри та командир: {commander.name} ({commander.nickname})"
 			aria-label="Довідник гри та командир: {commander.name} ({commander.nickname})"
@@ -173,6 +174,7 @@
 		<!-- Game Settings Menu -->
 		<button
 			onclick={onOpenSettings}
+			data-testid="hud-menu-btn"
 			class="flex items-center gap-1 bg-[#251e16] hover:bg-[#382d21] border border-[#8c7456] px-2 py-1 rounded text-xs font-semibold text-[#fef08a] transition cursor-pointer active:scale-95 shadow shrink-0"
 			title="Меню налаштувань матчу"
 			aria-label="Меню налаштувань матчу"
@@ -184,6 +186,7 @@
 		<!-- War Forge (F) -->
 		<button
 			onclick={onOpenForge}
+			data-testid="hud-forge-btn"
 			class="flex items-center gap-1 bg-[#2a241b] hover:bg-[#3d3427] border border-[#8c7456] px-2 py-1 rounded text-xs font-semibold text-amber-200 transition cursor-pointer active:scale-95 shadow shrink-0"
 			title="Військова Кузня (Гаряча клавіша: F)"
 			aria-label="Військова Кузня (Гаряча клавіша: F)"
@@ -201,6 +204,7 @@
 		<!-- Castle Shop (B) -->
 		<button
 			onclick={onOpenShop}
+			data-testid="hud-shop-btn"
 			class="flex items-center gap-1 bg-[#172e21] hover:bg-[#1e3d2c] border border-emerald-600/70 px-2 py-1 rounded text-xs font-semibold text-emerald-200 transition cursor-pointer active:scale-95 shadow shrink-0"
 			title="Магазин замку: припаси та захист (Гаряча клавіша: B)"
 			aria-label="Магазин замку: припаси та захист (Гаряча клавіша: B)"
@@ -223,6 +227,7 @@
 				if (canCastRaceSkill) sim.useRaceSkill('west');
 			}}
 			disabled={!canCastRaceSkill}
+			data-testid="hud-race-ability-btn"
 			class="flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition cursor-pointer shrink-0 {canCastRaceSkill
 				? 'bg-purple-900/90 hover:bg-purple-800 border border-purple-400 text-purple-100 ring-2 ring-purple-400/50 animate-pulse'
 				: 'bg-[#181d28] border border-slate-700 text-slate-500 cursor-not-allowed opacity-60'}"
@@ -253,6 +258,7 @@
 				if (canUseRescue) sim.triggerRescueStrike('west');
 			}}
 			disabled={!canUseRescue}
+			data-testid="hud-rescue-strike-btn"
 			class="flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition cursor-pointer shrink-0 {canUseRescue
 				? 'bg-rose-950/90 hover:bg-rose-900 border border-rose-500 text-rose-100 ring-2 ring-rose-500/50'
 				: 'bg-[#181d28] border border-slate-700 text-slate-500 cursor-not-allowed opacity-60'}"
@@ -361,6 +367,7 @@
 					sim.isRunning = !sim.isRunning;
 					sim.notifyStateChanged();
 				}}
+				data-testid="topbar-pause-btn"
 				class="p-1 rounded hover:bg-[#2a241b] text-slate-300 transition cursor-pointer shrink-0"
 				title={isRunning ? 'Пауза (Пробіл)' : 'Продовжити (Пробіл)'}
 				aria-label={isRunning ? 'Пауза (Пробіл)' : 'Продовжити (Пробіл)'}
@@ -383,6 +390,7 @@
 							sim.speed = sp;
 							sim.notifyStateChanged();
 						}}
+						data-testid="topbar-speed-btn-{sp}"
 						class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold transition cursor-pointer {simSpeed ===
 						sp
 							? 'bg-amber-500/25 text-amber-300 border border-amber-500/60 shadow-sm shadow-amber-500/20'

@@ -115,6 +115,7 @@
 </script>
 
 <div
+	data-testid="hud-command-card"
 	class="relative flex items-center justify-center p-1.5 bg-[#11151e] rounded-lg border-2 border-[#544738] shadow-inner shrink-0 h-[142px]"
 	style="box-shadow: inset 0 0 10px rgba(0,0,0,0.85);"
 >
@@ -125,6 +126,7 @@
 				{#if placedBuilding.isUnderConstruction}
 					<button
 						onclick={() => onContinueConstruction?.(placedBuilding.instanceId)}
+						data-testid="hud-continue-construction-btn"
 						class="col-span-2 h-10 rounded border border-amber-500 bg-amber-950/70 hover:bg-amber-900/90 text-amber-200 flex items-center justify-center gap-1.5 px-2 transition cursor-pointer shadow"
 						title="Відправити робітника добудувати споруду"
 					>
@@ -133,6 +135,7 @@
 					</button>
 					<button
 						onclick={() => onSellBuilding?.(placedBuilding.instanceId)}
+						data-testid="hud-cancel-construction-btn"
 						class="h-10 rounded border border-rose-600/70 bg-rose-950/60 hover:bg-rose-900/80 text-rose-200 flex items-center justify-center gap-1 px-1 transition cursor-pointer"
 						title="Скасувати будівництво"
 					>
@@ -141,6 +144,7 @@
 					</button>
 					<button
 						onclick={() => onCloseBuilding?.()}
+						data-testid="hud-close-building-btn"
 						class="h-10 rounded border border-slate-600 bg-slate-800 hover:bg-slate-700 text-slate-200 flex flex-col items-center justify-center p-1 transition cursor-pointer"
 						title="Закрити вибір (Esc)"
 					>
@@ -157,6 +161,7 @@
 						<button
 							onclick={() => onUpgradeBuilding?.(placedBuilding.instanceId, up.id)}
 							disabled={!canAfford}
+							data-testid="hud-upgrade-btn-{up.id}"
 							class="relative w-16 h-10 rounded border flex flex-col items-center justify-center p-1 transition cursor-pointer {canAfford
 								? 'bg-[#1e3a5f] hover:bg-[#2563eb] border-blue-400 text-white shadow'
 								: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
@@ -179,6 +184,7 @@
 					{#if placedBuilding.hp < placedBuilding.maxHp}
 						<button
 							onclick={() => sim.repairBuilding('west', placedBuilding.instanceId)}
+							data-testid="hud-repair-btn"
 							class="w-16 h-10 rounded border border-emerald-500/70 bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-200 flex flex-col items-center justify-center p-0.5 transition cursor-pointer shadow"
 							title="Наказати робітникові відремонтувати споруду (R)"
 						>
@@ -192,6 +198,7 @@
 					<!-- Sell button in slot 11 -->
 					<button
 						onclick={() => onSellBuilding?.(placedBuilding.instanceId)}
+						data-testid="hud-sell-btn"
 						class="relative col-start-3 w-16 h-10 rounded border border-rose-600/70 bg-rose-950/60 hover:bg-rose-900/80 text-rose-200 flex flex-col items-center justify-center p-1 transition cursor-pointer"
 						title="Знести споруду (+50% повернення золота)"
 					>
@@ -207,6 +214,7 @@
 					<!-- Deselect button in slot 12 -->
 					<button
 						onclick={() => onCloseBuilding?.()}
+						data-testid="hud-close-building-btn"
 						class="relative col-start-4 w-16 h-10 rounded border border-slate-600 bg-slate-800 hover:bg-slate-700 text-slate-200 flex flex-col items-center justify-center p-1 transition cursor-pointer"
 						title="Закрити вибір (Esc)"
 					>
@@ -225,6 +233,7 @@
 					</span>
 					<button
 						onclick={() => onCloseBuilding?.()}
+						data-testid="hud-close-enemy-building-btn"
 						class="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 bg-[#1e2433] rounded border border-slate-700 cursor-pointer"
 					>
 						Закрити (Esc)
@@ -264,6 +273,7 @@
 				</span>
 				<button
 					onclick={() => onClearSelection?.()}
+					data-testid="hud-close-castle-btn"
 					class="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 bg-[#1e2433] rounded border border-slate-700 cursor-pointer"
 				>
 					Закрити (Esc)
@@ -274,6 +284,7 @@
 					{#if selectedCastle.hp < selectedCastle.maxHp}
 						<button
 							onclick={() => sim.repairBuilding('west', 'castle_west')}
+							data-testid="hud-castle-repair-btn"
 							class="w-16 h-11 rounded border border-emerald-500/70 bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-200 flex flex-col items-center justify-center p-0.5 transition cursor-pointer shadow"
 							title="Наказати робітникові ремонтувати цитадель (R)"
 						>
@@ -289,6 +300,7 @@
 							type="button"
 							onclick={() => sim.orderBridgeRepair('west')}
 							disabled={(player.lumber ?? 0) < 50}
+							data-testid="hud-repair-bridge-btn"
 							class="w-16 h-11 rounded border border-amber-500/70 bg-amber-950/70 hover:bg-amber-900/90 disabled:opacity-40 text-amber-200 flex flex-col items-center justify-center p-0.5 transition cursor-pointer shadow"
 							title="Наказати робітникові відбудувати зламаний міст (50 деревини)"
 						>
@@ -308,6 +320,7 @@
 								}
 							}}
 							disabled={!canAfford}
+							data-testid="hud-shop-item-btn-{item.id}"
 							class="w-16 h-11 rounded border flex flex-col items-center justify-center p-0.5 transition cursor-pointer {canAfford
 								? 'bg-[#1b263b] hover:bg-[#253959] border-amber-500/60 text-white shadow'
 								: 'bg-[#12161f] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
@@ -355,6 +368,7 @@
 				</span>
 				<button
 					onclick={() => onCloseUnit?.()}
+					data-testid="hud-close-unit-btn"
 					class="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 bg-[#1e2433] rounded border border-slate-700 cursor-pointer"
 				>
 					Закрити (Esc)
@@ -389,6 +403,7 @@
 				</span>
 				<button
 					onclick={() => onClearSelection?.()}
+					data-testid="hud-close-group-btn"
 					class="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 bg-[#1e2433] rounded border border-slate-700 cursor-pointer"
 				>
 					Закрити (Esc)
@@ -414,6 +429,7 @@
 					type="button"
 					onclick={() => sim.orderBridgeRepair('west')}
 					disabled={(player.lumber ?? 0) < 50}
+					data-testid="hud-worker-repair-bridge-btn"
 					class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition {(player.lumber ??
 						0) >= 50
 						? 'bg-amber-950/80 hover:bg-amber-900 border-amber-500/70 text-amber-200 cursor-pointer shadow'
@@ -439,6 +455,7 @@
 					onclick={() => onSelectBuilding(isSelected ? null : bld.id)}
 					onmouseenter={() => (hoveredBuilding = bld)}
 					onmouseleave={() => (hoveredBuilding = null)}
+					data-testid="hud-build-btn-{bld.id}"
 					class="relative w-16 h-10 rounded border p-0.5 transition-all flex flex-col justify-between items-center cursor-pointer {isSelected
 						? 'bg-blue-600/90 border-amber-300 shadow-lg ring-2 ring-amber-400 shadow-blue-500/50'
 						: lacksFood
@@ -513,6 +530,7 @@
 					onSelectBuilding(null);
 					onClearSelection?.();
 				}}
+				data-testid="hud-clear-selection-btn"
 				class="relative w-16 h-10 rounded border border-rose-800/80 bg-gradient-to-b from-rose-950/80 to-[#180a0a] hover:from-rose-900 hover:to-rose-950 text-rose-300 flex flex-col items-center justify-center p-1 transition cursor-pointer shadow group"
 				title="Скасувати / Очистити вибір (Esc / B)"
 			>

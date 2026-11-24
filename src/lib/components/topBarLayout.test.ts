@@ -78,6 +78,18 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 		expect(topBarContent).toContain('data-testid="topbar-locale-toggle"');
 	});
 
+	it('standardizes HUD quick-action testids conforming to TESTID-AND-NAMING canon', () => {
+		// Validates canonical [<scope>-]<feature>-<type> format with -btn type suffix
+		expect(topBarContent).toContain('data-testid="hud-commander-btn"');
+		expect(topBarContent).toContain('data-testid="hud-menu-btn"');
+		expect(topBarContent).toContain('data-testid="hud-forge-btn"');
+		expect(topBarContent).toContain('data-testid="hud-shop-btn"');
+		expect(topBarContent).toContain('data-testid="hud-race-ability-btn"');
+		expect(topBarContent).toContain('data-testid="hud-rescue-strike-btn"');
+		expect(topBarContent).toContain('data-testid="topbar-pause-btn"');
+		expect(topBarContent).toContain('data-testid="topbar-speed-btn-');
+	});
+
 	it('supports onBeforeLeave hook to protect against accidental exits', () => {
 		expect(topBarContent).toContain('onBeforeLeave');
 		expect(topBarContent).toContain('if (onBeforeLeave && !onBeforeLeave(');
