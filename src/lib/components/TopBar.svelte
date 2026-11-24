@@ -117,7 +117,7 @@
 
 <!-- Authentic Warcraft III Top Bar -->
 <header
-	class="bg-[#11141c] border-b-2 border-[#544738] px-2.5 sm:px-4 py-1.5 shadow-2xl flex items-center justify-between text-white select-none backdrop-blur z-20 h-14 min-w-0 overflow-x-auto overflow-y-hidden"
+	class="bg-[#11141c] border-b-2 border-[#544738] px-2.5 sm:px-4 py-1.5 shadow-2xl flex items-center justify-between text-white select-none backdrop-blur z-20 h-14 min-w-0 overflow-visible"
 	style="background: linear-gradient(180deg, #1b202c 0%, #0d1017 100%); box-shadow: 0 4px 16px rgba(0,0,0,0.8);"
 >
 	<!-- 1. LEFT: Nav & Menu Buttons (Назад, Додому, Довідник F9, Меню, Кузня, Магазин, Здібності) -->
@@ -138,7 +138,7 @@
 				<ArrowLeft class="w-3.5 h-3.5" />
 			</a>
 			<div
-				class="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded shadow-2xl text-[11px] text-amber-100 flex items-center gap-1.5"
+				class="absolute top-full left-0 mt-1.5 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded shadow-2xl text-[11px] text-amber-100 flex items-center gap-1.5"
 			>
 				<span>Назад до вибору режимів</span>
 			</div>
@@ -160,7 +160,7 @@
 				<House class="w-3.5 h-3.5" />
 			</a>
 			<div
-				class="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded shadow-2xl text-[11px] text-amber-100 flex items-center gap-1.5"
+				class="absolute top-full left-0 mt-1.5 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded shadow-2xl text-[11px] text-amber-100 flex items-center gap-1.5"
 			>
 				<span>Головне меню</span>
 			</div>

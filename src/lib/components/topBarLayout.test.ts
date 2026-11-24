@@ -6,12 +6,17 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 	const topBarPath = path.resolve(process.cwd(), 'src/lib/components/TopBar.svelte');
 	const topBarContent = fs.readFileSync(topBarPath, 'utf-8');
 
-	it('header container has overflow protection, min-w-0 and fixed h-14 height', () => {
-		// Header must prevent crushing by allowing horizontal overflow and preventing flex collapse
+	it('header container has overflow-visible to prevent clipping tooltips and dropdowns, with min-w-0 and fixed h-14 height', () => {
 		expect(topBarContent).toContain('h-14');
 		expect(topBarContent).toContain('min-w-0');
-		expect(topBarContent).toContain('overflow-x-auto');
-		expect(topBarContent).toContain('overflow-y-hidden');
+		expect(topBarContent).toContain('overflow-visible');
+		expect(topBarContent).not.toContain('overflow-y-hidden');
+	});
+
+	it('left navigation button tooltips and speed dropdown are positioned with top-full and high z-index without vertical clipping', () => {
+		expect(topBarContent).toContain('group/tip');
+		expect(topBarContent).toContain('absolute top-full');
+		expect(topBarContent).toContain('z-50');
 	});
 
 	it('match status banner is protected against squashing, text wrapping and vertical collapse', () => {
