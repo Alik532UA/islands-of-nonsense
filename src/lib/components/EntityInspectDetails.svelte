@@ -8,7 +8,7 @@
 		WorkerState,
 		UnitDefinition
 	} from '../engine/types';
-	import { formatRaceName } from '../engine/gameData';
+	import { formatRaceName, formatFactionName } from '../engine/gameData';
 	import { Shield, Swords, Footprints, Layers, Crosshair, Zap, Feather } from 'lucide-svelte';
 	import CombatMatrixTooltip, {
 		ATTACK_NAMES_UK,
@@ -24,7 +24,7 @@
 		placedBuilding = null,
 		placedUnit = null,
 		selectedUnit = null,
-		worker = null,
+		worker: _worker = null,
 		player,
 		groupUnits = [],
 		groupBreakdown = [],
@@ -81,13 +81,21 @@
 				{placedBuilding.name}
 			{:else if activeEntityType === 'unit' && selectedUnit}
 				{selectedUnit.name}
+			{:else if activeEntityType === 'worker'}
+				Будівельник
 			{:else}
-				{worker?.name || 'Північний будівельник'}
+				Вибір
 			{/if}
 		</span>
 	</div>
 
-	{#if activeEntityType === 'none' || activeEntityType === 'worker'}
+	{#if activeEntityType === 'worker'}
+		<div
+			class="flex items-center gap-1.5 bg-[#0c1017] px-2.5 py-0.5 rounded border border-[#78654c]/60"
+		>
+			<span class="text-xs font-bold text-amber-300">[{formatFactionName(player.race)}]</span>
+		</div>
+	{:else if activeEntityType === 'none'}
 		<div
 			class="flex items-center gap-1.5 bg-[#0c1017] px-2.5 py-0.5 rounded border border-[#78654c]/60"
 		>
@@ -240,8 +248,15 @@
 			</span>
 		</div>
 	</div>
+{:else if activeEntityType === 'worker'}
+	<!-- Minimalist Clean Worker Attributes: Only Speed -->
+	<div class="flex items-center gap-2 py-3 my-auto">
+		<Footprints class="w-4 h-4 text-amber-400 shrink-0" />
+		<span class="text-xs text-[#9ca3af]">Швидкість:</span>
+		<span class="font-mono text-sm text-slate-100 font-bold">260</span>
+	</div>
 {:else}
-	<!-- Generic 2x2 attributes for Castle, Building, Worker -->
+	<!-- Generic 2x2 attributes for Castle, Building -->
 	<div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs py-1">
 		<!-- Defense Row -->
 		<div
@@ -261,9 +276,7 @@
 			<span
 				class="font-bold text-emerald-300 underline decoration-dotted decoration-emerald-500/50"
 			>
-				{#if activeEntityType === 'worker'}
-					Неуразливий
-				{:else if activeEntityType === 'castle'}
+				{#if activeEntityType === 'castle'}
 					Укріплена (15)
 				{:else if activeEntityType === 'building'}
 					Укріплена (5)
@@ -299,9 +312,7 @@
 			<Swords class="w-3.5 h-3.5 text-rose-400 shrink-0" />
 			<span class="text-[#9ca3af]">Атака:</span>
 			<span class="font-bold text-amber-200 underline decoration-dotted decoration-amber-500/50">
-				{#if activeEntityType === 'worker'}
-					Немає
-				{:else if activeEntityType === 'castle'}
+				{#if activeEntityType === 'castle'}
 					120-150 (Облога)
 				{:else if activeEntityType === 'building'}
 					{#if placedBuilding?.specialType === 'tower'}
@@ -317,9 +328,7 @@
 		<div class="flex items-center gap-1.5 text-slate-300">
 			<Footprints class="w-3.5 h-3.5 text-amber-400 shrink-0" />
 			<span class="text-[#9ca3af]">Швидкість:</span>
-			<span class="font-mono text-slate-200">
-				{activeEntityType === 'worker' ? '260' : 'Нерухомо'}
-			</span>
+			<span class="font-mono text-slate-200"> Нерухомо </span>
 		</div>
 
 		<!-- Secondary Ability / Spawn Status -->
@@ -335,8 +344,6 @@
 					{:else}
 						{placedUnit ? `Спавнить ${placedUnit.name}` : 'Спеціальна'}
 					{/if}
-				{:else}
-					Готовий до праці
 				{/if}
 			</span>
 		</div>
@@ -348,87 +355,79 @@
 	<CombatMatrixTooltip matrix={hoveredMatrix} />
 {/if}
 
-<!-- Footer Info: Lane Preference for Worker OR Progress bar for Building -->
-<div class="border-t border-[#3b3226] pt-1 flex items-center justify-between text-[11px]">
-	{#if activeEntityType === 'worker' || activeEntityType === 'none'}
-		<div class="flex items-center justify-between w-full">
-			<div class="flex items-center gap-1.5 text-[10px] text-slate-300">
-				<span class="text-amber-300 font-bold">Маршрут:</span>
-				<span class="text-slate-400">Авто (найближчий міст)</span>
-			</div>
-			<span class="text-[10px] text-slate-400 font-mono">
-				{activeEntityType === 'worker' ? 'Робітник' : 'Очікування'}
+<!-- Footer Info: Progress bar for Building / Controls for Castle / Unit (Worker footer suppressed) -->
+{#if activeEntityType !== 'worker' && activeEntityType !== 'none'}
+	<div class="border-t border-[#3b3226] pt-1 flex items-center justify-between text-[11px]">
+		{#if activeEntityType === 'castle' && selectedCastle}
+			<span class="text-[#9ca3af] text-[10px]">
+				{selectedCastle.team === 'west' ? 'Головна Цитадель (Союзник)' : 'Ворожа Цитадель (Ціль)'}
 			</span>
-		</div>
-	{:else if activeEntityType === 'castle' && selectedCastle}
-		<span class="text-[#9ca3af] text-[10px]">
-			{selectedCastle.team === 'west' ? 'Головна Цитадель (Союзник)' : 'Ворожа Цитадель (Ціль)'}
-		</span>
-		<button
-			onclick={() => onClearSelection?.()}
-			class="px-1.5 py-0.5 bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] rounded text-[9px] text-[#fef08a] cursor-pointer"
-		>
-			Закрити (Esc)
-		</button>
-	{:else if activeEntityType === 'group'}
-		<span class="text-[#9ca3af] text-[10px]">Виділено загін бійців</span>
-		<button
-			onclick={() => onClearSelection?.()}
-			class="px-1.5 py-0.5 bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] rounded text-[9px] text-[#fef08a] cursor-pointer"
-		>
-			Зняти вибір (Esc)
-		</button>
-	{:else if activeEntityType === 'building' && placedBuilding}
-		<div class="flex items-center gap-2 w-full justify-between">
-			{#if placedBuilding.isUnderConstruction}
-				{@const pct = Math.round(
-					((placedBuilding.buildProgress || 0) / (placedBuilding.maxBuildProgress || 3.5)) * 100
-				)}
-				<span class="text-amber-300 text-[10px] font-bold">Триває будівництво ({pct}%)</span>
-				<div class="w-32 h-2 bg-[#0c1017] rounded-full overflow-hidden border border-[#3b3226]">
-					<div
-						class="h-full bg-amber-400 transition-all"
-						style="width: {Math.max(0, Math.min(100, pct))}%"
-					></div>
-				</div>
-			{:else}
-				{@const remPct = Math.max(
-					0,
-					Math.min(100, (1 - placedBuilding.spawnTimer / placedBuilding.spawnCooldown) * 100)
-				)}
-				<span class="text-[#9ca3af] text-[10px]">
-					КД: {placedBuilding.spawnCooldown}с ({placedBuilding.spawnTimer.toFixed(1)}с)
-				</span>
-				<div class="w-32 h-2 bg-[#0c1017] rounded-full overflow-hidden border border-[#3b3226]">
-					<div
-						class="h-full {placedBuilding.team === 'west'
-							? 'bg-cyan-400'
-							: 'bg-rose-400'} transition-all"
-						style="width: {remPct}%"
-					></div>
-				</div>
-			{/if}
 			<button
-				onclick={() => onCloseBuilding?.()}
+				onclick={() => onClearSelection?.()}
 				class="px-1.5 py-0.5 bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] rounded text-[9px] text-[#fef08a] cursor-pointer"
 			>
 				Закрити (Esc)
 			</button>
-		</div>
-	{:else}
-		<span class="text-[#9ca3af] text-[10px]">
-			{selectedUnit?.team === 'west'
-				? 'Союзний боєць'
-				: selectedUnit?.team === 'neutral'
-					? 'Нейтральний бос'
-					: 'Ворожий боєць'}
-		</span>
-		<button
-			onclick={() => onCloseUnit?.()}
-			data-testid="hud-close-unit-btn"
-			class="px-1.5 py-0.5 bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] rounded text-[9px] text-[#fef08a] cursor-pointer"
-		>
-			Закрити (Esc)
-		</button>
-	{/if}
-</div>
+		{:else if activeEntityType === 'group'}
+			<span class="text-[#9ca3af] text-[10px]">Виділено загін бійців</span>
+			<button
+				onclick={() => onClearSelection?.()}
+				class="px-1.5 py-0.5 bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] rounded text-[9px] text-[#fef08a] cursor-pointer"
+			>
+				Зняти вибір (Esc)
+			</button>
+		{:else if activeEntityType === 'building' && placedBuilding}
+			<div class="flex items-center gap-2 w-full justify-between">
+				{#if placedBuilding.isUnderConstruction}
+					{@const pct = Math.round(
+						((placedBuilding.buildProgress || 0) / (placedBuilding.maxBuildProgress || 3.5)) * 100
+					)}
+					<span class="text-amber-300 text-[10px] font-bold">Триває будівництво ({pct}%)</span>
+					<div class="w-32 h-2 bg-[#0c1017] rounded-full overflow-hidden border border-[#3b3226]">
+						<div
+							class="h-full bg-amber-400 transition-all"
+							style="width: {Math.max(0, Math.min(100, pct))}%"
+						></div>
+					</div>
+				{:else}
+					{@const remPct = Math.max(
+						0,
+						Math.min(100, (1 - placedBuilding.spawnTimer / placedBuilding.spawnCooldown) * 100)
+					)}
+					<span class="text-[#9ca3af] text-[10px]">
+						КД: {placedBuilding.spawnCooldown}с ({placedBuilding.spawnTimer.toFixed(1)}с)
+					</span>
+					<div class="w-32 h-2 bg-[#0c1017] rounded-full overflow-hidden border border-[#3b3226]">
+						<div
+							class="h-full {placedBuilding.team === 'west'
+								? 'bg-cyan-400'
+								: 'bg-rose-400'} transition-all"
+							style="width: {remPct}%"
+						></div>
+					</div>
+				{/if}
+				<button
+					onclick={() => onCloseBuilding?.()}
+					class="px-1.5 py-0.5 bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] rounded text-[9px] text-[#fef08a] cursor-pointer"
+				>
+					Закрити (Esc)
+				</button>
+			</div>
+		{:else}
+			<span class="text-[#9ca3af] text-[10px]">
+				{selectedUnit?.team === 'west'
+					? 'Союзний боєць'
+					: selectedUnit?.team === 'neutral'
+						? 'Нейтральний бос'
+						: 'Ворожий боєць'}
+			</span>
+			<button
+				onclick={() => onCloseUnit?.()}
+				data-testid="hud-close-unit-btn"
+				class="px-1.5 py-0.5 bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] rounded text-[9px] text-[#fef08a] cursor-pointer"
+			>
+				Закрити (Esc)
+			</button>
+		{/if}
+	</div>
+{/if}

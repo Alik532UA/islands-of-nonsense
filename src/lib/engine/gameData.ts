@@ -1406,6 +1406,33 @@ export function formatRaceName(race: string): string {
 }
 
 /**
+ * Formats faction name into canonical Ukrainian display (e.g., Люди -> Альянс, Орки -> Орда).
+ */
+export function formatFactionName(race: string): string {
+	const canonical = formatRaceName(race);
+	switch (canonical) {
+		case 'Люди':
+			return 'Альянс';
+		case 'Орки':
+			return 'Орда';
+		case 'Нежить':
+			return 'Нежить';
+		case 'Ельфи':
+			return 'Нічні Ельфи';
+		case 'Хаос':
+			return 'Легіон';
+		case 'Північ':
+			return 'Північ';
+		case 'Наги':
+			return 'Наги';
+		case 'Механіки':
+			return 'Механіки';
+		default:
+			return canonical;
+	}
+}
+
+/**
  * Returns canonical Ukrainian builder unit name for a given race.
  */
 export function getBuilderNameForRace(race: string): string {

@@ -220,7 +220,9 @@
 	<!-- 2. Entity Portrait & Health / Mana Vital Bars -->
 	<div
 		data-testid="hud-portrait-panel"
-		class="flex flex-col items-center justify-between px-3 py-2 bg-[#131722]/95 backdrop-blur-md rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 {entityTeam ===
+		class="flex flex-col items-center {activeEntityType === 'worker'
+			? 'justify-center'
+			: 'justify-between'} px-3 py-2 bg-[#131722]/95 backdrop-blur-md rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 {entityTeam ===
 		'neutral'
 			? 'border-purple-600/80 shadow-[0_0_12px_rgba(168,85,247,0.4)]'
 			: isOpponent
@@ -327,100 +329,92 @@
 			</div>
 		</div>
 
-		<!-- Vital Bars -->
-		<div class="w-full mt-2 flex flex-col gap-1">
-			<!-- Health Bar -->
-			<div
-				class="relative w-full h-4 bg-[#0c1017] rounded border border-[#3b3226] overflow-hidden flex items-center justify-center shadow-inner"
-			>
-				{#if activeEntityType === 'castle' && selectedCastle}
-					{@const cHp = selectedCastle.hp}
-					{@const cMaxHp = selectedCastle.maxHp}
-					{@const cPct = Math.max(0, Math.min(100, (cHp / cMaxHp) * 100))}
-					{@const isFriendly = selectedCastle.team === localTeam}
-					<div
-						class="absolute left-0 top-0 bottom-0 {isFriendly
-							? 'bg-[#22c55e]'
-							: 'bg-[#ef4444]'} transition-all"
-						style="width: {cPct}%"
-					></div>
-					<span class="relative z-10 text-[9px] font-mono font-bold text-white drop-shadow">
-						{Math.ceil(cHp)} / {Math.round(cMaxHp)}
-					</span>
-				{:else if activeEntityType === 'group'}
-					{@const totalHp = groupUnits.reduce((acc, u) => acc + u.hp, 0)}
-					{@const totalMaxHp = groupUnits.reduce((acc, u) => acc + u.maxHp, 0)}
-					{@const pct = Math.max(0, Math.min(100, (totalHp / (totalMaxHp || 1)) * 100))}
-					<div
-						class="absolute left-0 top-0 bottom-0 bg-[#22c55e] transition-all"
-						style="width: {pct}%"
-					></div>
-					<span class="relative z-10 text-[9px] font-mono font-bold text-white drop-shadow">
-						{Math.ceil(totalHp)} / {Math.round(totalMaxHp)}
-					</span>
-				{:else if activeEntityType === 'building' && placedBuilding}
-					{@const bHp = placedBuilding.hp ?? placedBuilding.goldCost * 4}
-					{@const bMaxHp = placedBuilding.maxHp ?? placedBuilding.goldCost * 4}
-					{@const bPct = Math.max(0, Math.min(100, (bHp / bMaxHp) * 100))}
-					{@const isEnemyBld = placedBuilding.team !== localTeam}
-					<div
-						class="absolute left-0 top-0 bottom-0 {isEnemyBld
-							? 'bg-[#ef4444]'
-							: 'bg-[#22c55e]'} transition-all"
-						style="width: {bPct}%"
-					></div>
-					<span class="relative z-10 text-[9px] font-mono font-bold text-white drop-shadow">
-						{Math.ceil(bHp)} / {Math.round(bMaxHp)}
-					</span>
-				{:else if activeEntityType === 'unit' && selectedUnit}
-					{@const isEnemy = selectedUnit.team !== localTeam && selectedUnit.team !== 'neutral'}
-					{@const hpPct = Math.max(0, Math.min(100, (selectedUnit.hp / selectedUnit.maxHp) * 100))}
-					<div
-						class="absolute left-0 top-0 bottom-0 {isEnemy
-							? 'bg-[#ef4444]'
-							: selectedUnit.team === 'neutral'
-								? 'bg-[#a855f7]'
+		<!-- Vital Bars (Hidden for worker and unselected) -->
+		{#if activeEntityType !== 'worker' && activeEntityType !== 'none'}
+			<div class="w-full mt-2 flex flex-col gap-1">
+				<!-- Health Bar -->
+				<div
+					class="relative w-full h-4 bg-[#0c1017] rounded border border-[#3b3226] overflow-hidden flex items-center justify-center shadow-inner"
+				>
+					{#if activeEntityType === 'castle' && selectedCastle}
+						{@const cHp = selectedCastle.hp}
+						{@const cMaxHp = selectedCastle.maxHp}
+						{@const cPct = Math.max(0, Math.min(100, (cHp / cMaxHp) * 100))}
+						{@const isFriendly = selectedCastle.team === localTeam}
+						<div
+							class="absolute left-0 top-0 bottom-0 {isFriendly
+								? 'bg-[#22c55e]'
+								: 'bg-[#ef4444]'} transition-all"
+							style="width: {cPct}%"
+						></div>
+						<span class="relative z-10 text-[9px] font-mono font-bold text-white drop-shadow">
+							{Math.ceil(cHp)} / {Math.round(cMaxHp)}
+						</span>
+					{:else if activeEntityType === 'group'}
+						{@const totalHp = groupUnits.reduce((acc, u) => acc + u.hp, 0)}
+						{@const totalMaxHp = groupUnits.reduce((acc, u) => acc + u.maxHp, 0)}
+						{@const pct = Math.max(0, Math.min(100, (totalHp / (totalMaxHp || 1)) * 100))}
+						<div
+							class="absolute left-0 top-0 bottom-0 bg-[#22c55e] transition-all"
+							style="width: {pct}%"
+						></div>
+						<span class="relative z-10 text-[9px] font-mono font-bold text-white drop-shadow">
+							{Math.ceil(totalHp)} / {Math.round(totalMaxHp)}
+						</span>
+					{:else if activeEntityType === 'building' && placedBuilding}
+						{@const bHp = placedBuilding.hp ?? placedBuilding.goldCost * 4}
+						{@const bMaxHp = placedBuilding.maxHp ?? placedBuilding.goldCost * 4}
+						{@const bPct = Math.max(0, Math.min(100, (bHp / bMaxHp) * 100))}
+						{@const isEnemyBld = placedBuilding.team !== localTeam}
+						<div
+							class="absolute left-0 top-0 bottom-0 {isEnemyBld
+								? 'bg-[#ef4444]'
 								: 'bg-[#22c55e]'} transition-all"
-						style="width: {hpPct}%"
-					></div>
-					<span class="relative z-10 text-[9px] font-mono font-bold text-white drop-shadow">
-						{Math.ceil(selectedUnit.hp)} / {Math.round(selectedUnit.maxHp)}
-					</span>
-				{:else if activeEntityType === 'none'}
-					<span class="relative z-10 text-[9px] font-mono text-slate-500">—</span>
-				{:else}
-					{@const wHp = worker?.hp ?? 220}
-					{@const wMaxHp = worker?.maxHp ?? 220}
-					{@const wPct = Math.max(0, Math.min(100, (wHp / wMaxHp) * 100))}
+							style="width: {bPct}%"
+						></div>
+						<span class="relative z-10 text-[9px] font-mono font-bold text-white drop-shadow">
+							{Math.ceil(bHp)} / {Math.round(bMaxHp)}
+						</span>
+					{:else if activeEntityType === 'unit' && selectedUnit}
+						{@const isEnemy = selectedUnit.team !== localTeam && selectedUnit.team !== 'neutral'}
+						{@const hpPct = Math.max(
+							0,
+							Math.min(100, (selectedUnit.hp / selectedUnit.maxHp) * 100)
+						)}
+						<div
+							class="absolute left-0 top-0 bottom-0 {isEnemy
+								? 'bg-[#ef4444]'
+								: selectedUnit.team === 'neutral'
+									? 'bg-[#a855f7]'
+									: 'bg-[#22c55e]'} transition-all"
+							style="width: {hpPct}%"
+						></div>
+						<span class="relative z-10 text-[9px] font-mono font-bold text-white drop-shadow">
+							{Math.ceil(selectedUnit.hp)} / {Math.round(selectedUnit.maxHp)}
+						</span>
+					{/if}
+				</div>
+
+				<!-- Mana Bar (Blue) - Render only if entity has mana -->
+				{#if activeEntityType === 'unit' && selectedUnit && selectedUnit.maxMana && selectedUnit.maxMana > 0}
+					{@const manaPct = Math.max(
+						0,
+						Math.min(100, ((selectedUnit.mana || 0) / selectedUnit.maxMana) * 100)
+					)}
 					<div
-						class="absolute left-0 top-0 bottom-0 bg-[#22c55e] transition-all"
-						style="width: {wPct}%"
-					></div>
-					<span class="relative z-10 text-[9px] font-mono font-bold text-white drop-shadow">
-						{Math.ceil(wHp)} / {Math.round(wMaxHp)}
-					</span>
+						class="relative w-full h-2.5 bg-[#0c1017] rounded border border-[#3b3226] overflow-hidden flex items-center justify-center shadow-inner"
+					>
+						<div
+							class="absolute left-0 top-0 bottom-0 bg-[#3b82f6] transition-all"
+							style="width: {manaPct}%"
+						></div>
+						<span class="relative z-10 text-[7px] font-mono font-bold text-white drop-shadow">
+							{Math.floor(selectedUnit.mana || 0)} / {selectedUnit.maxMana}
+						</span>
+					</div>
 				{/if}
 			</div>
-
-			<!-- Mana Bar (Blue) - Render only if entity has mana -->
-			{#if activeEntityType === 'unit' && selectedUnit && selectedUnit.maxMana && selectedUnit.maxMana > 0}
-				{@const manaPct = Math.max(
-					0,
-					Math.min(100, ((selectedUnit.mana || 0) / selectedUnit.maxMana) * 100)
-				)}
-				<div
-					class="relative w-full h-2.5 bg-[#0c1017] rounded border border-[#3b3226] overflow-hidden flex items-center justify-center shadow-inner"
-				>
-					<div
-						class="absolute left-0 top-0 bottom-0 bg-[#3b82f6] transition-all"
-						style="width: {manaPct}%"
-					></div>
-					<span class="relative z-10 text-[7px] font-mono font-bold text-white drop-shadow">
-						{Math.floor(selectedUnit.mana || 0)} / {selectedUnit.maxMana}
-					</span>
-				</div>
-			{/if}
-		</div>
+		{/if}
 	</div>
 {/snippet}
 

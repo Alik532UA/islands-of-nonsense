@@ -183,4 +183,27 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 		);
 		expect(minimapSrc).toContain('rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0');
 	});
+
+	it('configures minimalist worker inspection panel with faction badge, single speed stat, zero text overlap, and hides redundant vital bar', () => {
+		// Title and faction badge
+		expect(entityInspectDetailsSrc).toContain('Будівельник');
+		expect(entityInspectDetailsSrc).toContain('formatFactionName');
+		expect(entityInspectDetailsSrc).toContain('[{formatFactionName(player.race)}]');
+
+		// Worker attribute row contains only Speed (260) with Footprints icon
+		expect(entityInspectDetailsSrc).toContain("activeEntityType === 'worker'");
+		expect(entityInspectDetailsSrc).toContain('Швидкість:');
+		expect(entityInspectDetailsSrc).toContain('260');
+
+		// Redundant stats removed for worker (zero text collision or overlapping)
+		expect(entityInspectDetailsSrc).not.toContain('Неуразливий');
+		expect(entityInspectDetailsSrc).not.toContain('Готовий до праці');
+
+		// Route footer stripped for worker
+		expect(entityInspectDetailsSrc).not.toContain('Маршрут: Авто');
+
+		// BottomBar hides redundant vital health bar (220/220) for invulnerable worker
+		expect(bottomBarSrc).toContain("activeEntityType !== 'worker' && activeEntityType !== 'none'");
+		expect(bottomBarSrc).not.toContain('wHp / wMaxHp');
+	});
 });
