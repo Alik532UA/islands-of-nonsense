@@ -161,7 +161,7 @@
 		<button
 			onclick={onOpenCommander}
 			data-testid="hud-commander-btn"
-			class="flex items-center gap-1 bg-[#251e16] hover:bg-[#382d21] border border-[#8c7456] px-2 py-1 rounded text-xs font-semibold text-[#fef08a] transition cursor-pointer active:scale-95 shadow shrink-0"
+			class="flex items-center gap-1 bg-[#251e16] hover:bg-[#382d21] border border-[#8c7456] px-2 py-1 min-h-[36px] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] rounded text-xs font-semibold text-[#fef08a] transition cursor-pointer active:scale-95 shadow shrink-0 touch-manipulation"
 			title="Довідник гри та командир: {commander.name} ({commander.nickname})"
 			aria-label="Довідник гри та командир: {commander.name} ({commander.nickname})"
 			aria-keyshortcuts="F9"
@@ -175,7 +175,7 @@
 		<button
 			onclick={onOpenSettings}
 			data-testid="hud-menu-btn"
-			class="flex items-center gap-1 bg-[#251e16] hover:bg-[#382d21] border border-[#8c7456] px-2 py-1 rounded text-xs font-semibold text-[#fef08a] transition cursor-pointer active:scale-95 shadow shrink-0"
+			class="flex items-center gap-1 bg-[#251e16] hover:bg-[#382d21] border border-[#8c7456] px-2 py-1 min-h-[36px] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] rounded text-xs font-semibold text-[#fef08a] transition cursor-pointer active:scale-95 shadow shrink-0 touch-manipulation"
 			title="Меню налаштувань матчу"
 			aria-label="Меню налаштувань матчу"
 		>
@@ -187,7 +187,7 @@
 		<button
 			onclick={onOpenForge}
 			data-testid="hud-forge-btn"
-			class="flex items-center gap-1 bg-[#2a241b] hover:bg-[#3d3427] border border-[#8c7456] px-2 py-1 rounded text-xs font-semibold text-amber-200 transition cursor-pointer active:scale-95 shadow shrink-0"
+			class="flex items-center gap-1 bg-[#2a241b] hover:bg-[#3d3427] border border-[#8c7456] px-2 py-1 min-h-[36px] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] rounded text-xs font-semibold text-amber-200 transition cursor-pointer active:scale-95 shadow shrink-0 touch-manipulation"
 			title="Військова Кузня (Гаряча клавіша: F)"
 			aria-label="Військова Кузня (Гаряча клавіша: F)"
 			aria-keyshortcuts="f"
@@ -205,7 +205,7 @@
 		<button
 			onclick={onOpenShop}
 			data-testid="hud-shop-btn"
-			class="flex items-center gap-1 bg-[#172e21] hover:bg-[#1e3d2c] border border-emerald-600/70 px-2 py-1 rounded text-xs font-semibold text-emerald-200 transition cursor-pointer active:scale-95 shadow shrink-0"
+			class="flex items-center gap-1 bg-[#172e21] hover:bg-[#1e3d2c] border border-emerald-600/70 px-2 py-1 min-h-[36px] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] rounded text-xs font-semibold text-emerald-200 transition cursor-pointer active:scale-95 shadow shrink-0 touch-manipulation"
 			title="Магазин замку: припаси та захист (Гаряча клавіша: B)"
 			aria-label="Магазин замку: припаси та захист (Гаряча клавіша: B)"
 			aria-keyshortcuts="b"
@@ -228,7 +228,7 @@
 			}}
 			disabled={!canCastRaceSkill}
 			data-testid="hud-race-ability-btn"
-			class="flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition cursor-pointer shrink-0 {canCastRaceSkill
+			class="flex items-center gap-1 px-2 py-1 min-h-[36px] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] rounded text-xs font-semibold transition cursor-pointer shrink-0 touch-manipulation {canCastRaceSkill
 				? 'bg-purple-900/90 hover:bg-purple-800 border border-purple-400 text-purple-100 ring-2 ring-purple-400/50 animate-pulse'
 				: 'bg-[#181d28] border border-slate-700 text-slate-500 cursor-not-allowed opacity-60'}"
 			title="{raceAbility.nameUk}: {raceAbility.descriptionUk} (Гаряча клавіша: R)"
@@ -259,7 +259,7 @@
 			}}
 			disabled={!canUseRescue}
 			data-testid="hud-rescue-strike-btn"
-			class="flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition cursor-pointer shrink-0 {canUseRescue
+			class="flex items-center gap-1 px-2 py-1 min-h-[36px] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] rounded text-xs font-semibold transition cursor-pointer shrink-0 touch-manipulation {canUseRescue
 				? 'bg-rose-950/90 hover:bg-rose-900 border border-rose-500 text-rose-100 ring-2 ring-rose-500/50'
 				: 'bg-[#181d28] border border-slate-700 text-slate-500 cursor-not-allowed opacity-60'}"
 			title="Рятівний Удар навколо замку (-950 шкоди, Гаряча клавіша: E)"

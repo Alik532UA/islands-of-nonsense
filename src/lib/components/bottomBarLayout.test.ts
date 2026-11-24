@@ -74,6 +74,10 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 		expect(commandCardSrc).toContain('data-testid="hud-sell-btn"');
 	});
 
+	it('provides touch-manipulation support on command card action buttons for responsive touch feedback (FLUID-SIZING-v10)', () => {
+		expect(commandCardSrc).toContain('touch-manipulation');
+	});
+
 	it('guarantees unique Warcraft 3 hotkeys across all 12 command card slots without duplicate [V]', () => {
 		const hotkeys = ['Q', 'W', 'E', 'R', 'A', 'S', 'D', 'F', 'Z', 'X', 'C', 'Esc'];
 

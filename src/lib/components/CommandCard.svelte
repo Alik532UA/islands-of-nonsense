@@ -456,7 +456,7 @@
 					onmouseenter={() => (hoveredBuilding = bld)}
 					onmouseleave={() => (hoveredBuilding = null)}
 					data-testid="hud-build-btn-{bld.id}"
-					class="relative w-16 h-10 rounded border p-0.5 transition-all flex flex-col justify-between items-center cursor-pointer {isSelected
+					class="relative w-16 h-10 rounded border p-0.5 transition-all flex flex-col justify-between items-center cursor-pointer touch-manipulation {isSelected
 						? 'bg-blue-600/90 border-amber-300 shadow-lg ring-2 ring-amber-400 shadow-blue-500/50'
 						: lacksFood
 							? 'bg-red-950/40 border-red-800/80 hover:border-red-600'
@@ -531,7 +531,7 @@
 					onClearSelection?.();
 				}}
 				data-testid="hud-clear-selection-btn"
-				class="relative w-16 h-10 rounded border border-rose-800/80 bg-gradient-to-b from-rose-950/80 to-[#180a0a] hover:from-rose-900 hover:to-rose-950 text-rose-300 flex flex-col items-center justify-center p-1 transition cursor-pointer shadow group"
+				class="relative w-16 h-10 rounded border border-rose-800/80 bg-gradient-to-b from-rose-950/80 to-[#180a0a] hover:from-rose-900 hover:to-rose-950 text-rose-300 flex flex-col items-center justify-center p-1 transition cursor-pointer shadow group touch-manipulation"
 				title="Скасувати / Очистити вибір (Esc / B)"
 			>
 				<div class="relative w-5 h-5 flex items-center justify-center">

@@ -67,7 +67,7 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 
 	it('left navigation buttons have uniform gap-1.5, shrink-0 and compact padding', () => {
 		expect(topBarContent).toContain('class="flex items-center gap-1.5 shrink-0"');
-		expect(topBarContent).toContain('px-2 py-1 rounded text-xs font-semibold');
+		expect(topBarContent).toContain('rounded text-xs font-semibold');
 		expect(topBarContent).toContain('data-testid="topbar-back-link"');
 		expect(topBarContent).toContain('data-testid="topbar-home-link"');
 	});
@@ -88,6 +88,18 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 		expect(topBarContent).toContain('data-testid="hud-rescue-strike-btn"');
 		expect(topBarContent).toContain('data-testid="topbar-pause-btn"');
 		expect(topBarContent).toContain('data-testid="topbar-speed-btn-');
+	});
+
+	it('provides accessible touch-manipulation and coarse-pointer minimum targets for mobile devices (FLUID-SIZING-v10)', () => {
+		expect(topBarContent).toContain('touch-manipulation');
+		expect(topBarContent).toContain('[@media(pointer:coarse)]:min-h-[44px]');
+		expect(topBarContent).toContain('[@media(pointer:coarse)]:min-w-[44px]');
+
+		const arenaPath = path.resolve(process.cwd(), 'src/lib/components/BattleArena.svelte');
+		const arenaContent = fs.readFileSync(arenaPath, 'utf-8');
+		expect(arenaContent).toContain('data-testid="arena-touch-controls"');
+		expect(arenaContent).toContain('min-w-[44px] min-h-[44px]');
+		expect(arenaContent).toContain('touch-manipulation');
 	});
 
 	it('supports onBeforeLeave hook to protect against accidental exits', () => {

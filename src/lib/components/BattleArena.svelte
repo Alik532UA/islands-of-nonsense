@@ -746,6 +746,12 @@
 		};
 	});
 
+	function selectRaceAndStart(race: string) {
+		chosenWestRace = race;
+		sound.playUpgrade();
+		finishCountdownAndStartBattle();
+	}
+
 	function finishCountdownAndStartBattle() {
 		if (countdownTimer) {
 			clearInterval(countdownTimer);
@@ -800,20 +806,23 @@
 			</div>
 		{/if}
 
-		<!-- Floating On-Screen Viewport & Help Controls (Touch & Quick Ergonomics) -->
-		<div class="absolute right-4 bottom-6 z-20 flex flex-col gap-2 select-none">
+		<!-- Floating On-Screen Viewport & Help Controls (Touch & Quick Ergonomics - WCAG 44px min target) -->
+		<div
+			class="absolute right-4 bottom-6 z-20 flex flex-col gap-2.5 select-none"
+			data-testid="arena-touch-controls"
+		>
 			<button
 				type="button"
 				onclick={() => {
 					const nz = Math.min(1.5, zoom + 0.15);
 					renderer?.setCamera(cameraX, cameraY, nz);
 				}}
-				class="w-9 h-9 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 text-amber-300 flex items-center justify-center backdrop-blur-md shadow-lg transition active:scale-95 cursor-pointer"
+				class="w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 text-amber-300 flex items-center justify-center backdrop-blur-md shadow-lg transition active:scale-95 cursor-pointer touch-manipulation"
 				title="Наблизити (Zoom In)"
 				aria-label="Наблизити"
 				data-testid="arena-zoom-in"
 			>
-				<ZoomIn class="w-4 h-4" />
+				<ZoomIn class="w-5 h-5" />
 			</button>
 			<button
 				type="button"
@@ -821,12 +830,12 @@
 					const nz = Math.max(0.4, zoom - 0.15);
 					renderer?.setCamera(cameraX, cameraY, nz);
 				}}
-				class="w-9 h-9 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 text-amber-300 flex items-center justify-center backdrop-blur-md shadow-lg transition active:scale-95 cursor-pointer"
+				class="w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 text-amber-300 flex items-center justify-center backdrop-blur-md shadow-lg transition active:scale-95 cursor-pointer touch-manipulation"
 				title="Віддалити (Zoom Out)"
 				aria-label="Віддалити"
 				data-testid="arena-zoom-out"
 			>
-				<ZoomOut class="w-4 h-4" />
+				<ZoomOut class="w-5 h-5" />
 			</button>
 			<button
 				type="button"
@@ -834,22 +843,22 @@
 					const isWest = (matchSync?.localTeam ?? 'west') === 'west';
 					renderer?.setCamera(isWest ? 800 : 6400, 1200);
 				}}
-				class="w-9 h-9 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 text-amber-300 flex items-center justify-center backdrop-blur-md shadow-lg transition active:scale-95 cursor-pointer"
+				class="w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 text-amber-300 flex items-center justify-center backdrop-blur-md shadow-lg transition active:scale-95 cursor-pointer touch-manipulation"
 				title="Центрувати на замку"
 				aria-label="Центрувати на замку"
 				data-testid="arena-center-base"
 			>
-				<Compass class="w-4 h-4" />
+				<Compass class="w-5 h-5" />
 			</button>
 			<button
 				type="button"
 				onclick={() => (isHelpOpen = true)}
-				class="w-9 h-9 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 text-amber-300 flex items-center justify-center backdrop-blur-md shadow-lg transition active:scale-95 cursor-pointer"
+				class="w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 text-amber-300 flex items-center justify-center backdrop-blur-md shadow-lg transition active:scale-95 cursor-pointer touch-manipulation"
 				title="Гарячі клавіші та довідка"
 				aria-label="Гарячі клавіші"
 				data-testid="arena-help-btn"
 			>
-				<HelpCircle class="w-4 h-4" />
+				<HelpCircle class="w-5 h-5" />
 			</button>
 		</div>
 
@@ -867,9 +876,6 @@
 							<h3 class="text-base font-bold text-[#fef08a] uppercase tracking-wide">
 								Вибір раси королівства
 							</h3>
-							<p class="text-xs text-slate-400">
-								Оберіть расу або випадковий вибір (+30% золота) до закінчення відліку
-							</p>
 						</div>
 						<!-- 15-second countdown badge -->
 						<div
@@ -880,25 +886,28 @@
 						</div>
 					</div>
 
-					<!-- Race pick chips -->
-					<div class="grid grid-cols-3 sm:grid-cols-4 gap-2 text-xs">
-						<!-- Random Race Option with +30% gold bonus -->
-						<button
-							onclick={() => {
-								chosenWestRace = 'random';
-								sound.playUpgrade();
-							}}
-							class="p-2.5 rounded-xl border text-center transition cursor-pointer flex flex-col items-center justify-center gap-1 {chosenWestRace ===
-							'random'
-								? 'bg-purple-600/30 border-purple-400 text-purple-200 ring-2 ring-purple-400/50 font-bold shadow-lg'
-								: 'bg-[#1e172f] border-purple-800/60 hover:border-purple-600 text-purple-300'}"
+					<!-- Prominent Separate Button: Random Race (+30% Gold) -->
+					<button
+						type="button"
+						onclick={() => selectRaceAndStart('random')}
+						class="w-full py-2.5 px-4 rounded-xl border transition cursor-pointer flex items-center justify-between gap-3 shadow-md {chosenWestRace ===
+						'random'
+							? 'bg-purple-600/30 border-purple-400 text-purple-200 ring-2 ring-purple-400/50 font-bold shadow-lg'
+							: 'bg-gradient-to-r from-purple-950/70 via-purple-900/50 to-[#181e2b] border-purple-500/60 hover:border-purple-400 hover:bg-purple-900/60 text-purple-200 active:scale-[0.99]'}"
+					>
+						<div class="flex items-center gap-2.5">
+							<span class="text-lg">🎲</span>
+							<span class="text-xs font-bold tracking-wide">Випадкова раса</span>
+						</div>
+						<span
+							class="px-2.5 py-0.5 rounded-lg bg-amber-500/20 border border-amber-400/50 text-[11px] text-amber-300 font-black"
 						>
-							<span class="text-xs font-bold">🎲 Випадкова</span>
-							<span class="text-[10px] text-amber-300 font-black">+30% золота</span>
-							{#if chosenWestRace === 'random'}
-								<span class="text-[9px] text-emerald-400 font-bold">✓ Обрано</span>
-							{/if}
-						</button>
+							+30% золота
+						</span>
+					</button>
+
+					<!-- Race pick chips (Only the playable races) -->
+					<div class="grid grid-cols-3 sm:grid-cols-4 gap-2 text-xs">
 						{#each RACES_LIST as raceDef}
 							{@const isBanned = sim.isRaceBanned(raceDef.race)}
 							{@const isOpponentOccupied =
@@ -906,18 +915,18 @@
 							{@const isDisabled = isBanned || isOpponentOccupied}
 							{@const isSelected = chosenWestRace === raceDef.race}
 							<button
+								type="button"
 								disabled={isDisabled}
 								onclick={() => {
 									if (!isDisabled) {
-										chosenWestRace = raceDef.race;
-										sound.playUpgrade();
+										selectRaceAndStart(raceDef.race);
 									}
 								}}
 								class="p-2.5 rounded-xl border text-center transition flex flex-col items-center justify-center gap-1 {isDisabled
 									? 'bg-slate-900/40 border-red-950/60 text-slate-500 opacity-50 cursor-not-allowed'
 									: isSelected
 										? 'bg-amber-600/30 border-amber-400 text-amber-200 ring-2 ring-amber-400/50 font-bold shadow-lg cursor-pointer'
-										: 'bg-[#181e2b] border-[#3b3226] hover:border-slate-500 text-slate-300 cursor-pointer'}"
+										: 'bg-[#181e2b] border-[#3b3226] hover:border-amber-400/80 hover:bg-[#202738] text-slate-200 hover:text-white cursor-pointer active:scale-95'}"
 							>
 								<span class="text-xs font-bold {isBanned ? 'line-through text-red-400/80' : ''}">
 									{raceDef.race}
@@ -933,13 +942,12 @@
 						{/each}
 					</div>
 
-					<div class="pt-2 flex items-center justify-between border-t border-[#3b3226]">
-						<div class="text-left text-xs text-slate-400">
-							Суперник (Бот): <strong class="text-amber-300">{sim.players.east.race}</strong>
-						</div>
+					<!-- Bottom Action Area (No spoiler about opponent bot race) -->
+					<div class="pt-2 flex items-center justify-end border-t border-[#3b3226]">
 						<button
+							type="button"
 							onclick={finishCountdownAndStartBattle}
-							class="px-5 py-2.5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition shadow-lg shadow-amber-600/30 cursor-pointer"
+							class="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition shadow-lg shadow-amber-600/30 cursor-pointer active:scale-95"
 						>
 							Розпочати бій зараз ⚔️
 						</button>
