@@ -24,6 +24,7 @@ import {
 	canTriggerCastleStageTransition
 } from './castleAssets';
 import type { GraphicsStyle } from '$lib/services/settings.svelte';
+import { stepSmoothCameraPan, type CameraPanInput } from './cameraPan';
 
 export type { SelectedEntity };
 
@@ -64,6 +65,9 @@ export class ArenaRenderer {
 	private mouseScreenX = 0;
 	private mouseScreenY = 0;
 	private isMouseOverCanvas = false;
+	private keyPan: CameraPanInput = { left: false, right: false, up: false, down: false };
+	private camVelX = 0;
+	private camVelY = 0;
 
 	// Drag Box Multi-Selection
 	private isBoxSelecting = false;
@@ -120,6 +124,8 @@ export class ArenaRenderer {
 	private isDestroyed = false;
 	private tickerFn: (() => void) | null = null;
 	private windowMouseUpHandler: ((e: MouseEvent) => void) | null = null;
+	private windowResizeHandler: (() => void) | null = null;
+	private resizeObserver: ResizeObserver | null = null;
 	private canvasEl: HTMLCanvasElement | null = null;
 	private lastDrawnBrokenBridge: 'top' | 'mid' | 'bottom' | null = undefined as unknown as null;
 
@@ -277,9 +283,10 @@ export class ArenaRenderer {
 	public async init(canvas: HTMLCanvasElement): Promise<void> {
 		this.canvasEl = canvas;
 		this.enableFog = this.sim.config.fogOfWar ?? true;
-		const rect = canvas.getBoundingClientRect();
-		const initWidth = Math.max(800, rect.width || window.innerWidth || 1200);
-		const initHeight = Math.max(400, rect.height || window.innerHeight || 600);
+		const hostEl = canvas.parentElement ?? canvas;
+		const rect = hostEl.getBoundingClientRect();
+		const initWidth = Math.max(1, Math.round(rect.width || window.innerWidth || 1200));
+		const initHeight = Math.max(1, Math.round(rect.height || window.innerHeight || 600));
 
 		await this.app.init({
 			canvas,
@@ -289,6 +296,10 @@ export class ArenaRenderer {
 			resolution: window.devicePixelRatio || 1,
 			autoDensity: true
 		});
+
+		// Prevent PixiJS autoDensity inline px styles from locking canvas size on resize
+		canvas.style.width = '100%';
+		canvas.style.height = '100%';
 
 		this.app.stage.addChild(this.rootContainer);
 		this.rootContainer.addChild(this.waterLayer);
@@ -317,6 +328,24 @@ export class ArenaRenderer {
 
 		this.setupInteraction(canvas);
 		this.drawStaticTerrain();
+
+		if (typeof ResizeObserver !== 'undefined') {
+			this.resizeObserver = new ResizeObserver(() => {
+				if (!this.isDestroyed) {
+					this.syncViewportSize(true);
+				}
+			});
+			this.resizeObserver.observe(hostEl);
+		}
+
+		if (typeof window !== 'undefined') {
+			this.windowResizeHandler = () => {
+				if (!this.isDestroyed) {
+					this.syncViewportSize(true);
+				}
+			};
+			window.addEventListener('resize', this.windowResizeHandler);
+		}
 
 		this.tickerFn = () => {
 			if (!this.isDestroyed) {
@@ -356,7 +385,25 @@ export class ArenaRenderer {
 		return { x: screenX, y: screenY };
 	}
 
+	public setKeyboardPan(dir: Partial<CameraPanInput>): void {
+		if (dir.left !== undefined) this.keyPan.left = dir.left;
+		if (dir.right !== undefined) this.keyPan.right = dir.right;
+		if (dir.up !== undefined) this.keyPan.up = dir.up;
+		if (dir.down !== undefined) this.keyPan.down = dir.down;
+	}
+
+	public clearKeyboardPan(): void {
+		this.keyPan.left = false;
+		this.keyPan.right = false;
+		this.keyPan.up = false;
+		this.keyPan.down = false;
+		this.camVelX = 0;
+		this.camVelY = 0;
+	}
+
 	public setCamera(x: number, y: number, zoom?: number): void {
+		this.camVelX = 0;
+		this.camVelY = 0;
 		if (zoom !== undefined) {
 			this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, zoom));
 		}
@@ -380,33 +427,70 @@ export class ArenaRenderer {
 		this.onCameraChange?.(this.cameraX, this.cameraY, this.zoom);
 	}
 
-	private updateCamera(): void {
-		if (this.canvasEl) {
-			const rect = this.canvasEl.getBoundingClientRect();
-			if (rect.width > 0 && rect.height > 0) {
-				if (this.app.screen.width !== rect.width || this.app.screen.height !== rect.height) {
-					this.app.renderer.resize(rect.width, rect.height);
-				}
-			}
-		}
+	public syncViewportSize(forceRedraw = false): boolean {
+		if (!this.canvasEl || !this.app?.renderer) return false;
+		const hostEl = this.canvasEl.parentElement ?? this.canvasEl;
+		const rect = hostEl.getBoundingClientRect();
+		const targetW = Math.max(1, Math.round(rect.width));
+		const targetH = Math.max(1, Math.round(rect.height));
+		if (targetW <= 0 || targetH <= 0) return false;
 
+		const targetDpr = Math.max(1, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
+		const sizeChanged = this.app.screen.width !== targetW || this.app.screen.height !== targetH;
+		const dprChanged = this.app.renderer.resolution !== targetDpr;
+
+		if (sizeChanged || dprChanged) {
+			if (dprChanged) {
+				this.app.renderer.resolution = targetDpr;
+			}
+			this.app.renderer.resize(targetW, targetH);
+			this.canvasEl.style.width = '100%';
+			this.canvasEl.style.height = '100%';
+
+			if (forceRedraw) {
+				this.updateCamera(false);
+				this.render();
+				this.onCameraChange?.(this.cameraX, this.cameraY, this.zoom);
+			}
+			return true;
+		}
+		return false;
+	}
+
+	private updateCamera(checkResize = true): void {
+		const resized = checkResize ? this.syncViewportSize(false) : false;
+
+		const prevCamX = this.cameraX;
+		const prevCamY = this.cameraY;
 		const screenW = this.app.screen.width;
 		const screenH = this.app.screen.height;
+		const dt = this.app?.ticker?.deltaMS ? this.app.ticker.deltaMS / 1000 : 1 / 60;
 
-		// Edge scrolling for RTS mouse navigation
-		if (this.isMouseOverCanvas && !this.isPanning && !this.isBoxSelecting) {
-			const edgeMargin = 25;
-			const edgeSpeed = (750 * (1 / 60)) / this.zoom;
-			if (this.mouseScreenX < edgeMargin) {
-				this.cameraX -= edgeSpeed;
-			} else if (this.mouseScreenX > screenW - edgeMargin) {
-				this.cameraX += edgeSpeed;
-			}
-			if (this.mouseScreenY < edgeMargin) {
-				this.cameraY -= edgeSpeed;
-			} else if (this.mouseScreenY > screenH - edgeMargin) {
-				this.cameraY += edgeSpeed;
-			}
+		// Edge scrolling for RTS mouse navigation + smooth keyboard panning (WASD / Arrows)
+		const edgeMargin = 25;
+		const allowEdge = this.isMouseOverCanvas && !this.isPanning && !this.isBoxSelecting;
+		const edgeInput: CameraPanInput = {
+			left: allowEdge && this.mouseScreenX < edgeMargin,
+			right: allowEdge && this.mouseScreenX > screenW - edgeMargin,
+			up: allowEdge && this.mouseScreenY < edgeMargin,
+			down: allowEdge && this.mouseScreenY > screenH - edgeMargin
+		};
+
+		if (this.isPanning) {
+			this.camVelX = 0;
+			this.camVelY = 0;
+		} else {
+			const next = stepSmoothCameraPan(
+				{ x: this.cameraX, y: this.cameraY, vx: this.camVelX, vy: this.camVelY },
+				this.keyPan,
+				edgeInput,
+				this.zoom,
+				dt
+			);
+			this.cameraX = next.x;
+			this.cameraY = next.y;
+			this.camVelX = next.vx;
+			this.camVelY = next.vy;
 		}
 
 		const halfW = screenW / (2 * this.zoom);
@@ -422,6 +506,14 @@ export class ArenaRenderer {
 			this.cameraY = ARENA_HEIGHT / 2;
 		} else {
 			this.cameraY = Math.max(halfH, Math.min(ARENA_HEIGHT - halfH, this.cameraY));
+		}
+
+		if (
+			resized ||
+			Math.abs(this.cameraX - prevCamX) > 0.01 ||
+			Math.abs(this.cameraY - prevCamY) > 0.01
+		) {
+			this.onCameraChange?.(this.cameraX, this.cameraY, this.zoom);
 		}
 
 		this.rootContainer.scale.set(this.zoom);
@@ -1048,6 +1140,16 @@ export class ArenaRenderer {
 	public destroy(): void {
 		if (this.isDestroyed) return;
 		this.isDestroyed = true;
+
+		if (this.resizeObserver) {
+			this.resizeObserver.disconnect();
+			this.resizeObserver = null;
+		}
+
+		if (typeof window !== 'undefined' && this.windowResizeHandler) {
+			window.removeEventListener('resize', this.windowResizeHandler);
+			this.windowResizeHandler = null;
+		}
 
 		if (typeof window !== 'undefined' && this.windowMouseUpHandler) {
 			window.removeEventListener('mouseup', this.windowMouseUpHandler);

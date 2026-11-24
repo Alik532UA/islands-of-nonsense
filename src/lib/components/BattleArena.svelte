@@ -114,11 +114,96 @@
 	let unlistenAudio: (() => void) | null = null;
 	let peerOnline = $state(false);
 	let networkNotice = $state<string | null>(null);
+	const heldPanKeys = new Set<string>();
+
+	function syncKeyboardPan() {
+		const allowWasd = settings.controlPreset === 'islands-of-nonsense';
+		renderer?.setKeyboardPan({
+			left: heldPanKeys.has('ArrowLeft') || (allowWasd && heldPanKeys.has('a')),
+			right: heldPanKeys.has('ArrowRight') || (allowWasd && heldPanKeys.has('d')),
+			up: heldPanKeys.has('ArrowUp') || (allowWasd && heldPanKeys.has('w')),
+			down: heldPanKeys.has('ArrowDown') || (allowWasd && heldPanKeys.has('s'))
+		});
+	}
+
+	function clearHeldPanKeys() {
+		if (heldPanKeys.size === 0) return;
+		heldPanKeys.clear();
+		renderer?.clearKeyboardPan();
+	}
+
+	$effect(() => {
+		if (
+			isForgeOpen ||
+			isCommanderOpen ||
+			isShopOpen ||
+			isSettingsOpen ||
+			isPauseMenuOpen ||
+			isLeaveModalOpen ||
+			isHelpOpen ||
+			matchPhase !== 'BATTLE'
+		) {
+			clearHeldPanKeys();
+		}
+	});
+
+	function handleKeyUp(e: KeyboardEvent) {
+		const letter = shortcutLetter(e);
+		let changed = false;
+		if (heldPanKeys.delete(e.key)) changed = true;
+		if (letter && heldPanKeys.delete(letter)) changed = true;
+		if (changed) {
+			syncKeyboardPan();
+		}
+	}
 
 	function handleKeyDown(e: KeyboardEvent) {
 		if (isEditableTarget(e.target)) return;
 
 		const letter = shortcutLetter(e);
+		const isModalBlocking =
+			isForgeOpen ||
+			isCommanderOpen ||
+			isShopOpen ||
+			isSettingsOpen ||
+			isPauseMenuOpen ||
+			isLeaveModalOpen ||
+			isHelpOpen ||
+			matchPhase !== 'BATTLE';
+
+		if (
+			(e.key === 'ArrowLeft' ||
+				e.key === 'ArrowRight' ||
+				e.key === 'ArrowUp' ||
+				e.key === 'ArrowDown') &&
+			!isModalBlocking &&
+			!e.ctrlKey &&
+			!e.altKey &&
+			!e.metaKey
+		) {
+			e.preventDefault();
+			if (!heldPanKeys.has(e.key)) {
+				heldPanKeys.add(e.key);
+				syncKeyboardPan();
+			}
+			return;
+		}
+
+		if (
+			settings.controlPreset === 'islands-of-nonsense' &&
+			(letter === 'w' || letter === 'a' || letter === 's' || letter === 'd') &&
+			!isModalBlocking &&
+			!e.ctrlKey &&
+			!e.altKey &&
+			!e.metaKey
+		) {
+			e.preventDefault();
+			if (!heldPanKeys.has(letter)) {
+				heldPanKeys.add(letter);
+				syncKeyboardPan();
+			}
+			return;
+		}
 
 		if (e.key === 'Escape') {
 			if (isRadialOpen) {
@@ -218,15 +303,7 @@
 			) {
 				isHelpOpen = !isHelpOpen;
 			} else if (settings.controlPreset === 'islands-of-nonsense') {
-				if (letter === 'w' && !e.ctrlKey && !e.altKey) {
-					renderer?.setCamera(cameraX, cameraY - 240);
-				} else if (letter === 'a' && !e.ctrlKey && !e.altKey) {
-					renderer?.setCamera(cameraX - 240, cameraY);
-				} else if (letter === 's' && !e.ctrlKey && !e.altKey) {
-					renderer?.setCamera(cameraX, cameraY + 240);
-				} else if (letter === 'd' && !e.ctrlKey && !e.altKey) {
-					renderer?.setCamera(cameraX + 240, cameraY);
-				} else if (letter === 'e' && !e.repeat && !e.ctrlKey && !e.altKey) {
+				if (letter === 'e' && !e.repeat && !e.ctrlKey && !e.altKey) {
 					toggleRadial('army');
 				} else if (letter === 'r' && !e.repeat && !e.ctrlKey && !e.altKey) {
 					toggleRadial('special');
@@ -303,16 +380,6 @@
 						}
 					}
 				}
-			}
-
-			if (e.key === 'ArrowLeft') {
-				renderer?.setCamera(cameraX - 240, cameraY);
-			} else if (e.key === 'ArrowRight') {
-				renderer?.setCamera(cameraX + 240, cameraY);
-			} else if (e.key === 'ArrowUp') {
-				renderer?.setCamera(cameraX, cameraY - 240);
-			} else if (e.key === 'ArrowDown') {
-				renderer?.setCamera(cameraX, cameraY + 240);
 			}
 		}
 	}
@@ -829,30 +896,28 @@
 	}
 </script>
 
-<svelte:window onkeydown={handleKeyDown} />
+<svelte:window onkeydown={handleKeyDown} onkeyup={handleKeyUp} onblur={clearHeldPanKeys} />
 
-<main class="h-screen w-screen overflow-hidden flex flex-col bg-slate-950 select-none">
-	<!-- Top Bar: Castles HP, Gold, Income Timer, Controls -->
-	<TopBar
-		{sim}
-		{uiTick}
-		isOnline={Boolean(matchSync)}
-		onOpenForge={() => (isForgeOpen = true)}
-		onOpenCommander={() => (isCommanderOpen = true)}
-		onOpenShop={() => (isShopOpen = true)}
-		onOpenSettings={openPauseMenu}
-		onBeforeLeave={handleRequestLeave}
-	/>
-
+<main class="h-screen w-screen overflow-hidden relative bg-slate-950 select-none">
 	<!-- Arena Viewport: Fullscreen Responsive with Pan & Zoom -->
-	<div
-		class="flex-1 w-full h-full bg-[#090d16] flex items-center justify-center relative overflow-hidden"
-	>
+	<div class="w-full h-full bg-[#090d16] flex items-center justify-center relative overflow-hidden">
 		<canvas bind:this={canvasEl} class="w-full h-full block cursor-crosshair select-none"></canvas>
+
+		<!-- Top Modular HUD Docks -->
+		<TopBar
+			{sim}
+			{uiTick}
+			isOnline={Boolean(matchSync)}
+			onOpenForge={() => (isForgeOpen = true)}
+			onOpenCommander={() => (isCommanderOpen = true)}
+			onOpenShop={() => (isShopOpen = true)}
+			onOpenSettings={openPauseMenu}
+			onBeforeLeave={handleRequestLeave}
+		/>
 
 		{#if matchSync}
 			<div
-				class="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-md shadow-md border pointer-events-none {peerOnline
+				class="absolute top-16 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-md shadow-md border pointer-events-none {peerOnline
 					? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-300'
 					: 'bg-amber-950/80 border-amber-500/40 text-amber-300'}"
 			>
@@ -1070,9 +1135,65 @@
 	/>
 
 	<!-- Modals -->
-	<ForgeModal {sim} bind:isOpen={isForgeOpen} />
+	<ForgeModal
+		{sim}
+		{uiTick}
+		localTeam={matchSync?.localTeam ?? 'west'}
+		bind:isOpen={isForgeOpen}
+		onBuildForge={() => {
+			selectedBuildingId = 'cg11_forge';
+			selectedPlacedBuildingId = null;
+			selectedUnitId = null;
+			selectedEntity = { type: 'worker' };
+			isForgeOpen = false;
+			uiTick = sim.stateVersion;
+		}}
+		onUpgradeForge={(type) => {
+			if (matchSync) {
+				void matchSync.dispatch('UPGRADE_FORGE', { forgeType: type });
+				sound.playForgeUpgrade();
+				uiTick = sim.stateVersion;
+			} else {
+				const ok = sim.upgradeForge('west', type);
+				if (ok) {
+					sound.playForgeUpgrade();
+					uiTick = sim.stateVersion;
+				} else {
+					sound.playErrorResource();
+				}
+			}
+		}}
+	/>
 	<CommanderModal {sim} bind:isOpen={isCommanderOpen} />
-	<ShopModal {sim} bind:isOpen={isShopOpen} />
+	<ShopModal
+		{sim}
+		{uiTick}
+		localTeam={matchSync?.localTeam ?? 'west'}
+		bind:isOpen={isShopOpen}
+		onBuildShop={() => {
+			selectedBuildingId = 'cg10_shop';
+			selectedPlacedBuildingId = null;
+			selectedUnitId = null;
+			selectedEntity = { type: 'worker' };
+			isShopOpen = false;
+			uiTick = sim.stateVersion;
+		}}
+		onBuyItem={(itemId) => {
+			if (matchSync) {
+				void matchSync.dispatch('BUY_ITEM', { itemId });
+				sound.playCoin();
+				uiTick = sim.stateVersion;
+			} else {
+				const success = sim.buyCastleItem('west', itemId);
+				if (success) {
+					sound.playCoin();
+					uiTick = sim.stateVersion;
+				} else {
+					sound.playErrorResource();
+				}
+			}
+		}}
+	/>
 	<VictoryModal
 		{sim}
 		{uiTick}

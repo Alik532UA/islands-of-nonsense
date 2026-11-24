@@ -926,6 +926,271 @@ export class TerrainRenderer {
 	}
 
 	/**
+	 * Renders a continuous bridge deck section (weathered planks, iron strapping,
+	 * stone parapet balustrades) cleanly shared between intact and broken stubs.
+	 */
+	private drawBridgeSpan(
+		g: Graphics,
+		startX: number,
+		spanW: number,
+		topY: number,
+		bridgeH: number,
+		breakSide: 'none' | 'right' | 'left'
+	): void {
+		// 1. 2.5D Drop Shadow on water
+		g.roundRect(startX + 14, topY + 22, spanW, bridgeH, breakSide === 'none' ? 14 : 8);
+		g.fill({ color: 0x000000, alpha: 0.46 });
+
+		// 2. Heavy Timber Decking
+		g.roundRect(startX, topY, spanW, bridgeH, breakSide === 'none' ? 12 : 6);
+		g.fill({ color: 0x78350f });
+		g.stroke({ color: 0x451a03, width: 3 });
+
+		// Wood deck planks with alternating weathered grain
+		let plankIndex = 0;
+		for (let bx = startX + 18; bx < startX + spanW - 8; bx += 24) {
+			if (plankIndex % 3 === 0) {
+				g.rect(bx - 16, topY + 6, 16, bridgeH - 12);
+				g.fill({ color: 0x6b2e0d, alpha: 0.45 });
+			}
+			g.beginPath();
+			g.moveTo(bx, topY + 8);
+			g.lineTo(bx, topY + bridgeH - 8);
+			g.stroke({ color: 0x451a03, width: 2.5 });
+			plankIndex++;
+		}
+
+		// Iron reinforcement strapping along edges
+		g.rect(startX, topY + 10, spanW, 4);
+		g.fill({ color: 0x334155 });
+		g.rect(startX, topY + bridgeH - 14, spanW, 4);
+		g.fill({ color: 0x334155 });
+
+		// 3. Carved Stone Parapet Balustrades (shortened slightly before a collapse fracture)
+		const paraLeft = breakSide === 'left' ? startX + 18 : startX - 12;
+		const paraRight = breakSide === 'right' ? startX + spanW - 18 : startX + spanW + 12;
+		const paraW = Math.max(40, paraRight - paraLeft);
+
+		g.roundRect(paraLeft, topY - 14, paraW, 18, 5);
+		g.fill({ color: 0x94a3b8 });
+		g.stroke({ color: 0x334155, width: 2 });
+
+		g.roundRect(paraLeft, topY + bridgeH - 4, paraW, 18, 5);
+		g.fill({ color: 0x64748b });
+		g.stroke({ color: 0x334155, width: 2 });
+
+		for (let px = paraLeft + 24; px < paraRight - 10; px += 45) {
+			g.beginPath();
+			g.moveTo(px, topY - 14);
+			g.lineTo(px, topY + 4);
+			g.stroke({ color: 0x475569, width: 1.5 });
+
+			g.beginPath();
+			g.moveTo(px, topY + bridgeH - 4);
+			g.lineTo(px, topY + bridgeH + 14);
+			g.stroke({ color: 0x334155, width: 1.5 });
+		}
+	}
+
+	/**
+	 * Draws ragged splintered timber beams, chipped stone parapet ends, and a medieval
+	 * wooden barrier at one side of a collapsed bridge span.
+	 */
+	private drawCollapsedBridgeEdge(
+		g: Graphics,
+		breakX: number,
+		topY: number,
+		bridgeH: number,
+		dir: 1 | -1
+	): void {
+		const laneY = topY + bridgeH / 2;
+
+		// Exposed splintered longitudinal stringers & snapped deck planks jutting over the chasm
+		const plankOffsets = [14, 32, 52, 74, 96, 118, 138, 154];
+		for (let i = 0; i < plankOffsets.length; i++) {
+			const py = topY + plankOffsets[i];
+			const jutLen = 14 + ((i * 19 + 7) % 34);
+			const plankThickness = i % 2 === 0 ? 11 : 8;
+			const startEdge = breakX - dir * 10;
+			const tipX = breakX + dir * jutLen;
+			const minX = Math.min(startEdge, tipX);
+			const w = Math.abs(tipX - startEdge);
+
+			// Beam drop shadow in water
+			g.rect(minX + 6, py + 12, w, plankThickness);
+			g.fill({ color: 0x000000, alpha: 0.35 });
+
+			// Darkened weathered plank body
+			g.poly([
+				startEdge,
+				py - plankThickness / 2,
+				tipX,
+				py - plankThickness / 2 + (i % 2 === 0 ? 2 : -1),
+				tipX - dir * 5,
+				py + plankThickness / 2,
+				startEdge,
+				py + plankThickness / 2
+			]);
+			g.fill({ color: i % 2 === 0 ? 0x6b2e0d : 0x78350f });
+			g.stroke({ color: 0x451a03, width: 1.5 });
+
+			// Freshly snapped lighter inner wood grain at broken tip
+			g.rect(tipX - dir * 5, py - plankThickness / 2 + 2, 4, Math.max(3, plankThickness - 4));
+			g.fill({ color: 0xd97706, alpha: 0.75 });
+		}
+
+		// Shattered stone parapet end caps (cracked masonry beside the break)
+		for (const py of [topY - 14, topY + bridgeH - 4]) {
+			const capX = breakX - dir * 20;
+			g.poly([capX, py, capX + dir * 14, py + 3, capX + dir * 6, py + 14, capX, py + 18]);
+			g.fill({ color: 0x64748b });
+			g.stroke({ color: 0x334155, width: 1.5 });
+		}
+
+		// Medieval wooden sawhorse barricades across the deck warning troops of the collapse
+		const barX = breakX - dir * 40;
+		for (const by of [laneY - 46, laneY + 46]) {
+			// Shadow under barricade
+			g.ellipse(barX + 4, by + 6, 14, 18);
+			g.fill({ color: 0x000000, alpha: 0.32 });
+
+			// Crossed X timber beams
+			g.beginPath();
+			g.moveTo(barX - 10, by - 16);
+			g.lineTo(barX + 10, by + 16);
+			g.stroke({ color: 0x451a03, width: 7 });
+			g.beginPath();
+			g.moveTo(barX - 10, by - 16);
+			g.lineTo(barX + 10, by + 16);
+			g.stroke({ color: 0x92400e, width: 4 });
+
+			g.beginPath();
+			g.moveTo(barX + 10, by - 16);
+			g.lineTo(barX - 10, by + 16);
+			g.stroke({ color: 0x451a03, width: 7 });
+			g.beginPath();
+			g.moveTo(barX + 10, by - 16);
+			g.lineTo(barX - 10, by + 16);
+			g.stroke({ color: 0x92400e, width: 4 });
+
+			// Iron center bolt
+			g.circle(barX, by, 3.5);
+			g.fill({ color: 0x94a3b8 });
+		}
+
+		// Taut warning rope & horizontal crossbar linking the two sawhorses
+		g.beginPath();
+		g.moveTo(barX, laneY - 58);
+		g.lineTo(barX, laneY + 58);
+		g.stroke({ color: 0x451a03, width: 6 });
+		g.beginPath();
+		g.moveTo(barX, laneY - 58);
+		g.lineTo(barX, laneY + 58);
+		g.stroke({ color: 0xb45309, width: 3.5 });
+
+		// Small red-amber warning lantern hanging on the center of the barrier
+		g.circle(barX, laneY, 7);
+		g.fill({ color: 0x7f1d1d });
+		g.stroke({ color: 0x451a03, width: 1.5 });
+		g.circle(barX, laneY, 4);
+		g.fill({ color: 0xf97316 });
+	}
+
+	/**
+	 * Draws sunken masonry, half-submerged boulders, water ripples, and drifting timber
+	 * wreckage in the collapsed center chasm of a broken bridge.
+	 */
+	private drawCollapsedChasmDebris(
+		g: Graphics,
+		centerX: number,
+		laneY: number,
+		gapW: number,
+		bridgeH: number
+	): void {
+		// 1. Sunken central stone pier foundation silhouette beneath the strait water
+		g.roundRect(centerX - gapW * 0.42, laneY - bridgeH * 0.45, gapW * 0.84, bridgeH * 0.9, 18);
+		g.fill({ color: 0x091e32, alpha: 0.55 });
+
+		// 2. Half-submerged broken masonry & stone boulders with upstream whitewater foam
+		const masonryRocks = [
+			{ x: centerX - 58, y: laneY - 38, w: 38, h: 28 },
+			{ x: centerX + 52, y: laneY - 26, w: 42, h: 30 },
+			{ x: centerX - 18, y: laneY + 34, w: 46, h: 32 },
+			{ x: centerX + 68, y: laneY + 42, w: 32, h: 24 },
+			{ x: centerX - 78, y: laneY + 26, w: 28, h: 22 }
+		];
+		for (const rock of masonryRocks) {
+			// Water foam wake upstream (north rim)
+			g.ellipse(rock.x, rock.y - rock.h * 0.3, rock.w * 0.65, rock.h * 0.45);
+			g.stroke({ color: 0x7dd3fc, width: 2.5, alpha: 0.4 });
+
+			// Submerged base shadow
+			g.ellipse(rock.x + 2, rock.y + 4, rock.w * 0.56, rock.h * 0.5);
+			g.fill({ color: 0x0f172a, alpha: 0.6 });
+
+			// Angular rock / broken bridge stone block
+			g.poly([
+				rock.x - rock.w * 0.48,
+				rock.y,
+				rock.x - rock.w * 0.2,
+				rock.y - rock.h * 0.46,
+				rock.x + rock.w * 0.38,
+				rock.y - rock.h * 0.36,
+				rock.x + rock.w * 0.5,
+				rock.y + rock.h * 0.14,
+				rock.x + rock.w * 0.12,
+				rock.y + rock.h * 0.46,
+				rock.x - rock.w * 0.36,
+				rock.y + rock.h * 0.36
+			]);
+			g.fill({ color: 0x475569 });
+			g.stroke({ color: 0x1e293b, width: 2 });
+
+			// Top weathered highlight facet
+			g.poly([
+				rock.x - rock.w * 0.2,
+				rock.y - rock.h * 0.4,
+				rock.x + rock.w * 0.32,
+				rock.y - rock.h * 0.3,
+				rock.x + rock.w * 0.14,
+				rock.y,
+				rock.x - rock.w * 0.3,
+				rock.y - rock.h * 0.05
+			]);
+			g.fill({ color: 0x64748b, alpha: 0.85 });
+		}
+
+		// 3. Floating broken planks & driftwood beams bobbing in the gap
+		const floatingPlanks = [
+			{ x: centerX - 10, y: laneY - 52, len: 52, thick: 11, tilt: 7 },
+			{ x: centerX + 26, y: laneY - 6, len: 46, thick: 10, tilt: -6 },
+			{ x: centerX - 48, y: laneY + 8, len: 40, thick: 9, tilt: 5 },
+			{ x: centerX + 12, y: laneY + 58, len: 48, thick: 10, tilt: -8 }
+		];
+		for (const p of floatingPlanks) {
+			// Water ripple around drifting wood
+			g.ellipse(p.x, p.y, p.len * 0.56, p.thick * 1.15);
+			g.stroke({ color: 0xbae6fd, width: 1.5, alpha: 0.35 });
+
+			// Skewed plank polygon
+			const hx = p.len / 2;
+			const hy = p.thick / 2;
+			g.poly([
+				p.x - hx,
+				p.y - hy - p.tilt,
+				p.x + hx,
+				p.y - hy + p.tilt,
+				p.x + hx,
+				p.y + hy + p.tilt,
+				p.x - hx,
+				p.y + hy - p.tilt
+			]);
+			g.fill({ color: 0x78350f });
+			g.stroke({ color: 0x451a03, width: 1.8 });
+		}
+	}
+
+	/**
 	 * Draws 2.5D fairytale bridge with heavy stone piers, weathered timber decking,
 	 * carved stone balustrades, and glowing magical lanterns.
 	 */
@@ -942,57 +1207,28 @@ export class TerrainRenderer {
 		const leftX = centerX - halfW;
 		const topY = laneY - bridgeH / 2;
 
+		const drawLanternPair = (lx: number, lit: boolean) => {
+			for (const ly of [topY - 16, topY + bridgeH + 16]) {
+				g.circle(lx, ly, 9);
+				g.fill({ color: lit ? 0xfbbf24 : 0x334155 });
+				if (lit) {
+					g.circle(lx, ly, 5);
+					g.fill({ color: 0xffffff });
+				} else {
+					g.stroke({ color: 0x1e293b, width: 1.5 });
+				}
+			}
+		};
+
 		if (!isBroken) {
 			// 1. Heavy stone foundation pier in riverbed
 			g.roundRect(centerX - 280, topY + 16, 560, bridgeH + 36, 24);
 			g.fill({ color: 0x1e293b, alpha: 0.9 });
 
-			// 2. 2.5D Drop Shadow on water
-			g.roundRect(leftX + 16, topY + 24, bridgeW, bridgeH, 14);
-			g.fill({ color: 0x000000, alpha: 0.48 });
+			// 2. Deck, planks, iron strapping & stone balustrades
+			this.drawBridgeSpan(g, leftX, bridgeW, topY, bridgeH, 'none');
 
-			// 3. Arched Heavy Timber Decking
-			g.roundRect(leftX, topY, bridgeW, bridgeH, 12);
-			g.fill({ color: 0x78350f });
-			g.stroke({ color: 0x451a03, width: 3.5 });
-
-			// Wood deck planks
-			for (let bx = leftX + 18; bx < leftX + bridgeW - 10; bx += 24) {
-				g.beginPath();
-				g.moveTo(bx, topY + 8);
-				g.lineTo(bx, topY + bridgeH - 8);
-				g.stroke({ color: 0x451a03, width: 2.5 });
-			}
-
-			// Iron reinforcement strapping along edges
-			g.rect(leftX, topY + 10, bridgeW, 4);
-			g.fill({ color: 0x334155 });
-			g.rect(leftX, topY + bridgeH - 14, bridgeW, 4);
-			g.fill({ color: 0x334155 });
-
-			// 4. Carved Stone Parapet Balustrades (Top & Bottom)
-			g.roundRect(leftX - 12, topY - 14, bridgeW + 24, 18, 6);
-			g.fill({ color: 0x94a3b8 });
-			g.stroke({ color: 0x334155, width: 2 });
-
-			// Parapet stone blocks
-			for (let px = leftX + 10; px < leftX + bridgeW; px += 45) {
-				g.beginPath();
-				g.moveTo(px, topY - 14);
-				g.lineTo(px, topY + 4);
-				g.stroke({ color: 0x475569, width: 1.5 });
-
-				g.beginPath();
-				g.moveTo(px, topY + bridgeH - 4);
-				g.lineTo(px, topY + bridgeH + 14);
-				g.stroke({ color: 0x334155, width: 1.5 });
-			}
-
-			g.roundRect(leftX - 12, topY + bridgeH - 4, bridgeW + 24, 18, 6);
-			g.fill({ color: 0x64748b });
-			g.stroke({ color: 0x334155, width: 2 });
-
-			// 5. Glowing Magical Stone Lanterns
+			// 3. Glowing Magical Stone Lanterns
 			const lanternXCoords = [
 				leftX + 30,
 				leftX + 230,
@@ -1002,104 +1238,31 @@ export class TerrainRenderer {
 				leftX + bridgeW - 30
 			];
 			for (const lx of lanternXCoords) {
-				g.circle(lx, topY - 16, 9);
-				g.fill({ color: 0xfbbf24 });
-				g.circle(lx, topY - 16, 5);
-				g.fill({ color: 0xffffff });
-
-				g.circle(lx, topY + bridgeH + 16, 9);
-				g.fill({ color: 0xfbbf24 });
-				g.circle(lx, topY + bridgeH + 16, 5);
-				g.fill({ color: 0xffffff });
+				drawLanternPair(lx, true);
 			}
 		} else {
 			// BROKEN / COLLAPSED FANTASY BRIDGE
-			const stubW = bridgeW * 0.35;
+			const stubW = bridgeW * 0.34;
 			const gapW = bridgeW - stubW * 2;
-
-			// Left Broken Stub
-			g.roundRect(leftX + 12, topY + 20, stubW, bridgeH, 8);
-			g.fill({ color: 0x000000, alpha: 0.45 });
-			g.roundRect(leftX, topY, stubW, bridgeH, 8);
-			g.fill({ color: 0x78350f });
-			g.stroke({ color: 0x451a03, width: 3 });
-
-			// Splintered timber beams on left break
 			const leftBreakX = leftX + stubW;
-			for (let ty = topY + 12; ty < topY + bridgeH - 12; ty += 18) {
-				const jaggedLen = 14 + ((ty * 7) % 28);
-				g.poly([leftBreakX - 6, ty, leftBreakX + jaggedLen, ty + 6, leftBreakX - 6, ty + 12]);
-				g.fill({ color: 0x92400e });
-				g.stroke({ color: 0x451a03, width: 1.5 });
-			}
-
-			// Right Broken Stub
 			const rightStartX = leftX + stubW + gapW;
-			g.roundRect(rightStartX + 12, topY + 20, stubW, bridgeH, 8);
-			g.fill({ color: 0x000000, alpha: 0.45 });
-			g.roundRect(rightStartX, topY, stubW, bridgeH, 8);
-			g.fill({ color: 0x78350f });
-			g.stroke({ color: 0x451a03, width: 3 });
 
-			// Splintered timber beams on right break
-			for (let ty = topY + 12; ty < topY + bridgeH - 12; ty += 18) {
-				const jaggedLen = 14 + ((ty * 11) % 28);
-				g.poly([rightStartX + 6, ty, rightStartX - jaggedLen, ty + 6, rightStartX + 6, ty + 12]);
-				g.fill({ color: 0x92400e });
-				g.stroke({ color: 0x451a03, width: 1.5 });
-			}
+			// 1. Submerged ruined central pier & drifting wreckage in river gap
+			this.drawCollapsedChasmDebris(g, centerX, laneY, gapW, bridgeH);
 
-			// Center Chasm with turbulent foaming rapids
-			g.ellipse(centerX, laneY, gapW / 2 + 12, bridgeH / 2 + 16);
-			g.fill({ color: 0x0284c7, alpha: 0.95 });
+			// 2. Left & Right surviving bridge stubs with authentic planks & stone balustrades
+			this.drawBridgeSpan(g, leftX, stubW, topY, bridgeH, 'right');
+			this.drawBridgeSpan(g, rightStartX, stubW, topY, bridgeH, 'left');
 
-			for (let fy = topY - 15; fy <= topY + bridgeH + 15; fy += 25) {
-				g.ellipse(centerX + Math.sin(fy * 0.1) * 20, fy, gapW / 2 - 10, 8);
-				g.stroke({ color: 0xe0f2fe, width: 3, alpha: 0.85 });
-			}
+			// 3. Splintered timber beams, shattered parapet ends & medieval barricades
+			this.drawCollapsedBridgeEdge(g, leftBreakX, topY, bridgeH, 1);
+			this.drawCollapsedBridgeEdge(g, rightStartX, topY, bridgeH, -1);
 
-			// Submerged stone boulders
-			const rocks = [
-				{ x: centerX - 35, y: laneY - 25, r: 20 },
-				{ x: centerX + 40, y: laneY + 20, r: 24 },
-				{ x: centerX, y: laneY + 45, r: 18 }
-			];
-			for (const r of rocks) {
-				g.beginPath();
-				g.circle(r.x, r.y, r.r);
-				g.fill({ color: 0x475569 });
-				g.stroke({ color: 0x1e293b, width: 2.5 });
-				g.beginPath();
-				g.circle(r.x, r.y - 4, r.r + 4);
-				g.stroke({ color: 0xa5f3fc, width: 2, alpha: 0.75 });
-			}
-
-			// Danger Hazard Markers
-			g.beginPath();
-			g.rect(leftBreakX - 30, laneY - 25, 20, 50);
-			g.fill({ color: 0xef4444 });
-			g.stroke({ color: 0xfee2e2, width: 2 });
-			g.beginPath();
-			g.moveTo(leftBreakX - 28, laneY - 20);
-			g.lineTo(leftBreakX - 12, laneY + 20);
-			g.stroke({ color: 0xffffff, width: 2.5 });
-			g.beginPath();
-			g.moveTo(leftBreakX - 12, laneY - 20);
-			g.lineTo(leftBreakX - 28, laneY + 20);
-			g.stroke({ color: 0xffffff, width: 2.5 });
-
-			g.beginPath();
-			g.rect(rightStartX + 10, laneY - 25, 20, 50);
-			g.fill({ color: 0xef4444 });
-			g.stroke({ color: 0xfee2e2, width: 2 });
-			g.beginPath();
-			g.moveTo(rightStartX + 12, laneY - 20);
-			g.lineTo(rightStartX + 28, laneY + 20);
-			g.stroke({ color: 0xffffff, width: 2.5 });
-			g.beginPath();
-			g.moveTo(rightStartX + 28, laneY - 20);
-			g.lineTo(rightStartX + 12, laneY + 20);
-			g.stroke({ color: 0xffffff, width: 2.5 });
+			// 4. Surviving bridgehead lanterns (outer pairs stay lit; edge pair near collapse flickers/dim)
+			drawLanternPair(leftX + 30, true);
+			drawLanternPair(leftX + 230, true);
+			drawLanternPair(leftX + bridgeW - 230, true);
+			drawLanternPair(leftX + bridgeW - 30, true);
 		}
 	}
 }

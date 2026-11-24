@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Simulation } from '../engine/simulation';
+	import { BUILDINGS_MAP } from '../engine/gameData';
 	import { CASTLE_ITEMS_LIST } from '../engine/items';
 	import { sound } from '../services/audio';
 	import { shortcutDigit, isEditableTarget } from '../hotkeys/hotkeys';
@@ -9,6 +10,7 @@
 		Shield,
 		Crown,
 		Coins,
+		TreePine,
 		X,
 		Zap,
 		Wrench,
@@ -17,27 +19,98 @@
 		Sparkles,
 		ShieldAlert,
 		Swords,
-		AlertTriangle
+		Hammer,
+		CheckCircle2,
+		Clock
 	} from 'lucide-svelte';
 
 	let {
 		sim,
-		isOpen = $bindable(false)
+		uiTick = 0,
+		localTeam = 'west',
+		isOpen = $bindable(false),
+		onBuildShop,
+		onBuyItem
 	}: {
 		sim: Simulation;
+		uiTick?: number;
+		localTeam?: 'west' | 'east';
 		isOpen: boolean;
+		onBuildShop?: () => void;
+		onBuyItem?: (itemId: string) => void;
 	} = $props();
 
-	let player = $derived(sim.players.west);
-	let hasShop = $derived(sim.hasShop('west'));
+	let player = $derived(
+		uiTick >= 0 ? (localTeam === 'east' ? sim.players.east : sim.players.west) : sim.players.west
+	);
+	let playerGold = $derived(Math.floor(player.gold));
+	let playerLumber = $derived(Math.floor(player.lumber ?? 0));
+	let hasShop = $derived(uiTick >= 0 ? sim.hasShop(localTeam, player) : false);
+	let pendingShop = $derived(
+		uiTick >= 0
+			? sim.buildings.find(
+					(b) =>
+						b.team === localTeam &&
+						b.specialType === 'shop' &&
+						b.isUnderConstruction &&
+						(!b.playerId || b.playerId === player.id)
+				) || null
+			: null
+	);
+
+	const shopDef = BUILDINGS_MAP.get('cg10_shop');
+	const shopGoldCost = shopDef?.gold_cost ?? 50;
+	const shopLumberCost = shopDef?.lumber_cost ?? 50;
+	let canAffordBuildShop = $derived(playerGold >= shopGoldCost && playerLumber >= shopLumberCost);
+
+	let visibleItems = $derived(
+		CASTLE_ITEMS_LIST.filter(
+			(it) => (it.id !== 'I00B' && it.id !== 'I00N') || sim.gameModeConfig?.nuclearWarheads
+		)
+	);
+
+	const ITEM_THEMES: Record<string, { icon: typeof Wand2; badgeClass: string }> = {
+		I00E: { icon: Scroll, badgeClass: 'bg-purple-500/15 border-purple-500/40 text-purple-300' },
+		I00F: { icon: Shield, badgeClass: 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300' },
+		I004: { icon: Crown, badgeClass: 'bg-amber-500/15 border-amber-500/40 text-amber-300' },
+		I001: { icon: Swords, badgeClass: 'bg-orange-500/15 border-orange-500/40 text-orange-300' },
+		I000: { icon: Wand2, badgeClass: 'bg-indigo-500/15 border-indigo-500/40 text-indigo-300' },
+		I005: { icon: Zap, badgeClass: 'bg-rose-500/15 border-rose-500/40 text-rose-300' },
+		I009: { icon: Wrench, badgeClass: 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300' },
+		I00A: { icon: Sparkles, badgeClass: 'bg-sky-500/15 border-sky-500/40 text-sky-300' },
+		I008: { icon: ShieldAlert, badgeClass: 'bg-stone-500/15 border-stone-400/40 text-stone-200' },
+		I003: { icon: Volume2, badgeClass: 'bg-blue-500/15 border-blue-500/40 text-blue-300' }
+	};
+
+	function getItemTheme(id: string) {
+		return (
+			ITEM_THEMES[id] ?? {
+				icon: Wand2,
+				badgeClass: 'bg-violet-500/15 border-violet-500/40 text-violet-300'
+			}
+		);
+	}
 
 	function handleBuy(itemId: string) {
-		const success = sim.buyCastleItem('west', itemId);
+		if (onBuyItem) {
+			onBuyItem(itemId);
+			return;
+		}
+		const success = sim.buyCastleItem(localTeam, itemId);
 		if (success) {
 			sound.playCoin();
 		} else {
 			sound.playErrorResource();
 		}
+	}
+
+	function handleBuildShop() {
+		if (!canAffordBuildShop) {
+			sound.playErrorResource();
+			return;
+		}
+		sound.playWorkerSelect();
+		onBuildShop?.();
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -48,8 +121,8 @@
 			return;
 		}
 		const num = shortcutDigit(e);
-		if (num !== null && num >= 1 && num <= CASTLE_ITEMS_LIST.length) {
-			const item = CASTLE_ITEMS_LIST[num - 1];
+		if (num !== null && num >= 1 && num <= visibleItems.length) {
+			const item = visibleItems[num - 1];
 			if (item) handleBuy(item.id);
 		}
 	}
@@ -58,148 +131,258 @@
 <svelte:window onkeydown={handleKeydown} />
 
 {#if isOpen}
-	<div class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+	<div
+		role="dialog"
+		aria-modal="true"
+		aria-label="Магазин Замку"
+		class="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4 select-none"
+		data-testid="shop-modal"
+	>
 		<div
-			class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl p-6 text-white relative"
+			class="bg-[#121622] border-2 border-[#8c7456] rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl text-white relative overflow-hidden"
+			style="box-shadow: 0 16px 48px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,215,140,0.12);"
 		>
-			<!-- Close button -->
-			<button
-				onclick={() => (isOpen = false)}
-				class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
-			>
-				<X class="w-5 h-5" />
-			</button>
-
 			<!-- Header -->
-			<div class="flex items-center gap-3 mb-4 border-b border-slate-800 pb-3 flex-shrink-0">
-				<div class="p-2.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
-					<ShoppingBag class="w-6 h-6 text-emerald-400" />
+			<div
+				class="flex items-center justify-between gap-3 px-5 py-3.5 bg-gradient-to-b from-[#1b2130] to-[#121622] border-b border-[#544738]/80 shrink-0"
+			>
+				<div class="flex items-center gap-3 min-w-0">
+					<div
+						class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-950/40 border-2 border-emerald-600/60 flex items-center justify-center shadow-inner shrink-0"
+					>
+						<ShoppingBag class="w-5 h-5 text-emerald-400" />
+					</div>
+					<div class="min-w-0">
+						<h2
+							class="text-base sm:text-lg font-extrabold tracking-wide text-emerald-300 uppercase"
+						>
+							Магазин Замку
+						</h2>
+						<p class="text-[11px] text-slate-400 truncate">
+							Стратегічні припаси та екстрений захист вашої цитаделі ({visibleItems.length}
+							предметів)
+						</p>
+					</div>
 				</div>
-				<div>
-					<h2 class="text-xl font-bold text-emerald-300">Магазин Замку</h2>
-					<p class="text-xs text-slate-400">
-						Стратегічні припаси та екстрений захист вашої цитаделі ({CASTLE_ITEMS_LIST.length} предметів)
-					</p>
+
+				<div class="flex items-center gap-2 shrink-0">
+					<!-- Live Resources Pill -->
+					<div
+						class="hidden sm:flex items-center gap-2.5 bg-[#0a0d14] border border-[#3b3226] rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold shadow-inner"
+					>
+						<span class="flex items-center gap-1 text-amber-400" title="Доступне золото">
+							<Coins class="w-3.5 h-3.5 text-amber-400" />
+							{playerGold}
+						</span>
+						<span class="h-3 w-px bg-[#3b3226]"></span>
+						<span
+							class="flex items-center gap-1 {playerLumber > 0
+								? 'text-emerald-300'
+								: 'text-slate-500'}"
+							title="Доступна деревина"
+						>
+							<TreePine
+								class="w-3.5 h-3.5 {playerLumber > 0 ? 'text-emerald-400' : 'text-slate-500'}"
+							/>
+							{playerLumber}
+						</span>
+					</div>
+
+					<button
+						type="button"
+						onclick={() => (isOpen = false)}
+						data-testid="shop-close-btn"
+						class="w-9 h-9 rounded-lg bg-[#181d28] hover:bg-[#242c3d] border border-[#3b3226] hover:border-amber-500/70 text-slate-300 hover:text-amber-300 flex items-center justify-center transition cursor-pointer active:scale-95"
+						aria-label="Закрити Магазин"
+					>
+						<X class="w-4 h-4" />
+					</button>
 				</div>
 			</div>
 
-			{#if !hasShop}
-				<div
-					class="mb-3 px-3 py-2 bg-amber-950/80 border border-amber-500/80 rounded-xl text-amber-200 text-xs flex items-center gap-2 shrink-0"
-				>
-					<AlertTriangle class="w-4 h-4 text-amber-400 shrink-0" />
-					<span>
-						Магазин ще не збудовано! Накажіть робітникові збудувати Магазин (50 золота, 50
-						деревини).
-					</span>
-				</div>
-			{/if}
-
-			<!-- Item Cards (Scrollable) -->
-			<div class="flex flex-col gap-2.5 overflow-y-auto pr-1.5 flex-1 min-h-0">
-				{#each CASTLE_ITEMS_LIST.filter((it) => (it.id !== 'I00B' && it.id !== 'I00N') || sim.gameModeConfig?.nuclearWarheads) as item, _idx}
-					{@const cd = sim.getItemCooldown('west', item.id)}
-					{@const canAfford = player.gold >= item.cost}
-					{@const canBuy = hasShop && canAfford && cd <= 0}
+			<!-- Body -->
+			<div class="p-4 flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto">
+				<!-- Shop Construction Status Banner -->
+				{#if pendingShop}
+					{@const pct = Math.max(
+						0,
+						Math.min(100, Math.round((pendingShop.hp / (pendingShop.maxHp || 1)) * 100))
+					)}
 					<div
-						class="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 flex items-center justify-between gap-3.5 hover:border-slate-700 transition"
+						class="px-3.5 py-2 bg-[#1b1610] border border-amber-500/60 rounded-xl flex items-center justify-between gap-3 shrink-0 shadow-inner"
+						data-testid="shop-building-progress"
 					>
-						<div class="flex items-center gap-3 min-w-0">
-							<div
-								class="p-2.5 rounded-lg border flex-shrink-0 {item.id === 'I00E'
-									? 'bg-purple-500/10 border-purple-500/30 text-purple-400'
-									: item.id === 'I00F'
-										? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400'
-										: item.id === 'I004'
-											? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-											: item.id === 'I001'
-												? 'bg-orange-500/10 border-orange-500/30 text-orange-400'
-												: item.id === 'I005'
-													? 'bg-red-500/10 border-red-500/30 text-red-400'
-													: item.id === 'I009'
-														? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-														: item.id === 'I00A'
-															? 'bg-sky-500/10 border-sky-500/30 text-sky-400'
-															: item.id === 'I008'
-																? 'bg-stone-500/10 border-stone-500/30 text-stone-300'
-																: item.id === 'I003'
-																	? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
-																	: item.id === 'I000'
-																		? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400'
-																		: 'bg-violet-500/10 border-violet-500/30 text-violet-400'}"
-							>
-								{#if item.id === 'I00E'}
-									<Scroll class="w-5 h-5" />
-								{:else if item.id === 'I00F'}
-									<Shield class="w-5 h-5" />
-								{:else if item.id === 'I004'}
-									<Crown class="w-5 h-5" />
-								{:else if item.id === 'I001'}
-									<Swords class="w-5 h-5" />
-								{:else if item.id === 'I000'}
-									<Wand2 class="w-5 h-5" />
-								{:else if item.id === 'I005'}
-									<Zap class="w-5 h-5" />
-								{:else if item.id === 'I009'}
-									<Wrench class="w-5 h-5" />
-								{:else if item.id === 'I00A'}
-									<Sparkles class="w-5 h-5" />
-								{:else if item.id === 'I008'}
-									<ShieldAlert class="w-5 h-5" />
-								{:else if item.id === 'I003'}
-									<Volume2 class="w-5 h-5" />
-								{:else}
-									<Wand2 class="w-5 h-5" />
-								{/if}
-							</div>
-							<div class="min-w-0">
-								<div class="flex items-center gap-2">
-									<h3 class="font-bold text-sm text-slate-100 truncate">{item.nameUk}</h3>
-									<span class="text-[10px] text-slate-500 hidden sm:inline">({item.nameEn})</span>
-								</div>
-								<p class="text-xs text-slate-400 mt-0.5 leading-snug">
-									{item.descriptionUk}
-								</p>
-								<div class="text-[11px] text-slate-500 mt-1">
-									Кулдаун: <span class="text-slate-300 font-mono">{item.cooldown}с</span>
-								</div>
-							</div>
+						<div class="flex items-center gap-2 min-w-0">
+							<Hammer class="w-4 h-4 text-amber-400 animate-pulse shrink-0" />
+							<span class="text-xs font-bold text-amber-200">
+								Магазин зводиться робітником ({pct}%)
+							</span>
 						</div>
-
-						<div class="flex flex-col items-end gap-1.5 flex-shrink-0">
-							<div class="flex items-center gap-1 font-bold text-amber-400 text-sm">
-								<Coins class="w-4 h-4 text-amber-400" />
-								<span class="font-mono">{item.cost}</span>
-							</div>
-
-							<button
-								onclick={() => handleBuy(item.id)}
-								disabled={!canBuy}
-								class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer {canBuy
-									? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/30'
-									: 'bg-slate-800 text-slate-500 border border-slate-700/50 cursor-not-allowed opacity-60'}"
-							>
-								{#if cd > 0}
-									<span class="font-mono">{Math.ceil(cd)}с</span>
-								{:else}
-									<span>Купити</span>
-								{/if}
-							</button>
+						<div class="w-28 h-2 bg-[#0a0d14] rounded-full overflow-hidden border border-[#544738]">
+							<div
+								class="h-full bg-gradient-to-r from-amber-600 to-yellow-400 transition-all duration-150"
+								style="width: {pct}%"
+							></div>
 						</div>
 					</div>
-				{/each}
+				{:else if !hasShop}
+					<div
+						class="px-3.5 py-2.5 bg-gradient-to-r from-[#211811] via-[#1a1615] to-[#131825] border border-[#8c7456]/80 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0 shadow-inner"
+						data-testid="shop-not-built-banner"
+					>
+						<div class="flex items-center gap-2.5 min-w-0">
+							<div
+								class="p-1.5 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-400 shrink-0"
+							>
+								<ShoppingBag class="w-4 h-4" />
+							</div>
+							<div class="min-w-0">
+								<div class="text-xs font-bold text-amber-200">Магазин ще не збудовано</div>
+								<div class="text-[11px] text-slate-400">
+									Зведіть Магазин на базі, щоб купувати припаси та артефакти
+								</div>
+							</div>
+						</div>
+
+						{#if onBuildShop}
+							<button
+								type="button"
+								onclick={handleBuildShop}
+								disabled={!canAffordBuildShop}
+								data-testid="shop-build-btn"
+								class="px-3.5 py-1.5 rounded-xl border-2 text-xs font-bold transition flex items-center justify-center gap-2 shrink-0 cursor-pointer active:scale-95 {canAffordBuildShop
+									? 'bg-gradient-to-b from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 border-emerald-300 text-slate-950 shadow-lg shadow-emerald-950/60'
+									: 'bg-[#181d28] border-[#3b3226] text-slate-400 opacity-75 cursor-not-allowed'}"
+								title={canAffordBuildShop
+									? 'Вибрати місце на мапі для будівництва Магазину'
+									: `Потрібно ${shopGoldCost} золота та ${shopLumberCost} деревини`}
+							>
+								<Hammer class="w-3.5 h-3.5 shrink-0" />
+								<span>Будувати</span>
+								<span
+									class="flex items-center gap-1.5 font-mono text-[11px] pl-1.5 border-l {canAffordBuildShop
+										? 'border-slate-900/30'
+										: 'border-slate-700'}"
+								>
+									<span
+										class="flex items-center gap-0.5 {playerGold >= shopGoldCost
+											? ''
+											: 'text-rose-400'}"
+									>
+										<Coins class="w-3 h-3" />
+										{shopGoldCost}
+									</span>
+									<span
+										class="flex items-center gap-0.5 {playerLumber >= shopLumberCost
+											? ''
+											: 'text-rose-400'}"
+									>
+										<TreePine class="w-3 h-3" />
+										{shopLumberCost}
+									</span>
+								</span>
+							</button>
+						{/if}
+					</div>
+				{:else}
+					<div
+						class="px-3 py-1.5 bg-emerald-950/35 border border-emerald-600/40 rounded-lg text-emerald-300 text-[11px] font-semibold flex items-center gap-2 shrink-0"
+						data-testid="shop-active-banner"
+					>
+						<CheckCircle2 class="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+						<span>Магазин активний — припаси готові до використання</span>
+					</div>
+				{/if}
+
+				<!-- Multi-column Item Grid (Fits cleanly without scrolling on desktop) -->
+				<div
+					class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5"
+					data-testid="shop-items-grid"
+				>
+					{#each visibleItems as item, idx}
+						{@const theme = getItemTheme(item.id)}
+						{@const Icon = theme.icon}
+						{@const cd = sim.getItemCooldown(localTeam, item.id)}
+						{@const canAfford = playerGold >= item.cost}
+						{@const canBuy = hasShop && canAfford && cd <= 0}
+
+						<div
+							class="bg-[#0b0e16] border border-[#3b3226] hover:border-[#544738] rounded-xl p-3 flex flex-col justify-between gap-2.5 transition shadow-inner"
+							data-testid="shop-item-card-{item.id}"
+						>
+							<div class="flex items-start gap-2.5 min-w-0">
+								<div
+									class="relative w-10 h-10 rounded-lg border flex items-center justify-center shrink-0 {theme.badgeClass}"
+								>
+									<Icon class="w-4 h-4" />
+									{#if idx < 9}
+										<span
+											class="absolute -top-1.5 -left-1.5 px-1 rounded bg-[#0a0d14] border border-[#544738] text-[9px] font-mono font-bold text-amber-300 leading-tight"
+										>
+											{idx + 1}
+										</span>
+									{/if}
+								</div>
+
+								<div class="min-w-0 flex-1">
+									<h3 class="font-bold text-xs sm:text-[13px] text-slate-100 leading-tight">
+										{item.nameUk}
+									</h3>
+									<p class="text-[11px] text-slate-400 mt-1 leading-snug line-clamp-2">
+										{item.descriptionUk}
+									</p>
+								</div>
+							</div>
+
+							<div class="flex items-center justify-between gap-2 pt-1.5 border-t border-[#1e2433]">
+								<span class="flex items-center gap-1 text-[10px] text-slate-400 font-mono">
+									<Clock class="w-3 h-3 text-slate-500" />
+									{item.cooldown}с
+								</span>
+
+								<button
+									type="button"
+									onclick={() => handleBuy(item.id)}
+									disabled={!canBuy}
+									data-testid="shop-buy-btn-{item.id}"
+									class="px-3 py-1.5 rounded-lg border text-[11px] font-bold transition flex items-center gap-1.5 cursor-pointer active:scale-95 {canBuy
+										? 'bg-gradient-to-b from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 border-emerald-400 text-white shadow'
+										: 'bg-[#171c29] border-[#293142] text-slate-500 cursor-not-allowed'}"
+								>
+									{#if cd > 0}
+										<span class="font-mono text-amber-400">{Math.ceil(cd)}с</span>
+									{:else}
+										<span>Купити</span>
+										<span
+											class="flex items-center gap-0.5 font-mono pl-1.5 border-l {canBuy
+												? 'border-white/25 text-amber-200'
+												: canAfford
+													? 'border-slate-700 text-amber-400/70'
+													: 'border-slate-700 text-rose-400'}"
+										>
+											<Coins class="w-3 h-3" />
+											{item.cost}
+										</span>
+									{/if}
+								</button>
+							</div>
+						</div>
+					{/each}
+				</div>
 			</div>
 
 			<!-- Footer -->
 			<div
-				class="mt-4 pt-3 border-t border-slate-800 flex justify-between items-center text-xs text-slate-500 flex-shrink-0"
+				class="px-5 py-2.5 border-t border-[#544738]/60 bg-[#0d1019] flex justify-between items-center text-[11px] text-slate-400 shrink-0"
 			>
-				<span>
-					Гаряча клавіша: <kbd
-						class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300 font-mono"
+				<span class="flex items-center gap-1.5">
+					Гаряча клавіша:
+					<kbd
+						class="px-1.5 py-0.5 bg-[#181d28] border border-[#544738] rounded text-amber-300 font-mono"
 					>
 						B
 					</kbd>
+					<span class="hidden sm:inline text-slate-500">• 1–9 швидка покупка</span>
 				</span>
 				<span>ESC щоб закрити</span>
 			</div>

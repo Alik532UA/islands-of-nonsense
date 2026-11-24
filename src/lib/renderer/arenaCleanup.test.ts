@@ -62,15 +62,26 @@ describe('ArenaRenderer Lifecycle Teardown & Memory Cleanup (PERFORMANCE)', () =
 
 		try {
 			const renderer = createRenderer();
-			// Simulate registering handler
+			const disconnectSpy = vi.fn();
+			// Simulate registering handlers
 			(renderer as unknown as { windowMouseUpHandler: () => void }).windowMouseUpHandler = () => {};
+			(renderer as unknown as { windowResizeHandler: () => void }).windowResizeHandler = () => {};
+			(renderer as unknown as { resizeObserver: { disconnect: () => void } }).resizeObserver = {
+				disconnect: disconnectSpy
+			};
 
 			renderer.destroy();
 
 			expect(removeSpy).toHaveBeenCalledWith('mouseup', expect.any(Function));
+			expect(removeSpy).toHaveBeenCalledWith('resize', expect.any(Function));
+			expect(disconnectSpy).toHaveBeenCalledTimes(1);
 			expect(
 				(renderer as unknown as { windowMouseUpHandler: unknown }).windowMouseUpHandler
 			).toBeNull();
+			expect(
+				(renderer as unknown as { windowResizeHandler: unknown }).windowResizeHandler
+			).toBeNull();
+			expect((renderer as unknown as { resizeObserver: unknown }).resizeObserver).toBeNull();
 		} finally {
 			if (origWindow) {
 				vi.stubGlobal('window', origWindow);
@@ -95,5 +106,51 @@ describe('ArenaRenderer Lifecycle Teardown & Memory Cleanup (PERFORMANCE)', () =
 		expect(
 			(renderer as unknown as { eastCastleTextures: unknown[] }).eastCastleTextures
 		).toHaveLength(0);
+	});
+
+	it('resizes renderer to host parentElement dimensions when window resizes instead of staying locked to old canvas bounds', () => {
+		const sim = new Simulation({ botDifficulty: 1, startGold: 600, isRunning: true });
+		const cameraUpdates: { x: number; y: number; zoom: number }[] = [];
+		const renderer = new ArenaRenderer({
+			canvas: {} as HTMLCanvasElement,
+			sim,
+			graphicsStyle: '2.5d',
+			onTileClick: () => {},
+			onSelectEntity: () => {},
+			getSelectedEntity: () => null,
+			getSelectedBuildingDefId: () => null,
+			getSelectedPlacedBuildingId: () => null,
+			onCameraChange: (x, y, zoom) => cameraUpdates.push({ x, y, zoom })
+		});
+
+		const resizeSpy = vi.fn((w: number, h: number) => {
+			mockApp.screen.width = w;
+			mockApp.screen.height = h;
+		});
+		const mockApp = {
+			screen: { width: 1000, height: 600 },
+			renderer: { resolution: 1, resize: resizeSpy },
+			ticker: { deltaMS: 16.67 }
+		};
+		const mockCanvas = {
+			style: { width: '1000px', height: '600px' },
+			getBoundingClientRect: () => ({ width: 1000, height: 600 }),
+			parentElement: {
+				getBoundingClientRect: () => ({ width: 1920, height: 1080 })
+			}
+		};
+
+		(renderer as unknown as { app: unknown }).app = mockApp;
+		(renderer as unknown as { canvasEl: unknown }).canvasEl = mockCanvas;
+		(renderer as unknown as { updateCamera: (c?: boolean) => void }).updateCamera = vi.fn();
+		(renderer as unknown as { render: () => void }).render = vi.fn();
+
+		const resized = renderer.syncViewportSize(true);
+
+		expect(resized).toBe(true);
+		expect(resizeSpy).toHaveBeenCalledWith(1920, 1080);
+		expect(mockCanvas.style.width).toBe('100%');
+		expect(mockCanvas.style.height).toBe('100%');
+		expect(cameraUpdates.length).toBe(1);
 	});
 });

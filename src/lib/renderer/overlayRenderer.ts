@@ -436,14 +436,22 @@ export class OverlayRenderer {
 		}
 
 		// C. Bridge Magical Stone Lanterns with Viewport Culling
-		const bridgeLanes = [TOP_LANE_Y, MID_LANE_Y, BOTTOM_LANE_Y];
-		const lanternXs = [3080, 3300, 3550, 3750, 3950, 4120];
-		for (const ly of bridgeLanes) {
-			if (bounds && (ly < bounds.minY - 150 || ly > bounds.maxY + 150)) continue;
-			for (const lx of lanternXs) {
+		const bridgeLanes: { name: 'top' | 'mid' | 'bottom'; y: number }[] = [
+			{ name: 'top', y: TOP_LANE_Y },
+			{ name: 'mid', y: MID_LANE_Y },
+			{ name: 'bottom', y: BOTTOM_LANE_Y }
+		];
+		const lanternXs = [3070, 3270, 3460, 3740, 3930, 4130];
+		for (const lane of bridgeLanes) {
+			if (bounds && (lane.y < bounds.minY - 150 || lane.y > bounds.maxY + 150)) continue;
+			const laneBroken = this.sim.brokenBridge === lane.name;
+			for (let i = 0; i < lanternXs.length; i++) {
+				// Center pair collapsed with the bridge span when broken
+				if (laneBroken && (i === 2 || i === 3)) continue;
+				const lx = lanternXs[i];
 				if (bounds && (lx < bounds.minX - 120 || lx > bounds.maxX + 120)) continue;
-				this.drawSoftRadialLight(g, lx, ly - 95, 95, 0xfbbf24, maxIntensity * 0.65);
-				this.drawSoftRadialLight(g, lx, ly + 95, 95, 0xfbbf24, maxIntensity * 0.65);
+				this.drawSoftRadialLight(g, lx, lane.y - 101, 95, 0xfbbf24, maxIntensity * 0.65);
+				this.drawSoftRadialLight(g, lx, lane.y + 101, 95, 0xfbbf24, maxIntensity * 0.65);
 			}
 		}
 
