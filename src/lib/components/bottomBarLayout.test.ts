@@ -119,30 +119,30 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 		}
 	});
 
-	it('formats minimap controls with balanced margins and bottom alignment', () => {
-		// Minimap must be h-[142px] and layout controls under map canvas
+	it('formats minimap controls with seamless top alignment and zero dark stripe gaps', () => {
+		// Minimap must be h-[142px] and have zero top padding to eliminate any dark border stripe
 		expect(minimapSrc).toMatch(/h-\[142px\]/);
-		expect(minimapSrc).toMatch(/pt-1/);
+		expect(minimapSrc).not.toContain('pt-1');
 	});
 
-	it('configures modern minimap with 4 in-canvas corner controls over water regions and collapsible state', () => {
-		// Top-left: terrain detail over top-left water corner
+	it('configures modern minimap with 4 in-canvas corner controls flush in the corners and collapsible state', () => {
+		// Top-left: terrain detail flush in top-left corner
 		expect(minimapSrc).toContain('data-testid="minimap-terrain-btn"');
-		expect(minimapSrc).toContain('absolute top-1.5 left-1.5');
+		expect(minimapSrc).toContain('absolute top-0 left-0');
 		expect(minimapSrc).toContain('title="Перемкнути детальність рельєфу"');
 
-		// Bottom-left: ally colors over bottom-left water corner
+		// Bottom-left: ally colors flush in bottom-left corner
 		expect(minimapSrc).toContain('data-testid="minimap-ally-colors-btn"');
-		expect(minimapSrc).toContain('absolute bottom-1.5 left-1.5');
+		expect(minimapSrc).toContain('absolute bottom-0 left-0');
 		expect(minimapSrc).toContain('title="Кольори союзників (Зелений / Ворожий)"');
 
-		// Top-right: drag handle over top-right water corner
+		// Top-right: drag handle flush in top-right corner
 		expect(minimapSrc).toContain('data-testid="minimap-drag-btn"');
-		expect(minimapSrc).toContain('absolute top-1.5 right-1.5');
+		expect(minimapSrc).toContain('absolute top-0 right-0');
 
-		// Bottom-right: collapse arrow down over bottom-right water corner
+		// Bottom-right: collapse arrow down flush in bottom-right corner
 		expect(minimapSrc).toContain('data-testid="minimap-collapse-btn"');
-		expect(minimapSrc).toContain('absolute bottom-1.5 right-1.5');
+		expect(minimapSrc).toContain('absolute bottom-0 right-0');
 
 		// Collapsed state: expand button with arrow up
 		expect(minimapSrc).toContain('data-testid="minimap-expand-btn"');
@@ -151,6 +151,23 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 		// Adheres flush to the bottom edge without bottom border gap
 		expect(minimapSrc).toContain('rounded-t-xl rounded-b-none');
 		expect(minimapSrc).toContain('border-b-0');
+	});
+
+	it('reproduces true 3:1 arena proportions and authentic island geometry on the minimap', () => {
+		// Minimap uses exact 3:1 aspect ratio matching 7200x2400 arena
+		expect(minimapSrc).toContain('const MAP_WIDTH = 420;');
+		expect(minimapSrc).toContain('const MAP_HEIGHT = 140;');
+		expect(minimapSrc).toContain('w-[424px]');
+
+		// True procedural island geometry with cape promontories instead of plain circles
+		expect(minimapSrc).toContain('createIslandPolygon');
+		expect(minimapSrc).toContain('tracePolygon');
+		expect(minimapSrc).toContain('westIslandPoly');
+		expect(minimapSrc).toContain('eastIslandPoly');
+
+		// Cobblestone fan-out highway network
+		expect(minimapSrc).toContain('WEST_ROAD_MERGE_X');
+		expect(minimapSrc).toContain('EAST_ROAD_MERGE_X');
 	});
 
 	it('unifies combat unit inspection in hud-stats-panel with zero duplicates and avoids redundant command card', () => {
