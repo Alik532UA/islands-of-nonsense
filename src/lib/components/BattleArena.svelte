@@ -21,7 +21,7 @@
 	import HotkeysHelpModal from '$lib/components/HotkeysHelpModal.svelte';
 	import A11yAnnouncer from '$lib/components/ui/A11yAnnouncer.svelte';
 	import { battleAnnouncer } from '$lib/services/battleAnnouncer.svelte';
-	import { ZoomIn, ZoomOut, Compass, HelpCircle, Dices, CircleSlash, Check } from 'lucide-svelte';
+	import { ZoomIn, ZoomOut, Compass, HelpCircle, Dices, CircleSlash } from 'lucide-svelte';
 	import { storage } from '$lib/services/storage';
 	import { createKeySequence, listenForSequences } from '$lib/debug/keySequence';
 	import { shortcutLetter, isEditableTarget } from '$lib/hotkeys/hotkeys';
@@ -69,7 +69,7 @@
 	let matchPhase = $state<MatchPhase>('SETUP');
 	let countdownSeconds = $state(10);
 	let countdownTimer: ReturnType<typeof setInterval> | null = null;
-	let chosenWestRace = $state<string>('Люди');
+	let chosenWestRace = $state<string | null>(null);
 
 	let isForgeOpen = $state(false);
 	let isCommanderOpen = $state(false);
@@ -743,10 +743,7 @@
 			sound.playHorn();
 		} else {
 			matchPhase = 'COUNTDOWN';
-			chosenWestRace =
-				sim.players.west.race && sim.players.west.race !== 'in_game'
-					? sim.players.west.race
-					: 'Люди';
+			chosenWestRace = null;
 			countdownSeconds = 15;
 			if (countdownTimer) clearInterval(countdownTimer);
 			countdownTimer = setInterval(() => {
@@ -823,9 +820,8 @@
 			clearInterval(countdownTimer);
 			countdownTimer = null;
 		}
-		if (chosenWestRace) {
-			sim.setPlayerRace('west', chosenWestRace);
-		}
+		const finalRace = chosenWestRace || 'Люди';
+		sim.setPlayerRace('west', finalRace);
 		matchPhase = 'BATTLE';
 		sim.isRunning = true;
 		sound.playHorn();
@@ -885,10 +881,7 @@
 					<button
 						type="button"
 						onclick={() => selectRaceAndStart('random')}
-						class="w-full py-2.5 px-4 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 shadow-lg {chosenWestRace ===
-						'random'
-							? 'bg-purple-600/30 border-purple-400 text-purple-200 ring-2 ring-purple-400/50 font-bold shadow-lg'
-							: 'bg-gradient-to-r from-purple-950/70 via-purple-900/50 to-[#181e2b] border-purple-500/60 hover:border-purple-400 hover:bg-purple-900/60 text-purple-200 active:scale-[0.99]'}"
+						class="w-full py-2.5 px-4 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 shadow-lg bg-gradient-to-r from-purple-950/70 via-purple-900/50 to-[#181e2b] border-purple-500/60 hover:border-purple-400 hover:bg-purple-900/60 text-purple-200 active:scale-[0.99]"
 					>
 						<div class="flex items-center gap-2.5">
 							<Dices class="w-6 h-6 text-purple-300 shrink-0" />
@@ -918,7 +911,6 @@
 							{@const isOpponentOccupied =
 								sim.gameModeConfig.uniqueRaces && sim.players.east.race === raceDef.race}
 							{@const isDisabled = isBanned || isOpponentOccupied}
-							{@const isSelected = chosenWestRace === raceDef.race}
 							<button
 								type="button"
 								disabled={isDisabled}
@@ -929,9 +921,7 @@
 								}}
 								class="p-2.5 rounded-xl border text-center transition flex flex-col items-center justify-center gap-1 {isDisabled
 									? 'bg-slate-900/40 border-red-950/60 text-slate-500 opacity-50 cursor-not-allowed'
-									: isSelected
-										? 'bg-amber-600/30 border-amber-400 text-amber-200 ring-2 ring-amber-400/50 font-bold shadow-lg cursor-pointer'
-										: 'bg-[#181e2b] border-[#3b3226] hover:border-amber-400/80 hover:bg-[#202738] text-slate-200 hover:text-white cursor-pointer active:scale-95'}"
+									: 'bg-[#181e2b] border-[#3b3226] hover:border-amber-400/80 hover:bg-[#202738] text-slate-200 hover:text-white cursor-pointer active:scale-95'}"
 							>
 								<span class="text-xs font-bold {isBanned ? 'line-through text-red-400/80' : ''}">
 									{raceDef.race}
@@ -945,13 +935,6 @@
 									</span>
 								{:else if isOpponentOccupied}
 									<span class="text-[9px] text-amber-400/80 font-bold">Зайнято (-ur)</span>
-								{:else if isSelected}
-									<span
-										class="text-[9px] text-emerald-400 font-bold flex items-center justify-center gap-1"
-									>
-										<Check class="w-3 h-3 text-emerald-400 shrink-0" />
-										<span>Обрано</span>
-									</span>
 								{/if}
 							</button>
 						{/each}

@@ -29,6 +29,11 @@ describe('Race Selection Countdown Overlay Invariants', () => {
 		expect(arenaContent).toContain("selectRaceAndStart('random')");
 	});
 
+	it('does NOT display misleading pre-selected "Обрано" label before user makes a choice', () => {
+		expect(arenaContent).not.toContain('<span>Обрано</span>');
+		expect(arenaContent).not.toContain('Обрано');
+	});
+
 	it('provides 1-click start on selecting any race', () => {
 		expect(arenaContent).toContain('selectRaceAndStart(raceDef.race)');
 		expect(arenaContent).toContain('finishCountdownAndStartBattle()');
