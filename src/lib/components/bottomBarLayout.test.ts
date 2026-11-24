@@ -131,8 +131,8 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 		// Subtle rounded-[3px] border corners (reduced rounding by half)
 		expect(commandCardSrc).toContain('rounded-[3px]');
 
-		// Archetype icon in top-left corner
-		expect(commandCardSrc).toContain('absolute top-1 left-1');
+		// Archetype icon in top-left corner (docked to top-0.5 left-0.5 to prevent overlapping centered text)
+		expect(commandCardSrc).toContain('absolute top-0.5 left-0.5');
 
 		// Top-right corner hotkey badge without square brackets
 		expect(commandCardSrc).toContain('absolute top-0 right-0');

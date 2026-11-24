@@ -717,27 +717,29 @@
 						: ''}) {hotkey}"
 				>
 					<!-- Archetype icon in top-left corner -->
-					<div class="absolute top-1 left-1 flex items-center justify-center pointer-events-none">
+					<div
+						class="absolute top-0.5 left-0.5 flex items-center justify-center pointer-events-none"
+					>
 						{#if bld.specialType === 'shop'}
-							<ShoppingBag class="w-3.5 h-3.5 text-amber-300 drop-shadow" />
+							<ShoppingBag class="w-3 h-3 text-amber-300 drop-shadow" />
 						{:else if bld.specialType === 'forge'}
-							<Hammer class="w-3.5 h-3.5 text-cyan-300 drop-shadow" />
+							<Hammer class="w-3 h-3 text-cyan-300 drop-shadow" />
 						{:else if bld.id === 'h008'}
-							<Package class="w-3.5 h-3.5 text-amber-400 drop-shadow" />
+							<Package class="w-3 h-3 text-amber-400 drop-shadow" />
 						{:else if isLeg}
-							<Crown class="w-3.5 h-3.5 text-amber-300 drop-shadow animate-pulse" />
+							<Crown class="w-3 h-3 text-amber-300 drop-shadow animate-pulse" />
 						{:else if bld.specialType === 'tower'}
-							<ShieldAlert class="w-3.5 h-3.5 text-cyan-400 drop-shadow" />
+							<ShieldAlert class="w-3 h-3 text-cyan-400 drop-shadow" />
 						{:else if bld.specialType === 'special' || bld.specialType === 'repair' || bld.specialType === 'recycler'}
-							<Zap class="w-3.5 h-3.5 text-purple-400 drop-shadow" />
+							<Zap class="w-3 h-3 text-purple-400 drop-shadow" />
 						{:else if bUnit?.flying}
-							<Feather class="w-3.5 h-3.5 text-sky-300 drop-shadow" />
+							<Feather class="w-3 h-3 text-sky-300 drop-shadow" />
 						{:else if bUnit?.attack_type === 'pierce'}
-							<Crosshair class="w-3.5 h-3.5 text-emerald-400 drop-shadow" />
+							<Crosshair class="w-3 h-3 text-emerald-400 drop-shadow" />
 						{:else if bUnit?.attack_type === 'magic'}
-							<Sparkles class="w-3.5 h-3.5 text-indigo-300 drop-shadow" />
+							<Sparkles class="w-3 h-3 text-indigo-300 drop-shadow" />
 						{:else}
-							<Swords class="w-3.5 h-3.5 text-amber-200 drop-shadow" />
+							<Swords class="w-3 h-3 text-amber-200 drop-shadow" />
 						{/if}
 					</div>
 
@@ -804,8 +806,10 @@
 						: 'bg-slate-900/60 border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
 					title="Наказати робітникові відбудувати зламаний міст (50 деревини)"
 				>
-					<div class="absolute top-1 left-1 flex items-center justify-center pointer-events-none">
-						<Wrench class="w-3.5 h-3.5 text-amber-400 drop-shadow" />
+					<div
+						class="absolute top-0.5 left-0.5 flex items-center justify-center pointer-events-none"
+					>
+						<Wrench class="w-3 h-3 text-amber-400 drop-shadow" />
 					</div>
 					<!-- Bottom-right: amount then TreePine icon -->
 					<div
@@ -834,9 +838,9 @@
 				class="relative w-[61px] h-[39px] rounded-[3px] border border-rose-800/80 bg-gradient-to-b from-rose-950/80 to-[#180a0a] hover:from-rose-900 hover:to-rose-950 text-rose-300 flex items-center justify-center overflow-hidden transition cursor-pointer shadow group touch-manipulation"
 				title="Скасувати / Очистити вибір (Esc / B)"
 			>
-				<div class="absolute top-1 left-1 flex items-center justify-center pointer-events-none">
+				<div class="absolute top-0.5 left-0.5 flex items-center justify-center pointer-events-none">
 					<CircleSlash
-						class="w-3.5 h-3.5 text-rose-500 drop-shadow-[0_0_4px_rgba(244,63,94,0.6)] group-hover:scale-110 transition-transform"
+						class="w-3 h-3 text-rose-500 drop-shadow-[0_0_4px_rgba(244,63,94,0.6)] group-hover:scale-110 transition-transform"
 					/>
 				</div>
 				<span
