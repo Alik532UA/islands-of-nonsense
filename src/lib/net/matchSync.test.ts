@@ -381,4 +381,66 @@ describe('MatchSync', () => {
 		syncA.dispose();
 		syncB.dispose();
 	});
+
+	it('reconstructs identical simulation state deterministically on mid-match reload catch-up', async () => {
+		const liveSimA = new Simulation({ botDifficulty: 0, startGold: 1000, seed: 7777 });
+		const liveSimB = new Simulation({ botDifficulty: 0, startGold: 1000, seed: 7777 });
+		liveSimA.isRunning = true;
+		liveSimB.isRunning = true;
+
+		const syncA = new MatchSync({
+			sim: liveSimA,
+			transport: room.transport({ as: 'player_a' }),
+			localUid: 'player_a',
+			localTeam: 'west',
+			commandLeadTicks: 3
+		});
+		const syncB = new MatchSync({
+			sim: liveSimB,
+			transport: room.transport({ as: 'player_b' }),
+			localUid: 'player_b',
+			localTeam: 'east',
+			commandLeadTicks: 3
+		});
+
+		await syncA.dispatch('BUILD', { buildingType: 'h05X', x: 25, y: 20 });
+		for (let i = 0; i < 60; i++) {
+			syncA.flushTick(liveSimA.tick);
+			syncB.flushTick(liveSimB.tick);
+			liveSimA.step(1 / 60);
+			liveSimB.step(1 / 60);
+		}
+		await syncB.dispatch('BUILD', { buildingType: 'h008', x: 25, y: 20 });
+		for (let i = 0; i < 120; i++) {
+			syncA.flushTick(liveSimA.tick);
+			syncB.flushTick(liveSimB.tick);
+			liveSimA.step(1 / 60);
+			liveSimB.step(1 / 60);
+		}
+		await syncA.broadcastChecksum();
+		expect(syncA.getSimChecksum()).toBe(syncB.getSimChecksum());
+
+		// Peer B reloads browser mid-match and joins fresh Simulation(tick 0)
+		const reloadedSimB = new Simulation({ botDifficulty: 0, startGold: 1000, seed: 7777 });
+		reloadedSimB.isRunning = true;
+		let reloadDesyncs = 0;
+		const reloadedSyncB = new MatchSync({
+			sim: reloadedSimB,
+			transport: room.transport({ as: 'player_b' }),
+			localUid: 'player_b',
+			localTeam: 'east',
+			commandLeadTicks: 3,
+			onDesync: () => {
+				reloadDesyncs++;
+			}
+		});
+
+		expect(reloadedSimB.tick).toBe(liveSimA.tick);
+		expect(reloadedSyncB.getSimChecksum()).toBe(syncA.getSimChecksum());
+		expect(reloadDesyncs).toBe(0);
+
+		syncA.dispose();
+		syncB.dispose();
+		reloadedSyncB.dispose();
+	});
 });

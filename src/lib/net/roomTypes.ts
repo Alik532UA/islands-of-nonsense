@@ -63,6 +63,7 @@ export interface RoomInfo {
 	seed: number;
 	status: RoomStatus;
 	hostUid: string;
+	leadSeq?: string;
 	createdAt: number;
 	config: RoomConfig;
 	aliveAt?: number;

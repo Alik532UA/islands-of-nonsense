@@ -15,6 +15,7 @@
 	} from 'lucide-svelte';
 	import { connect } from '$lib/net/firebase';
 	import { liveNet } from '$lib/net/roomNet';
+	import { probeNetProblem } from '$lib/utils/netProblem';
 	import { sendChatMessage } from '$lib/net/rtdbRoom';
 	import { removeFromLobby } from '$lib/net/lobby';
 	import type { Member, RoomInfo, RoomTransport } from '$lib/net/roomTypes';
@@ -46,6 +47,7 @@
 	let localUid = $state<string | null>(null);
 	let copied = $state(false);
 	let starting = $state(false);
+	let claimingHost = $state(false);
 	let chatOpen = $state(false);
 	let chatInput = $state('');
 	let messages = $state<ChatMessage[]>([]);
@@ -55,6 +57,14 @@
 
 	let isLobby = $derived(roomInfo?.status === 'lobby');
 	let isPlaying = $derived(roomInfo?.status === 'playing');
+	let isEffectiveHost = $derived(Boolean(roomInfo ? roomInfo.hostUid === localUid : isHost));
+	let hostOnline = $derived(roomInfo ? onlineUids.includes(roomInfo.hostUid) : true);
+	let canClaimHost = $derived(
+		!isEffectiveHost &&
+			Boolean(roomInfo) &&
+			!hostOnline &&
+			members.some((m) => m.uid === localUid && (isPlaying || m.role === 'player'))
+	);
 	let peerOnlineCount = $derived(onlineUids.filter((id) => id !== localUid).length);
 	let localMember = $derived(members.find((m) => m.uid === localUid) ?? null);
 
@@ -127,7 +137,9 @@
 						.slice(-30);
 				});
 			} catch (err) {
-				roomError = err instanceof Error ? err.message : t('online.hud.joinError');
+				const problem = await probeNetProblem(err).catch(() => null);
+				roomError =
+					problem?.title ?? (err instanceof Error ? err.message : t('online.hud.joinError'));
 			}
 		})();
 
@@ -200,9 +212,27 @@
 		}
 	}
 
+	async function handleClaimHost() {
+		if (!transport?.takeLead || !localUid || !roomInfo || claimingHost) return;
+		claimingHost = true;
+		try {
+			await transport.takeLead({
+				seq: maxMoveSeq + 1,
+				by: localUid,
+				type: 'lead',
+				payload: { from: roomInfo.hostUid }
+			});
+		} catch (err) {
+			const problem = await probeNetProblem(err).catch(() => null);
+			roomError = problem?.title ?? t('online.hud.joinError');
+		} finally {
+			claimingHost = false;
+		}
+	}
+
 	async function handleLeaveRoom() {
 		try {
-			if (isHost) {
+			if (isEffectiveHost) {
 				const { db } = await connect();
 				await removeFromLobby(db, roomCode).catch(() => {});
 				await liveNet.closeRoom(roomCode).catch(() => {});
@@ -314,8 +344,24 @@
 				{/each}
 			</div>
 
+			{#if canClaimHost}
+				<div
+					class="mb-2 px-3 py-2 rounded-xl bg-amber-950/80 border border-amber-500/40 text-xs text-amber-200 flex items-center justify-between gap-2"
+				>
+					<span>{t('online.hud.hostOffline')}</span>
+					<button
+						type="button"
+						disabled={claimingHost}
+						onclick={handleClaimHost}
+						class="shrink-0 min-h-[36px] px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-bold cursor-pointer"
+					>
+						{t('online.hud.claimHost')}
+					</button>
+				</div>
+			{/if}
+
 			<div class="flex gap-2">
-				{#if isHost}
+				{#if isEffectiveHost}
 					<button
 						type="button"
 						disabled={starting}

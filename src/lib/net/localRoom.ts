@@ -184,6 +184,39 @@ export class LocalRoom {
 				if (!configAllowed(this.#state())) throw new Error('PERMISSION_DENIED: config');
 				this.#info = { ...this.#info, config };
 				this.#emit();
+			},
+
+			takeLead: async (move: Move) => {
+				const uid = options.as;
+				if (!uid) return false;
+				const currentHost = this.#info.hostUid;
+				if (currentHost === uid) return false;
+				const isMember =
+					this.#info.status === 'playing'
+						? this.#info.roster?.some((r) => r.uid === uid) ||
+							this.#members.some((m) => m.uid === uid)
+						: this.#members.some((m) => m.uid === uid && m.role === 'player');
+				if (!isMember) return false;
+				if (this.#present) {
+					if (!this.#present.has(uid) || this.#present.has(currentHost)) return false;
+				}
+				const seq = Math.max(move.seq, this.#moves.length + 1);
+				const recorded: Move = {
+					...move,
+					seq,
+					type: 'lead',
+					by: uid,
+					at: this.#now,
+					payload: { ...(move.payload ?? {}), from: currentHost }
+				};
+				this.#info = {
+					...this.#info,
+					hostUid: uid,
+					leadSeq: String(seq).padStart(6, '0')
+				};
+				this.#moves = [...this.#moves, recorded];
+				this.#emit();
+				return true;
 			}
 		};
 	}

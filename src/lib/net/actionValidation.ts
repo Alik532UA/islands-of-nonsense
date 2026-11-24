@@ -18,7 +18,8 @@ export const VALID_ACTION_TYPES = [
 	'RESTART_MATCH',
 	'HEARTBEAT',
 	'CHECKSUM',
-	'CHAT'
+	'CHAT',
+	'lead'
 ] as const;
 
 export type ValidActionType = (typeof VALID_ACTION_TYPES)[number];

@@ -230,6 +230,8 @@
 	let unlistenSequences: (() => void) | null = null;
 	let unlistenAudio: (() => void) | null = null;
 	let stopOnlineStatusWatch: (() => void) | null = null;
+	let stopPresenceTrack: (() => void) | null = null;
+	let stopPresenceWatch: (() => void) | null = null;
 	let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 	let isOnlineHost = $state(false);
 	let peerOnline = $state(false);
@@ -634,6 +636,20 @@
 
 				const transport = await liveNet.roomTransport(urlRoom);
 				let onlineStarted = Boolean(roomInfo?.status === 'playing');
+				let latestRoomInfo = roomInfo;
+				let latestMembers = members;
+				let memberPeerOnline = false;
+				let presencePeerOnline = false;
+				let handoverInFlight = false;
+				const refreshPeerOnline = () => {
+					peerOnline = presencePeerOnline || memberPeerOnline;
+					if (peerOnline && networkNotice?.includes('офлайн')) {
+						networkNotice = null;
+					} else if (!peerOnline && onlineStarted && !networkNotice?.includes('розсинхронізація')) {
+						networkNotice = 'Суперник тимчасово офлайн';
+					}
+				};
+
 				isOnlineHost = Boolean(roomInfo?.hostUid === uid);
 				matchSync = new MS({
 					sim,
@@ -644,12 +660,8 @@
 					uidToSlot: onlineInit?.uidToSlot,
 					commandLeadTicks: 3,
 					onPeerStatusChange: (status) => {
-						peerOnline = status.online;
-						if (status.online && networkNotice?.includes('офлайн')) {
-							networkNotice = null;
-						} else if (!status.online) {
-							networkNotice = 'Суперник тимчасово офлайн';
-						}
+						memberPeerOnline = status.online;
+						refreshPeerOnline();
 					},
 					onPeerPing: ({ rtt }) => {
 						peerPingMs = rtt;
@@ -676,7 +688,42 @@
 					}
 				});
 
+				stopPresenceTrack = await liveNet.trackPresence(urlRoom);
+				stopPresenceWatch = await liveNet.watchPresence(urlRoom, (onlineUids) => {
+					presencePeerOnline = onlineUids.some((id) => id !== uid);
+					refreshPeerOnline();
+
+					if (
+						latestRoomInfo &&
+						latestRoomInfo.hostUid !== uid &&
+						onlineUids.includes(uid) &&
+						!onlineUids.includes(latestRoomInfo.hostUid) &&
+						!handoverInFlight &&
+						transport.takeLead
+					) {
+						const onlinePlayers = latestMembers
+							.filter((m) => m.role === 'player' && onlineUids.includes(m.uid))
+							.sort((a, b) => a.order - b.order);
+						if (onlinePlayers[0]?.uid === uid) {
+							handoverInFlight = true;
+							void transport
+								.takeLead({
+									seq: (matchSync?.getAppliedSeq() ?? 0) + 1,
+									by: uid,
+									type: 'lead',
+									payload: { from: latestRoomInfo.hostUid }
+								})
+								.catch(() => false)
+								.finally(() => {
+									handoverInFlight = false;
+								});
+						}
+					}
+				});
+
 				stopOnlineStatusWatch = transport.watch((snap) => {
+					latestRoomInfo = snap.info;
+					latestMembers = snap.members;
 					isOnlineHost = snap.info.hostUid === uid;
 					if (snap.info.status === 'playing' && !onlineStarted) {
 						onlineStarted = true;
@@ -703,6 +750,13 @@
 				}, 12_000);
 			} catch (err) {
 				logService.warn('network', 'Failed to connect room match sync', { err: String(err) });
+				try {
+					const { probeNetProblem } = await import('$lib/utils/netProblem');
+					const problem = await probeNetProblem(err);
+					networkNotice = problem.title;
+				} catch {
+					networkNotice = 'Помилка мережевого з’єднання';
+				}
 			}
 		} else {
 			isSettingsOpen = false;
@@ -899,6 +953,10 @@
 
 	onDestroy(() => {
 		perfMonitor.detachSim();
+		stopPresenceTrack?.();
+		stopPresenceTrack = null;
+		stopPresenceWatch?.();
+		stopPresenceWatch = null;
 		stopOnlineStatusWatch?.();
 		stopOnlineStatusWatch = null;
 		if (heartbeatTimer) {

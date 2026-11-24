@@ -19,17 +19,22 @@ export interface MatchSyncOptions {
 }
 
 const MAX_CHECKPOINT_HISTORY = 40;
+const MAX_CATCHUP_TICKS = 216_000;
+const FIXED_STEP = 1 / 60;
 
 const IMMEDIATE_MOVE_TYPES = new Set([
 	'HEARTBEAT',
 	'CHECKSUM',
 	'CHAT',
+	'lead',
 	'PAUSE',
 	'RESUME',
 	'SURRENDER',
 	'NEXT_ROUND',
 	'RESTART_MATCH'
 ]);
+
+const TELEMETRY_MOVE_TYPES = new Set(['HEARTBEAT', 'CHECKSUM', 'CHAT', 'lead']);
 
 export function computeSimStateChecksum(sim: Simulation): string {
 	const westHp = Math.round(sim.castles?.west?.hp ?? 0);
@@ -70,6 +75,7 @@ export class MatchSync {
 
 	private commandLeadTicks: number;
 	private uidToSlot = new Map<string, number>();
+	private hydrated = false;
 	private nextSeq = 1;
 	private appliedSeq = 0;
 	private unwatch: (() => void) | null = null;
@@ -276,6 +282,13 @@ export class MatchSync {
 
 	private processMoves(moves: Move[]) {
 		const sorted = [...moves].sort((a, b) => a.seq - b.seq);
+		const isInitialHydration = !this.hydrated;
+		this.hydrated = true;
+
+		if (isInitialHydration && sorted.length > 0 && this.sim.tick === 0) {
+			this.replayHistoricalBatch(sorted);
+			return;
+		}
 
 		for (const rawMove of sorted) {
 			if (rawMove.seq <= this.appliedSeq) continue;
@@ -302,6 +315,66 @@ export class MatchSync {
 
 			this.applyMoveToSimulation(move);
 			this.onCommandApplied?.(move);
+		}
+	}
+
+	private replayHistoricalBatch(sorted: Move[]) {
+		const validMoves: Move[] = [];
+		for (const rawMove of sorted) {
+			if (rawMove.seq <= this.appliedSeq) continue;
+			const validation = validatePlayerMove(rawMove);
+			if (!validation.valid || !validation.sanitized) continue;
+			const move = validation.sanitized;
+			this.appliedSeq = move.seq;
+			this.nextSeq = Math.max(this.nextSeq, move.seq + 1);
+			validMoves.push(move);
+		}
+		if (validMoves.length === 0) return;
+
+		// Split history cleanly on round/match boundaries so each epoch steps from tick 0
+		const segments: { moves: Move[]; resetMove: Move | null; targetTick: number }[] = [];
+		let currentMoves: Move[] = [];
+		let maxTick = 0;
+
+		for (const move of validMoves) {
+			const tick = typeof move.payload?.tick === 'number' ? move.payload.tick : 0;
+			if (tick > maxTick) maxTick = tick;
+
+			if (move.type === 'NEXT_ROUND' || move.type === 'RESTART_MATCH') {
+				segments.push({ moves: currentMoves, resetMove: move, targetTick: maxTick });
+				currentMoves = [];
+				maxTick = 0;
+				continue;
+			}
+			currentMoves.push(move);
+		}
+		segments.push({ moves: currentMoves, resetMove: null, targetTick: maxTick });
+
+		for (const seg of segments) {
+			const clampedTarget = Math.min(seg.targetTick, MAX_CATCHUP_TICKS);
+			const checksums: Move[] = [];
+			for (const move of seg.moves) {
+				if (move.type === 'CHECKSUM') {
+					checksums.push(move);
+				} else if (!TELEMETRY_MOVE_TYPES.has(move.type)) {
+					this.pendingMoves.push(move);
+				}
+			}
+
+			while (this.sim.tick < clampedTarget && this.sim.isRunning && !this.sim.winner) {
+				this.flushTick(this.sim.tick);
+				this.sim.step(FIXED_STEP);
+			}
+			this.flushTick(this.sim.tick);
+
+			for (const cMove of checksums) {
+				this.applyMoveToSimulation(cMove);
+			}
+
+			if (seg.resetMove) {
+				this.applyMoveToSimulation(seg.resetMove);
+				this.onCommandApplied?.(seg.resetMove);
+			}
 		}
 	}
 

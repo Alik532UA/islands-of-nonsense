@@ -43,12 +43,14 @@ export interface NewRoomOptions {
 }
 
 const CODE_TRIES = 12;
-const MOVE_RETRY_LIMIT = 8;
+const MOVE_RETRY_LIMIT = 10;
+const DEFAULT_COOLDOWN_RETRIES = 3;
 const MOVE_RATE_LIMIT_BACKOFF_MS = 95;
 
 export interface RetryMoveWriteOptions {
 	initialSeq: number;
 	maxSeq?: number;
+	maxCooldownRetries?: number;
 	getHighestSeq: () => number;
 	attemptWrite: (seq: number) => Promise<void>;
 	doesSeqExist: (seq: number) => Promise<boolean>;
@@ -57,15 +59,16 @@ export interface RetryMoveWriteOptions {
 
 /**
  * Writes a move safely under concurrent multi-client dispatches and RTDB cooldowns.
- * Resolves sequence-number collisions by advancing past `highestSeq`, and backs off once
- * if rejected solely due to the server-side 80ms anti-spam cooldown.
+ * Resolves sequence-number collisions by advancing past `highestSeq`, and backs off across
+ * multiple bursts if rejected due to the server-side 80ms anti-spam cooldown.
  */
 export async function writeMoveWithRetry(options: RetryMoveWriteOptions): Promise<boolean> {
 	const maxSeq = options.maxSeq ?? MOVE_SEQ_MAX;
+	const maxCooldownRetries = Math.max(0, options.maxCooldownRetries ?? DEFAULT_COOLDOWN_RETRIES);
 	const wait =
 		options.waitMs ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
 	let seq = Math.max(1, options.initialSeq, options.getHighestSeq() + 1);
-	let waitedForCooldown = false;
+	let cooldownRetries = 0;
 
 	for (let attempt = 0; attempt < MOVE_RETRY_LIMIT; attempt++) {
 		if (seq > maxSeq || seq < 1) return false;
@@ -79,9 +82,9 @@ export async function writeMoveWithRetry(options: RetryMoveWriteOptions): Promis
 				seq = Math.max(seq + 1, options.getHighestSeq() + 1);
 				continue;
 			}
-			if (!waitedForCooldown) {
-				waitedForCooldown = true;
-				await wait(MOVE_RATE_LIMIT_BACKOFF_MS);
+			if (cooldownRetries < maxCooldownRetries) {
+				cooldownRetries++;
+				await wait(MOVE_RATE_LIMIT_BACKOFF_MS * cooldownRetries);
 				seq = Math.max(seq, options.getHighestSeq() + 1);
 				continue;
 			}
@@ -483,6 +486,36 @@ export async function roomTransport(code: string): Promise<RoomTransport> {
 
 		async setConfig(config: RoomConfig) {
 			await update(ref(db, `rooms/${code}/info`), { config });
+		},
+
+		async takeLead(move: Move) {
+			return writeMoveWithRetry({
+				initialSeq: move.seq,
+				getHighestSeq: () => channel.highestSeq,
+				attemptWrite: async (seq) => {
+					const key = moveKey(seq);
+					const stamp = serverTimestamp();
+					await update(ref(db, `rooms/${code}`), {
+						'info/hostUid': uid,
+						'info/leadSeq': key,
+						[`moves/${key}`]: {
+							...move,
+							type: 'lead',
+							by: uid,
+							seq,
+							at: stamp
+						},
+						[`members/${uid}/lastMoveAt`]: stamp
+					});
+					if (seq > channel.highestSeq) {
+						channel.highestSeq = seq;
+					}
+				},
+				doesSeqExist: async (seq) => {
+					const snap = await get(ref(db, `rooms/${code}/moves/${moveKey(seq)}`));
+					return snap.exists();
+				}
+			});
 		}
 	};
 }
