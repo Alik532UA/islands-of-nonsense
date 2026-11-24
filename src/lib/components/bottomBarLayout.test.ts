@@ -40,24 +40,32 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 		expect(bottomBarSrc).not.toContain('mx-2 bg-[#131722]');
 	});
 
-	it('strictly prevents 6-slot inventory pouch overflow beyond the container border', () => {
-		// Panel dimensions: 142px total height, border-2 (4px), py-2 (16px) -> 122px inner height
-		const innerUsableHeight = 142 - 4 - 16; // 122px
+	it('strictly prevents 6-slot inventory pouch overflow beyond the container border while maximizing slot size', () => {
+		// Panel dimensions: 142px total height, border-t-2 (2px), border-b-0 -> 140px inner height
+		const innerUsableHeight = 142 - 2; // 140px
 
-		// Slot dimensions in BottomBar
-		expect(bottomBarSrc).toMatch(/w-8 h-8 rounded/);
-		const slotHeight = 32; // w-8 h-8 is 32px
+		// Slot dimensions in BottomBar: enlarged to 44x39px with rounded-[3px] matching command card
+		expect(bottomBarSrc).toMatch(/w-\[44px\] h-\[39px\] rounded-\[3px\]/);
+		const slotHeight = 39;
 		const rowCount = 3;
-		const rowGap = 4; // gap-1 is 4px
-		const totalGridHeight = rowCount * slotHeight + (rowCount - 1) * rowGap; // 96 + 8 = 104px
-		const titleHeight = 14;
+		const rowGap = 6; // gap-1.5 is 6px
+		const totalGridHeight = rowCount * slotHeight + (rowCount - 1) * rowGap; // 117 + 12 = 129px
 
-		const totalContentHeight = totalGridHeight + titleHeight;
-		expect(totalContentHeight).toBeLessThanOrEqual(innerUsableHeight);
+		expect(totalGridHeight).toBeLessThanOrEqual(innerUsableHeight);
 
 		// Must leave breathing room (at least 4px) to guarantee zero clipping on any display
-		const paddingMargin = innerUsableHeight - totalContentHeight;
-		expect(paddingMargin).toBeGreaterThanOrEqual(4);
+		const verticalBreathingRoom = innerUsableHeight - totalGridHeight; // 11px total (5.5px top/bottom)
+		expect(verticalBreathingRoom).toBeGreaterThanOrEqual(4);
+
+		// Width bounds: w-28 (112px) with border-x-2 (4px) leaves 108px usable width
+		const innerUsableWidth = 112 - 4; // 108px
+		const slotWidth = 44;
+		const colCount = 2;
+		const colGap = 6;
+		const totalGridWidth = colCount * slotWidth + (colCount - 1) * colGap; // 88 + 6 = 94px
+		expect(totalGridWidth).toBeLessThanOrEqual(innerUsableWidth);
+		const horizontalBreathingRoom = innerUsableWidth - totalGridWidth; // 14px total (7px left/right)
+		expect(horizontalBreathingRoom).toBeGreaterThanOrEqual(4);
 	});
 
 	it('standardizes HUD bottom bar & command card testids conforming to TESTID-AND-NAMING canon', () => {

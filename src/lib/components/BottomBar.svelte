@@ -458,22 +458,26 @@
 	<!-- 4. CENTER-RIGHT: Authentic Warcraft III 6-Slot Inventory -->
 	<div
 		data-testid="hud-inventory-panel"
-		class="flex flex-col items-center justify-center px-2.5 py-2 bg-[#131722]/95 backdrop-blur-md rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 border-[#544738] shadow-inner shrink-0 w-28 h-[142px] pointer-events-auto"
+		class="flex flex-col items-center justify-center p-1.5 bg-[#131722]/95 backdrop-blur-md rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 border-[#544738] shadow-inner shrink-0 w-28 h-[142px] pointer-events-auto"
 		style="box-shadow: inset 0 0 10px rgba(0,0,0,0.85);"
 	>
-		<!-- 2 columns x 3 rows grid of authentic Warcraft III leather inventory pouches -->
+		<!-- 2 columns x 3 rows grid of enlarged authentic Warcraft III leather inventory pouches -->
 		<div class="grid grid-cols-2 gap-1.5 my-auto">
 			{#each [0, 1, 2, 3, 4, 5] as slotIdx}
 				<div
 					data-testid="hud-inventory-slot-{slotIdx}"
-					class="relative w-8 h-8 rounded bg-gradient-to-b from-[#18130d] to-[#0d0a07] border border-[#5c4934] flex items-center justify-center text-xs shadow-inner cursor-pointer hover:border-[#8c7456] transition"
+					class="relative w-[44px] h-[39px] rounded-[3px] bg-gradient-to-b from-[#18130d] to-[#0d0a07] border border-[#5c4934] flex items-center justify-center text-xs shadow-inner cursor-pointer hover:border-[#8c7456] transition"
 					title={slotIdx === 0 && player.maxFood > 0
 						? 'Золотий Сир (+1 Ліміт їжі)'
 						: 'Порожній слот торби'}
 				>
 					{#if slotIdx === 0 && player.maxFood > 0}
 						<!-- Golden Cheese SVG Icon (Food Cap Item) -->
-						<svg class="w-4 h-4 text-amber-400 drop-shadow" viewBox="0 0 24 24" fill="currentColor">
+						<svg
+							class="w-5.5 h-5.5 text-amber-400 drop-shadow"
+							viewBox="0 0 24 24"
+							fill="currentColor"
+						>
 							<path d="M2.5 12.5c4-2 15-4 19-2v6c0 1.1-.9 2-2 2H4.5c-1.1 0-2-.9-2-2v-4z" />
 							<path
 								d="M11 6c-2 0-3 1.5-3 2.5 0 1 .5 1.5 1.5 2 2.5-1 6.5-1.5 9-1.5C18 7.5 15.5 6 11 6z"
@@ -485,7 +489,7 @@
 						</svg>
 					{:else}
 						<!-- Authentic leather satchel / pouch silhouette -->
-						<svg class="w-4 h-4 text-[#4a3a28] opacity-70" viewBox="0 0 24 24" fill="currentColor">
+						<svg class="w-5 h-5 text-[#5c4934] opacity-80" viewBox="0 0 24 24" fill="currentColor">
 							<path
 								d="M19 8h-1V5c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v3H5c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM8 5h8v3H8V5zm11 15H5V10h14v10z"
 							/>
