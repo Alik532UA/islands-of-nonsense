@@ -1,3 +1,5 @@
 # allow crawling everything by default
 User-agent: *
-Disallow:
+Allow: /
+
+Sitemap: https://alik532ua.github.io/islands-of-nonsense/sitemap.xml

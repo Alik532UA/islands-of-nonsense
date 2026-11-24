@@ -22,10 +22,28 @@ describe('SEO & Social Metadata (SEO-v10)', () => {
 		expect(appHtml).toContain('name="twitter:image"');
 	});
 
-	it('robots.txt існує та налаштований для індексації', () => {
+	it('app.html містить canonical URL (SEO-v10 § 2.1)', () => {
+		expect(appHtml).toContain('rel="canonical"');
+		expect(appHtml).toContain('href="https://alik532ua.github.io/islands-of-nonsense/"');
+	});
+
+	it('robots.txt існує та налаштований для індексації із зазначенням Sitemap', () => {
 		const robotsPath = resolve(root, 'static/robots.txt');
 		expect(existsSync(robotsPath)).toBe(true);
 		const robots = readFileSync(robotsPath, 'utf-8');
-		expect(robots).toContain('User-agent:');
+		expect(robots).toContain('User-agent: *');
+		expect(robots).toContain('Allow: /');
+		expect(robots).toContain('Sitemap: https://alik532ua.github.io/islands-of-nonsense/sitemap.xml');
+	});
+
+	it('sitemap.xml існує та містить обов’язкові маршрути (SEO-v10 § 5)', () => {
+		const sitemapPath = resolve(root, 'static/sitemap.xml');
+		expect(existsSync(sitemapPath)).toBe(true);
+		const sitemap = readFileSync(sitemapPath, 'utf-8');
+		expect(sitemap).toContain('<urlset');
+		expect(sitemap).toContain('<loc>https://alik532ua.github.io/islands-of-nonsense/</loc>');
+		expect(sitemap).toContain('<loc>https://alik532ua.github.io/islands-of-nonsense/play</loc>');
+		expect(sitemap).toContain('<loc>https://alik532ua.github.io/islands-of-nonsense/online</loc>');
+		expect(sitemap).toContain('<loc>https://alik532ua.github.io/islands-of-nonsense/account</loc>');
 	});
 });
