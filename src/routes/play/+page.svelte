@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
 	import { Bot, Sparkles, Eye, Sliders, ChevronLeft, ChevronRight, Play } from 'lucide-svelte';
@@ -6,7 +7,21 @@
 	import { settings } from '$lib/services/settings.svelte';
 	import { storage } from '$lib/services/storage';
 	import { type SimulationConfig } from '$lib/engine/simulation';
-	import { PLAYABLE_RACES } from '$lib/engine/gameData';
+	import {
+		QUICK_DIFFICULTIES as DIFFICULTIES,
+		QUICK_GOLDS as GOLDS,
+		QUICK_SANDBOX_GOLDS as SANDBOX_GOLDS,
+		QUICK_COIN_MODES as COIN_MODES,
+		QUICK_TEAM_SIZES as TEAM_SIZES,
+		QUICK_TARGET_WINS as TARGET_WINS,
+		QUICK_FOG_OPTIONS as FOG_OPTIONS,
+		QUICK_PLAYER_RACES as PLAYER_RACES,
+		QUICK_BOT_RACES as BOT_RACES,
+		getDefaultQuickSettingsState,
+		sanitizeQuickSettingsState,
+		buildQuickMatchConfig,
+		type QuickSettingsState
+	} from '$lib/engine/matchConfig';
 	import MatchConfigModal from '$lib/components/MatchConfigModal.svelte';
 
 	// State for MatchConfigModal
@@ -27,55 +42,115 @@
 		return release;
 	});
 
-	// Quick adjustments constants
-	const DIFFICULTIES = [0, 15, 30, 80] as const;
-	const GOLDS = [150, 300, 500, 1000] as const;
-	const SANDBOX_GOLDS = [99999, 1000, 500, 150] as const;
-	const COIN_MODES: ('normal' | 'crazy' | 'none')[] = ['normal', 'crazy', 'none'];
-	const TEAM_SIZES: (1 | 2 | 3)[] = [1, 2, 3];
-	const TARGET_WINS: (1 | 2 | 3)[] = [1, 2, 3];
-	const FOG_OPTIONS: boolean[] = [true, false];
-
-	const PLAYER_RACES = [
-		{ id: 'in_game', label: 'В грі (15с)' },
-		{ id: 'random', label: 'Випадкова' },
-		...PLAYABLE_RACES.map((race) => ({ id: race, label: race }))
-	] as const;
-
-	const BOT_RACES = [
-		{ id: 'random', label: 'Випадкова' },
-		...PLAYABLE_RACES.map((race) => ({ id: race, label: race }))
-	] as const;
+	const defaults = getDefaultQuickSettingsState();
 
 	// Mode 1: vsBot state
-	let vsBotDiffIndex = $state(1); // 15%
-	let vsBotGoldIndex = $state(2); // 500g
-	let vsBotTeamIndex = $state(0); // 1v1
-	let vsBotWinsIndex = $state(1); // До 2
-	let vsBotWestRaceIndex = $state(0); // in_game
-	let vsBotEastRaceIndex = $state(0); // random
-	let vsBotCoinIndex = $state(0); // 40 сек
-	let vsBotFogIndex = $state(0); // true (увімкнено)
+	let vsBotDiffIndex = $state(defaults.vsBotDiffIndex);
+	let vsBotGoldIndex = $state(defaults.vsBotGoldIndex);
+	let vsBotTeamIndex = $state(defaults.vsBotTeamIndex);
+	let vsBotWinsIndex = $state(defaults.vsBotWinsIndex);
+	let vsBotWestRaceIndex = $state(defaults.vsBotWestRaceIndex);
+	let vsBotEastRaceIndex = $state(defaults.vsBotEastRaceIndex);
+	let vsBotCoinIndex = $state(defaults.vsBotCoinIndex);
+	let vsBotFogIndex = $state(defaults.vsBotFogIndex);
 
 	// Mode 2: sandbox state
-	let sandboxGoldIndex = $state(0); // 99999
-	let sandboxCoinIndex = $state(1); // crazy
-	let sandboxFogIndex = $state(1); // false (вимкнено)
-	let sandboxDiffIndex = $state(0); // 0%
-	let sandboxTeamIndex = $state(0); // 1v1
-	let sandboxWinsIndex = $state(1); // До 2
-	let sandboxWestRaceIndex = $state(0); // in_game
-	let sandboxEastRaceIndex = $state(0); // random
+	let sandboxGoldIndex = $state(defaults.sandboxGoldIndex);
+	let sandboxCoinIndex = $state(defaults.sandboxCoinIndex);
+	let sandboxFogIndex = $state(defaults.sandboxFogIndex);
+	let sandboxDiffIndex = $state(defaults.sandboxDiffIndex);
+	let sandboxTeamIndex = $state(defaults.sandboxTeamIndex);
+	let sandboxWinsIndex = $state(defaults.sandboxWinsIndex);
+	let sandboxWestRaceIndex = $state(defaults.sandboxWestRaceIndex);
+	let sandboxEastRaceIndex = $state(defaults.sandboxEastRaceIndex);
 
 	// Mode 3: botVsBot state
-	let botVsBotTeamIndex = $state(0); // 1v1
-	let botVsBotDiffIndex = $state(1); // 15%
-	let botVsBotGoldIndex = $state(2); // 500g
-	let botVsBotWinsIndex = $state(1); // До 2
-	let botVsBotWestRaceIndex = $state(0); // random
-	let botVsBotEastRaceIndex = $state(0); // random
-	let botVsBotCoinIndex = $state(0); // 40 сек
-	let botVsBotFogIndex = $state(1); // false (вимкнено)
+	let botVsBotTeamIndex = $state(defaults.botVsBotTeamIndex);
+	let botVsBotDiffIndex = $state(defaults.botVsBotDiffIndex);
+	let botVsBotGoldIndex = $state(defaults.botVsBotGoldIndex);
+	let botVsBotWinsIndex = $state(defaults.botVsBotWinsIndex);
+	let botVsBotWestRaceIndex = $state(defaults.botVsBotWestRaceIndex);
+	let botVsBotEastRaceIndex = $state(defaults.botVsBotEastRaceIndex);
+	let botVsBotCoinIndex = $state(defaults.botVsBotCoinIndex);
+	let botVsBotFogIndex = $state(defaults.botVsBotFogIndex);
+
+	let quickHydrated = false;
+
+	function currentQuickState(): QuickSettingsState {
+		return {
+			vsBotDiffIndex,
+			vsBotGoldIndex,
+			vsBotTeamIndex,
+			vsBotWinsIndex,
+			vsBotWestRaceIndex,
+			vsBotEastRaceIndex,
+			vsBotCoinIndex,
+			vsBotFogIndex,
+			sandboxGoldIndex,
+			sandboxCoinIndex,
+			sandboxFogIndex,
+			sandboxDiffIndex,
+			sandboxTeamIndex,
+			sandboxWinsIndex,
+			sandboxWestRaceIndex,
+			sandboxEastRaceIndex,
+			botVsBotTeamIndex,
+			botVsBotDiffIndex,
+			botVsBotGoldIndex,
+			botVsBotWinsIndex,
+			botVsBotWestRaceIndex,
+			botVsBotEastRaceIndex,
+			botVsBotCoinIndex,
+			botVsBotFogIndex
+		};
+	}
+
+	function applyQuickState(s: QuickSettingsState) {
+		vsBotDiffIndex = s.vsBotDiffIndex;
+		vsBotGoldIndex = s.vsBotGoldIndex;
+		vsBotTeamIndex = s.vsBotTeamIndex;
+		vsBotWinsIndex = s.vsBotWinsIndex;
+		vsBotWestRaceIndex = s.vsBotWestRaceIndex;
+		vsBotEastRaceIndex = s.vsBotEastRaceIndex;
+		vsBotCoinIndex = s.vsBotCoinIndex;
+		vsBotFogIndex = s.vsBotFogIndex;
+
+		sandboxGoldIndex = s.sandboxGoldIndex;
+		sandboxCoinIndex = s.sandboxCoinIndex;
+		sandboxFogIndex = s.sandboxFogIndex;
+		sandboxDiffIndex = s.sandboxDiffIndex;
+		sandboxTeamIndex = s.sandboxTeamIndex;
+		sandboxWinsIndex = s.sandboxWinsIndex;
+		sandboxWestRaceIndex = s.sandboxWestRaceIndex;
+		sandboxEastRaceIndex = s.sandboxEastRaceIndex;
+
+		botVsBotTeamIndex = s.botVsBotTeamIndex;
+		botVsBotDiffIndex = s.botVsBotDiffIndex;
+		botVsBotGoldIndex = s.botVsBotGoldIndex;
+		botVsBotWinsIndex = s.botVsBotWinsIndex;
+		botVsBotWestRaceIndex = s.botVsBotWestRaceIndex;
+		botVsBotEastRaceIndex = s.botVsBotEastRaceIndex;
+		botVsBotCoinIndex = s.botVsBotCoinIndex;
+		botVsBotFogIndex = s.botVsBotFogIndex;
+	}
+
+	onMount(() => {
+		const savedQuick = storage.getJSON<Partial<QuickSettingsState> | null>(
+			'play_quick_settings',
+			null
+		);
+		if (savedQuick) {
+			applyQuickState(sanitizeQuickSettingsState(savedQuick));
+		}
+		quickHydrated = true;
+	});
+
+	$effect(() => {
+		const snapshot = currentQuickState();
+		if (quickHydrated) {
+			storage.setJSON('play_quick_settings', snapshot);
+		}
+	});
 
 	function cycle<T>(arr: readonly T[] | T[], current: number, dir: -1 | 1): number {
 		const next = current + dir;
@@ -118,101 +193,25 @@
 	}
 
 	function startVsBotQuick() {
-		launchMatch(
-			{
-				botDifficulty: DIFFICULTIES[vsBotDiffIndex],
-				startGold: GOLDS[vsBotGoldIndex],
-				modeId: 'standard',
-				teamSize: TEAM_SIZES[vsBotTeamIndex],
-				targetWins: TARGET_WINS[vsBotWinsIndex],
-				coinMode: COIN_MODES[vsBotCoinIndex],
-				fogOfWar: FOG_OPTIONS[vsBotFogIndex],
-				botVsBot: false,
-				westRace: PLAYER_RACES[vsBotWestRaceIndex].id,
-				eastRace: BOT_RACES[vsBotEastRaceIndex].id
-			},
-			'vsBot'
-		);
+		launchMatch(buildQuickMatchConfig('vsBot', currentQuickState()), 'vsBot');
 	}
 
 	function startSandboxQuick() {
-		launchMatch(
-			{
-				botDifficulty: DIFFICULTIES[sandboxDiffIndex],
-				startGold: SANDBOX_GOLDS[sandboxGoldIndex],
-				modeId: 'sandbox',
-				teamSize: TEAM_SIZES[sandboxTeamIndex],
-				targetWins: TARGET_WINS[sandboxWinsIndex],
-				coinMode: COIN_MODES[sandboxCoinIndex],
-				fogOfWar: FOG_OPTIONS[sandboxFogIndex],
-				botVsBot: false,
-				westRace: PLAYER_RACES[sandboxWestRaceIndex].id,
-				eastRace: BOT_RACES[sandboxEastRaceIndex].id
-			},
-			'sandbox'
-		);
+		launchMatch(buildQuickMatchConfig('sandbox', currentQuickState()), 'sandbox');
 	}
 
 	function startBotVsBotQuick() {
-		launchMatch(
-			{
-				botDifficulty: DIFFICULTIES[botVsBotDiffIndex],
-				startGold: GOLDS[botVsBotGoldIndex],
-				modeId: 'botVsBot',
-				teamSize: TEAM_SIZES[botVsBotTeamIndex],
-				targetWins: TARGET_WINS[botVsBotWinsIndex],
-				coinMode: COIN_MODES[botVsBotCoinIndex],
-				fogOfWar: FOG_OPTIONS[botVsBotFogIndex],
-				botVsBot: true,
-				westRace: BOT_RACES[botVsBotWestRaceIndex].id,
-				eastRace: BOT_RACES[botVsBotEastRaceIndex].id
-			},
-			'botVsBot'
-		);
+		launchMatch(buildQuickMatchConfig('botVsBot', currentQuickState()), 'botVsBot');
 	}
 
 	function openConfigFor(mode: 'classic' | 'sandbox' | 'botVsBot' | 'custom') {
 		if (mode === 'classic') {
-			configInitialParams = {
-				botDifficulty: DIFFICULTIES[vsBotDiffIndex],
-				startGold: GOLDS[vsBotGoldIndex],
-				modeId: 'standard',
-				teamSize: TEAM_SIZES[vsBotTeamIndex],
-				targetWins: TARGET_WINS[vsBotWinsIndex],
-				coinMode: COIN_MODES[vsBotCoinIndex],
-				fogOfWar: FOG_OPTIONS[vsBotFogIndex],
-				botVsBot: false,
-				westRace: PLAYER_RACES[vsBotWestRaceIndex].id,
-				eastRace: BOT_RACES[vsBotEastRaceIndex].id
-			};
+			configInitialParams = buildQuickMatchConfig('vsBot', currentQuickState());
 		} else if (mode === 'sandbox') {
-			configInitialParams = {
-				botDifficulty: DIFFICULTIES[sandboxDiffIndex],
-				startGold: SANDBOX_GOLDS[sandboxGoldIndex],
-				modeId: 'sandbox',
-				teamSize: TEAM_SIZES[sandboxTeamIndex],
-				targetWins: TARGET_WINS[sandboxWinsIndex],
-				coinMode: COIN_MODES[sandboxCoinIndex],
-				fogOfWar: FOG_OPTIONS[sandboxFogIndex],
-				botVsBot: false,
-				westRace: PLAYER_RACES[sandboxWestRaceIndex].id,
-				eastRace: BOT_RACES[sandboxEastRaceIndex].id
-			};
+			configInitialParams = buildQuickMatchConfig('sandbox', currentQuickState());
 		} else if (mode === 'botVsBot') {
-			configInitialParams = {
-				botDifficulty: DIFFICULTIES[botVsBotDiffIndex],
-				startGold: GOLDS[botVsBotGoldIndex],
-				modeId: 'botVsBot',
-				teamSize: TEAM_SIZES[botVsBotTeamIndex],
-				targetWins: TARGET_WINS[botVsBotWinsIndex],
-				coinMode: COIN_MODES[botVsBotCoinIndex],
-				fogOfWar: FOG_OPTIONS[botVsBotFogIndex],
-				botVsBot: true,
-				westRace: BOT_RACES[botVsBotWestRaceIndex].id,
-				eastRace: BOT_RACES[botVsBotEastRaceIndex].id
-			};
+			configInitialParams = buildQuickMatchConfig('botVsBot', currentQuickState());
 		} else {
-			// Custom
 			const saved = storage.getJSON<Partial<SimulationConfig>>('match_settings', {});
 			configInitialParams = saved;
 		}

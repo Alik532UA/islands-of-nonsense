@@ -354,8 +354,8 @@ export class Simulation {
 		)
 			.map((r) => r.race)
 			.filter((r) => isRaceAvailable(r));
-		const isAllRandom = !!config.allRandom;
-		const isUniqueRaces = !!config.uniqueRaces;
+		const isAllRandom = !!(config.allRandom || this.gameModeConfig.allRandom);
+		const isUniqueRaces = !!(config.uniqueRaces || this.gameModeConfig.uniqueRaces);
 
 		const remainingRaces = [...availableRaces];
 		const takeRace = (requested?: string, isRand = false): { race: string; isRandom: boolean } => {
@@ -403,13 +403,7 @@ export class Simulation {
 			config.eastRace && config.eastRace !== 'in_game' && isRaceAvailable(config.eastRace)
 				? config.eastRace
 				: undefined;
-		const eastChoice = takeRace(
-			initialEastReq ||
-				(!config.eastRace && config.botDifficulty > 0
-					? undefined
-					: availableRaces.find((r) => r !== westChoice.race) || availableRaces[0]),
-			eastIsRandomReq
-		);
+		const eastChoice = takeRace(initialEastReq || undefined, eastIsRandomReq);
 
 		const westRace = westChoice.race;
 		const westIsRandom = westChoice.isRandom;
@@ -783,8 +777,8 @@ export class Simulation {
 		const player = this.players[team];
 		if (!player) return false;
 
-		const otherTeam = team === 'west' ? 'east' : 'west';
-		const otherPlayer = this.players[otherTeam];
+		const isUniqueRaces = !!(this.gameModeConfig.uniqueRaces || this.config.uniqueRaces);
+		const otherPlayers = this.allPlayers.filter((p) => p !== player);
 		const availableRaces = RACES_LIST.filter((r) =>
 			(PLAYABLE_RACES as readonly string[]).includes(r.race)
 		)
@@ -793,8 +787,9 @@ export class Simulation {
 
 		if (race === 'random') {
 			let pool = availableRaces;
-			if (this.config.uniqueRaces && otherPlayer) {
-				pool = pool.filter((r) => r !== otherPlayer.race);
+			if (isUniqueRaces && otherPlayers.length > 0) {
+				const taken = new Set(otherPlayers.map((p) => formatRaceName(p.race)));
+				pool = pool.filter((r) => !taken.has(formatRaceName(r)));
 			}
 			if (pool.length === 0) pool = availableRaces;
 
@@ -843,9 +838,8 @@ export class Simulation {
 		}
 
 		if (
-			this.config.uniqueRaces &&
-			otherPlayer &&
-			(otherPlayer.race === race || formatRaceName(otherPlayer.race) === canonicalRace)
+			isUniqueRaces &&
+			otherPlayers.some((p) => p.race === race || formatRaceName(p.race) === canonicalRace)
 		) {
 			this.addFloatingText('Раса вже зайнята (-ur)!', team === 'west' ? 300 : 1600, 400, '#ef4444');
 			return false;

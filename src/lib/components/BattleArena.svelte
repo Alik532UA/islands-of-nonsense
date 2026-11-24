@@ -3,6 +3,7 @@
 	import { goto, beforeNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { Simulation, type SimulationConfig } from '$lib/engine/simulation';
+	import { resolveBattleLaunchConfig } from '$lib/engine/matchConfig';
 	import type { PlayerState } from '$lib/engine/types';
 	import { BotAI } from '$lib/engine/botAI';
 	import { ArenaRenderer, type SelectedEntity } from '$lib/renderer/ArenaRenderer';
@@ -157,7 +158,10 @@
 		if (matchSync) {
 			void matchSync.dispatch('SURRENDER');
 		} else {
-			sim.castles.west.hp = 0;
+			const loseTeam = isBotVsBot ? controlledPlayer.team : 'west';
+			sim.castles[loseTeam].hp = 0;
+			sim.isRunning = true;
+			sim.step(0.05);
 			sim.isRunning = false;
 		}
 		uiTick = sim.stateVersion;
@@ -547,59 +551,10 @@
 			} catch (err) {
 				logService.warn('network', 'Failed to connect room match sync', { err: String(err) });
 			}
-		} else if (urlMode === 'sandbox') {
-			isSettingsOpen = false;
-			handleStartNewMatch({
-				botDifficulty: 0,
-				startGold: 99999,
-				modeId: 'standard',
-				teamSize: 1,
-				targetWins: 10,
-				coinMode: 'crazy',
-				fogOfWar: false,
-				botVsBot: false
-			});
-		} else if (urlMode === 'botVsBot') {
-			isSettingsOpen = false;
-			handleStartNewMatch({
-				botDifficulty: 20,
-				startGold: 500,
-				modeId: 'standard',
-				teamSize: 1,
-				targetWins: 2,
-				coinMode: 'normal',
-				fogOfWar: false,
-				botVsBot: true
-			});
-		} else if (urlMode === 'allRandom') {
-			isSettingsOpen = false;
-			handleStartNewMatch({
-				botDifficulty: 15,
-				startGold: 500,
-				modeId: 'allRandom',
-				allRandom: true,
-				westRace: 'random',
-				teamSize: 1,
-				targetWins: 2,
-				coinMode: 'normal',
-				fogOfWar: true,
-				botVsBot: false
-			});
 		} else {
 			isSettingsOpen = false;
 			const saved = storage.getJSON<Partial<SimulationConfig>>('match_settings', {});
-			handleStartNewMatch({
-				botDifficulty: saved.botDifficulty ?? 15,
-				startGold: saved.startGold ?? 500,
-				modeId: saved.modeId ?? 'standard',
-				teamSize: (saved.teamSize as 1 | 2 | 3) ?? 1,
-				targetWins: saved.targetWins ?? 2,
-				coinMode: (saved.coinMode as 'none' | 'normal' | 'crazy') ?? 'normal',
-				fogOfWar: saved.fogOfWar ?? true,
-				botVsBot: saved.botVsBot ?? false,
-				westRace: saved.westRace,
-				eastRace: saved.eastRace
-			});
+			handleStartNewMatch(resolveBattleLaunchConfig(urlMode, saved));
 		}
 
 		renderer = new ArenaRenderer({
@@ -884,11 +839,19 @@
 	}
 
 	function handleStartNewMatch(newConfig: SimulationConfig) {
+		if (countdownTimer) {
+			clearInterval(countdownTimer);
+			countdownTimer = null;
+		}
 		selectedBuildingId = null;
 		selectedPlacedBuildingId = null;
 		selectedUnitId = null;
 		selectedEntity = null;
 		isSettingsOpen = false;
+		isPauseMenuOpen = false;
+		isCommanderOpen = false;
+		isForgeOpen = false;
+		isShopOpen = false;
 
 		sim = new Simulation(newConfig);
 		controlledPlayerSlot = sim.players.west?.slot ?? 1;
@@ -898,16 +861,18 @@
 		unlistenAudio = attachAudioBridge(sim, sound);
 		botAI = new BotAI(sim);
 		renderer?.setSimulation(sim);
+		renderer?.resetCastleVisuals();
 		uiTick = sim.stateVersion;
 
-		if (newConfig.allRandom || newConfig.botVsBot) {
+		if (sim.gameModeConfig.allRandom || newConfig.allRandom || newConfig.botVsBot) {
 			matchPhase = 'BATTLE';
 			sim.isRunning = true;
 			sound.playHorn();
 		} else if (newConfig.westRace && newConfig.westRace !== 'in_game') {
-			if (newConfig.westRace === 'random') {
-				sim.setPlayerRace('west', 'random');
-			} else {
+			if (
+				newConfig.westRace !== 'random' &&
+				formatRaceName(sim.players.west.race) !== formatRaceName(newConfig.westRace)
+			) {
 				sim.setPlayerRace('west', newConfig.westRace);
 			}
 			matchPhase = 'BATTLE';
@@ -1113,7 +1078,12 @@
 						{#each RACES_LIST.filter( (r) => (PLAYABLE_RACES as readonly string[]).includes(r.race) ) as raceDef}
 							{@const isBanned = sim.isRaceBanned(raceDef.race)}
 							{@const isOpponentOccupied =
-								sim.gameModeConfig.uniqueRaces && sim.players.east.race === raceDef.race}
+								sim.gameModeConfig.uniqueRaces &&
+								sim.allPlayers.some(
+									(p) =>
+										p !== sim.players.west &&
+										formatRaceName(p.race) === formatRaceName(raceDef.race)
+								)}
 							{@const isDisabled = isBanned || isOpponentOccupied}
 							<button
 								type="button"

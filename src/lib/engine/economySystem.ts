@@ -98,6 +98,9 @@ export class EconomySystem {
 		const jo = enemyCount > allyCount ? enemyCount / allyCount : 1.0;
 		multiplier *= jo;
 
+		// Game mode income multiplier (e.g., blitz 2.0x, sandbox 5.0x, survival 0.9x)
+		multiplier *= this.sim.gameModeConfig?.incomeMultiplier ?? 1.0;
+
 		return Math.max(3, Math.round(baseIncome * multiplier));
 	}
 
@@ -177,7 +180,7 @@ export class EconomySystem {
 		this.sim.coinSpawnTimer -= dt;
 		if (this.sim.coinSpawnTimer <= 0.001) {
 			const isCrazy = this.sim.coinMode === 'crazy';
-			this.sim.coinSpawnTimer = isCrazy ? 20.0 : this.sim.coinSpawnInterval;
+			this.sim.coinSpawnTimer = this.sim.coinSpawnInterval;
 
 			const coinsToSpawn =
 				this.sim.config.coinCount !== undefined ? this.sim.config.coinCount : isCrazy ? 5 : 1;
@@ -296,6 +299,7 @@ export class EconomySystem {
 		type: 'attack' | 'armor' | 'econ',
 		playerInput?: PlayerState
 	): boolean {
+		if (this.sim.gameModeConfig?.allowForge === false) return false;
 		const player = playerInput || this.sim.players[team];
 		if (!this.hasForge(team, player)) {
 			this.sim.addFloatingText(

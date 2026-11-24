@@ -113,7 +113,7 @@
 			coinSpawnInterval === 40 &&
 			coinCount === 1 &&
 			botVsBot &&
-			selectedMode === 'botVsBot' &&
+			(selectedMode === 'standard' || selectedMode === 'botVsBot') &&
 			bannedRaces.length === 0
 		) {
 			return 'botVsBot';
@@ -162,7 +162,7 @@
 			botVsBot = true;
 			westRace = 'random';
 			eastRace = 'random';
-			selectedMode = 'botVsBot';
+			selectedMode = 'standard';
 			bannedRaces = [];
 		}
 	}
@@ -183,35 +183,35 @@
 	// Synchronize when opened with currentConfig / saved storage
 	$effect(() => {
 		if (isOpen) {
-			const saved = storage.getJSON<Partial<SimulationConfig>>('match_settings', {});
-			botDifficulty = currentConfig?.botDifficulty ?? saved.botDifficulty ?? 15;
-			startGold = currentConfig?.startGold ?? saved.startGold ?? 500;
-			selectedMode = currentConfig?.modeId ?? saved.modeId ?? 'standard';
-			teamSize = (currentConfig?.teamSize ?? saved.teamSize ?? 1) as 1 | 2 | 3;
-			targetWins = currentConfig?.targetWins ?? saved.targetWins ?? 2;
-			bannedRaces = currentConfig?.bannedRaces ?? saved.bannedRaces ?? [];
-			westRace = currentConfig?.westRace ?? saved.westRace ?? 'in_game';
-			eastRace = currentConfig?.eastRace ?? saved.eastRace ?? 'random';
-			fogOfWar = currentConfig?.fogOfWar ?? saved.fogOfWar ?? true;
-			coinMode = (currentConfig?.coinMode ?? saved.coinMode ?? 'normal') as
-				'none' | 'normal' | 'crazy';
-			coinSpawnInterval =
-				currentConfig?.coinSpawnInterval ??
-				saved.coinSpawnInterval ??
-				(coinMode === 'crazy' ? 20 : 40);
-			coinCount =
-				currentConfig?.coinCount ??
-				saved.coinCount ??
-				(coinMode === 'crazy' ? 5 : coinMode === 'none' ? 0 : 1);
-			botVsBot = currentConfig?.botVsBot ?? saved.botVsBot ?? false;
+			const hasExplicit = Boolean(currentConfig && Object.keys(currentConfig).length > 0);
+			const source = hasExplicit
+				? currentConfig!
+				: storage.getJSON<Partial<SimulationConfig>>('match_settings', {});
+
+			const rawMode = source.modeId ?? 'standard';
+			const resolvedBotVsBot = source.botVsBot ?? rawMode === 'botVsBot';
+			selectedMode = rawMode === 'botVsBot' ? 'standard' : rawMode;
+			botVsBot = Boolean(resolvedBotVsBot);
+
+			botDifficulty = source.botDifficulty ?? 15;
+			startGold = source.startGold ?? 500;
+			teamSize = (source.teamSize ?? 1) as 1 | 2 | 3;
+			targetWins = source.targetWins ?? 2;
+			bannedRaces = source.bannedRaces ? [...source.bannedRaces] : [];
+			westRace = source.westRace ?? 'in_game';
+			eastRace = source.eastRace ?? 'random';
+			fogOfWar = source.fogOfWar ?? true;
+			coinMode = (source.coinMode ?? 'normal') as 'none' | 'normal' | 'crazy';
+			coinSpawnInterval = source.coinSpawnInterval ?? (coinMode === 'crazy' ? 20 : 40);
+			coinCount = source.coinCount ?? (coinMode === 'crazy' ? 5 : coinMode === 'none' ? 0 : 1);
 		}
 	});
 
 	function buildConfig(): SimulationConfig {
 		const modeConfig = GAME_MODES[selectedMode] || GAME_MODES.standard;
-		const isAr = modeConfig.allRandom || selectedMode === 'allRandom' || westRace === 'random';
-		const isUr = modeConfig.uniqueRaces || selectedMode === 'uniqueRaces';
-		const isBanDraft = modeConfig.banDraft || selectedMode === 'banDraft';
+		const isAr = Boolean(modeConfig.allRandom || selectedMode === 'allRandom');
+		const isUr = Boolean(modeConfig.uniqueRaces || selectedMode === 'uniqueRaces');
+		const isBanDraft = Boolean(modeConfig.banDraft || selectedMode === 'banDraft');
 
 		return {
 			botDifficulty,
@@ -226,7 +226,7 @@
 			coinSpawnInterval,
 			coinCount,
 			westRace,
-			eastRace: eastRace === 'random' ? undefined : eastRace,
+			eastRace: eastRace === 'random' ? 'random' : eastRace,
 			fogOfWar,
 			botVsBot
 		};
@@ -689,6 +689,36 @@
 
 					<!-- Tactical Toggles: Fog of War & Coins -->
 					<div class="space-y-2 pt-2 border-t border-slate-800">
+						<!-- Spectator (AI vs AI) Toggle -->
+						<div class="flex items-center justify-between">
+							<span class="text-[10px] font-bold text-slate-300 flex items-center gap-1">
+								<Eye class="w-3 h-3 text-emerald-400" />
+								<span>Бій ботів (AI vs AI):</span>
+							</span>
+							<div class="grid grid-cols-2 gap-1 w-28">
+								<button
+									type="button"
+									onclick={() => (botVsBot = true)}
+									data-testid="botvsbot-on-btn"
+									class="py-1 px-1 rounded-lg border text-[10px] font-bold transition cursor-pointer {botVsBot
+										? 'bg-emerald-600/30 border-emerald-500 text-emerald-200'
+										: 'bg-[#181d28] border-slate-800 text-slate-400'}"
+								>
+									Так
+								</button>
+								<button
+									type="button"
+									onclick={() => (botVsBot = false)}
+									data-testid="botvsbot-off-btn"
+									class="py-1 px-1 rounded-lg border text-[10px] font-bold transition cursor-pointer {!botVsBot
+										? 'bg-slate-600/30 border-slate-500 text-slate-200'
+										: 'bg-[#181d28] border-slate-800 text-slate-400'}"
+								>
+									Ні
+								</button>
+							</div>
+						</div>
+
 						<!-- Fog of War -->
 						<div class="flex items-center justify-between">
 							<span class="text-[10px] font-bold text-slate-300">Туман війни:</span>

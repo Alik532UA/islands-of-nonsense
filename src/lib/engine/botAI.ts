@@ -426,7 +426,11 @@ export class BotAI {
 		const maxArmor = isSmith ? 5 : 1;
 		const maxEcon = isSmith ? 2 : 1;
 
-		if (this.sim.hasForge(this.team, player) && player.gold > 350) {
+		if (
+			this.sim.gameModeConfig?.allowForge !== false &&
+			this.sim.hasForge(this.team, player) &&
+			player.gold > 350
+		) {
 			// Economy upgrade: first 5 minutes (gameTime < 300)
 			if (this.sim.gameTime < 300 && player.forge.econ < maxEcon) {
 				const cost = this.sim.getForgePrice(this.team, 'econ', player);
@@ -474,6 +478,7 @@ export class BotAI {
 		for (const b of myBuildings) {
 			const availableUpgrades = getUpgradesForBuilding(b.defId);
 			for (const up of availableUpgrades) {
+				if (!this.isBuildingAllowedByMode(up)) continue;
 				const isLeg = isLegendaryBuilding(up);
 				if (isLeg && player.food >= player.maxFood) continue;
 
@@ -547,8 +552,8 @@ export class BotAI {
 			const cooldownMet =
 				this.sim.gameTime >= BOT_BRIDGE_REPAIR_COOLDOWN &&
 				this.sim.gameTime -
-					(this.sim.lastBotBridgeRepairTime?.[this.team] ?? -BOT_BRIDGE_REPAIR_COOLDOWN) >=
-					BOT_BRIDGE_REPAIR_COOLDOWN;
+				(this.sim.lastBotBridgeRepairTime?.[this.team] ?? -BOT_BRIDGE_REPAIR_COOLDOWN) >=
+				BOT_BRIDGE_REPAIR_COOLDOWN;
 
 			if (
 				botWorker &&
@@ -653,11 +658,38 @@ export class BotAI {
 	}
 
 	/**
+	 * Checks whether a building definition is allowed under active match mode restrictions (-nu, -na, -nl).
+	 */
+	public isBuildingAllowedByMode(bDef: BuildingDefinition): boolean {
+		const mode = this.sim.gameModeConfig;
+		if (!mode) return true;
+		if (mode.noSpecialBuildings && bDef.specialType) {
+			if (bDef.specialType !== 'tower' && bDef.specialType !== 'treasure') {
+				return false;
+			}
+		}
+		if (mode.noArtillery) {
+			const spawnedUnit = bDef.unit ? UNITS_MAP.get(bDef.unit) : undefined;
+			const isArtillery =
+				bDef.attack_type === 'siege' ||
+				spawnedUnit?.attack_type === 'siege' ||
+				['h001', 'h048', 'h01E', 'u008', 'cg0a', 'h04P'].includes(bDef.id);
+			if (isArtillery) return false;
+		}
+		if (mode.noLegendaries && isLegendaryBuilding(bDef)) {
+			return false;
+		}
+		return true;
+	}
+
+	/**
 	 * Returns base army buildings mapped to their visual rank (1..6) for the given race.
 	 */
 	public getArmyBuildingRanks(race: string): { building: BuildingDefinition; rank: number }[] {
 		const baseBuildings = getBaseBuildingsForRace(race);
-		const armySpawners = baseBuildings.filter((b) => !b.specialType && !b.upgrade_from);
+		const armySpawners = baseBuildings.filter(
+			(b) => !b.specialType && !b.upgrade_from && this.isBuildingAllowedByMode(b)
+		);
 		return armySpawners.map((b) => ({
 			building: b,
 			rank: getBuildingVisualRank(b.id, race).rank
@@ -771,7 +803,11 @@ export class BotAI {
 		}
 		if (castleHpRatio < 0.7 && repairCount < 1 && player.gold >= 180) {
 			const repair = SPECIAL_BUILDINGS.find((b) => b.specialType === 'repair');
-			if (repair && (repair.lumber_cost || 0) <= (player.lumber ?? 0)) {
+			if (
+				repair &&
+				this.isBuildingAllowedByMode(repair) &&
+				(repair.lumber_cost || 0) <= (player.lumber ?? 0)
+			) {
 				specialCandidates.push({
 					building: repair,
 					priority: castleHpRatio < 0.4 ? 6500 : 3500,
@@ -782,13 +818,14 @@ export class BotAI {
 
 		// Forge & Shop construction when bot has economy and lumber
 		if (
+			this.sim.gameModeConfig?.allowForge !== false &&
 			player.gold >= 250 &&
 			(player.lumber ?? 0) >= 100 &&
 			!this.sim.hasForge(this.team, player) &&
 			myBuildings.length >= 2
 		) {
 			const forge = SPECIAL_BUILDINGS.find((b) => b.specialType === 'forge');
-			if (forge) {
+			if (forge && this.isBuildingAllowedByMode(forge)) {
 				specialCandidates.push({ building: forge, priority: 4600, cost: forge.gold_cost || 100 });
 			}
 		}
@@ -800,7 +837,7 @@ export class BotAI {
 			myBuildings.length >= 2
 		) {
 			const shop = SPECIAL_BUILDINGS.find((b) => b.specialType === 'shop');
-			if (shop) {
+			if (shop && this.isBuildingAllowedByMode(shop)) {
 				specialCandidates.push({ building: shop, priority: 4400, cost: shop.gold_cost || 50 });
 			}
 		}
