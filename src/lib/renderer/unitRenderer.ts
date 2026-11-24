@@ -94,7 +94,7 @@ export class UnitRenderer {
 			if (distToTarget > 6) {
 				const dirX = (w.targetX - wx) / distToTarget;
 				const dirY = (w.targetY - wy) / distToTarget;
-				const trailLen = Math.min(18, (w.speed || 260) * 0.05);
+				const trailLen = Math.min(18, (w.speed || 170) * 0.05);
 
 				g.beginPath();
 				g.roundRect(

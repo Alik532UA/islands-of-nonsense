@@ -94,8 +94,8 @@
 		uiTick >= 0 ? Math.max(0, 300 - Math.floor(sim.gameTime)) : 300
 	);
 
-	let canUseRescue = $derived(uiTick >= 0 ? sim.canUseRescueStrike(player.team) : false);
-	let rescueCd = $derived(uiTick >= 0 ? sim.rescueStrikeCooldown[player.team] : 0);
+	let canUseRescue = $derived(uiTick >= 0 ? sim.canUseRescueStrike(player.team, player) : false);
+	let rescueCd = $derived(uiTick >= 0 ? sim.getRescueStrikeCooldown(player.team, player) : 0);
 
 	let gameTime = $derived(uiTick >= 0 ? sim.gameTime : 0);
 	let bossSpawnTimer = $derived(uiTick >= 0 ? Math.max(0, Math.ceil(sim.bossSpawnTimer)) : 180);
@@ -598,14 +598,14 @@
 			<div class="relative group/tip flex items-center">
 				<button
 					onclick={() => {
-						if (canUseRescue) sim.triggerRescueStrike('west');
+						if (canUseRescue) sim.triggerRescueStrike(player.team, player);
 					}}
 					disabled={!canUseRescue}
 					data-testid="hud-rescue-strike-btn"
 					class="{baseBtnClass} {canUseRescue
 						? 'bg-rose-950/90 hover:bg-rose-900 border-rose-500 text-rose-100 ring-2 ring-rose-500/50'
 						: 'bg-[#181d28] border-[#3b3226] text-slate-500 cursor-not-allowed opacity-60'}"
-					aria-label="Рятівний Удар навколо замку (-950 шкоди, Гаряча клавіша: E)"
+					aria-label="Рятівний Удар навколо вашого замку (-950 облогової шкоди ворогам у 750px, особистий КД 180с, клавіша E)"
 					aria-keyshortcuts="e"
 				>
 					<Flame
@@ -622,13 +622,18 @@
 					{/if}
 				</button>
 				<div
-					class="absolute top-full right-0 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-rose-200 flex items-center gap-1.5"
+					class="absolute top-full right-0 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1.5 rounded-md shadow-2xl text-[11px] text-rose-200 flex flex-col gap-0.5"
 				>
-					<span>Рятівний удар</span>
-					<span
-						class="text-[9px] font-mono font-bold text-rose-300 bg-black/60 px-1 rounded border border-rose-500/60"
-					>
-						E
+					<div class="flex items-center gap-1.5 font-bold">
+						<span>Рятівний удар</span>
+						<span
+							class="text-[9px] font-mono font-bold text-rose-300 bg-black/60 px-1 rounded border border-rose-500/60"
+						>
+							E
+						</span>
+					</div>
+					<span class="text-[10px] text-slate-300 font-normal">
+						950 шкоди ворогам у 750px біля замку • Ваш КД: 180с
 					</span>
 				</div>
 			</div>

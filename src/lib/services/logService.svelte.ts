@@ -70,6 +70,7 @@ class LogService {
 	/** Ідентифікатор збірки на сервері, якщо його вже прочитано (VERSIONING § 2.2). */
 	servedVersion = $state<string | null>(null);
 	#entries: Entry[] = [];
+	#buildingHistories = new Map<string, string[]>();
 	#mirror = browser;
 	/** Фасад сховища сам пише в журнал про збій запису — без цього прапорця це була б рекурсія. */
 	#persisting = false;
@@ -119,6 +120,32 @@ class LogService {
 		this.#write('info', 'init', message, data);
 	}
 
+	/**
+	 * Records a building-specific lifecycle event into both the main topic log
+	 * and a dedicated per-building history map so high-frequency unit logs never evict it.
+	 */
+	recordBuildingEvent(
+		buildingId: string,
+		level: Level,
+		message: string,
+		data?: Record<string, unknown>
+	): void {
+		const payload = { buildingId, ...(data ?? {}) };
+		this.#write(level, 'building', message, [payload]);
+		const line = `[${new Date().toISOString()}] [${level.toUpperCase()}] ${message} ${safeJson(payload)}`;
+		let list = this.#buildingHistories.get(buildingId);
+		if (!list) {
+			if (this.#buildingHistories.size >= 300) {
+				const oldestKey = this.#buildingHistories.keys().next().value;
+				if (oldestKey !== undefined) this.#buildingHistories.delete(oldestKey);
+			}
+			list = [];
+			this.#buildingHistories.set(buildingId, list);
+		}
+		list.push(line);
+		if (list.length > 40) list.shift();
+	}
+
 	#write(level: Level, category: string, message: string, data: unknown[]): void {
 		try {
 			const entry: Entry = {
@@ -162,6 +189,7 @@ class LogService {
 
 	clear(): void {
 		this.#entries = [];
+		this.#buildingHistories.clear();
 		this.errorCount = 0;
 		if (this.#mirror) {
 			try {
@@ -319,21 +347,114 @@ class LogService {
 			sim.castles.east.y - (b.y + 32)
 		);
 
+		const owner =
+			(b.playerId ? sim.allPlayers?.find((p) => p.id === b.playerId) : null) ||
+			(b.playerSlot != null ? sim.allPlayers?.find((p) => p.slot === b.playerSlot) : null) ||
+			sim.players?.[b.team];
+
 		const header = [
 			'=== BUILDING DIAGNOSTIC REPORT ===',
 			`DATE: ${new Date().toISOString()}`,
 			`VERSION: ${appVersion}`,
 			`BUILDING: ${b.name} [${b.defId}] (ID: ${b.instanceId})`,
 			`TEAM: ${b.team.toUpperCase()} | RACE: ${b.race} | LANE: ${b.lane.toUpperCase()}`,
+			`OWNER: ${owner ? `${owner.name} (${owner.id}, slot=${owner.slot ?? '?'}, isBot=${owner.isBot}, gold=${Math.floor(owner.gold)}, lumber=${Math.floor(owner.lumber ?? 0)})` : `${b.playerId ?? 'Unknown'} (slot=${b.playerSlot ?? '?'})`}`,
 			`GRID TILE: (${b.tileX}, ${b.tileY}) | WORLD POS: (${b.x}, ${b.y})`,
 			`HP: ${Math.round(b.hp)}/${b.maxHp} | ARMOR: ${b.armor} (${b.armorType})`,
-			`STATUS: ${b.isUnderConstruction ? `Under Construction (${Math.round(b.buildProgress || 0)}/${b.maxBuildProgress || 100})` : 'Operational'}`,
+			`STATUS: ${b.isUnderConstruction ? `Under Construction (${(b.buildProgress || 0).toFixed(2)}/${(b.maxBuildProgress || 3.5).toFixed(2)})` : 'Operational'}`,
 			`SPAWN: Unit=${b.spawnUnitId || 'None'}, Timer=${(b.spawnTimer || 0).toFixed(1)}s/${b.spawnCooldown || 0}s`,
 			`ATTACK: ${b.attackRange ? `Range=${b.attackRange}, Dmg=${b.damageMin}-${b.damageMax} (${b.attackType}), Cooldown=${b.attackCooldown}` : 'None (Production/Econ)'}`,
 			`SPECIAL TYPE: ${b.specialType || 'None'} | UPGRADE FROM: ${b.upgradeFrom || 'Base'}`,
 			`COST: Gold=${b.goldCost}, Lumber=${b.lumberCost || 0}`,
 			''
 		];
+
+		const w = owner?.worker;
+		const workerLines: string[] = ['--- OWNER WORKER STATE ---'];
+		if (w && sim.workerSystem) {
+			const distToBld = sim.workerSystem.getDistanceToBox(w.x, w.y, b.x, b.y, 64, 64);
+			const lineClear = sim.workerSystem.isWorkerLineClear(b.team, w.x, w.y, b.x + 32, b.y + 32);
+			workerLines.push(
+				`WORKER: ${w.name} at (X: ${w.x.toFixed(1)}, Y: ${w.y.toFixed(1)}) | SPEED: ${w.speed}`,
+				`DIST TO THIS BUILDING: ${distToBld.toFixed(1)}px | DIRECT LINE CLEAR: ${lineClear}`,
+				`TARGET COORDS: (X: ${w.targetX.toFixed(1)}, Y: ${w.targetY.toFixed(1)}) | STUCK TIMER: ${(w.stuckTimer || 0).toFixed(2)}s`,
+				`IS BUILDING: ${w.isBuilding} | TARGET BUILDING ID: ${w.targetBuildingId ?? 'none'}`,
+				`IS REPAIRING: ${!!w.isRepairing} | TARGET REPAIR ID: ${w.targetRepairBuildingId ?? 'none'}`,
+				`BUILD QUEUE (${w.buildQueue?.length ?? 0}): ${w.buildQueue?.length ? w.buildQueue.join(', ') : 'Empty'}`,
+				`ACTIVE WAYPOINTS (${w.path?.length ?? 0}): ${
+					w.path?.length
+						? w.path
+								.slice(0, 8)
+								.map((wp, i) => `#${i + 1}(${Math.round(wp.x)},${Math.round(wp.y)})`)
+								.join(' -> ')
+						: 'None'
+				}`
+			);
+		} else {
+			workerLines.push('WORKER: Missing or workerSystem unavailable');
+		}
+		workerLines.push('');
+
+		const reachLines: string[] = ['--- CONSTRUCTION REACHABILITY & OBSTACLES ---'];
+		if (sim.workerSystem) {
+			const spot = w ? sim.workerSystem.getBestConstructionSpot(b.team, w.x, w.y, b.x, b.y) : null;
+			const pad = 16;
+			const sides = [
+				{ label: 'E', x: b.x + 64 + pad, y: b.y + 32 },
+				{ label: 'W', x: b.x - pad, y: b.y + 32 },
+				{ label: 'N', x: b.x + 32, y: b.y - pad },
+				{ label: 'S', x: b.x + 32, y: b.y + 64 + pad }
+			];
+			const sideStatus = sides
+				.map((s) => {
+					const onIsland = sim.buildingSystem?.isPointOnIsland(b.team, s.x, s.y, 10) ?? true;
+					const onWater = sim.workerSystem.isPointOnWater(s.x, s.y, 16);
+					const blocked = sim.workerSystem.isPointBlockedForWorker(b.team, s.x, s.y);
+					const tag = !onIsland ? 'OFF_ISLAND' : onWater ? 'WATER' : blocked ? 'BLOCKED' : 'OPEN';
+					return `${s.label}(${Math.round(s.x)},${Math.round(s.y)})=${tag}`;
+				})
+				.join(' | ');
+			reachLines.push(`PERIMETER SPOTS (pad=16): ${sideStatus}`);
+			if (spot) {
+				const spotDist = sim.workerSystem.getDistanceToBox(spot.x, spot.y, b.x, b.y, 64, 64);
+				reachLines.push(
+					`BEST SPOT: (${spot.x.toFixed(1)}, ${spot.y.toFixed(1)}) | distToBld=${spotDist.toFixed(1)}px`
+				);
+			}
+		}
+
+		const otherUnfinished = sim.buildings
+			.filter(
+				(ob) => ob.team === b.team && ob.isUnderConstruction && ob.instanceId !== b.instanceId
+			)
+			.map(
+				(ob) =>
+					`  - ${ob.name} (${ob.instanceId}) owner=${ob.playerId ?? '?'} tile=(${ob.tileX},${ob.tileY}) progress=${(ob.buildProgress || 0).toFixed(2)}/${(ob.maxBuildProgress || 3.5).toFixed(2)}`
+			);
+		reachLines.push(`OTHER TEAM UNFINISHED BUILDINGS (${otherUnfinished.length}):`);
+		reachLines.push(...(otherUnfinished.length ? otherUnfinished : ['  None']));
+
+		const nearbyBuildings = sim.buildings
+			.filter(
+				(ob) =>
+					ob.instanceId !== b.instanceId && ob.hp > 0 && Math.hypot(ob.x - b.x, ob.y - b.y) <= 220
+			)
+			.map((ob) => {
+				const d = Math.hypot(ob.x - b.x, ob.y - b.y);
+				return `  - [${ob.team.toUpperCase()}] ${ob.name} (${ob.instanceId}): tile=(${ob.tileX},${ob.tileY}), world=(${ob.x},${ob.y}), dist=${d.toFixed(1)}px, unfinished=${!!ob.isUnderConstruction}`;
+			});
+		reachLines.push(`NEARBY BUILDINGS <=220px (${nearbyBuildings.length}):`);
+		reachLines.push(...(nearbyBuildings.length ? nearbyBuildings : ['  None']));
+
+		const nearbyDecorations = (sim.decorations || [])
+			.filter((d) => Math.hypot(d.x - (b.x + 32), d.y - (b.y + 32)) <= 160)
+			.map((d) => {
+				const dist = Math.hypot(d.x - (b.x + 32), d.y - (b.y + 32));
+				return `  - [DECORATION] ${d.type} (${d.id}): at (${d.x},${d.y}), r=${d.radius}, dist=${dist.toFixed(1)}px`;
+			});
+		reachLines.push(`NEARBY DECORATIONS <=160px (${nearbyDecorations.length}):`);
+		reachLines.push(...(nearbyDecorations.length ? nearbyDecorations : ['  None']));
+		reachLines.push('');
 
 		const nearbyUnits = sim.units
 			.filter((u) => u.hp > 0 && Math.hypot(u.x - (b.x + 32), u.y - (b.y + 32)) <= 400)
@@ -351,24 +472,29 @@ class LogService {
 			''
 		];
 
-		const bldEntries = this.#entries.filter((e) => {
-			const text = `${e.message} ${safeJson(e.data)}`;
-			return text.includes(b.instanceId) || text.includes(b.name);
-		});
+		const bldHistory = this.#buildingHistories.get(b.instanceId) ?? [];
+		const bldEntries = this.#entries
+			.filter((e) => {
+				const text = `${e.message} ${safeJson(e.data)}`;
+				return text.includes(b.instanceId);
+			})
+			.map(
+				(e) =>
+					`[${e.time}] [${e.level.toUpperCase()}] [${e.category.toUpperCase()}] ${e.message}` +
+					(e.data.length ? ` ${safeJson(e.data)}` : '')
+			);
+
+		const combinedLogs = Array.from(new Set([...bldHistory, ...bldEntries]));
 
 		const logs = [
-			`--- LOG HISTORY FOR THIS BUILDING (${bldEntries.length} entries) ---`,
-			...(bldEntries.length
-				? bldEntries.map(
-						(e) =>
-							`[${e.time}] [${e.level.toUpperCase()}] [${e.category.toUpperCase()}] ${e.message}` +
-							(e.data.length ? ` ${safeJson(e.data)}` : '')
-					)
+			`--- LOG HISTORY FOR THIS BUILDING (${combinedLogs.length} entries) ---`,
+			...(combinedLogs.length
+				? combinedLogs
 				: ['No specific log entries captured for this building']),
 			'=== END OF REPORT ==='
 		];
 
-		return [...header, ...context, ...logs].join('\n');
+		return [...header, ...workerLines, ...reachLines, ...context, ...logs].join('\n');
 	}
 
 	getWorkerReport(w: WorkerState, team: MatchTeam, sim: Simulation): string {

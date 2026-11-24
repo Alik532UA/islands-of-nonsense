@@ -52,6 +52,7 @@ import {
 	ISLAND_RADIUS_X,
 	ISLAND_RADIUS_Y,
 	CELL_SIZE,
+	WORKER_MOVE_SPEED,
 	type CoinMode,
 	type DecorationObstacle,
 	type DecorationType
@@ -150,8 +151,11 @@ export class Simulation {
 	public castleOverchargeTimer: Record<MatchTeam, number> = { west: 0, east: 0 };
 	public itemCooldowns: Record<MatchTeam, Record<string, number>> = { west: {}, east: {} };
 
-	// Rescue Strike (Emergency Castle Defense, 180s CD)
+	// Rescue Strike (Emergency Castle Defense, 180s personal CD + 10s bot team stagger)
 	public rescueStrikeCooldown: Record<MatchTeam, number> = { west: 0, east: 0 };
+	public teamBotRescueCooldown: Record<MatchTeam, number> = { west: 0, east: 0 };
+	public castleHpLossRate: Record<MatchTeam, number> = { west: 0, east: 0 };
+	private lastCastleHpSnapshot: Record<MatchTeam, number> = { west: 14000, east: 14000 };
 	public greatAssemblyTimer: Record<MatchTeam, number> = { west: 0, east: 0 };
 	public rescueStrikeEffects: {
 		team: MatchTeam;
@@ -343,6 +347,7 @@ export class Simulation {
 			west: { team: 'west', x: WEST_CASTLE_X, y: WEST_CASTLE_Y, hp: castleHp, maxHp: castleHp },
 			east: { team: 'east', x: EAST_CASTLE_X, y: EAST_CASTLE_Y, hp: castleHp, maxHp: castleHp }
 		};
+		this.lastCastleHpSnapshot = { west: castleHp, east: castleHp };
 
 		const isRaceAvailable = (r: string): boolean => {
 			const canonical = formatRaceName(r);
@@ -356,24 +361,26 @@ export class Simulation {
 			.filter((r) => isRaceAvailable(r));
 		const isAllRandom = !!(config.allRandom || this.gameModeConfig.allRandom);
 		const isUniqueRaces = !!(config.uniqueRaces || this.gameModeConfig.uniqueRaces);
+		const isBotVsBot = !!config.botVsBot;
+		const avoidDuplicateRaces = isUniqueRaces || isBotVsBot;
 
 		const remainingRaces = [...availableRaces];
 		const takeRace = (requested?: string, isRand = false): { race: string; isRandom: boolean } => {
 			if (isAllRandom || requested === 'random' || isRand) {
 				const idx = Math.floor(Math.random() * remainingRaces.length);
 				const picked = remainingRaces[idx] || availableRaces[0];
-				if (isUniqueRaces && remainingRaces.length > 1) {
+				if (avoidDuplicateRaces && remainingRaces.length > 1) {
 					remainingRaces.splice(idx, 1);
 				}
 				return { race: picked, isRandom: true };
 			}
 			if (requested && requested !== 'in_game' && isRaceAvailable(requested)) {
 				const canonical = formatRaceName(requested);
-				if (isUniqueRaces) {
+				if (avoidDuplicateRaces) {
 					const remIdx = remainingRaces.findIndex(
 						(r) => r === requested || formatRaceName(r) === canonical
 					);
-					if (remIdx !== -1) {
+					if (remIdx !== -1 && remainingRaces.length > 1) {
 						remainingRaces.splice(remIdx, 1);
 					}
 				}
@@ -381,7 +388,7 @@ export class Simulation {
 			}
 			const idx = Math.floor(Math.random() * remainingRaces.length);
 			const picked = remainingRaces[idx] || availableRaces[0];
-			if (isUniqueRaces && remainingRaces.length > 1) {
+			if (avoidDuplicateRaces && remainingRaces.length > 1) {
 				remainingRaces.splice(idx, 1);
 			}
 			return { race: picked, isRandom: false };
@@ -410,8 +417,6 @@ export class Simulation {
 		const eastRace = eastChoice.race;
 		const eastIsRandom = eastChoice.isRandom;
 
-		const isBotVsBot = !!config.botVsBot;
-
 		const westGold = westIsRandom ? Math.round(config.startGold * 1.3) : config.startGold;
 		const eastGold = eastIsRandom ? Math.round(config.startGold * 1.3) : config.startGold;
 		const startingMaxFood =
@@ -435,6 +440,7 @@ export class Simulation {
 			commander: 2, // Alik
 			forge: { attack: 0, armor: 0, econ: 0 },
 			preferredLane: 'auto',
+			rescueStrikeCooldown: 0,
 			worker: {
 				name: getBuilderNameForRace(westRace),
 				x: WEST_CASTLE_X + 160,
@@ -444,7 +450,7 @@ export class Simulation {
 				hp: 220,
 				maxHp: 220,
 				armor: 'Неуразливий',
-				speed: 360,
+				speed: WORKER_MOVE_SPEED,
 				isBuilding: false,
 				buildTimer: 0
 			},
@@ -477,6 +483,7 @@ export class Simulation {
 			commander: 3, // Dima
 			forge: { attack: 0, armor: 0, econ: 0 },
 			preferredLane: 'auto',
+			rescueStrikeCooldown: 0,
 			worker: {
 				name: getBuilderNameForRace(eastRace),
 				x: EAST_CASTLE_X - 160,
@@ -486,7 +493,7 @@ export class Simulation {
 				hp: 220,
 				maxHp: 220,
 				armor: 'Неуразливий',
-				speed: 360,
+				speed: WORKER_MOVE_SPEED,
 				isBuilding: false,
 				buildTimer: 0
 			},
@@ -539,6 +546,7 @@ export class Simulation {
 				commander: 1, // Sasha
 				forge: { attack: 0, armor: 0, econ: 0 },
 				preferredLane: 'auto',
+				rescueStrikeCooldown: 0,
 				worker: {
 					name: getBuilderNameForRace(p3Choice.race),
 					x: WEST_CASTLE_X + 160,
@@ -548,7 +556,7 @@ export class Simulation {
 					hp: 220,
 					maxHp: 220,
 					armor: 'Неуразливий',
-					speed: 360,
+					speed: WORKER_MOVE_SPEED,
 					isBuilding: false,
 					buildTimer: 0
 				},
@@ -581,6 +589,7 @@ export class Simulation {
 				commander: 4, // Dan
 				forge: { attack: 0, armor: 0, econ: 0 },
 				preferredLane: 'auto',
+				rescueStrikeCooldown: 0,
 				worker: {
 					name: getBuilderNameForRace(p4Choice.race),
 					x: EAST_CASTLE_X - 160,
@@ -590,7 +599,7 @@ export class Simulation {
 					hp: 220,
 					maxHp: 220,
 					armor: 'Неуразливий',
-					speed: 360,
+					speed: WORKER_MOVE_SPEED,
 					isBuilding: false,
 					buildTimer: 0
 				},
@@ -634,6 +643,7 @@ export class Simulation {
 				commander: 5, // Yura
 				forge: { attack: 0, armor: 0, econ: 0 },
 				preferredLane: 'auto',
+				rescueStrikeCooldown: 0,
 				worker: {
 					name: getBuilderNameForRace(p5Choice.race),
 					x: WEST_CASTLE_X + 160,
@@ -643,7 +653,7 @@ export class Simulation {
 					hp: 220,
 					maxHp: 220,
 					armor: 'Неуразливий',
-					speed: 360,
+					speed: WORKER_MOVE_SPEED,
 					isBuilding: false,
 					buildTimer: 0
 				},
@@ -676,6 +686,7 @@ export class Simulation {
 				commander: 6, // Valera
 				forge: { attack: 0, armor: 0, econ: 0 },
 				preferredLane: 'auto',
+				rescueStrikeCooldown: 0,
 				worker: {
 					name: getBuilderNameForRace(p6Choice.race),
 					x: EAST_CASTLE_X - 160,
@@ -685,7 +696,7 @@ export class Simulation {
 					hp: 220,
 					maxHp: 220,
 					armor: 'Неуразливий',
-					speed: 360,
+					speed: WORKER_MOVE_SPEED,
 					isBuilding: false,
 					buildTimer: 0
 				},
@@ -936,6 +947,8 @@ export class Simulation {
 
 		this.castles.west.hp = this.castles.west.maxHp;
 		this.castles.east.hp = this.castles.east.maxHp;
+		this.lastCastleHpSnapshot = { west: this.castles.west.maxHp, east: this.castles.east.maxHp };
+		this.castleHpLossRate = { west: 0, east: 0 };
 
 		this.gameTime = 0;
 		this.incomeTimer = 3.0;
@@ -945,6 +958,7 @@ export class Simulation {
 		this.castleOverchargeTimer = { west: 0, east: 0 };
 		this.itemCooldowns = { west: {}, east: {} };
 		this.rescueStrikeCooldown = { west: 0, east: 0 };
+		this.teamBotRescueCooldown = { west: 0, east: 0 };
 		this.rescueStrikeEffects = [];
 		this.splashEffects = [];
 		this.lightningEffects = [];
@@ -974,6 +988,7 @@ export class Simulation {
 
 		for (const p of this.allPlayers) {
 			p.forge = { attack: 0, armor: 0, econ: 0 };
+			p.rescueStrikeCooldown = 0;
 			const baseStartGold = this.config.startGold ?? 500;
 			p.gold = !p.isBot && p.isRandomRace ? Math.round(baseStartGold * 1.3) : baseStartGold;
 			p.randomGoldGranted = !p.isBot && !!p.isRandomRace;
@@ -1046,8 +1061,24 @@ export class Simulation {
 		this.castleOverchargeTimer.west = Math.max(0, this.castleOverchargeTimer.west - dt);
 		this.castleOverchargeTimer.east = Math.max(0, this.castleOverchargeTimer.east - dt);
 
+		for (const p of this.allPlayers) {
+			if (p.rescueStrikeCooldown !== undefined && p.rescueStrikeCooldown > 0) {
+				p.rescueStrikeCooldown = Math.max(0, p.rescueStrikeCooldown - dt);
+			}
+		}
 		this.rescueStrikeCooldown.west = Math.max(0, this.rescueStrikeCooldown.west - dt);
 		this.rescueStrikeCooldown.east = Math.max(0, this.rescueStrikeCooldown.east - dt);
+		this.teamBotRescueCooldown.west = Math.max(0, this.teamBotRescueCooldown.west - dt);
+		this.teamBotRescueCooldown.east = Math.max(0, this.teamBotRescueCooldown.east - dt);
+
+		const hpRateAlpha = dt > 0 ? Math.min(1, dt / 2.5) : 0;
+		for (const team of ['west', 'east'] as MatchTeam[]) {
+			const drop = Math.max(0, this.lastCastleHpSnapshot[team] - this.castles[team].hp);
+			const instRate = dt > 0 ? drop / dt : 0;
+			this.castleHpLossRate[team] =
+				this.castleHpLossRate[team] * (1 - hpRateAlpha) + instRate * hpRateAlpha;
+			this.lastCastleHpSnapshot[team] = this.castles[team].hp;
+		}
 
 		this.greatAssemblyTimer.west = Math.max(0, this.greatAssemblyTimer.west - dt);
 		this.greatAssemblyTimer.east = Math.max(0, this.greatAssemblyTimer.east - dt);
@@ -1582,12 +1613,19 @@ export class Simulation {
 		return this.economySystem.buyCastleItem(team, itemId, player);
 	}
 
-	public canUseRescueStrike(team: MatchTeam): boolean {
-		return this.economySystem.canUseRescueStrike(team);
+	public getRescueStrikeCooldown(team: MatchTeam, player?: PlayerState): number {
+		return this.economySystem.getRescueStrikeCooldown(team, player);
 	}
 
-	public triggerRescueStrike(team: MatchTeam): { hitCount: number; damageDealt: number } | null {
-		return this.economySystem.triggerRescueStrike(team);
+	public canUseRescueStrike(team: MatchTeam, player?: PlayerState): boolean {
+		return this.economySystem.canUseRescueStrike(team, player);
+	}
+
+	public triggerRescueStrike(
+		team: MatchTeam,
+		player?: PlayerState
+	): { hitCount: number; damageDealt: number } | null {
+		return this.economySystem.triggerRescueStrike(team, player);
 	}
 
 	public isPointOnIsland(team: MatchTeam, x: number, y: number, margin = 20): boolean {

@@ -506,6 +506,7 @@ export interface PlayerState {
 	commander: number; // 1..6
 	forge: ForgeLevels;
 	preferredLane: 'auto' | 'top' | 'mid' | 'bottom';
+	rescueStrikeCooldown?: number;
 	worker?: WorkerState;
 	stats: {
 		unitsSpawned: number;

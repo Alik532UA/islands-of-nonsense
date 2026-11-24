@@ -109,28 +109,132 @@ describe('Point 5: Rescue Strike (Emergency Castle Defense)', () => {
 		expect(aliveNearbyEast.length).toBe(0);
 	});
 
-	it('BotAI triggers rescue strike when enemies cluster around its east castle', () => {
-		const botAI = new BotAI(sim);
+	it('BotAI does NOT trigger rescue strike prematurely when castle HP >= 50%', () => {
+		const botAI = new BotAI(sim, 'east', sim.players.east);
 		const eastCastle = sim.castles.east;
 
-		// Spawn 4 enemy units approaching east castle
+		// Spawn 4 enemy units near full-HP east castle
 		for (let i = 0; i < 4; i++) {
 			sim.spawnUnitDirectly({
 				team: 'west',
 				lane: 'top',
 				x: eastCastle.x - 300 - i * 40,
 				y: eastCastle.y,
-				hp: 1200
+				hp: 1200,
+				damage: 55,
+				attackCooldown: 1.0
 			});
 		}
 
-		expect(sim.canUseRescueStrike('east')).toBe(true);
+		expect(eastCastle.hp).toBe(eastCastle.maxHp);
+		expect(sim.canUseRescueStrike('east', sim.players.east)).toBe(true);
 
-		// Run bot update (trigger decision interval >= 1.5s)
 		botAI.update(2.0);
 
-		// Bot should have fired rescue strike!
-		expect(sim.rescueStrikeCooldown.east).toBe(180);
-		expect(sim.canUseRescueStrike('east')).toBe(false);
+		// Should NOT fire above 50% HP
+		expect(sim.getRescueStrikeCooldown('east', sim.players.east)).toBe(0);
+		expect(sim.canUseRescueStrike('east', sim.players.east)).toBe(true);
+	});
+
+	it('BotAI triggers rescue strike when castle HP < 50% under active high threat', () => {
+		const botAI = new BotAI(sim, 'east', sim.players.east);
+		const eastCastle = sim.castles.east;
+
+		// Drop castle below 50% and simulate ongoing HP loss velocity
+		eastCastle.hp = eastCastle.maxHp * 0.42;
+		sim.castleHpLossRate.east = 95;
+
+		for (let i = 0; i < 3; i++) {
+			sim.spawnUnitDirectly({
+				team: 'west',
+				lane: 'top',
+				x: eastCastle.x - 250 - i * 40,
+				y: eastCastle.y,
+				hp: 1200,
+				damage: 50,
+				attackCooldown: 1.0
+			});
+		}
+
+		botAI.update(2.0);
+
+		expect(sim.getRescueStrikeCooldown('east', sim.players.east)).toBe(180);
+		expect(sim.canUseRescueStrike('east', sim.players.east)).toBe(false);
+		expect(sim.teamBotRescueCooldown.east).toBe(10);
+	});
+
+	it('tracks rescue strike cooldown independently per player in 3v3', () => {
+		const sim3v3 = new Simulation({ botDifficulty: 0, startGold: 500, teamSize: 3 });
+		const westPlayers = sim3v3.allPlayers.filter((p) => p.team === 'west');
+		expect(westPlayers.length).toBe(3);
+
+		const [p1, p3, p5] = westPlayers;
+		expect(sim3v3.canUseRescueStrike('west', p1)).toBe(true);
+		expect(sim3v3.canUseRescueStrike('west', p3)).toBe(true);
+		expect(sim3v3.canUseRescueStrike('west', p5)).toBe(true);
+
+		sim3v3.triggerRescueStrike('west', p1);
+
+		expect(sim3v3.getRescueStrikeCooldown('west', p1)).toBe(180);
+		expect(sim3v3.canUseRescueStrike('west', p1)).toBe(false);
+		// Allied teammates keep their own ready rescue strike
+		expect(sim3v3.getRescueStrikeCooldown('west', p3)).toBe(0);
+		expect(sim3v3.canUseRescueStrike('west', p3)).toBe(true);
+		expect(sim3v3.getRescueStrikeCooldown('west', p5)).toBe(0);
+		expect(sim3v3.canUseRescueStrike('west', p5)).toBe(true);
+	});
+
+	it('staggers allied bots with a 10s team cooldown so 3 bots do not fire together', () => {
+		const sim3v3 = new Simulation({ botDifficulty: 0, startGold: 500, teamSize: 3 });
+		const westBots = sim3v3.allPlayers.filter((p) => p.team === 'west');
+		westBots.forEach((p) => {
+			p.isBot = true;
+		});
+		const botAIs = westBots.map((p) => new BotAI(sim3v3, 'west', p));
+
+		const westCastle = sim3v3.castles.west;
+		westCastle.hp = westCastle.maxHp * 0.4;
+		sim3v3.castleHpLossRate.west = 110;
+
+		for (let i = 0; i < 4; i++) {
+			sim3v3.spawnUnitDirectly({
+				team: 'east',
+				lane: 'top',
+				x: westCastle.x + 250 + i * 40,
+				y: westCastle.y,
+				hp: 1500,
+				damage: 55,
+				attackCooldown: 1.0
+			});
+		}
+
+		// All 3 bots evaluate simultaneously
+		for (const bot of botAIs) {
+			bot.update(2.0);
+		}
+
+		// Only 1 bot should have fired; the other 2 must hold due to 10s team stagger
+		const firedCountInitial = westBots.filter(
+			(p) => sim3v3.getRescueStrikeCooldown('west', p) > 0
+		).length;
+		expect(firedCountInitial).toBe(1);
+		expect(sim3v3.teamBotRescueCooldown.west).toBe(10);
+
+		// Advance 10.2s while castle remains under pressure
+		for (let i = 0; i < 205; i++) {
+			sim3v3.step(0.05);
+		}
+		sim3v3.castleHpLossRate.west = 110;
+		expect(sim3v3.teamBotRescueCooldown.west).toBe(0);
+
+		for (const bot of botAIs) {
+			bot.update(2.0);
+		}
+
+		// Now a second bot may fire, while the third holds again
+		const firedCountAfterStagger = westBots.filter(
+			(p) => sim3v3.getRescueStrikeCooldown('west', p) > 0
+		).length;
+		expect(firedCountAfterStagger).toBe(2);
 	});
 });

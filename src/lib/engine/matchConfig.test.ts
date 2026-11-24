@@ -3,7 +3,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Simulation } from './simulation';
 import { BotAI } from './botAI';
-import { BUILDINGS_MAP } from './gameData';
+import { BUILDINGS_MAP, UNITS_MAP, formatRaceName } from './gameData';
+import { WORKER_MOVE_SPEED, UNIT_SPEED_SCALE } from './constants';
 import {
 	buildQuickMatchConfig,
 	getDefaultQuickSettingsState,
@@ -249,5 +250,56 @@ describe('Quick Settings, Match Config & GameMode Integration', () => {
 			"storage.getJSON<Partial<QuickSettingsState> | null>(\n\t\t\t'play_quick_settings'"
 		);
 		expect(playSrc).toContain("buildQuickMatchConfig('botVsBot'");
+	});
+
+	it('avoids duplicate races across all bot slots when bots play against each other', () => {
+		for (let i = 0; i < 15; i++) {
+			const sim1v1 = new Simulation({
+				botDifficulty: 15,
+				startGold: 500,
+				botVsBot: true,
+				westRace: 'random',
+				eastRace: 'random'
+			});
+			expect(formatRaceName(sim1v1.players.west.race)).not.toBe(
+				formatRaceName(sim1v1.players.east.race)
+			);
+
+			const sim3v3 = new Simulation({
+				botDifficulty: 15,
+				startGold: 500,
+				botVsBot: true,
+				teamSize: 3,
+				westRace: 'Ельфи',
+				eastRace: 'random'
+			});
+			const canonicalRaces = sim3v3.allPlayers.map((p) => formatRaceName(p.race));
+			expect(new Set(canonicalRaces).size).toBe(6);
+		}
+	});
+
+	it('sets worker speed to 170 and scales combat unit speeds down by ~45%', () => {
+		const sim = new Simulation({
+			botDifficulty: 15,
+			startGold: 2000,
+			teamSize: 3,
+			westRace: 'Альянс'
+		});
+
+		expect(WORKER_MOVE_SPEED).toBe(170);
+		for (const p of sim.allPlayers) {
+			expect(p.worker?.speed).toBe(170);
+		}
+
+		expect(sim.build('west', 'h000', 25, 20)).toBe(true);
+		const barracks = sim.buildings.find((b) => b.defId === 'h000')!;
+		barracks.isUnderConstruction = false;
+		const spawned = sim.buildingSystem.spawnUnitFromBuilding(barracks);
+		expect(spawned).not.toBeNull();
+		const unitDef = UNITS_MAP.get(barracks.spawnUnitId)!;
+		const rawUmvs = Number(unitDef.raw_fields?.umvs) || 270;
+		expect(spawned!.speed).toBe(Math.max(40, Math.round(rawUmvs * UNIT_SPEED_SCALE)));
+		expect(spawned!.speed).toBeLessThanOrEqual(Math.round(rawUmvs * 0.6));
+		expect(spawned!.speed).toBeGreaterThanOrEqual(Math.round(rawUmvs * 0.5));
 	});
 });

@@ -358,17 +358,11 @@ export class BotAI {
 			}
 		}
 
-		// 0b. Emergency Rescue Strike
-		if (this.sim.canUseRescueStrike(this.team)) {
-			const enemyTeam = this.team === 'west' ? 'east' : 'west';
-			const enemyNearCastle = this.sim.units.filter(
-				(u) =>
-					u.team === enemyTeam &&
-					u.state !== 'DEAD' &&
-					Math.hypot(u.x - myCastle.x, u.y - myCastle.y) <= 750
-			);
-			if (enemyNearCastle.length >= 3 || (castleHpRatio < 0.4 && enemyNearCastle.length >= 1)) {
-				this.sim.triggerRescueStrike(this.team);
+		// 0b. Emergency Rescue Strike (Per-bot strike when castle < 50% HP + threat & 10s team stagger)
+		if (this.shouldTriggerRescueStrike(player, castleHpRatio)) {
+			const res = this.sim.triggerRescueStrike(this.team, player);
+			if (res) {
+				this.sim.teamBotRescueCooldown[this.team] = 10.0;
 				return;
 			}
 		}
@@ -552,8 +546,8 @@ export class BotAI {
 			const cooldownMet =
 				this.sim.gameTime >= BOT_BRIDGE_REPAIR_COOLDOWN &&
 				this.sim.gameTime -
-				(this.sim.lastBotBridgeRepairTime?.[this.team] ?? -BOT_BRIDGE_REPAIR_COOLDOWN) >=
-				BOT_BRIDGE_REPAIR_COOLDOWN;
+					(this.sim.lastBotBridgeRepairTime?.[this.team] ?? -BOT_BRIDGE_REPAIR_COOLDOWN) >=
+					BOT_BRIDGE_REPAIR_COOLDOWN;
 
 			if (
 				botWorker &&
@@ -1051,6 +1045,88 @@ export class BotAI {
 		const finalSelection = laneFiltered.length > 0 ? laneFiltered : candidateTier;
 		const chosen = finalSelection[Math.floor(Math.random() * finalSelection.length)];
 		return chosen ? { x: chosen.x, y: chosen.y } : null;
+	}
+
+	/**
+	 * Evaluates whether a bot should fire its personal Rescue Strike.
+	 * Enforces:
+	 * - Personal 180s readiness for this bot player (`canUseRescueStrike(team, player)`)
+	 * - Castle genuinely threatened (`castleHpRatio < 0.5`)
+	 * - 10-second shared team stagger cooldown so allied bots never waste strikes simultaneously
+	 * - Active enemy threat analysis: HP drop velocity (`castleHpLossRate`), enemy DPS/siege/boss weight,
+	 *   and defender balance within the 750px strike radius.
+	 */
+	public shouldTriggerRescueStrike(player: PlayerState, castleHpRatio: number): boolean {
+		if (!this.sim.canUseRescueStrike(this.team, player)) return false;
+		if (castleHpRatio >= 0.5) return false;
+		if ((this.sim.teamBotRescueCooldown?.[this.team] ?? 0) > 0) return false;
+
+		const myCastle = this.sim.castles[this.team];
+		if (!myCastle || myCastle.hp <= 0) return false;
+
+		const enemyTeam: MatchTeam = this.team === 'west' ? 'east' : 'west';
+		const radiusSq = 750 * 750;
+		const enemiesNearCastle = [];
+		let enemyTotalHp = 0;
+		let enemyDpsWeight = 0;
+		let expectedStrikeDmg = 0;
+		let allyDefendersHp = 0;
+
+		for (const u of this.sim.units) {
+			if (u.state === 'DEAD') continue;
+			const dx = u.x - myCastle.x;
+			const dy = u.y - myCastle.y;
+			if (dx * dx + dy * dy > radiusSq) continue;
+
+			if (u.team === enemyTeam) {
+				enemiesNearCastle.push(u);
+				enemyTotalHp += u.hp;
+				expectedStrikeDmg += Math.min(u.hp, 950);
+				const avgDmg = ((u.damageMin ?? 20) + (u.damageMax ?? u.damageMin ?? 20)) / 2;
+				const cd = Math.max(0.4, u.attackCooldown || 1.2);
+				const baseDps = avgDmg / cd;
+				const siegeFactor = u.isArtillery || u.attackType === 'siege' ? 1.5 : 1.0;
+				const bossFactor = u.isBoss ? 1.5 : 1.0;
+				enemyDpsWeight += baseDps * siegeFactor * bossFactor;
+			} else if (u.team === this.team) {
+				allyDefendersHp += u.hp;
+			}
+		}
+
+		if (enemiesNearCastle.length === 0) return false;
+
+		const hpLossRate = this.sim.castleHpLossRate?.[this.team] ?? 0;
+		const timeToFall = hpLossRate > 5 ? myCastle.hp / hpLossRate : Infinity;
+
+		// 1. Critical collapse: castle < 25% HP and under active assault / meaningful threat
+		if (
+			castleHpRatio < 0.25 &&
+			(hpLossRate >= 25 || enemiesNearCastle.length >= 2 || enemyDpsWeight >= 35)
+		) {
+			return true;
+		}
+
+		// 2. Rapid HP drain: castle projected to fall soon or taking heavy DPS with multiple attackers
+		if (
+			(timeToFall <= 35 || hpLossRate >= 70) &&
+			enemiesNearCastle.length >= 2 &&
+			expectedStrikeDmg >= 600
+		) {
+			return true;
+		}
+
+		// 3. Outnumbered courtyard breach: defenders overwhelmed (< 45% castle HP + siege pressure)
+		if (
+			castleHpRatio < 0.45 &&
+			enemiesNearCastle.length >= 3 &&
+			enemyTotalHp > allyDefendersHp * 1.4 &&
+			(hpLossRate >= 20 || enemyDpsWeight >= 55) &&
+			expectedStrikeDmg >= 900
+		) {
+			return true;
+		}
+
+		return false;
 	}
 
 	/**

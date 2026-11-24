@@ -11,6 +11,7 @@ import {
 import type { MatchTeam, WorkerState, PlayerState } from './types';
 import { GroundNavigation } from './groundNavigation';
 import { getBuilding, getUnit, isSpecialBuilding, isTowerBuilding } from './gameData';
+import { logService } from '../services/logService.svelte';
 
 export { SOLID_MAP_OBSTACLES } from './constants';
 
@@ -147,6 +148,17 @@ export class WorkerSystem {
 				w.isRepairing = false;
 				w.targetRepairBuildingId = null;
 				w.path = this.findWorkerPath(team, w.x, w.y, spot.x, spot.y);
+				logService.recordBuildingEvent(
+					nextBld.instanceId,
+					'info',
+					'Worker dequeued building from buildQueue',
+					{
+						team,
+						playerId: _p.id,
+						workerPos: { x: Math.round(w.x), y: Math.round(w.y) },
+						spot: { x: Math.round(spot.x), y: Math.round(spot.y) }
+					}
+				);
 				this.sim.notifyStateChanged();
 				return true;
 			}
@@ -164,6 +176,22 @@ export class WorkerSystem {
 		const player = playerInput || this.sim.players[team];
 		const w = player?.worker;
 		if (w) {
+			if (w.targetBuildingId) {
+				logService.recordBuildingEvent(
+					w.targetBuildingId,
+					'warn',
+					'Construction target interrupted by moveWorker',
+					{ team, playerId: player?.id, targetX: Math.round(targetX), targetY: Math.round(targetY) }
+				);
+			}
+			for (const qId of w.buildQueue ?? []) {
+				logService.recordBuildingEvent(
+					qId,
+					'warn',
+					'Queued building cleared from buildQueue by moveWorker',
+					{ team, playerId: player?.id }
+				);
+			}
 			w.buildQueue = []; // Clear queued orders on manual move order
 			// If worker was en route to an unstarted building, cancel the ghost foundation (100% refund)
 			if (w.targetBuildingId) {
@@ -175,6 +203,12 @@ export class WorkerSystem {
 						(b.buildProgress || 0) === 0
 				);
 				if (unstarted) {
+					logService.recordBuildingEvent(
+						unstarted.instanceId,
+						'warn',
+						'Unstarted building (0% progress) cancelled and refunded by moveWorker',
+						{ team, playerId: player?.id }
+					);
 					this.sim.buildingSystem.sellBuilding(team, unstarted.instanceId, player);
 				}
 			}
@@ -226,41 +260,44 @@ export class WorkerSystem {
 		bldWidth: number = CELL_SIZE,
 		bldHeight: number = CELL_SIZE
 	): { x: number; y: number } {
-		const pad = 16;
-		const candidates = [
-			// 4 cardinal perimeter sides
-			{ x: bldX + bldWidth + pad, y: bldY + bldHeight / 2 },
-			{ x: bldX - pad, y: bldY + bldHeight / 2 },
-			{ x: bldX + bldWidth / 2, y: bldY - pad },
-			{ x: bldX + bldWidth / 2, y: bldY + bldHeight + pad },
-			// 4 diagonal corners
-			{ x: bldX + bldWidth + pad, y: bldY - pad },
-			{ x: bldX + bldWidth + pad, y: bldY + bldHeight + pad },
-			{ x: bldX - pad, y: bldY - pad },
-			{ x: bldX - pad, y: bldY + bldHeight + pad }
-		];
+		const pads = [16, 26, 36];
 
-		let bestSpot: { x: number; y: number } | null = null;
-		let minDistance = Infinity;
+		for (const pad of pads) {
+			const candidates = [
+				// 4 cardinal perimeter sides
+				{ x: bldX + bldWidth + pad, y: bldY + bldHeight / 2 },
+				{ x: bldX - pad, y: bldY + bldHeight / 2 },
+				{ x: bldX + bldWidth / 2, y: bldY - pad },
+				{ x: bldX + bldWidth / 2, y: bldY + bldHeight + pad },
+				// 4 diagonal corners
+				{ x: bldX + bldWidth + pad, y: bldY - pad },
+				{ x: bldX + bldWidth + pad, y: bldY + bldHeight + pad },
+				{ x: bldX - pad, y: bldY - pad },
+				{ x: bldX - pad, y: bldY + bldHeight + pad }
+			];
 
-		for (const cand of candidates) {
-			if (!this.isPointBlockedForWorker(team, cand.x, cand.y)) {
-				const d = Math.hypot(workerX - cand.x, workerY - cand.y);
-				if (d < minDistance) {
-					minDistance = d;
-					bestSpot = cand;
+			let bestSpot: { x: number; y: number } | null = null;
+			let minDistance = Infinity;
+
+			for (const cand of candidates) {
+				if (!this.isPointBlockedForWorker(team, cand.x, cand.y)) {
+					const d = Math.hypot(workerX - cand.x, workerY - cand.y);
+					if (d < minDistance) {
+						minDistance = d;
+						bestSpot = cand;
+					}
 				}
 			}
-		}
 
-		if (bestSpot) return bestSpot;
+			if (bestSpot) return bestSpot;
+		}
 
 		// Fallback: resolve ground obstacles from current worker position towards building
 		const cx = bldX + bldWidth / 2;
 		const cy = bldY + bldHeight / 2;
 		const angle = Math.atan2(workerY - cy, workerX - cx);
-		const fallbackX = cx + Math.cos(angle) * (bldWidth / 2 + pad);
-		const fallbackY = cy + Math.sin(angle) * (bldHeight / 2 + pad);
+		const fallbackX = cx + Math.cos(angle) * (bldWidth / 2 + 20);
+		const fallbackY = cy + Math.sin(angle) * (bldHeight / 2 + 20);
 		return this.resolveGroundObstacles(fallbackX, fallbackY, 14);
 	}
 
@@ -282,6 +319,14 @@ export class WorkerSystem {
 
 		const w = player?.worker;
 		if (w) {
+			if (w.targetBuildingId && w.targetBuildingId !== buildingInstanceId) {
+				logService.recordBuildingEvent(
+					w.targetBuildingId,
+					'warn',
+					'Construction interrupted by continueConstruction for another building',
+					{ team, nextBuildingId: buildingInstanceId }
+				);
+			}
 			const spot = this.getBestConstructionSpot(team, w.x, w.y, targetBld.x, targetBld.y);
 			w.targetX = spot.x;
 			w.targetY = spot.y;
@@ -290,6 +335,18 @@ export class WorkerSystem {
 			w.isRepairing = false;
 			w.targetRepairBuildingId = null;
 			w.path = this.findWorkerPath(team, w.x, w.y, spot.x, spot.y);
+			logService.recordBuildingEvent(
+				buildingInstanceId,
+				'info',
+				'Worker assigned/resumed construction',
+				{
+					team,
+					playerId: player?.id,
+					workerPos: { x: Math.round(w.x), y: Math.round(w.y) },
+					spot: { x: Math.round(spot.x), y: Math.round(spot.y) },
+					progress: Number((targetBld.buildProgress || 0).toFixed(2))
+				}
+			);
 			this.sim.notifyStateChanged();
 			return true;
 		}
@@ -317,6 +374,14 @@ export class WorkerSystem {
 
 		const w = (playerInput || this.sim.players[team])?.worker;
 		if (w) {
+			if (w.targetBuildingId) {
+				logService.recordBuildingEvent(
+					w.targetBuildingId,
+					'warn',
+					'Construction interrupted by repairBuilding order',
+					{ team, repairTargetId: buildingInstanceId }
+				);
+			}
 			const castle = this.sim.castles[team];
 			const bx = isCastle ? castle.x - 120 : targetBld.x;
 			const by = isCastle ? castle.y - 140 : targetBld.y;
@@ -389,11 +454,35 @@ export class WorkerSystem {
 					CELL_SIZE
 				);
 
-				if (distToBld <= 42) {
+				const spotDistFromBox = this.getDistanceToBox(
+					w.targetX,
+					w.targetY,
+					targetBld.x,
+					targetBld.y,
+					CELL_SIZE,
+					CELL_SIZE
+				);
+				const effectiveReach = Math.max(42, Math.min(64, spotDistFromBox + 14));
+
+				if (distToBld <= effectiveReach) {
+					const wasFirstTick = !w.isBuilding && (targetBld.buildProgress || 0) === 0;
 					// In building construction range from ANY reachable side (Warcraft III style)!
 					w.isBuilding = true;
 					w.path = [];
 					targetBld.buildProgress = (targetBld.buildProgress || 0) + dt;
+					if (wasFirstTick) {
+						logService.recordBuildingEvent(
+							targetBld.instanceId,
+							'info',
+							'Worker reached site and started construction',
+							{
+								team,
+								playerId: p.id,
+								workerPos: { x: Math.round(w.x), y: Math.round(w.y) },
+								distToBld: Number(distToBld.toFixed(1))
+							}
+						);
+					}
 					const maxProg = targetBld.maxBuildProgress || 3.5;
 					targetBld.hp = Math.min(
 						targetBld.maxHp,
@@ -401,6 +490,12 @@ export class WorkerSystem {
 					);
 
 					if (targetBld.buildProgress >= maxProg) {
+						logService.recordBuildingEvent(targetBld.instanceId, 'info', 'Building completed', {
+							team,
+							playerId: p.id,
+							defId: targetBld.defId,
+							name: targetBld.name
+						});
 						targetBld.isUnderConstruction = false;
 						targetBld.hp = targetBld.maxHp;
 						const initialDelay = targetBld.initialSpawnDelay ?? targetBld.spawnCooldown;
@@ -449,7 +544,7 @@ export class WorkerSystem {
 					const spot = this.getBestConstructionSpot(team, w.x, w.y, targetBld.x, targetBld.y);
 					w.targetX = spot.x;
 					w.targetY = spot.y;
-					this.advanceWorkerAlongPath(w, team, spot.x, spot.y, dt, 20);
+					this.advanceWorkerAlongPath(w, team, spot.x, spot.y, dt, 6);
 				}
 			} else {
 				if (w.targetBuildingId) {

@@ -58,17 +58,19 @@
 	let gold = $derived(player.gold);
 	let lumber = $derived(player.lumber ?? 0);
 
+	let rescueCd = $derived(sim.getRescueStrikeCooldown(activeTeam, player));
+
 	let abilities = $derived<RadialAbilityItem[]>([
 		{
 			id: 'rescue_strike',
 			name: 'Рятівний удар',
-			costText: 'Готовий',
+			costText: rescueCd > 0 ? `КД ${Math.ceil(rescueCd)}с` : '950 AoE (Готовий)',
 			hotkey: '1',
 			icon: 'rescue',
-			enabled: sim.canUseRescueStrike(activeTeam),
+			enabled: sim.canUseRescueStrike(activeTeam, player),
 			action: () => {
-				if (sim.canUseRescueStrike(activeTeam)) {
-					sim.triggerRescueStrike(activeTeam);
+				if (sim.canUseRescueStrike(activeTeam, player)) {
+					sim.triggerRescueStrike(activeTeam, player);
 					sound.playRescueStrike();
 					onClose();
 				} else {

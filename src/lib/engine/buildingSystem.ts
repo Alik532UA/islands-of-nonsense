@@ -21,7 +21,8 @@ import {
 	CELL_SIZE,
 	ROAD_WIDTH,
 	ROAD_HALF_WIDTH,
-	HIGHWAY_SEGMENTS
+	HIGHWAY_SEGMENTS,
+	UNIT_SPEED_SCALE
 } from './constants';
 import type { MatchTeam, Lane, Building, Unit, ArmorType, AttackType, PlayerState } from './types';
 import {
@@ -35,6 +36,7 @@ import {
 	isSpecialBuilding,
 	isTowerBuilding
 } from './gameData';
+import { logService } from '../services/logService.svelte';
 
 /**
  * Calculates Euclidean distance from a point (px, py) to a 2D line segment (x1, y1)-(x2, y2).
@@ -461,7 +463,42 @@ export class BuildingSystem {
 				player.worker.buildQueue = player.worker.buildQueue || [];
 				player.worker.buildQueue.push(building.instanceId);
 				this.sim.addFloatingText('У черзі', worldX + CELL_SIZE / 2, worldY - 20, '#38bdf8');
+				logService.recordBuildingEvent(
+					building.instanceId,
+					'info',
+					'Building placed and queued (shift)',
+					{
+						team,
+						playerId: player.id,
+						slot: player.slot,
+						defId: bDef.id,
+						name: bDef.name,
+						tileX,
+						tileY,
+						worldX,
+						worldY,
+						activeTargetBuildingId: player.worker.targetBuildingId ?? null,
+						queueLen: player.worker.buildQueue.length
+					}
+				);
 			} else {
+				const prevTargetId = player.worker.targetBuildingId;
+				if (prevTargetId && prevTargetId !== building.instanceId) {
+					logService.recordBuildingEvent(
+						prevTargetId,
+						'warn',
+						'Construction interrupted by new non-shift build order',
+						{ team, playerId: player.id, newBuildingId: building.instanceId }
+					);
+				}
+				for (const qId of player.worker.buildQueue ?? []) {
+					logService.recordBuildingEvent(
+						qId,
+						'warn',
+						'Queued building cleared by non-shift build order',
+						{ team, playerId: player.id, newBuildingId: building.instanceId }
+					);
+				}
 				// Normal build: leave current building and immediately proceed to build new one
 				player.worker.buildQueue = [];
 				player.worker.isBuilding = false;
@@ -493,6 +530,25 @@ export class BuildingSystem {
 					player.worker.y,
 					spot.x,
 					spot.y
+				);
+				logService.recordBuildingEvent(
+					building.instanceId,
+					'info',
+					'Building placed and assigned to worker',
+					{
+						team,
+						playerId: player.id,
+						slot: player.slot,
+						defId: bDef.id,
+						name: bDef.name,
+						tileX,
+						tileY,
+						worldX,
+						worldY,
+						workerPos: { x: Math.round(player.worker.x), y: Math.round(player.worker.y) },
+						spot: { x: Math.round(spot.x), y: Math.round(spot.y) },
+						waypoints: player.worker.path?.length ?? 0
+					}
 				);
 			}
 		}
@@ -893,6 +949,8 @@ export class BuildingSystem {
 			(unitDef.raw_fields?.umpi !== undefined ? Number(unitDef.raw_fields.umpi) : maxMana);
 		const manaRegen = unitDef.manaRegen ?? Number(unitDef.raw_fields?.umpr || 0);
 
+		const rawSpeed = Number(unitDef.raw_fields?.umvs) || 270;
+		const unitSpeed = Math.max(40, Math.round(rawSpeed * UNIT_SPEED_SCALE));
 		const unit: Unit = {
 			instanceId: `unit_${this.sim.nextUnitId++}`,
 			defId: unitDef.id,
@@ -915,7 +973,7 @@ export class BuildingSystem {
 			attackCooldown: cooldown,
 			cooldownTimer: Math.random() * 0.3,
 			range: Math.max(90, unitDef.range ?? 100),
-			speed: Number(unitDef.raw_fields?.umvs) || 270,
+			speed: unitSpeed,
 			flying: !!unitDef.flying,
 			canHitAir:
 				unitDef.canHitAir ??

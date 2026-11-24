@@ -264,10 +264,10 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 		// Inventory header title stripped (self-explanatory slots)
 		expect(bottomBarSrc).not.toMatch(/>\s*Предмети\s*<\/span>/);
 
-		// Worker attribute row contains only Speed (260) with Footprints icon
+		// Worker attribute row contains dynamic Speed (WORKER_MOVE_SPEED = 170) with Footprints icon
 		expect(entityInspectDetailsSrc).toContain("activeEntityType === 'worker'");
 		expect(entityInspectDetailsSrc).toContain('Швидкість:');
-		expect(entityInspectDetailsSrc).toContain('260');
+		expect(entityInspectDetailsSrc).toContain('WORKER_MOVE_SPEED');
 
 		// Redundant stats removed for worker (zero text collision or overlapping)
 		expect(entityInspectDetailsSrc).not.toContain('Неуразливий');

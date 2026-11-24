@@ -425,16 +425,17 @@
 					!isShopOpen &&
 					(!isWorkerGridActive || e.altKey)
 				) {
-					const activeTeam = controlledPlayer.team;
+					const activePlayer = controlledPlayer;
+					const activeTeam = activePlayer.team;
 					if (matchSync) {
-						if (sim.canUseRescueStrike(activeTeam)) {
+						if (sim.canUseRescueStrike(activeTeam, activePlayer)) {
 							void matchSync.dispatch('RESCUE_STRIKE');
 							sound.playRescueStrike();
 							uiTick = sim.stateVersion;
 						}
 					} else {
-						if (sim.canUseRescueStrike(activeTeam)) {
-							const res = sim.triggerRescueStrike(activeTeam);
+						if (sim.canUseRescueStrike(activeTeam, activePlayer)) {
+							const res = sim.triggerRescueStrike(activeTeam, activePlayer);
 							if (res) {
 								sound.playRescueStrike();
 								uiTick = sim.stateVersion;

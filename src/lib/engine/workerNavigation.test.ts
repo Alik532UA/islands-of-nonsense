@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Simulation } from './simulation';
 import { getBaseBuildingsForRace, GUARD_TOWERS } from './gameData';
+import { logService } from '../services/logService.svelte';
 
 describe('Worker Navigation and Building Order (v10 Canon)', () => {
 	describe('Worker Building Order in Command Card', () => {
@@ -122,8 +123,8 @@ describe('Worker Navigation and Building Order (v10 Canon)', () => {
 			expect(worker.targetX).toBeGreaterThanOrEqual(60);
 			expect(worker.targetY).toBeLessThanOrEqual(2340);
 
-			// Step simulation until construction completes (3.5s + movement time)
-			for (let i = 0; i < 150; i++) {
+			// Step simulation until construction completes (3.5s + movement time at 170 px/s)
+			for (let i = 0; i < 300; i++) {
 				sim.step(0.05);
 				if (!building?.isUnderConstruction) break;
 			}
@@ -205,6 +206,118 @@ describe('Worker Navigation and Building Order (v10 Canon)', () => {
 
 			// Worker must advance eastwards towards 2200
 			expect(worker.x).toBeGreaterThan(1750);
+		});
+
+		it('completes far-west rear courtyard building (tile 7,34 at 288,1152) around West Castle and obstacles', () => {
+			logService.clear();
+			const sim = new Simulation({
+				botDifficulty: 15,
+				startGold: 2000,
+				westRace: 'Ельфи'
+			});
+			sim.isRunning = true;
+			const worker = sim.players.west.worker!;
+
+			// Build at exact tile (7, 34) => world (288, 1152) behind West Castle (1600, 1200)
+			const ordered = sim.build('west', 'h00B', 7, 34);
+			expect(ordered).toBe(true);
+			const targetBld = sim.buildings.find((b) => b.tileX === 7 && b.tileY === 34);
+			expect(targetBld).toBeDefined();
+
+			// Walk ~1500px around castle at 170 px/s (~9s) + 3.5s build = ~12.5s (350 steps = 17.5s)
+			for (let i = 0; i < 350; i++) {
+				sim.step(0.05);
+				if (!targetBld?.isUnderConstruction) break;
+			}
+
+			expect(targetBld?.isUnderConstruction).toBe(false);
+			expect(targetBld?.hp).toBe(targetBld?.maxHp);
+
+			// Diagnostic report captures full lifecycle history and worker/reachability diagnostics
+			const report = logService.getBuildingReport(targetBld!, sim);
+			expect(report).toContain('OWNER:');
+			expect(report).toContain('--- OWNER WORKER STATE ---');
+			expect(report).toContain('--- CONSTRUCTION REACHABILITY & OBSTACLES ---');
+			expect(report).toContain('Building placed and assigned to worker');
+			expect(report).toContain('Building completed');
+			expect(worker).toBeDefined();
+		});
+
+		it('completes construction via outer perimeter spot when inner pad=16 spots are obstructed and logs interruptions', () => {
+			logService.clear();
+			const sim = new Simulation({
+				botDifficulty: 0,
+				startGold: 2000,
+				westRace: 'Ельфи'
+			});
+			sim.isRunning = true;
+			sim.decorations = [];
+
+			// Place building at tile (15, 25) => world (544, 864)
+			const ok = sim.build('west', 'h00B', 15, 25);
+			expect(ok).toBe(true);
+			const bld = sim.buildings.find((b) => b.tileX === 15 && b.tileY === 25)!;
+
+			// Block all pad=16 perimeter sides with decorations (r=18) so pad=16 is blocked,
+			// while outer pad=26/36 remains open and within construction range
+			sim.decorations.push(
+				{
+					id: 'd1',
+					x: bld.x + 64 + 16,
+					y: bld.y + 32,
+					radius: 18,
+					type: 'crystal',
+					team: 'west',
+					variant: 0
+				},
+				{
+					id: 'd2',
+					x: bld.x - 16,
+					y: bld.y + 32,
+					radius: 18,
+					type: 'crystal',
+					team: 'west',
+					variant: 0
+				},
+				{
+					id: 'd3',
+					x: bld.x + 32,
+					y: bld.y - 16,
+					radius: 18,
+					type: 'crystal',
+					team: 'west',
+					variant: 0
+				},
+				{
+					id: 'd4',
+					x: bld.x + 32,
+					y: bld.y + 64 + 16,
+					radius: 18,
+					type: 'crystal',
+					team: 'west',
+					variant: 0
+				}
+			);
+
+			// Advance until worker arrives and begins construction (buildProgress > 0)
+			for (let i = 0; i < 240; i++) {
+				sim.step(0.05);
+				if ((bld.buildProgress || 0) > 0.1) break;
+			}
+			expect(bld.buildProgress).toBeGreaterThan(0);
+
+			// Interrupt briefly via moveWorker, then step and allow auto-resume + completion
+			sim.moveWorker('west', bld.x + 160, bld.y + 120);
+			for (let i = 0; i < 240; i++) {
+				sim.step(0.05);
+				if (!bld.isUnderConstruction) break;
+			}
+
+			expect(bld.isUnderConstruction).toBe(false);
+			const report = logService.getBuildingReport(bld, sim);
+			expect(report).toContain('Construction target interrupted by moveWorker');
+			expect(report).toContain('Worker assigned/resumed construction');
+			expect(report).toContain('Building completed');
 		});
 	});
 });

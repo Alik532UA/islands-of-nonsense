@@ -9,6 +9,7 @@
 		UnitDefinition
 	} from '../engine/types';
 	import { formatRaceName, formatFactionName } from '../engine/gameData';
+	import { WORKER_MOVE_SPEED } from '../engine/constants';
 	import { Shield, Swords, Footprints, Layers, Crosshair, Zap, Feather } from 'lucide-svelte';
 	import CombatMatrixTooltip, {
 		ATTACK_NAMES_UK,
@@ -66,7 +67,9 @@
 		<div class="flex items-center gap-1.5 pt-1 text-xs">
 			<Footprints class="w-4 h-4 text-amber-400 shrink-0" />
 			<span class="text-[#9ca3af]">Швидкість:</span>
-			<span class="font-mono text-slate-100 font-bold text-sm">260</span>
+			<span class="font-mono text-slate-100 font-bold text-sm">
+				{Math.round(player.worker?.speed ?? WORKER_MOVE_SPEED)}
+			</span>
 		</div>
 	</div>
 {:else}

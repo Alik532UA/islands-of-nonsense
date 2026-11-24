@@ -1004,7 +1004,7 @@ export class GroundNavigation {
 		let iterations = 0;
 		let foundEnd = false;
 
-		while (openSet.length > 0 && iterations < 700) {
+		while (openSet.length > 0 && iterations < 4000) {
 			iterations++;
 			let bestIdx = 0;
 			let lowestF = fScore.get(openSet[0]) ?? Infinity;
@@ -1133,6 +1133,11 @@ export class GroundNavigation {
 
 		if (!w.path || w.path.length === 0) {
 			w.path = this.findWorkerPath(team, w.x, w.y, destX, destY);
+		} else {
+			const lastWp = w.path[w.path.length - 1];
+			if (Math.hypot(lastWp.x - destX, lastWp.y - destY) > 28) {
+				w.path = this.findWorkerPath(team, w.x, w.y, destX, destY);
+			}
 		}
 
 		let curTarget = w.path.length > 0 ? w.path[0] : { x: destX, y: destY };
@@ -1155,7 +1160,8 @@ export class GroundNavigation {
 		w.lastMoveX = w.x;
 		w.lastMoveY = w.y;
 
-		if (stepMoved < 0.5) {
+		const minStepProgress = Math.min(1.5, Math.max(0.4, w.speed * dt * 0.15));
+		if (stepMoved < minStepProgress) {
 			w.stuckTimer = (w.stuckTimer || 0) + dt;
 		} else {
 			w.stuckTimer = 0;
@@ -1165,9 +1171,24 @@ export class GroundNavigation {
 			// Worker hasn't moved for 0.8s despite trying to reach (destX, destY)
 			logService.warn('navigation', 'Worker stuck detected, recalculating path', {
 				team,
+				buildingId: w.targetBuildingId ?? null,
+				repairTargetId: w.targetRepairBuildingId ?? null,
 				pos: { x: Math.round(w.x), y: Math.round(w.y) },
 				dest: { x: Math.round(destX), y: Math.round(destY) }
 			});
+			if (w.targetBuildingId) {
+				logService.recordBuildingEvent(
+					w.targetBuildingId,
+					'warn',
+					'Worker stuck while moving to construction site',
+					{
+						team,
+						workerPos: { x: Math.round(w.x), y: Math.round(w.y) },
+						dest: { x: Math.round(destX), y: Math.round(destY) },
+						stuckTimer: Number((w.stuckTimer || 0).toFixed(2))
+					}
+				);
+			}
 			w.path = this.findWorkerPath(team, w.x, w.y, destX, destY);
 			if (dist > 0.001) {
 				const nudge = this.resolveGroundObstacles(

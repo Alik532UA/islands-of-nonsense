@@ -894,15 +894,39 @@ export class EconomySystem {
 		return true;
 	}
 
-	public canUseRescueStrike(team: MatchTeam): boolean {
-		if (this.sim.gameModeConfig?.noRescueStrike) return false;
-		return this.sim.rescueStrikeCooldown[team] <= 0;
+	public getRescueStrikeCooldown(team: MatchTeam, playerInput?: PlayerState): number {
+		const targetPlayer = playerInput || this.sim.players?.[team];
+		if (!targetPlayer) return this.sim.rescueStrikeCooldown[team];
+		if (playerInput && playerInput !== this.sim.players?.[team]) {
+			return Math.max(0, targetPlayer.rescueStrikeCooldown ?? 0);
+		}
+		if (targetPlayer.rescueStrikeCooldown !== undefined) {
+			return Math.max(
+				0,
+				Math.min(targetPlayer.rescueStrikeCooldown, this.sim.rescueStrikeCooldown[team])
+			);
+		}
+		return Math.max(0, this.sim.rescueStrikeCooldown[team]);
 	}
 
-	public triggerRescueStrike(team: MatchTeam): { hitCount: number; damageDealt: number } | null {
-		if (!this.canUseRescueStrike(team)) return null;
+	public canUseRescueStrike(team: MatchTeam, playerInput?: PlayerState): boolean {
+		if (this.sim.gameModeConfig?.noRescueStrike) return false;
+		return this.getRescueStrikeCooldown(team, playerInput) <= 0;
+	}
 
-		this.sim.rescueStrikeCooldown[team] = 180.0;
+	public triggerRescueStrike(
+		team: MatchTeam,
+		playerInput?: PlayerState
+	): { hitCount: number; damageDealt: number } | null {
+		if (!this.canUseRescueStrike(team, playerInput)) return null;
+
+		const targetPlayer = playerInput || this.sim.players?.[team];
+		if (targetPlayer) {
+			targetPlayer.rescueStrikeCooldown = 180.0;
+		}
+		if (!playerInput || targetPlayer === this.sim.players?.[team]) {
+			this.sim.rescueStrikeCooldown[team] = 180.0;
+		}
 		const castle = this.sim.castles[team];
 		const enemyTeam: MatchTeam = team === 'west' ? 'east' : 'west';
 		const radius = 750;

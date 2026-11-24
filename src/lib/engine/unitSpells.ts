@@ -490,7 +490,7 @@ export class UnitSpellSystem {
 					damage: 18,
 					range: 100,
 					attackCooldown: 1.1,
-					speed: 130,
+					speed: 72,
 					flying: false,
 					timedLife: 25.0,
 					isSummoned: true
