@@ -59,6 +59,9 @@ export default defineConfig(({ mode }) => ({
 				relative: false,
 				origin: 'https://alik532ua.github.io'
 			},
+			version: {
+				pollInterval: 60000
+			},
 			csp: {
 				mode: 'hash',
 				directives: {

@@ -3,6 +3,8 @@
 	import favicon from '#lib/assets/favicon.svg';
 	import type { LayoutProps } from './$types';
 	import { dev } from '$app/env';
+	import { beforeNavigate } from '$app/navigation';
+	import { updated } from '$app/state';
 	import ServiceBadge from '$lib/components/ServiceBadge.svelte';
 	import GameHeader from '$lib/components/GameHeader.svelte';
 	import SettingsModal from '$lib/components/SettingsModal.svelte';
@@ -25,6 +27,12 @@
 	/** Рядок, а не t(): скидання кличуть і тоді, коли не завантажилися словники (§ 3.4). */
 	const RESET_CONFIRM =
 		'Стерти локальні дані цього застосунку й перезавантажити? / Erase this app’s local data and reload?';
+
+	beforeNavigate(({ willUnload, to }) => {
+		if (!willUnload && updated.current && to?.url) {
+			location.href = to.url.href;
+		}
+	});
 
 	$effect(() =>
 		listenForSequences(
