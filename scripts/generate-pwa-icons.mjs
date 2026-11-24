@@ -131,9 +131,15 @@ function getOrangeCastlePixel(x, y, size, maskable) {
 	const cy = size / 2;
 
 	// Theme colors
-	const bgR = 19, bgG = 24, bgB = 38; // #131826 (Game card surface)
-	const orangeR = 249, orangeG = 115, orangeB = 22; // #f97316 (Vibrant Orange)
-	const borderR = 234, borderG = 88, borderB = 12; // #ea580c (Border Orange)
+	const bgR = 19,
+		bgG = 24,
+		bgB = 38; // #131826 (Game card surface)
+	const orangeR = 249,
+		orangeG = 115,
+		orangeB = 22; // #f97316 (Vibrant Orange)
+	const borderR = 234,
+		borderG = 88,
+		borderB = 12; // #ea580c (Border Orange)
 
 	// Scale & view transforms
 	// In maskable icon, keep inside central 80% circle (safe zone: scale 0.62)
@@ -153,8 +159,8 @@ function getOrangeCastlePixel(x, y, size, maskable) {
 		baseAlpha = 1.0;
 	} else {
 		// Rounded squircle badge for 'any' icons
-		const hx = (size / 2) * 0.90;
-		const hy = (size / 2) * 0.90;
+		const hx = (size / 2) * 0.9;
+		const hy = (size / 2) * 0.9;
 		const cornerR = size * 0.22;
 		const dBox = distToRoundedBox(px, py, hx, hy, cornerR);
 
@@ -190,7 +196,7 @@ function getOrangeCastlePixel(x, y, size, maskable) {
 			const dist = distToLucideCastle(svx, svy);
 			// Stroke radius is 1.0 (since stroke-width is 2.0 in 24x24)
 			const strokeRad = 1.0;
-			const aaEdge = (subStepV * 0.6);
+			const aaEdge = subStepV * 0.6;
 			if (dist <= strokeRad - aaEdge) {
 				strokeHits += 1;
 			} else if (dist <= strokeRad + aaEdge) {

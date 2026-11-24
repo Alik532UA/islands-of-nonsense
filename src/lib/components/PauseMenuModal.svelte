@@ -24,20 +24,28 @@
 		onResume,
 		onRestart,
 		onOpenSettings,
-		onSurrender
+		onSurrender,
+		onRequestExit
 	}: {
 		isOpen: boolean;
 		onResume: () => void;
 		onRestart: () => void;
 		onOpenSettings?: () => void;
 		onSurrender: () => void;
+		onRequestExit?: (targetUrl: string) => boolean;
 	} = $props();
 
 	function handleExitToModes() {
+		if (onRequestExit && !onRequestExit(resolve('/play'))) {
+			return;
+		}
 		goto(resolve('/play'));
 	}
 
 	function handleExitToHome() {
+		if (onRequestExit && !onRequestExit(resolve('/'))) {
+			return;
+		}
 		goto(resolve('/'));
 	}
 </script>

@@ -87,4 +87,14 @@ describe('SettingsService & Header Claiming', () => {
 		settings.setUiScale(1);
 		expect(settings.uiScale).toBe(1);
 	});
+
+	it('manages graphics style (2.5d vs hd-webp)', () => {
+		expect(settings.graphicsStyle).toBe('2.5d');
+
+		settings.setGraphicsStyle('hd-webp');
+		expect(settings.graphicsStyle).toBe('hd-webp');
+
+		settings.setGraphicsStyle('2.5d');
+		expect(settings.graphicsStyle).toBe('2.5d');
+	});
 });

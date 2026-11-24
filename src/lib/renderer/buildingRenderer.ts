@@ -343,7 +343,8 @@ export class BuildingRenderer {
 		g: Graphics,
 		castle: Castle,
 		isWest: boolean,
-		isSelected = false
+		isSelected = false,
+		drawHealthBar = false
 	): void {
 		const cx = castle.x;
 		const cy = castle.y;
@@ -455,19 +456,21 @@ export class BuildingRenderer {
 		g.fill({ color: teamColor });
 		g.stroke({ color: 0xfef08a, width: 1.5 });
 
-		// Castle Health Bar
+		// Castle Health Bar (only when standalone)
 		const hpPct = Math.max(0, castle.hp / castle.maxHp);
-		const barWidth = 160;
-		const barHeight = 10;
-		const barX = cx - barWidth / 2;
-		const barY = cy - keepH / 2 - 48;
+		if (drawHealthBar) {
+			const barWidth = 160;
+			const barHeight = 10;
+			const barX = cx - barWidth / 2;
+			const barY = cy - keepH / 2 - 48;
 
-		g.beginPath();
-		g.roundRect(barX - 2, barY - 2, barWidth + 4, barHeight + 4, 3);
-		g.fill({ color: 0x090d16 });
-		g.beginPath();
-		g.roundRect(barX, barY, barWidth * hpPct, barHeight, 2);
-		g.fill({ color: hpPct > 0.5 ? 0x22c55e : hpPct > 0.25 ? 0xeab308 : 0xef4444 });
+			g.beginPath();
+			g.roundRect(barX - 2, barY - 2, barWidth + 4, barHeight + 4, 3);
+			g.fill({ color: 0x090d16 });
+			g.beginPath();
+			g.roundRect(barX, barY, barWidth * hpPct, barHeight, 2);
+			g.fill({ color: hpPct > 0.5 ? 0x22c55e : hpPct > 0.25 ? 0xeab308 : 0xef4444 });
+		}
 
 		if (hpPct < 0.6) {
 			const time = this.sim.gameTime;

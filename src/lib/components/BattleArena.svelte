@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { goto, beforeNavigate } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { Simulation, type SimulationConfig } from '$lib/engine/simulation';
 	import { BotAI } from '$lib/engine/botAI';
 	import { ArenaRenderer, type SelectedEntity } from '$lib/renderer/ArenaRenderer';
@@ -14,6 +16,7 @@
 	import ShopModal from '$lib/components/ShopModal.svelte';
 	import MatchConfigModal from '$lib/components/MatchConfigModal.svelte';
 	import PauseMenuModal from '$lib/components/PauseMenuModal.svelte';
+	import LeaveGameModal from '$lib/components/LeaveGameModal.svelte';
 	import HotkeysHelpModal from '$lib/components/HotkeysHelpModal.svelte';
 	import A11yAnnouncer from '$lib/components/ui/A11yAnnouncer.svelte';
 	import { battleAnnouncer } from '$lib/services/battleAnnouncer.svelte';
@@ -24,12 +27,18 @@
 	import { logService } from '$lib/services/logService.svelte';
 	import { perfMonitor } from '$lib/debug/perfMonitor.svelte';
 	import type { MatchSync } from '$lib/net/matchSync';
+	import { settings } from '$lib/services/settings.svelte';
 
 	let canvasEl: HTMLCanvasElement;
 	let sim = $state(new Simulation({ botDifficulty: 15, startGold: 500, isRunning: false }));
 	let botAI: BotAI | null = null;
 	let renderer: ArenaRenderer | null = null;
 	let matchSync = $state<MatchSync | null>(null);
+
+	$effect(() => {
+		const style = settings.graphicsStyle;
+		renderer?.setGraphicsStyle(style);
+	});
 
 	let uiTick = $state(0);
 	let selectedBuildingId = $state<string | null>(null);
@@ -54,7 +63,10 @@
 	let isShopOpen = $state(false);
 	let isSettingsOpen = $state(false);
 	let isPauseMenuOpen = $state(false);
+	let isLeaveModalOpen = $state(false);
 	let isHelpOpen = $state(false);
+	let pendingLeaveUrl = $state<string | null>(null);
+	let allowNavigation = false;
 
 	function openPauseMenu() {
 		sim.isRunning = false;
@@ -390,6 +402,7 @@
 		renderer = new ArenaRenderer({
 			canvas: canvasEl,
 			sim,
+			graphicsStyle: settings.graphicsStyle,
 			onCameraChange: (cx: number, cy: number, cz: number) => {
 				cameraX = cx;
 				cameraY = cy;
@@ -679,12 +692,45 @@
 		}
 	}
 
-	function confirmLeave(): boolean {
+	function handleRequestLeave(targetUrl: string): boolean {
 		if (matchPhase === 'BATTLE' && sim.castles.west.hp > 0 && sim.castles.east.hp > 0) {
-			return confirm('Ви дійсно хочете покинути бій? Прогрес поточного матчу буде втрачено.');
+			sim.isRunning = false;
+			pendingLeaveUrl = targetUrl;
+			isPauseMenuOpen = false;
+			isLeaveModalOpen = true;
+			uiTick = sim.stateVersion;
+			return false;
 		}
 		return true;
 	}
+
+	function handleConfirmLeave() {
+		allowNavigation = true;
+		isLeaveModalOpen = false;
+		const target = pendingLeaveUrl || resolve('/play');
+		goto(target);
+	}
+
+	function handleCancelLeave() {
+		isLeaveModalOpen = false;
+		pendingLeaveUrl = null;
+		if (matchPhase === 'BATTLE' && sim.castles.west.hp > 0 && sim.castles.east.hp > 0) {
+			sim.isRunning = true;
+		}
+		uiTick = sim.stateVersion;
+	}
+
+	beforeNavigate(({ cancel, to }) => {
+		if (allowNavigation) return;
+		if (matchPhase === 'BATTLE' && sim.castles.west.hp > 0 && sim.castles.east.hp > 0) {
+			cancel();
+			sim.isRunning = false;
+			pendingLeaveUrl = to?.url.pathname || resolve('/play');
+			isPauseMenuOpen = false;
+			isLeaveModalOpen = true;
+			uiTick = sim.stateVersion;
+		}
+	});
 
 	$effect(() => {
 		const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -726,7 +772,7 @@
 		onOpenCommander={() => (isCommanderOpen = true)}
 		onOpenShop={() => (isShopOpen = true)}
 		onOpenSettings={openPauseMenu}
-		onBeforeLeave={confirmLeave}
+		onBeforeLeave={handleRequestLeave}
 	/>
 
 	<!-- Arena Viewport: Fullscreen Responsive with Pan & Zoom -->
@@ -968,6 +1014,12 @@
 			isSettingsOpen = true;
 		}}
 		onSurrender={handleSurrender}
+		onRequestExit={handleRequestLeave}
+	/>
+	<LeaveGameModal
+		isOpen={isLeaveModalOpen}
+		onConfirm={handleConfirmLeave}
+		onCancel={handleCancelLeave}
 	/>
 	<HotkeysHelpModal isOpen={isHelpOpen} onClose={() => (isHelpOpen = false)} />
 	<A11yAnnouncer />

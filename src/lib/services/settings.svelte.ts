@@ -1,3 +1,4 @@
+import { untrack } from 'svelte';
 import { storage } from './storage';
 import { getLocale, setLocale, type Locale } from '$lib/i18n';
 import { sound } from './audio';
@@ -13,6 +14,17 @@ export const APP_THEMES: readonly AppTheme[] = [
 	'orange',
 	'green'
 ] as const;
+
+export type GraphicsStyle = '2.5d' | 'hd-webp';
+export const GRAPHICS_STYLES: readonly GraphicsStyle[] = ['2.5d', 'hd-webp'] as const;
+
+function detectInitialGraphicsStyle(): GraphicsStyle {
+	const saved = storage.getJSON<GraphicsStyle>('settings_graphics_style', '2.5d');
+	if (GRAPHICS_STYLES.includes(saved)) {
+		return saved;
+	}
+	return '2.5d';
+}
 
 function detectInitialLocale(): Locale {
 	if (typeof window !== 'undefined') {
@@ -72,6 +84,7 @@ class SettingsService {
 	#locale = $state<Locale>(detectInitialLocale());
 	#uiScale = $state<UiScale>(detectInitialUiScale());
 	#theme = $state<AppTheme>(detectInitialTheme());
+	#graphicsStyle = $state<GraphicsStyle>(detectInitialGraphicsStyle());
 	#isSettingsOpen = $state(false);
 
 	constructor() {
@@ -110,6 +123,10 @@ class SettingsService {
 		return this.#theme;
 	}
 
+	get graphicsStyle(): GraphicsStyle {
+		return this.#graphicsStyle;
+	}
+
 	get isSettingsOpen(): boolean {
 		return this.#isSettingsOpen;
 	}
@@ -145,6 +162,13 @@ class SettingsService {
 		applyTheme(theme);
 	}
 
+	setGraphicsStyle(style: GraphicsStyle): void {
+		if (GRAPHICS_STYLES.includes(style)) {
+			this.#graphicsStyle = style;
+			storage.setJSON('settings_graphics_style', style);
+		}
+	}
+
 	openSettings(): void {
 		this.#isSettingsOpen = true;
 	}
@@ -158,14 +182,20 @@ class SettingsService {
 	}
 
 	claimHeader(title: string, back: (() => void) | null = null): () => void {
-		const prevTitle = this.#headerTitle;
-		const prevBack = this.#headerBack;
-		this.#headerTitle = title;
-		this.#headerBack = back;
-		return () => {
-			this.#headerTitle = prevTitle;
-			this.#headerBack = prevBack;
-		};
+		return untrack(() => {
+			const prevTitle = this.#headerTitle;
+			const prevBack = this.#headerBack;
+			if (this.#headerTitle !== title) {
+				this.#headerTitle = title;
+			}
+			this.#headerBack = back;
+			return () => {
+				untrack(() => {
+					this.#headerTitle = prevTitle;
+					this.#headerBack = prevBack;
+				});
+			};
+		});
 	}
 }
 

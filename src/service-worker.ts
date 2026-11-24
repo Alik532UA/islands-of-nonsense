@@ -9,7 +9,9 @@ import { assets, immutable, prerendered } from '$app/manifest';
 import { version } from '$app/env';
 
 const CACHE = `islandsofnonsense-cache-${version}`;
-const ASSETS = [...assets, ...immutable, ...prerendered];
+const ASSETS = [...assets, ...immutable, ...prerendered]
+	.map((item) => (typeof item === 'string' ? item : item?.path))
+	.filter((path): path is string => typeof path === 'string' && path.length > 0);
 
 self.addEventListener('message', (event: ExtendableMessageEvent) => {
 	if (event.data && event.data.type === 'SKIP_WAITING') {
@@ -20,7 +22,7 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
 self.addEventListener('install', (event: ExtendableEvent) => {
 	async function addFilesToCache() {
 		const cache = await caches.open(CACHE);
-		await cache.addAll(ASSETS);
+		await Promise.all(ASSETS.map((asset) => cache.add(asset).catch(() => {})));
 	}
 	event.waitUntil(addFilesToCache());
 });

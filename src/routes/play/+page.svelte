@@ -1347,8 +1347,8 @@
 	{/if}
 
 	<!-- Back link -->
-	<div class="menu-links mt-8">
-		{#if isConfigOpen}
+	{#if isConfigOpen}
+		<div class="menu-links mt-8">
 			<button
 				type="button"
 				onclick={() => (isConfigOpen = false)}
@@ -1358,11 +1358,6 @@
 				<ArrowLeft class="menu-link__icon" />
 				<span>Згорнути до вибору режимів</span>
 			</button>
-		{:else}
-			<a href={resolve('/')} class="menu-btn menu-btn--link" data-testid="back-to-menu-link">
-				<ArrowLeft class="menu-link__icon" />
-				<span>{t('menu.back')}</span>
-			</a>
-		{/if}
-	</div>
+		</div>
+	{/if}
 </div>
