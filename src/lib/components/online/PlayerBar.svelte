@@ -2,6 +2,7 @@
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
 	import AvatarPicker from '$lib/components/ui/AvatarPicker.svelte';
+	import Flag from '$lib/components/ui/Flag.svelte';
 	import { t } from '$lib/i18n';
 
 	interface Props {
@@ -65,11 +66,7 @@
 				<UiIcon name="dices" class="w-5 h-5 text-amber-400" />
 			</button>
 			{#if country}
-				<span
-					class="px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs font-bold text-slate-300 uppercase"
-				>
-					{country}
-				</span>
+				<Flag code={country} showCode />
 			{/if}
 		</div>
 	</div>

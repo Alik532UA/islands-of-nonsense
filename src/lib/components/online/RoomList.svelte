@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Avatar from '$lib/components/ui/Avatar.svelte';
+	import Flag from '$lib/components/ui/Flag.svelte';
 	import type { LobbyRoom } from '$lib/net/roomTypes';
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { t } from '$lib/i18n';
@@ -67,11 +68,7 @@
 									</span>
 								{/if}
 								{#if room.hostCountry}
-									<span
-										class="text-[10px] px-1 bg-slate-900 border border-slate-700 rounded text-slate-400 font-mono"
-									>
-										{room.hostCountry}
-									</span>
+									<Flag code={room.hostCountry} showCode />
 								{/if}
 							</div>
 							<div class="text-xs text-slate-400">

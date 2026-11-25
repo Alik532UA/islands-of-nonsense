@@ -5,6 +5,7 @@
 	import { titleLabel } from '$lib/config/rewards';
 	import { settings } from '$lib/services/settings.svelte';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
+	import Flag from '$lib/components/ui/Flag.svelte';
 	import { t } from '$lib/i18n';
 
 	interface Props {
@@ -81,9 +82,7 @@
 							</span>
 						{/if}
 						{#if profile.country}
-							<span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 uppercase">
-								{profile.country}
-							</span>
+							<Flag code={profile.country} showCode />
 						{/if}
 					</div>
 					<div class="text-xs text-amber-400">@{profile.handle}</div>

@@ -11,6 +11,7 @@
 	import { toast } from '$lib/controllers/toast.svelte';
 	import { FLAG_COUNTRIES, countryName } from '$lib/config/countries';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
+	import Flag from '$lib/components/ui/Flag.svelte';
 	import AvatarPicker from '$lib/components/ui/AvatarPicker.svelte';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
 	import StatsPanel from '$lib/components/account/StatsPanel.svelte';
@@ -323,9 +324,7 @@
 								{equippedTitleText}
 							</span>
 							{#if formCountry}
-								<span class="text-xs px-1.5 py-0.5 bg-slate-800 rounded text-slate-300 uppercase">
-									{formCountry}
-								</span>
+								<Flag code={formCountry} size="md" showCode />
 							{/if}
 						</div>
 						<div class="text-xs text-amber-400/80">

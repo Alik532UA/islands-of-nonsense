@@ -11,6 +11,7 @@
 	import { followUser, unfollowUser } from '$lib/net/social';
 	import type { AccountState, Profile } from '$lib/net/account';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
+	import Flag from '$lib/components/ui/Flag.svelte';
 	import { titleLabel } from '$lib/config/rewards';
 	import { settings } from '$lib/services/settings.svelte';
 	import PublicProfileModal from './PublicProfileModal.svelte';
@@ -271,9 +272,7 @@
 								</span>
 							{/if}
 							{#if leader.country}
-								<span class="text-[9px] px-1 bg-slate-800 rounded text-slate-300 uppercase">
-									{leader.country}
-								</span>
+								<Flag code={leader.country} showCode />
 							{/if}
 						</div>
 						<div class="text-[10px] text-slate-400 truncate flex items-center gap-2">

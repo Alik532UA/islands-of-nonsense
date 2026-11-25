@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
+	import Avatar from '$lib/components/ui/Avatar.svelte';
 	import { t } from '$lib/i18n';
 	import { settings } from '$lib/services/settings.svelte';
 	import { storage } from '$lib/services/storage';
@@ -1493,7 +1494,8 @@
 						{#each dailyBoardRows.slice(0, 10) as row, idx (row.uid)}
 							<div class="flex items-center justify-between px-2 py-1 rounded bg-slate-900/70">
 								<div class="flex items-center gap-2 min-w-0">
-									<span class="font-mono font-bold text-amber-400 w-5">#{idx + 1}</span>
+									<span class="font-mono font-bold text-amber-400 w-5 shrink-0">#{idx + 1}</span>
+									<Avatar avatar={row.avatar ?? 'castle:amber'} size={20} showDefault />
 									<span class="font-bold text-slate-200 truncate">{row.name}</span>
 									{#if row.race}
 										<span class="text-[10px] text-slate-400">({row.race})</span>

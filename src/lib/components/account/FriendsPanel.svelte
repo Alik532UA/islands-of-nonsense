@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { Eye, MessageSquare, Shield, UserPlus, Users, X } from 'lucide-svelte';
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import type { AccountState, Profile } from '$lib/net/account';
 	import {
@@ -22,6 +23,7 @@
 		type SocialUser
 	} from '$lib/net/social';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
+	import Flag from '$lib/components/ui/Flag.svelte';
 	import PublicProfileModal from './PublicProfileModal.svelte';
 	import { toast } from '$lib/controllers/toast.svelte';
 	import { t } from '$lib/i18n';
@@ -160,7 +162,7 @@
 <div class="space-y-5" data-testid="friends-panel">
 	{#if accountState !== 'linked'}
 		<div class="p-6 bg-slate-950/60 border border-slate-800 rounded-2xl text-center space-y-2">
-			<UiIcon name="users" class="w-8 h-8 text-amber-400 mx-auto" />
+			<Users class="w-8 h-8 text-amber-400 mx-auto" />
 			<div class="text-sm font-bold text-slate-200">{t('social.linkTitle')}</div>
 			<div class="text-xs text-slate-400">{t('social.linkDesc')}</div>
 		</div>
@@ -219,7 +221,7 @@
 								class="p-1 rounded hover:bg-slate-800 text-slate-400 cursor-pointer"
 								aria-label={t('common.close')}
 							>
-								<UiIcon name="x" class="w-3.5 h-3.5" />
+								<X class="w-3.5 h-3.5" />
 							</button>
 						</div>
 					</div>
@@ -285,7 +287,7 @@
 								<UiIcon name="userMinus" class="w-3 h-3" />
 								<span>{t('social.unfollow')}</span>
 							{:else}
-								<UiIcon name="userPlus" class="w-3 h-3" />
+								<UserPlus class="w-3 h-3" />
 								<span>{t('social.follow')}</span>
 							{/if}
 						</button>
@@ -352,10 +354,10 @@
 										</span>
 									{/if}
 								</div>
-								<div class="text-[10px] text-slate-400">
-									{user.handle ? `@${user.handle}` : ''}
+								<div class="text-[10px] text-slate-400 flex items-center gap-1.5">
+									<span>{user.handle ? `@${user.handle}` : ''}</span>
 									{#if user.country}
-										· {user.country.toUpperCase()}
+										<Flag code={user.country} showCode />
 									{/if}
 								</div>
 							</div>
@@ -369,7 +371,7 @@
 								title={t('social.viewProfile')}
 								aria-label={t('social.viewProfile')}
 							>
-								<UiIcon name="eye" class="w-3.5 h-3.5" />
+								<Eye class="w-3.5 h-3.5" />
 							</button>
 							<button
 								type="button"
@@ -378,7 +380,7 @@
 								title={t('chat.openDm')}
 								aria-label={t('chat.openDm')}
 							>
-								<UiIcon name="messageSquare" class="w-3.5 h-3.5" />
+								<MessageSquare class="w-3.5 h-3.5" />
 							</button>
 							{#if listTab === 'followers'}
 								{#if !followingSet.has(user.uid)}
@@ -397,7 +399,7 @@
 									title={t('social.removeFollower')}
 									aria-label={t('social.removeFollower')}
 								>
-									<UiIcon name="x" class="w-3.5 h-3.5" />
+									<X class="w-3.5 h-3.5" />
 								</button>
 							{:else}
 								<button
@@ -423,7 +425,7 @@
 			<div
 				class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5"
 			>
-				<UiIcon name="shield" class="w-4 h-4 text-sky-400" />
+				<Shield class="w-4 h-4 text-sky-400" />
 				<span>{t('social.privacy.title')}</span>
 			</div>
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">

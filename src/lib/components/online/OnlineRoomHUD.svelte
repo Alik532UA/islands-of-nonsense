@@ -5,6 +5,7 @@
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { generateQrSvgPath } from '$lib/utils/qrSvg';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
+	import Flag from '$lib/components/ui/Flag.svelte';
 	import { resolveRoomMemberAvatars } from '$lib/utils/roomAvatars';
 	import { QUICK_EMOTES, type ChatKind } from '$lib/net/chat';
 	import { chatModeration } from '$lib/services/chatModeration.svelte';
@@ -1017,11 +1018,7 @@
 												</span>
 											{/if}
 											{#if occupant.country}
-												<span
-													class="text-[9px] px-1 py-0.5 rounded-[4px] bg-[#0b0f18] border border-slate-700 text-slate-400 font-mono uppercase shrink-0"
-												>
-													{occupant.country}
-												</span>
+												<Flag code={occupant.country} showCode />
 											{/if}
 											{#if occupant.ready}
 												<span
