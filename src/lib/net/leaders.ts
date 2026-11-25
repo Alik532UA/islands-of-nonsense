@@ -17,6 +17,8 @@ export interface Leader {
 	plays?: number;
 	winRate?: number;
 	best?: number;
+	level?: number;
+	title?: string;
 	country?: string;
 	avatar?: string;
 }
@@ -27,6 +29,8 @@ export interface LeaderStatsSummary {
 	plays?: number;
 	winRate?: number;
 	best?: number;
+	level?: number;
+	title?: string;
 }
 
 export async function publishLeader(
@@ -50,6 +54,10 @@ export async function publishLeader(
 				? { winRate: Math.min(100, Math.max(0, Math.round(stats.winRate))) }
 				: {}),
 			...(stats?.best !== undefined ? { best: Math.max(0, Math.floor(stats.best)) } : {}),
+			...(stats?.level !== undefined
+				? { level: Math.min(999, Math.max(1, Math.floor(stats.level))) }
+				: {}),
+			...(stats?.title ? { title: stats.title.slice(0, 32) } : {}),
 			...(profile.country ? { country: profile.country } : {}),
 			...(profile.avatar ? { avatar: profile.avatar } : {}),
 			at: serverTimestamp()

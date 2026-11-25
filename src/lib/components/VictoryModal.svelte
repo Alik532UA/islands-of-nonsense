@@ -21,6 +21,7 @@
 		isOnline = false,
 		isOnlineHost = true,
 		earnedScore = null,
+		earnedXp = null,
 		onNextRound,
 		onReselectCommander
 	}: {
@@ -29,6 +30,7 @@
 		isOnline?: boolean;
 		isOnlineHost?: boolean;
 		earnedScore?: number | null;
+		earnedXp?: number | null;
 		onNextRound: () => void;
 		onReselectCommander?: () => void;
 	} = $props();
@@ -131,13 +133,26 @@
 				</span>
 			</p>
 
-			{#if isMatchOver && earnedScore !== null && earnedScore > 0}
-				<div
-					class="mb-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold"
-					data-testid="victory-earned-score"
-				>
-					<Trophy class="w-3.5 h-3.5" />
-					<span>+{earnedScore} рейтингових очок</span>
+			{#if isMatchOver && ((earnedScore !== null && earnedScore > 0) || (earnedXp !== null && earnedXp > 0))}
+				<div class="mb-4 flex flex-wrap items-center justify-center gap-2">
+					{#if earnedScore !== null && earnedScore > 0}
+						<div
+							class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold"
+							data-testid="victory-earned-score"
+						>
+							<Trophy class="w-3.5 h-3.5" />
+							<span>+{earnedScore} рейтингових очок</span>
+						</div>
+					{/if}
+					{#if earnedXp !== null && earnedXp > 0}
+						<div
+							class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs font-bold"
+							data-testid="victory-earned-xp"
+						>
+							<Award class="w-3.5 h-3.5" />
+							<span>+{earnedXp} XP</span>
+						</div>
+					{/if}
 				</div>
 			{/if}
 

@@ -211,6 +211,13 @@
 					<div class="flex-1 min-w-0">
 						<div class="flex items-center gap-2">
 							<span class="font-bold text-xs text-slate-100 truncate">{leader.name}</span>
+							{#if leader.level}
+								<span
+									class="text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-mono font-bold"
+								>
+									Lv.{leader.level}
+								</span>
+							{/if}
 							{#if isMe}
 								<span
 									class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold uppercase"

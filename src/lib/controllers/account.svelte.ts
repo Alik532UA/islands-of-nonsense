@@ -15,6 +15,7 @@ import {
 	getLocalPlayData,
 	saveLocalPlayData
 } from '$lib/services/matchProgress.svelte';
+import { rewardsStore } from '$lib/services/rewardsService.svelte';
 import { logService } from '$lib/services/logService.svelte';
 
 export class AccountController {
@@ -56,6 +57,7 @@ export class AccountController {
 			) {
 				void writePlay(merged);
 			}
+			await rewardsStore.syncWithCloud();
 		} catch (err) {
 			logService.warn('account', 'Account controller load failed', { err: String(err) });
 			this.error = String(err);

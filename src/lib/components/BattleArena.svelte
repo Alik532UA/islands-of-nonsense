@@ -50,6 +50,7 @@
 	let matchStartedAtMs = Date.now();
 	let lastRecordedMatchKey = '';
 	let lastEarnedScore = $state<number | null>(null);
+	let lastEarnedXp = $state<number | null>(null);
 	let matchInstanceSeq = 0;
 
 	$effect(() => {
@@ -61,6 +62,7 @@
 		const _tick = uiTick;
 		if (!sim.matchWinner) {
 			lastEarnedScore = null;
+			lastEarnedXp = null;
 			return;
 		}
 		if (isBotVsBot) return;
@@ -89,6 +91,7 @@
 		}).then((outcome) => {
 			if (outcome) {
 				lastEarnedScore = outcome.scoreDelta;
+				lastEarnedXp = outcome.rewardSummary?.xpEarned ?? null;
 			}
 		});
 	});
@@ -1682,6 +1685,7 @@
 		isOnline={Boolean(matchSync)}
 		{isOnlineHost}
 		earnedScore={lastEarnedScore}
+		earnedXp={lastEarnedXp}
 		onNextRound={handleNextRound}
 		onReselectCommander={() => {
 			isCommanderOpen = true;

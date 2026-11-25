@@ -12,6 +12,7 @@ import {
 } from '$lib/net/play';
 import { publishLeader, type LeaderStatsSummary } from '$lib/net/leaders';
 import { currentUserInfo, readProfile } from '$lib/net/account';
+import { rewardsStore, type MatchRewardSummary } from './rewardsService.svelte';
 import { storage } from './storage';
 import { logService } from './logService.svelte';
 
@@ -39,6 +40,7 @@ export interface RecordedMatchOutcome {
 	entry: MatchHistoryEntry;
 	scoreDelta: number;
 	syncedCloud: boolean;
+	rewardSummary?: MatchRewardSummary;
 }
 
 const recordedMatchKeys = new Set<string>();
@@ -85,7 +87,9 @@ export function buildLeaderStats(playData: PlayData): LeaderStatsSummary {
 		losses,
 		plays,
 		winRate,
-		best: overall.best
+		best: overall.best,
+		level: rewardsStore.data.level,
+		title: rewardsStore.data.equippedTitle ?? 'recruit'
 	};
 }
 
@@ -163,6 +167,14 @@ export async function recordFinishedMatch(
 	const { playData, entry, scoreDelta } = applyMatchToPlayData(current, input);
 	saveLocalPlayData(playData);
 
+	const rewardSummary = await rewardsStore.processMatch(playData, {
+		won: input.won,
+		mode: input.mode,
+		unitsKilled: input.unitsKilled,
+		damageToCastle: input.damageToCastle,
+		race: input.race
+	});
+
 	let syncedCloud = false;
 	try {
 		const info = await currentUserInfo();
@@ -177,7 +189,7 @@ export async function recordFinishedMatch(
 		logService.warn('stats', 'Cloud match progress sync failed', { reason: String(error) });
 	}
 
-	return { playData, entry, scoreDelta, syncedCloud };
+	return { playData, entry, scoreDelta, syncedCloud, rewardSummary };
 }
 
 export function exportHistoryJSON(history: readonly MatchHistoryEntry[]): string {

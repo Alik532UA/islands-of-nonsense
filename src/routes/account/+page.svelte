@@ -6,6 +6,7 @@
 		CircleUser,
 		Trophy,
 		BarChart3,
+		Award,
 		User,
 		CheckCircle,
 		ShieldAlert,
@@ -22,10 +23,12 @@
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
 	import StatsPanel from '$lib/components/account/StatsPanel.svelte';
 	import LeaderboardPanel from '$lib/components/account/LeaderboardPanel.svelte';
+	import RewardsPanel from '$lib/components/account/RewardsPanel.svelte';
+	import { rewardsStore } from '$lib/services/rewardsService.svelte';
 
 	const controller = new AccountController();
 
-	type TabType = 'profile' | 'stats' | 'leaders';
+	type TabType = 'profile' | 'stats' | 'rewards' | 'leaders';
 	let activeTab = $state<TabType>('profile');
 
 	let formName = $state('');
@@ -162,6 +165,29 @@
 			>
 				<BarChart3 class="w-4 h-4" />
 				<span>{t('account.tab.stats')}</span>
+			</button>
+
+			<button
+				type="button"
+				data-testid="tab-rewards"
+				onclick={() => {
+					activeTab = 'rewards';
+					rewardsStore.markSeen();
+				}}
+				class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition {activeTab ===
+				'rewards'
+					? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+					: 'text-slate-400 hover:text-slate-200'}"
+			>
+				<Award class="w-4 h-4" />
+				<span>{t('account.tab.rewards')}</span>
+				{#if rewardsStore.unseenCount > 0}
+					<span
+						class="px-1.5 py-0.5 rounded-full bg-emerald-500 text-slate-950 text-[10px] font-black leading-none"
+					>
+						{rewardsStore.unseenCount}
+					</span>
+				{/if}
 			</button>
 
 			<button
@@ -546,7 +572,12 @@
 			<StatsPanel playData={controller.playData} />
 		{/if}
 
-		<!-- TAB 3: LEADERS -->
+		<!-- TAB 3: REWARDS -->
+		{#if activeTab === 'rewards'}
+			<RewardsPanel playData={controller.playData} />
+		{/if}
+
+		<!-- TAB 4: LEADERS -->
 		{#if activeTab === 'leaders'}
 			<LeaderboardPanel
 				leaders={controller.leaders}

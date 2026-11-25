@@ -2,7 +2,7 @@
 	"rules": {
 		"__rulesVersion": {
 			"$v": {
-				".read": "auth != null && $v === 'eee3340857cd'"
+				".read": "auth != null && $v === '224df3910d93'"
 			}
 		},
 		"rooms": {
@@ -526,6 +526,56 @@
 						".validate": false
 					}
 				},
+				"rewards": {
+					".read": "auth != null",
+					".write": "auth != null && $uid === auth.uid",
+					".validate": "newData.hasChildren(['xp', 'level']) && auth.token.firebase.sign_in_provider !== 'anonymous'",
+					"xp": {
+						".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000"
+					},
+					"level": {
+						".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 999"
+					},
+					"dailyStreak": {
+						".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000"
+					},
+					"bestDailyStreak": {
+						".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000"
+					},
+					"lastPlayDay": {
+						".validate": "newData.isString() && newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)"
+					},
+					"equippedTitle": {
+						".validate": "newData.isString() && newData.val().length <= 32"
+					},
+					"unlocked": {
+						"$rewardId": {
+							".validate": "$rewardId.matches(/^[a-z0-9_]{1,32}$/) && newData.isNumber() && newData.val() >= 0"
+						}
+					},
+					"totals": {
+						"kills": {
+							".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000"
+						},
+						"castleDamage": {
+							".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000"
+						},
+						"racesWon": {
+							"$raceKey": {
+								".validate": "$raceKey.matches(/^[a-z0-9_\\p{L}-]{1,32}$/u) || ($raceKey.length >= 1 && $raceKey.length <= 32) && newData.isBoolean()"
+							}
+						},
+						"$other": {
+							".validate": false
+						}
+					},
+					"at": {
+						".validate": "newData.isNumber() && newData.val() <= now && newData.val() > now - 60000"
+					},
+					"$other": {
+						".validate": false
+					}
+				},
 				"$other": {
 					".validate": false
 				}
@@ -568,6 +618,12 @@
 				},
 				"best": {
 					".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000"
+				},
+				"level": {
+					".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 999"
+				},
+				"title": {
+					".validate": "newData.isString() && newData.val().length <= 32"
 				},
 				"country": {
 					".validate": "newData.isString() && newData.val().length === 2"
