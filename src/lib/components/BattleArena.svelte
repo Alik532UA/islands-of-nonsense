@@ -276,7 +276,9 @@
 	});
 
 	const routeOnlineCommand: BattleCommandRouter = (type, payload = {}) => {
-		if (!matchSync || isOnlineSpectator) return false;
+		if (!matchSync || isOnlineSpectator || (onlineSession && !onlineSession.isPlaying)) {
+			return false;
+		}
 		void matchSync.dispatch(type, {
 			team: controlledPlayer.team,
 			playerSlot: controlledPlayer.slot,
@@ -621,6 +623,7 @@
 				if (isOnlineSpectator) return;
 				e.preventDefault();
 				if (matchSync) {
+					if (onlineSession && !onlineSession.isPlaying) return;
 					void matchSync.dispatch(sim.isRunning ? 'PAUSE' : 'RESUME');
 					battleAnnouncer.announce(
 						sim.isRunning ? 'Надіслано запит паузи' : 'Надіслано запит відновлення',
@@ -848,7 +851,7 @@
 					perfMonitor.attachSim(sim);
 					if (unlistenAudio) unlistenAudio();
 					unlistenAudio = attachAudioBridge(sim, sound);
-					if (nextSim.allPlayers.some((p) => !p.isBot && p.pendingRacePick)) {
+					if (init.isPlaying && nextSim.allPlayers.some((p) => !p.isBot && p.pendingRacePick)) {
 						startOnlineCountdown();
 					} else {
 						clearOnlineCountdownTimer();
@@ -973,6 +976,7 @@
 					const shouldQueue = settings.buildQueueMode === 'convenient' ? !shiftKey : shiftKey;
 
 					if (matchSync) {
+						if (onlineSession && !onlineSession.isPlaying) return;
 						void matchSync.dispatch('BUILD', {
 							buildingType: selectedBuildingId,
 							x: tileX,
@@ -1442,7 +1446,14 @@
 	}
 
 	async function finalizeOnlineCountdown() {
-		if (!matchSync || !isOnlineHost || onlineResumeSent) return;
+		if (
+			!matchSync ||
+			!isOnlineHost ||
+			onlineResumeSent ||
+			(onlineSession && !onlineSession.isPlaying)
+		) {
+			return;
+		}
 		onlineResumeSent = true;
 		clearOnlineCountdownTimer();
 		const pendingHumans = sim.allPlayers.filter((p) => !p.isBot && p.pendingRacePick);
@@ -1452,6 +1463,8 @@
 				playerSlot: p.slot,
 				race: 'random'
 			});
+			// Space consecutive writes past the 80ms RTDB move cooldown
+			await new Promise((resolveWait) => setTimeout(resolveWait, 90));
 		}
 		await matchSync.dispatch('RESUME', { tick: 0 });
 	}
@@ -1464,9 +1477,11 @@
 		onlineResumeSent = false;
 		countdownSeconds = onlineSession?.getCountdownRemainingSec() ?? 15;
 		sim.isRunning = false;
+		const fallbackStartMs = Date.now();
+		const fallbackInitialSec = countdownSeconds;
 
 		onlineCountdownTimer = setInterval(() => {
-			if (!matchSync || matchPhase !== 'COUNTDOWN') {
+			if (!matchSync || matchPhase !== 'COUNTDOWN' || (onlineSession && !onlineSession.isPlaying)) {
 				clearOnlineCountdownTimer();
 				return;
 			}
@@ -1474,7 +1489,8 @@
 			if (rem !== null && rem !== undefined) {
 				countdownSeconds = rem;
 			} else {
-				countdownSeconds = Math.max(0, countdownSeconds - 1);
+				const elapsedSec = Math.floor((Date.now() - fallbackStartMs) / 1000);
+				countdownSeconds = Math.max(0, fallbackInitialSec - elapsedSec);
 			}
 			const allReady = !sim.allPlayers.some((p) => !p.isBot && p.pendingRacePick);
 			if (allReady || countdownSeconds <= 0) {
@@ -1485,7 +1501,13 @@
 
 	function selectRaceAndStart(race: string) {
 		if (matchSync) {
-			if (!controlledPlayer.pendingRacePick || onlinePickedRace !== null) return;
+			if (
+				(onlineSession && !onlineSession.isPlaying) ||
+				!controlledPlayer.pendingRacePick ||
+				onlinePickedRace !== null
+			) {
+				return;
+			}
 			onlinePickedRace = race;
 			onlineRacePickError = null;
 			sound.playUpgrade();

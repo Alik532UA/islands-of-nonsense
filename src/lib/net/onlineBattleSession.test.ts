@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { selectAutoHandoverUid } from './onlineBattleSession';
+import { selectAutoHandoverUid, shouldStartOnlineCountdown } from './onlineBattleSession';
 import { canJoinAsSpectator, MAX_ROOM_SPECTATORS, normalizeSpectatorMode } from './roomTypes';
 import { isCompatibleLobbyRoom } from './lobby';
 import type { Member } from './roomTypes';
@@ -93,6 +93,24 @@ describe('spectator policy & lobby compatibility', () => {
 				},
 				now
 			)
+		).toBe(false);
+	});
+
+	it('never starts race-pick countdown while room is still in lobby', () => {
+		const simWithPendingPick = {
+			allPlayers: [
+				{ isBot: false, pendingRacePick: true },
+				{ isBot: true, pendingRacePick: false }
+			]
+		} as never;
+
+		expect(shouldStartOnlineCountdown('lobby', simWithPendingPick)).toBe(false);
+		expect(shouldStartOnlineCountdown('over', simWithPendingPick)).toBe(false);
+		expect(shouldStartOnlineCountdown('playing', simWithPendingPick)).toBe(true);
+		expect(
+			shouldStartOnlineCountdown('playing', {
+				allPlayers: [{ isBot: false, pendingRacePick: false }]
+			} as never)
 		).toBe(false);
 	});
 });

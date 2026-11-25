@@ -14,6 +14,7 @@ export interface OnlineBattleSessionCallbacks {
 			cameraX: number;
 			cameraY: number;
 			isSpectator: boolean;
+			isPlaying: boolean;
 		}
 	) => void;
 	onHostChange: (isHost: boolean) => void;
@@ -31,9 +32,20 @@ export interface OnlineBattleSession {
 	readonly localTeam: 'west' | 'east';
 	readonly localSlot: number;
 	readonly isSpectator: boolean;
+	readonly isPlaying: boolean;
 	getTargetTick: () => number | null;
 	getCountdownRemainingSec: () => number | null;
 	dispose: () => void;
+}
+
+/**
+ * Only enter the in-game race selection countdown once the room itself has transitioned to `'playing'`.
+ */
+export function shouldStartOnlineCountdown(
+	roomStatus: RoomInfo['status'] | undefined,
+	sim: Pick<Simulation, 'allPlayers'>
+): boolean {
+	return roomStatus === 'playing' && sim.allPlayers.some((p) => !p.isBot && p.pendingRacePick);
 }
 
 /**
@@ -96,7 +108,8 @@ export async function startOnlineBattleSession(
 				localTeam,
 				cameraX: isSpectator ? 3600 : localTeam === 'east' ? 5600 : 1600,
 				cameraY: 1200,
-				isSpectator
+				isSpectator,
+				isPlaying: roomInfo?.status === 'playing'
 			});
 		}
 
@@ -230,7 +243,13 @@ export async function startOnlineBattleSession(
 		});
 
 		heartbeatTimer = setInterval(() => {
-			if (sync && activeSim.isRunning && !isSpectator) {
+			if (
+				sync &&
+				activeSim.isRunning &&
+				!isSpectator &&
+				onlineStarted &&
+				latestRoomInfo?.status === 'playing'
+			) {
 				void sync.sendHeartbeat();
 			}
 		}, 12_000);
@@ -242,6 +261,9 @@ export async function startOnlineBattleSession(
 			localSlot,
 			get isSpectator() {
 				return isSpectator;
+			},
+			get isPlaying() {
+				return onlineStarted && latestRoomInfo?.status === 'playing';
 			},
 			getTargetTick() {
 				if (!onlineStarted || epochAnchorServerMs === null) return null;
