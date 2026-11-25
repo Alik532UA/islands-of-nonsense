@@ -10,7 +10,21 @@ import type {
 	DamageKillOptions
 } from './types';
 import { calculateDamage } from './damageMatrix';
-import { CELL_SIZE } from './constants';
+import {
+	CELL_SIZE,
+	type CastleCannonMode,
+	CASTLE_CANNON_SHORT_RANGE,
+	CASTLE_CANNON_SHORT_COST,
+	CASTLE_CANNON_LONG_RANGE,
+	CASTLE_CANNON_LONG_COST,
+	CASTLE_CANNON_BASE_COOLDOWN,
+	CASTLE_CANNON_UPGRADED_COOLDOWN,
+	CASTLE_CANNON_UPGRADE_GOLD,
+	CASTLE_CANNON_UPGRADE_LUMBER,
+	CASTLE_CANNON_BASE_DAMAGE,
+	CASTLE_CANNON_SPLASH_RADIUS,
+	CASTLE_CANNON_FRIENDLY_FIRE_FACTOR
+} from './constants';
 import { getBuilding, isLegendaryBuilding } from './gameData';
 
 export class DefenseSystem {
@@ -36,7 +50,8 @@ export class DefenseSystem {
 				attackType: AttackType,
 				attackerTeam: Team,
 				primaryTargetId?: string,
-				killerPlayer?: PlayerState
+				killerPlayer?: PlayerState,
+				options?: DamageKillOptions
 			) => void;
 		}
 	) {}
@@ -219,44 +234,193 @@ export class DefenseSystem {
 		this.sim.notifyStateChanged();
 	}
 
+	public getCastleCannonEffectiveCooldown(team: MatchTeam): number {
+		const base = this.sim.castleCannonUpgraded[team]
+			? CASTLE_CANNON_UPGRADED_COOLDOWN
+			: CASTLE_CANNON_BASE_COOLDOWN;
+		return this.sim.castleOverchargeTimer[team] > 0 ? base * 0.5 : base;
+	}
+
+	public getCastleCannonShotCost(team: MatchTeam, mode: CastleCannonMode): number {
+		if (this.sim.castleOverchargeTimer[team] > 0) return 0;
+		return mode === 'short' ? CASTLE_CANNON_SHORT_COST : CASTLE_CANNON_LONG_COST;
+	}
+
+	public getCastleCannonRange(mode: CastleCannonMode): number {
+		return mode === 'short' ? CASTLE_CANNON_SHORT_RANGE : CASTLE_CANNON_LONG_RANGE;
+	}
+
+	public countEnemiesInRange(team: MatchTeam, range: number, visibleOnly = false): number {
+		const castle = this.sim.castles[team];
+		if (!castle || castle.hp <= 0) return 0;
+		const enemies = this.sim.spatialGrid.queryRadius(
+			castle.x,
+			castle.y,
+			range,
+			(u) => u.team !== team && u.state !== 'DYING' && u.state !== 'DEAD'
+		);
+		if (!visibleOnly || this.sim.config.fogOfWar === false) {
+			return enemies.length;
+		}
+		return enemies.filter((u) => this.sim.isPointRevealed(team, u.x, u.y)).length;
+	}
+
+	public canFireCastleCannon(
+		team: MatchTeam,
+		mode: CastleCannonMode,
+		playerInput?: PlayerState
+	): boolean {
+		const castle = this.sim.castles[team];
+		if (!castle || castle.hp <= 0) return false;
+		if ((this.castleCooldowns[team] ?? 0) > 0) return false;
+		const shooter = playerInput || this.sim.players[team];
+		if (!shooter) return false;
+		const cost = this.getCastleCannonShotCost(team, mode);
+		return shooter.gold >= cost;
+	}
+
+	public canUpgradeCastleCannon(team: MatchTeam, playerInput?: PlayerState): boolean {
+		const castle = this.sim.castles[team];
+		if (!castle || castle.hp <= 0) return false;
+		if (this.sim.castleCannonUpgraded[team]) return false;
+		const buyer = playerInput || this.sim.players[team];
+		if (!buyer) return false;
+		return (
+			buyer.gold >= CASTLE_CANNON_UPGRADE_GOLD &&
+			(buyer.lumber ?? 0) >= CASTLE_CANNON_UPGRADE_LUMBER
+		);
+	}
+
+	public upgradeCastleCannon(team: MatchTeam, playerInput?: PlayerState): boolean {
+		if (!this.canUpgradeCastleCannon(team, playerInput)) return false;
+		const buyer = playerInput || this.sim.players[team];
+		const castle = this.sim.castles[team];
+		buyer.gold -= CASTLE_CANNON_UPGRADE_GOLD;
+		buyer.lumber = Math.max(0, (buyer.lumber ?? 0) - CASTLE_CANNON_UPGRADE_LUMBER);
+		buyer.stats.goldSpent += CASTLE_CANNON_UPGRADE_GOLD;
+		buyer.stats.lumberSpent = (buyer.stats.lumberSpent || 0) + CASTLE_CANNON_UPGRADE_LUMBER;
+		this.sim.castleCannonUpgraded[team] = true;
+		const newCap = this.getCastleCannonEffectiveCooldown(team);
+		if (this.castleCooldowns[team] > newCap) {
+			this.castleCooldowns[team] = newCap;
+		}
+		this.sim.addFloatingText(
+			'Гармата замку покращена! (КД 1с)',
+			castle.x,
+			castle.y - 75,
+			'#38bdf8'
+		);
+		this.sim.onSoundEffect?.('upgrade');
+		this.sim.notifyStateChanged();
+		return true;
+	}
+
+	public fireCastleCannon(
+		team: MatchTeam,
+		mode: CastleCannonMode,
+		playerInput?: PlayerState
+	): { fired: boolean; hitEnemy: boolean; hitAlly: boolean; targetId: string | null } {
+		if (!this.canFireCastleCannon(team, mode, playerInput)) {
+			return { fired: false, hitEnemy: false, hitAlly: false, targetId: null };
+		}
+
+		const castle = this.sim.castles[team];
+		const shooter = playerInput || this.sim.players[team];
+		const isOvercharged = this.sim.castleOverchargeTimer[team] > 0;
+		const cost = this.getCastleCannonShotCost(team, mode);
+		const range = this.getCastleCannonRange(mode);
+
+		if (cost > 0) {
+			shooter.gold -= cost;
+			shooter.stats.goldSpent += cost;
+		}
+
+		this.castleCooldowns[team] = this.getCastleCannonEffectiveCooldown(team);
+
+		const enemies = this.sim.spatialGrid.queryRadius(
+			castle.x,
+			castle.y,
+			range,
+			(u) => u.team !== team && u.state !== 'DYING' && u.state !== 'DEAD'
+		);
+
+		const baseDamage = isOvercharged ? CASTLE_CANNON_BASE_DAMAGE * 2 : CASTLE_CANNON_BASE_DAMAGE;
+
+		let target: Unit | null = null;
+		let isFriendlyFire = false;
+		if (enemies.length > 0) {
+			target = enemies[Math.floor(this.sim.nextRandom() * enemies.length)];
+		} else {
+			// No enemies in range: friendly fire fallback (prioritize shooter's own units at reduced damage)
+			const allies = this.sim.spatialGrid.queryRadius(
+				castle.x,
+				castle.y,
+				range,
+				(u) => u.team === team && u.state !== 'DYING' && u.state !== 'DEAD'
+			);
+			const ownAllies = allies.filter(
+				(u) =>
+					(shooter.slot != null && u.playerSlot === shooter.slot) ||
+					(shooter.id != null && u.playerId === shooter.id)
+			);
+			const pool = ownAllies.length > 0 ? ownAllies : allies;
+			if (pool.length > 0) {
+				target = pool[Math.floor(this.sim.nextRandom() * pool.length)];
+				isFriendlyFire = true;
+			}
+		}
+
+		if (target) {
+			const dist = Math.hypot(target.x - castle.x, target.y - castle.y);
+			const damage = isFriendlyFire
+				? Math.max(1, Math.round(baseDamage * CASTLE_CANNON_FRIENDLY_FIRE_FACTOR))
+				: baseDamage;
+			this.sim.projectiles.push({
+				id: `castle_shot_${this.sim.nextProjectileId++}`,
+				sourceUnitId: 'castle_' + team,
+				targetUnitId: target.instanceId,
+				x: castle.x,
+				y: castle.y,
+				targetX: target.x,
+				targetY: target.y,
+				originX: castle.x,
+				originY: castle.y,
+				totalDist: dist,
+				arcHeight: 50,
+				speed: 700,
+				damage,
+				attackType: 'siege',
+				isCrit: !isFriendlyFire && isOvercharged,
+				team,
+				splashRadius: isFriendlyFire ? undefined : CASTLE_CANNON_SPLASH_RADIUS,
+				shooterPlayerId: shooter.id,
+				shooterSlot: shooter.slot,
+				suppressBounty: true,
+				isFriendlyFire
+			});
+			if (isFriendlyFire) {
+				this.sim.addFloatingText('Дружній вогонь!', castle.x, castle.y - 68, '#f97316');
+			}
+			this.sim.onSoundEffect?.('attack_siege');
+			this.sim.notifyStateChanged();
+			return {
+				fired: true,
+				hitEnemy: !isFriendlyFire,
+				hitAlly: isFriendlyFire,
+				targetId: target.instanceId
+			};
+		}
+
+		this.sim.addFloatingText('Цілей не знайдено!', castle.x, castle.y - 68, '#94a3b8');
+		this.sim.onSoundEffect?.('attack_siege');
+		this.sim.notifyStateChanged();
+		return { fired: true, hitEnemy: false, hitAlly: false, targetId: null };
+	}
+
 	public updateCastles(dt: number): void {
 		for (const team of ['west', 'east'] as MatchTeam[]) {
-			const castle = this.sim.castles[team];
-			this.castleCooldowns[team] -= dt;
-
-			if (this.castleCooldowns[team] <= 0) {
-				const enemy = this.sim.spatialGrid.findClosestEnemy(
-					castle.x,
-					castle.y,
-					800,
-					team,
-					undefined,
-					true
-				);
-				if (enemy) {
-					const isOvercharged = this.sim.castleOverchargeTimer[team] > 0;
-					this.castleCooldowns[team] = isOvercharged ? 0.5 : 1.0;
-					const dist = Math.hypot(enemy.x - castle.x, enemy.y - castle.y);
-					this.sim.projectiles.push({
-						id: `castle_shot_${this.sim.nextProjectileId++}`,
-						sourceUnitId: 'castle_' + team,
-						targetUnitId: enemy.instanceId,
-						x: castle.x,
-						y: castle.y,
-						targetX: enemy.x,
-						targetY: enemy.y,
-						originX: castle.x,
-						originY: castle.y,
-						totalDist: dist,
-						arcHeight: 50,
-						speed: 700,
-						damage: isOvercharged ? 170 : 85,
-						attackType: 'siege',
-						isCrit: isOvercharged,
-						team,
-						splashRadius: 90
-					});
-				}
+			if (this.castleCooldowns[team] > 0) {
+				this.castleCooldowns[team] = Math.max(0, this.castleCooldowns[team] - dt);
 			}
 		}
 	}
@@ -354,10 +518,24 @@ export class DefenseSystem {
 				const sourceTower = p.sourceUnitId.startsWith('bld_')
 					? this.sim.buildings.find((b) => b.instanceId === p.sourceUnitId)
 					: undefined;
+				const shooterPlayer =
+					p.shooterSlot != null
+						? this.sim.allPlayers.find((pl) => pl.slot === p.shooterSlot)
+						: p.shooterPlayerId
+							? this.sim.allPlayers.find((pl) => pl.id === p.shooterPlayerId)
+							: undefined;
 				const ownerPlayerId = attackerUnit?.playerId ?? sourceTower?.playerId;
-				const killerPlayer = ownerPlayerId
-					? this.sim.allPlayers.find((pl) => pl.id === ownerPlayerId)
-					: undefined;
+				const killerPlayer =
+					shooterPlayer ??
+					(ownerPlayerId ? this.sim.allPlayers.find((pl) => pl.id === ownerPlayerId) : undefined);
+				const killOptions: DamageKillOptions | undefined =
+					killerPlayer || p.suppressBounty || p.isFriendlyFire
+						? {
+								killerPlayer,
+								suppressBounty: p.suppressBounty,
+								isFriendlyFire: p.isFriendlyFire
+							}
+						: undefined;
 				if (p.isArtillery) {
 					// Ground-impact detonation: AoE splash at ground target point
 					const radius = p.splashRadius || 120;
@@ -369,7 +547,8 @@ export class DefenseSystem {
 						p.attackType,
 						p.team,
 						undefined, // Hits any enemy currently in impact zone; units that dodged take 0
-						killerPlayer
+						killerPlayer,
+						killOptions
 					);
 
 					// Building damage if ground impact point is within radius of target building
@@ -413,7 +592,7 @@ export class DefenseSystem {
 							p.team,
 							p.isCrit,
 							attackerUnit,
-							killerPlayer ? { killerPlayer } : undefined
+							killOptions
 						);
 
 						// Tower special on-hit effects & stats
@@ -458,7 +637,9 @@ export class DefenseSystem {
 							p.damage * 0.5,
 							p.attackType,
 							p.team,
-							p.targetUnitId
+							p.targetUnitId,
+							killerPlayer,
+							killOptions
 						);
 					}
 				}

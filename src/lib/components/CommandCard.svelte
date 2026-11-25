@@ -60,12 +60,81 @@
 		}
 		sound.playForgeUpgrade();
 	}
+
+	function dispatchCastleAction(
+		type: 'CASTLE_SHOT' | 'UPGRADE_CASTLE_CANNON',
+		canRun: boolean,
+		fallback: () => boolean,
+		targetId?: 'short' | 'long'
+	) {
+		if (!canRun) {
+			sound.playErrorResource();
+			return;
+		}
+		if (
+			!routeBattleCommand?.(type, {
+				team: player.team,
+				playerSlot: player.slot,
+				...(targetId ? { targetId } : {})
+			}) &&
+			!fallback()
+		) {
+			sound.playErrorResource();
+		}
+	}
+
+	function getCastleCannonView(_tick: number) {
+		const cannonCd = sim.getCastleCannonCooldown(player.team);
+		const cannonMaxCd = sim.getCastleCannonEffectiveMaxCooldown(player.team);
+		const isOvercharged = sim.castleOverchargeTimer[player.team] > 0;
+		const isCannonUpgraded = sim.castleCannonUpgraded[player.team];
+		return {
+			cannonCd,
+			cannonMaxCd,
+			isOvercharged,
+			isCannonUpgraded,
+			canUpgradeCannon: sim.canUpgradeCastleCannon(player.team, player),
+			cannonDmg: isOvercharged ? CASTLE_CANNON_BASE_DAMAGE * 2 : CASTLE_CANNON_BASE_DAMAGE,
+			buttons: [
+				{
+					mode: 'short' as const,
+					range: CASTLE_CANNON_SHORT_RANGE,
+					hotkey: '[1]',
+					cost: sim.getCastleCannonShotCost(player.team, 'short'),
+					enemies: sim.getCastleCannonEnemyCount(player.team, CASTLE_CANNON_SHORT_RANGE, true),
+					canFire: sim.canFireCastleCannon(player.team, 'short', player),
+					activeCls: 'border-amber-500/80 bg-amber-950/75 hover:bg-amber-900/90 text-amber-100',
+					iconCls: 'text-amber-400',
+					costCls: 'text-amber-300'
+				},
+				{
+					mode: 'long' as const,
+					range: CASTLE_CANNON_LONG_RANGE,
+					hotkey: '[2]',
+					cost: sim.getCastleCannonShotCost(player.team, 'long'),
+					enemies: sim.getCastleCannonEnemyCount(player.team, CASTLE_CANNON_LONG_RANGE, true),
+					canFire: sim.canFireCastleCannon(player.team, 'long', player),
+					activeCls: 'border-sky-500/80 bg-sky-950/75 hover:bg-sky-900/90 text-sky-100',
+					iconCls: 'text-sky-400',
+					costCls: 'text-sky-300'
+				}
+			]
+		};
+	}
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { CASTLE_ITEMS_LIST, type CastleItem } from '../engine/items';
+	import {
+		CASTLE_CANNON_BASE_DAMAGE,
+		CASTLE_CANNON_SHORT_RANGE,
+		CASTLE_CANNON_LONG_RANGE,
+		CASTLE_CANNON_UPGRADE_GOLD,
+		CASTLE_CANNON_UPGRADE_LUMBER
+	} from '../engine/constants';
 	import { settings } from '../services/settings.svelte';
 
 	let {
 		sim,
+		uiTick = 0,
 		placedBuilding = null,
 		placedUnit = null,
 		availableUpgrades = [],
@@ -84,9 +153,11 @@
 		onOpenCommander,
 		onClearSelection,
 		onCloseBuilding,
-		onCloseUnit
+		onCloseUnit,
+		onHoverCastleRange
 	}: {
 		sim: Simulation;
+		uiTick?: number;
 		placedBuilding?: Building | null;
 		placedUnit?: UnitDefinition | null;
 		availableUpgrades?: BuildingDefinition[];
@@ -106,6 +177,7 @@
 		onClearSelection?: () => void;
 		onCloseBuilding?: () => void;
 		onCloseUnit?: () => void;
+		onHoverCastleRange?: (mode: 'short' | 'long' | null) => void;
 	} = $props();
 
 	let hoveredBuilding = $state<BuildingDefinition | null>(null);
@@ -653,34 +725,118 @@
 				</button>
 			</div>
 			{#if selectedCastle.team === player.team}
+				{@const cv = getCastleCannonView(uiTick)}
 				<div
-					class="flex flex-col gap-1 text-[10px] text-slate-300 bg-[#0d1017] p-2 rounded border border-[#2d3748]"
+					class="flex flex-col gap-0.5 text-[9.5px] text-slate-300 bg-[#0d1017] px-2 py-1.5 rounded border border-[#2d3748]"
 				>
 					<div class="flex justify-between">
-						<span class="text-slate-400">Статус:</span>
-						<span class="font-bold text-emerald-400">Цитадель захищена</span>
+						<span class="text-slate-400">Гармата замку:</span>
+						<span class="font-mono text-amber-300 font-bold">
+							{cv.cannonDmg} (Облога){cv.isOvercharged ? ' ×2!' : ''}
+						</span>
 					</div>
 					<div class="flex justify-between">
-						<span class="text-slate-400">Гармата цитаделі:</span>
-						<span class="font-mono text-amber-300 font-bold">120-150 (Облога)</span>
-					</div>
-					<div
-						class="text-[9px] text-slate-400 border-t border-slate-800 pt-1 flex items-center gap-1"
-					>
-						<UiIcon name="lightbulb" class="w-3.5 h-3.5 text-amber-400 shrink-0 inline" />
-						<span>
-							Припаси доступні в окремій будівлі <span class="text-amber-300 font-bold">
-								Магазин
-							</span>.
+						<span class="text-slate-400">Спільний КД:</span>
+						<span
+							class="font-mono font-bold {cv.cannonCd > 0
+								? 'text-rose-400'
+								: cv.isCannonUpgraded
+									? 'text-cyan-300'
+									: 'text-emerald-400'}"
+						>
+							{cv.cannonCd > 0
+								? `${cv.cannonCd.toFixed(1)}с / ${cv.cannonMaxCd.toFixed(1)}с`
+								: `Готово (${cv.cannonMaxCd.toFixed(1)}с)`}
 						</span>
 					</div>
 				</div>
+				{@const castleBtn =
+					'w-16 h-10 rounded border flex flex-col items-center justify-center p-0.5 transition cursor-pointer shadow'}
+				{@const disabledCastleBtn =
+					'border-slate-700 bg-slate-900/70 text-slate-500 opacity-60 cursor-not-allowed'}
 				<div class="grid grid-cols-4 gap-1.5 pt-1">
+					{#each cv.buttons as btn (btn.mode)}
+						<button
+							type="button"
+							onclick={() =>
+								dispatchCastleAction(
+									'CASTLE_SHOT',
+									btn.canFire,
+									() => sim.fireCastleCannon(player.team, btn.mode, player).fired,
+									btn.mode
+								)}
+							onmouseenter={() => onHoverCastleRange?.(btn.mode)}
+							onmouseleave={() => onHoverCastleRange?.(null)}
+							disabled={!btn.canFire}
+							data-testid="hud-castle-shot-{btn.mode}-btn"
+							class="relative {castleBtn} {btn.canFire ? btn.activeCls : disabledCastleBtn}"
+							title="Постріл {btn.range}px ({btn.cost}g) {btn.hotkey}: ворог або союзник (50%)"
+						>
+							<span class="text-[9px] font-bold flex items-center gap-0.5">
+								<UiIcon name="crosshair" class="w-2.5 h-2.5 {btn.iconCls}" />
+								{btn.range}px
+							</span>
+							<span class="text-[8px] font-mono {btn.costCls} font-bold flex items-center gap-1">
+								<span>{btn.cost}g</span>
+								<span
+									class="inline-flex items-center gap-0.5 {btn.enemies > 0
+										? 'text-rose-300'
+										: 'text-slate-400'}"
+								>
+									<UiIcon name="swords" class="w-2.5 h-2.5" />
+									{btn.enemies}
+								</span>
+							</span>
+							<span class="absolute top-0.5 right-0.5 text-[7px] font-mono text-slate-400">
+								{btn.hotkey}
+							</span>
+						</button>
+					{/each}
+
+					{#if !cv.isCannonUpgraded}
+						<button
+							type="button"
+							onclick={() =>
+								dispatchCastleAction('UPGRADE_CASTLE_CANNON', cv.canUpgradeCannon, () =>
+									sim.upgradeCastleCannon(player.team, player)
+								)}
+							disabled={!cv.canUpgradeCannon}
+							data-testid="hud-castle-cannon-upgrade-btn"
+							class="relative {castleBtn} {cv.canUpgradeCannon
+								? 'border-cyan-500/80 bg-cyan-950/75 hover:bg-cyan-900/90 text-cyan-100'
+								: disabledCastleBtn}"
+							title="Покращити гармату: КД 2с → 1с ({CASTLE_CANNON_UPGRADE_GOLD}g+{CASTLE_CANNON_UPGRADE_LUMBER}w) [3]"
+						>
+							<span class="text-[8.5px] font-bold flex items-center gap-0.5">
+								<UiIcon name="zap" class="w-2.5 h-2.5 text-cyan-400" />
+								КД 1с
+							</span>
+							<span class="text-[7.5px] font-mono text-cyan-300 font-bold">
+								{CASTLE_CANNON_UPGRADE_GOLD}g/{CASTLE_CANNON_UPGRADE_LUMBER}w
+							</span>
+							<span class="absolute top-0.5 right-0.5 text-[7px] font-mono text-slate-400">
+								[3]
+							</span>
+						</button>
+					{:else}
+						<div
+							data-testid="hud-castle-cannon-upgraded-badge"
+							class="w-16 h-10 rounded border border-cyan-600/50 bg-cyan-950/40 text-cyan-300 flex flex-col items-center justify-center p-0.5"
+							title="Гармата покращена на раунд (КД 1с)"
+						>
+							<UiIcon name="zap" class="w-3 h-3 text-cyan-400" />
+							<span class="text-[8px] font-bold flex items-center gap-0.5">
+								КД 1с
+								<UiIcon name="check" class="w-2.5 h-2.5 text-emerald-400" />
+							</span>
+						</div>
+					{/if}
+
 					{#if selectedCastle.hp < selectedCastle.maxHp}
 						<button
 							onclick={() => dispatchRepair(selectedCastle.team, `castle_${selectedCastle.team}`)}
 							data-testid="hud-castle-repair-btn"
-							class="w-16 h-10 rounded border border-emerald-500/70 bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-200 flex flex-col items-center justify-center p-0.5 transition cursor-pointer shadow"
+							class="{castleBtn} border-emerald-500/70 bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-200"
 							title="Наказати робітникові ремонтувати цитадель (R)"
 						>
 							<span class="text-[9.5px] font-bold flex items-center gap-0.5">
@@ -696,8 +852,8 @@
 							onclick={() => dispatchBridgeRepair()}
 							disabled={(player.lumber ?? 0) < 50}
 							data-testid="hud-repair-bridge-btn"
-							class="w-16 h-10 rounded border border-amber-500/70 bg-amber-950/70 hover:bg-amber-900/90 disabled:opacity-40 text-amber-200 flex flex-col items-center justify-center p-0.5 transition cursor-pointer shadow"
-							title="Наказати робітникові відбудувати зламаний міст (50 деревини)"
+							class="{castleBtn} border-amber-500/70 bg-amber-950/70 hover:bg-amber-900/90 disabled:opacity-40 text-amber-200"
+							title="Відбудувати зламаний міст (50w)"
 						>
 							<span class="text-[9.5px] font-bold flex items-center gap-0.5">
 								<UiIcon name="wrench" class="w-3 h-3 text-amber-400" />
@@ -711,16 +867,24 @@
 					{/if}
 				</div>
 			{:else}
+				{@const enemyCannonCd =
+					uiTick >= 0 ? sim.getCastleCannonEffectiveMaxCooldown(selectedCastle.team) : 2.0}
 				<div
 					class="flex flex-col gap-1 text-[10px] text-slate-300 bg-[#0d1017] p-2 rounded border border-[#2d3748]"
 				>
 					<div class="flex justify-between">
 						<span class="text-slate-400">Гармата цитаделі:</span>
-						<span class="font-mono text-amber-300 font-bold">120-150 (Облога)</span>
+						<span class="font-mono text-amber-300 font-bold">
+							{CASTLE_CANNON_BASE_DAMAGE} (Облога)
+						</span>
 					</div>
 					<div class="flex justify-between">
 						<span class="text-slate-400">Дальність гармати:</span>
-						<span class="font-mono text-slate-200">800 px</span>
+						<span class="font-mono text-slate-200">500 / 1500 px</span>
+					</div>
+					<div class="flex justify-between">
+						<span class="text-slate-400">Кулдаун гармати:</span>
+						<span class="font-mono text-slate-200">{enemyCannonCd.toFixed(1)} с</span>
 					</div>
 					<div class="flex justify-between">
 						<span class="text-slate-400">Броня замку:</span>

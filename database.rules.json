@@ -2,7 +2,7 @@
 	"rules": {
 		"__rulesVersion": {
 			"$v": {
-				".read": "auth != null && $v === 'c9e2ca2dbd1d'"
+				".read": "auth != null && $v === '3659f6d2ffb6'"
 			}
 		},
 		"rooms": {
@@ -226,7 +226,7 @@
 							".validate": "newData.val() === auth.uid"
 						},
 						"type": {
-							".validate": "newData.isString() && (newData.val() === 'BUILD' || newData.val() === 'UPGRADE' || newData.val() === 'SELL' || newData.val() === 'REPAIR' || newData.val() === 'CONTINUE_BUILD' || newData.val() === 'MOVE_WORKER' || newData.val() === 'ORDER_WORKER_MOVE' || newData.val() === 'USE_ABILITY' || newData.val() === 'BUY_ITEM' || newData.val() === 'UPGRADE_FORGE' || newData.val() === 'SELECT_COMMANDER' || newData.val() === 'SET_RACE' || newData.val() === 'BRIDGE_REPAIR' || newData.val() === 'RESCUE_STRIKE' || newData.val() === 'SURRENDER' || newData.val() === 'PAUSE' || newData.val() === 'RESUME' || newData.val() === 'NEXT_ROUND' || newData.val() === 'RESTART_MATCH' || newData.val() === 'HEARTBEAT' || newData.val() === 'CHECKSUM' || newData.val() === 'CHAT' || newData.val() === 'lead')"
+							".validate": "newData.isString() && (newData.val() === 'BUILD' || newData.val() === 'UPGRADE' || newData.val() === 'SELL' || newData.val() === 'REPAIR' || newData.val() === 'CONTINUE_BUILD' || newData.val() === 'MOVE_WORKER' || newData.val() === 'ORDER_WORKER_MOVE' || newData.val() === 'USE_ABILITY' || newData.val() === 'BUY_ITEM' || newData.val() === 'UPGRADE_FORGE' || newData.val() === 'SELECT_COMMANDER' || newData.val() === 'SET_RACE' || newData.val() === 'BRIDGE_REPAIR' || newData.val() === 'RESCUE_STRIKE' || newData.val() === 'CASTLE_SHOT' || newData.val() === 'UPGRADE_CASTLE_CANNON' || newData.val() === 'SURRENDER' || newData.val() === 'PAUSE' || newData.val() === 'RESUME' || newData.val() === 'NEXT_ROUND' || newData.val() === 'RESTART_MATCH' || newData.val() === 'HEARTBEAT' || newData.val() === 'CHECKSUM' || newData.val() === 'CHAT' || newData.val() === 'lead')"
 						},
 						"at": {
 							".validate": "newData.isNumber() && newData.val() <= now && newData.val() > now - 60000"
@@ -571,7 +571,7 @@
 						},
 						"racesWon": {
 							"$raceKey": {
-								".validate": "$raceKey.matches(/^[a-z0-9_\\p{L}-]{1,32}$/u) || ($raceKey.length >= 1 && $raceKey.length <= 32) && newData.isBoolean()"
+								".validate": "$raceKey.length >= 1 && $raceKey.length <= 32 && newData.isBoolean()"
 							}
 						},
 						"$other": {

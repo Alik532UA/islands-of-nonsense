@@ -165,11 +165,11 @@ describe('Worker Navigation and Building Order (v10 Canon)', () => {
 			expect(sim.floatingTexts.some((ft) => ft.text === 'Немає золота!')).toBe(true);
 		});
 
-		it('castle cannon targets enemies within 800px range covering siege engines', () => {
+		it('manual long castle cannon targets enemies at 550px when fired (no auto-fire)', () => {
 			const sim = new Simulation();
 			sim.isRunning = true;
 
-			// Enemy at distance 550 from west castle
+			// Enemy at distance 550 from west castle (outside 500px short range, inside 1500px long range)
 			sim.spawnUnitDirectly({
 				team: 'east',
 				lane: 'top',
@@ -179,6 +179,11 @@ describe('Worker Navigation and Building Order (v10 Canon)', () => {
 			});
 
 			sim.step(0.1);
+			expect(sim.projectiles.some((p) => p.sourceUnitId === 'castle_west')).toBe(false);
+
+			const fired = sim.fireCastleCannon('west', 'long', sim.players.west);
+			expect(fired.fired).toBe(true);
+			expect(fired.hitEnemy).toBe(true);
 
 			// Castle shot projectile must be fired towards the enemy
 			const castleProjectile = sim.projectiles.find((p) => p.sourceUnitId === 'castle_west');

@@ -114,7 +114,8 @@ describe('Point 8: Worker Building & Castle Repair Mechanic', () => {
 	});
 
 	it('BotAI автоматично відправляє робітника ремонтувати пошкоджену споруду коли робітник вільний', () => {
-		const botSim = new Simulation({ botDifficulty: 30, startGold: 2000 });
+		const botSim = new Simulation({ botDifficulty: 30, startGold: 2000, seed: 42 });
+		botSim.decorations = [];
 		const bot = new BotAI(botSim);
 
 		// Build a structure for East bot

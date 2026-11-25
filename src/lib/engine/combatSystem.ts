@@ -81,7 +81,8 @@ export class CombatSystem {
 				attackType,
 				attackerTeam,
 				primaryTargetId,
-				killerPlayer
+				killerPlayer,
+				options
 			) =>
 				this.triggerSplashDamage(
 					targetX,
@@ -92,7 +93,8 @@ export class CombatSystem {
 					attackerTeam,
 					primaryTargetId,
 					undefined,
-					killerPlayer
+					killerPlayer,
+					options
 				)
 		});
 	}
@@ -807,7 +809,8 @@ export class CombatSystem {
 		attackerTeam: Team,
 		primaryTargetId?: string,
 		lane?: Lane,
-		killerPlayer?: PlayerState
+		killerPlayer?: PlayerState,
+		options?: DamageKillOptions
 	): void {
 		this.sim.splashEffects.push({
 			x,
@@ -843,6 +846,7 @@ export class CombatSystem {
 
 			const splashDmg = Math.max(1, Math.round(damage * factor));
 			this.applyUnitDamage(u, splashDmg, attackType, attackerTeam, false, undefined, {
+				...options,
 				killerPlayer
 			});
 		}
@@ -928,7 +932,9 @@ export class CombatSystem {
 		const finalDamage = calculateDamage(attackType, target.armorType, rawDmg, effectiveArmor);
 		target.hp -= finalDamage;
 
-		if (attackerTeam === 'west' || attackerTeam === 'east') {
+		const isFriendlyDamage = Boolean(options?.isFriendlyFire) || attackerTeam === target.team;
+
+		if (!isFriendlyDamage && (attackerTeam === 'west' || attackerTeam === 'east')) {
 			const attStats = this.sim.players[attackerTeam].stats;
 			attStats.totalDamageDealt += finalDamage;
 			attStats.damageByAttackType = attStats.damageByAttackType || {};
@@ -1040,11 +1046,13 @@ export class CombatSystem {
 					value: 15,
 					lifeTime: 15.0
 				});
-				const recyclers = this.sim.buildings.filter(
-					(b) =>
-						b.team === target.team &&
-						(b.specialType === 'recycler' || b.defId === 'cg0b' || b.defId === 'cg07_recycler')
-				);
+				const recyclers = isFriendlyDamage
+					? []
+					: this.sim.buildings.filter(
+							(b) =>
+								b.team === target.team &&
+								(b.specialType === 'recycler' || b.defId === 'cg0b' || b.defId === 'cg07_recycler')
+						);
 				if (recyclers.length > 0) {
 					const count = Math.min(2, recyclers.length);
 					const scrapBonus = count * 4;
@@ -1114,6 +1122,7 @@ export class CombatSystem {
 					this.sim.addFloatingText(`+${bounty}g за Боса!`, target.x, target.y - 30, '#fbbf24');
 				}
 			} else if (
+				!isFriendlyDamage &&
 				(attackerTeam === 'west' || attackerTeam === 'east') &&
 				attackerTeam !== target.team
 			) {
@@ -1122,18 +1131,20 @@ export class CombatSystem {
 					attackerUnit,
 					options?.killerPlayer
 				);
-				const baseBounty = this.resolveEnemyUnitBounty(target);
-				const mult = options?.bountyMultiplier ?? 1;
-				const bounty = Math.max(1, Math.round(baseBounty * mult));
-				killerPlayer.gold += bounty;
 				killerPlayer.stats.unitsKilled++;
-				if (!options?.suppressKillFloatingText) {
-					this.sim.addFloatingText(
-						mult > 1 ? `+${bounty}g (×${mult})` : `+${bounty}g`,
-						target.x,
-						target.y - 26,
-						'#fbbf24'
-					);
+				if (!options?.suppressBounty) {
+					const baseBounty = this.resolveEnemyUnitBounty(target);
+					const mult = options?.bountyMultiplier ?? 1;
+					const bounty = Math.max(1, Math.round(baseBounty * mult));
+					killerPlayer.gold += bounty;
+					if (!options?.suppressKillFloatingText) {
+						this.sim.addFloatingText(
+							mult > 1 ? `+${bounty}g (×${mult})` : `+${bounty}g`,
+							target.x,
+							target.y - 26,
+							'#fbbf24'
+						);
+					}
 				}
 			}
 		}

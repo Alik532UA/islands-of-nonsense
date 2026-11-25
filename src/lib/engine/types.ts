@@ -171,6 +171,7 @@ export interface UnitDefinition {
 	move_type: string | null;
 	flying: boolean;
 	canHitAir?: boolean;
+	bounty?: number;
 	ubld?: number;
 	mana?: number;
 	maxMana?: number;
@@ -390,6 +391,8 @@ export interface DamageKillOptions {
 	bountyMultiplier?: number;
 	killerPlayer?: PlayerState;
 	suppressKillFloatingText?: boolean;
+	suppressBounty?: boolean;
+	isFriendlyFire?: boolean;
 }
 
 export interface BuildingPerformance {
@@ -461,6 +464,10 @@ export interface Projectile {
 	splashRadius?: number;
 	hasFrost?: boolean;
 	isArtillery?: boolean;
+	shooterPlayerId?: string;
+	shooterSlot?: number;
+	suppressBounty?: boolean;
+	isFriendlyFire?: boolean;
 }
 
 export interface LightningEffect {

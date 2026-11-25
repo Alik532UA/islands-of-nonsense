@@ -457,12 +457,12 @@ export class BuildingSystem {
 			armorType: (bDef.armor_type as ArmorType) || 'fort',
 			goldCost: cost,
 			lumberCost,
-			spawnUnitId: bDef.unit,
+			spawnUnitId: bDef.unit || '',
 			spawnCooldown: spawnCd,
 			initialSpawnDelay: initialDelay,
 			spawnTimer: bDef.specialType === 'repair' ? 0 : initialDelay,
 			lane: resolvedLane,
-			upgradeFrom: bDef.upgrade_from,
+			upgradeFrom: bDef.upgrade_from ?? null,
 			race: toPlayableRace(player.race || bDef.race),
 			width: 2,
 			height: 2,
@@ -744,13 +744,13 @@ export class BuildingSystem {
 		building.goldCost += upgradeCost;
 		building.playerId = player.id;
 		building.playerSlot = player.slot;
-		building.spawnUnitId = targetDef.unit;
+		building.spawnUnitId = targetDef.unit || '';
 		const newSpawnCd = getSpawnCooldown(targetDef, targetUnit);
 		const newInitialDelay = getInitialSpawnDelay(targetDef, targetUnit);
 		building.spawnCooldown = newSpawnCd;
 		building.initialSpawnDelay = newInitialDelay;
 		building.spawnTimer = Math.min(building.spawnTimer, newInitialDelay);
-		building.upgradeFrom = targetDef.upgrade_from;
+		building.upgradeFrom = targetDef.upgrade_from ?? null;
 		building.specialType = targetDef.specialType;
 		building.aura = targetDef.aura ? { ...targetDef.aura } : undefined;
 		building.race = toPlayableRace(player.race || targetDef.race || building.race);

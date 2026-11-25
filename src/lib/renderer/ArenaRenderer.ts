@@ -1,5 +1,23 @@
 import 'pixi.js/unsafe-eval';
-import { Application, Container, Graphics, Sprite, Texture, Assets } from 'pixi.js';
+import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
+
+const castleTextureCache = new Map<string, Promise<Texture>>();
+function loadCastleTexture(url: string): Promise<Texture> {
+	let cached = castleTextureCache.get(url);
+	if (!cached) {
+		cached = new Promise<Texture>((resolve, reject) => {
+			const img = new Image();
+			img.onload = () => resolve(Texture.from(img));
+			img.onerror = (err) => {
+				castleTextureCache.delete(url);
+				reject(err);
+			};
+			img.src = url;
+		});
+		castleTextureCache.set(url, cached);
+	}
+	return cached;
+}
 import type { Simulation } from '../engine/simulation';
 import {
 	ARENA_WIDTH,
@@ -117,6 +135,11 @@ export class ArenaRenderer {
 
 	// RTS Order Chevrons (RMB click marker)
 	private moveMarkers: { x: number; y: number; timer: number; maxTimer: number }[] = [];
+	private hoveredCastleCannonMode: 'short' | 'long' | null = null;
+
+	public setHoveredCastleCannonMode(mode: 'short' | 'long' | null): void {
+		this.hoveredCastleCannonMode = mode;
+	}
 
 	// Fog of War
 	public enableFog = true;
@@ -269,8 +292,8 @@ export class ArenaRenderer {
 		if (this.castleVisuals.west.textures.length > 0) return;
 		try {
 			const [westLoaded, eastLoaded] = await Promise.all([
-				Promise.all(WEST_CASTLE_STAGE_URLS.map((url) => Assets.load<Texture>(url))),
-				Promise.all(EAST_CASTLE_STAGE_URLS.map((url) => Assets.load<Texture>(url)))
+				Promise.all(WEST_CASTLE_STAGE_URLS.map(loadCastleTexture)),
+				Promise.all(EAST_CASTLE_STAGE_URLS.map(loadCastleTexture))
 			]);
 			this.castleVisuals.west.textures = westLoaded;
 			this.castleVisuals.east.textures = eastLoaded;
@@ -1042,11 +1065,18 @@ export class ArenaRenderer {
 		this.overlayRenderer.drawOrderMarkers(this.markersLayer, this.moveMarkers);
 		this.overlayRenderer.drawFogOfWar(this.fogLayer, this.enableFog, viewerTeam);
 		this.overlayRenderer.drawFloatingTexts(this.floatingTextsLayer, this.sim.floatingTexts);
+		const castleRangeOverlay =
+			this.hoveredCastleCannonMode !== null
+				? { team: viewerTeam, hoveredMode: this.hoveredCastleCannonMode }
+				: selectedEntity?.type === 'castle'
+					? { team: selectedEntity.team, hoveredMode: null }
+					: null;
 		this.overlayRenderer.drawSelectionUI(
 			this.uiLayer,
 			this.isBoxSelecting,
 			this.boxStartWorld,
-			this.boxCurrentWorld
+			this.boxCurrentWorld,
+			castleRangeOverlay
 		);
 	}
 

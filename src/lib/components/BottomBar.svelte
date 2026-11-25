@@ -1,7 +1,9 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+	import { getContext, type Snippet } from 'svelte';
 	import type { Simulation } from '../engine/simulation';
 	import type { PlayerState } from '../engine/types';
+	import { BATTLE_COMMAND_ROUTER_KEY, type BattleCommandRouter } from '$lib/net/onlineMatchSetup';
+	import { sound } from '../services/audio';
 	import {
 		formatRaceName,
 		getBaseBuildingsForRace,
@@ -44,6 +46,7 @@
 		onOpenCommander,
 		onMinimapClick,
 		onClearSelection,
+		onHoverCastleRange,
 		touchControls
 	}: {
 		sim: Simulation;
@@ -67,8 +70,11 @@
 		onOpenCommander?: () => void;
 		onMinimapClick?: (arenaX: number, arenaY: number) => void;
 		onClearSelection?: () => void;
+		onHoverCastleRange?: (mode: 'short' | 'long' | null) => void;
 		touchControls?: Snippet;
 	} = $props();
+
+	const routeBattleCommand = getContext<BattleCommandRouter | undefined>(BATTLE_COMMAND_ROUTER_KEY);
 
 	let localPlayer = $derived(
 		activePlayer ?? (localTeam === 'east' ? sim.players.east : sim.players.west)
@@ -185,6 +191,38 @@
 		}
 
 		if (isSpectator) return;
+
+		// Castle cannon hotkeys 1, 2, 3 when friendly castle is selected
+		if (
+			activeEntityType === 'castle' &&
+			selectedCastle &&
+			selectedCastle.team === effectiveTeam &&
+			!e.altKey &&
+			!e.ctrlKey &&
+			digit !== null
+		) {
+			if (digit === 1 || digit === 2 || digit === 3) {
+				const mode = digit === 1 ? 'short' : 'long';
+				const canRun =
+					digit === 3
+						? sim.canUpgradeCastleCannon(player.team, player)
+						: sim.canFireCastleCannon(player.team, mode, player);
+				if (!canRun) {
+					sound.playErrorResource();
+					return;
+				}
+				const type = digit === 3 ? 'UPGRADE_CASTLE_CANNON' : 'CASTLE_SHOT';
+				const payload =
+					digit === 3
+						? { team: player.team, playerSlot: player.slot }
+						: { team: player.team, playerSlot: player.slot, targetId: mode };
+				if (!routeBattleCommand?.(type, payload)) {
+					if (digit === 3) sim.upgradeCastleCannon(player.team, player);
+					else sim.fireCastleCannon(player.team, mode, player);
+				}
+				return;
+			}
+		}
 
 		// Upgrades 1..9 for selected placed building
 		if (placedBuilding && availableUpgrades.length > 0 && digit !== null) {
@@ -524,13 +562,7 @@
 							<circle cx="17" cy="16.5" r="1" fill="#18130d" />
 						</svg>
 					{:else}
-						<!-- Authentic leather satchel / pouch silhouette -->
-						<svg class="w-5 h-5 text-[#5c4934] opacity-80" viewBox="0 0 24 24" fill="currentColor">
-							<path
-								d="M19 8h-1V5c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v3H5c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM8 5h8v3H8V5zm11 15H5V10h14v10z"
-							/>
-							<rect x="10" y="12" width="4" height="4" rx="1" fill="#2d2116" />
-						</svg>
+						<UiIcon name="lock" class="w-5 h-5 text-[#5c4934] opacity-80" />
 					{/if}
 				</div>
 			{/each}
@@ -543,6 +575,7 @@
 	<div class="pointer-events-auto shrink-0">
 		<CommandCard
 			{sim}
+			{uiTick}
 			{placedBuilding}
 			{placedUnit}
 			{availableUpgrades}
@@ -560,6 +593,7 @@
 			{onContinueConstruction}
 			{onOpenCommander}
 			{onClearSelection}
+			{onHoverCastleRange}
 			onCloseBuilding={() => (selectedPlacedBuildingId = null)}
 			onCloseUnit={() => (selectedUnitId = null)}
 		/>

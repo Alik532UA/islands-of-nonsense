@@ -53,7 +53,9 @@ export function computeSimStateChecksum(sim: Simulation): string {
 	const buildingsHp = (sim.buildings ?? []).reduce((sum, b) => sum + Math.round(b.hp), 0);
 	const unitsCount = sim.units?.length ?? 0;
 
-	const raw = `${sim.tick}:t${Math.round(sim.gameTime * 10)}:r${sim.round}:${sim.score.west}-${sim.score.east}:${sim.brokenBridge ?? 'none'}:${westHp},${eastHp}:${playerSignatures}:b${buildingsCount}/${buildingsHp}:u${unitsCount}`;
+	const cannonSig = `${sim.castleCannonUpgraded?.west ? 1 : 0}${sim.castleCannonUpgraded?.east ? 1 : 0}`;
+
+	const raw = `${sim.tick}:t${Math.round(sim.gameTime * 10)}:r${sim.round}:${sim.score.west}-${sim.score.east}:${sim.brokenBridge ?? 'none'}:${westHp},${eastHp}:${cannonSig}:${playerSignatures}:b${buildingsCount}/${buildingsHp}:u${unitsCount}`;
 	let hash = 5381;
 	for (let i = 0; i < raw.length; i++) {
 		hash = ((hash << 5) + hash + raw.charCodeAt(i)) & 0xffffffff;
@@ -488,6 +490,16 @@ export class MatchSync {
 
 			case 'RESCUE_STRIKE':
 				this.sim.triggerRescueStrike(team, player);
+				break;
+
+			case 'CASTLE_SHOT':
+				if (p.targetId === 'short' || p.targetId === 'long') {
+					this.sim.fireCastleCannon(team, p.targetId, player);
+				}
+				break;
+
+			case 'UPGRADE_CASTLE_CANNON':
+				this.sim.upgradeCastleCannon(team, player);
 				break;
 
 			case 'SURRENDER':

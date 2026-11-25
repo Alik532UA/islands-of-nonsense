@@ -41,7 +41,7 @@
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { storage } from '$lib/services/storage';
 	import { createKeySequence, listenForSequences } from '$lib/debug/keySequence';
-	import { shortcutLetter, isEditableTarget } from '$lib/hotkeys/hotkeys';
+	import { shortcutLetter, shortcutDigit, isEditableTarget } from '$lib/hotkeys/hotkeys';
 	import { logService } from '$lib/services/logService.svelte';
 	import { perfMonitor } from '$lib/debug/perfMonitor.svelte';
 	import type { MatchSync } from '$lib/net/matchSync';
@@ -567,6 +567,30 @@
 		} else {
 			const hasBlockingModal =
 				isForgeOpen || isCommanderOpen || isGuideOpen || isShopOpen || isSettingsOpen || isHelpOpen;
+			const digit = shortcutDigit(e);
+			if (
+				!hasBlockingModal &&
+				!isSpectatorView &&
+				e.altKey &&
+				!e.ctrlKey &&
+				!e.repeat &&
+				(digit === 1 || digit === 2)
+			) {
+				e.preventDefault();
+				const activePlayer = controlledPlayer;
+				const activeTeam = activePlayer.team;
+				const mode = digit === 1 ? 'short' : 'long';
+				if (sim.canFireCastleCannon(activeTeam, mode, activePlayer)) {
+					dispatchCommand(
+						'CASTLE_SHOT',
+						{ targetId: mode },
+						() => sim.fireCastleCannon(activeTeam, mode, activePlayer).fired
+					);
+				} else {
+					sound.playErrorResource();
+				}
+				return;
+			}
 			const isWorkerGridActive =
 				selectedEntity?.type === 'worker' && !selectedPlacedBuildingId && !hasBlockingModal;
 
@@ -1450,6 +1474,8 @@
 			onOpenShop={() => openExclusiveModal('shop')}
 			onOpenSettings={openPauseMenu}
 			onBeforeLeave={handleRequestLeave}
+			onHoverCastleRange={(mode: 'short' | 'long' | null) =>
+				renderer?.setHoveredCastleCannonMode(mode)}
 		/>
 
 		{#snippet playerSwitcherButtons()}
@@ -1737,6 +1763,8 @@
 			onContinueConstruction={handleContinueConstruction}
 			onOpenCommander={() => (isCommanderOpen = true)}
 			onMinimapClick={(ax: number, ay: number) => renderer?.setCamera(ax, ay)}
+			onHoverCastleRange={(mode: 'short' | 'long' | null) =>
+				renderer?.setHoveredCastleCannonMode(mode)}
 			onClearSelection={() => {
 				selectedEntity = null;
 				selectedBuildingId = null;

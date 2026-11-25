@@ -38,8 +38,9 @@ export const CASTLE_ITEMS: Record<string, CastleItem> = {
 		nameEn: 'Rune of Power',
 		cost: 150,
 		descriptionUk:
-			'Перевантаження захисних гармат замку: подвійна швидкість атаки та х2 шкоди на 20 с.',
-		descriptionEn: 'Castle cannons overcharge: 2x attack rate and double damage for 20s.',
+			'Перевантаження гармат замку на 20 с: ×2 шкоди, безкоштовні постріли (0 золота) та вдвічі менший КД.',
+		descriptionEn:
+			'Castle cannons overcharge for 20s: 2x damage, free shots (0 gold), and halved cooldown.',
 		icon: 'Zap',
 		cooldown: 35
 	},

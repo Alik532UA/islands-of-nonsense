@@ -10,7 +10,11 @@ import {
 	GRID_STEP,
 	CELL_SIZE,
 	BRIDGE_REPAIR_LUMBER_COST,
-	BOT_BRIDGE_REPAIR_COOLDOWN
+	BOT_BRIDGE_REPAIR_COOLDOWN,
+	CASTLE_CANNON_SHORT_RANGE,
+	CASTLE_CANNON_LONG_RANGE,
+	CASTLE_CANNON_UPGRADE_GOLD,
+	CASTLE_CANNON_UPGRADE_LUMBER
 } from './constants';
 import type {
 	MatchTeam,
@@ -367,6 +371,9 @@ export class BotAI {
 				return;
 			}
 		}
+
+		// 0c. Manual Castle Cannon Defense & Upgrade (fires only when verified enemies are in radius)
+		this.tryOperateCastleCannon(player, castleHpRatio);
 
 		// 1. Race skill decision: use when unlocked and enemy forces are gathered
 		if (this.sim.canUseRaceSkill(this.team)) {
@@ -1143,6 +1150,61 @@ export class BotAI {
 		}
 
 		return false;
+	}
+
+	private lastBotCannonFireTime = -10;
+
+	/**
+	 * Operates manual castle cannon on behalf of the bot:
+	 * - Never fires blindly without enemy targets in range (avoids friendly fire).
+	 * - Staggers shots if a human teammate is on the same team so the shared cooldown isn't hogged.
+	 * - Upgrades shared castle cannon (100g + 100w) when defending or holding surplus resources.
+	 */
+	public tryOperateCastleCannon(player: PlayerState, castleHpRatio: number): boolean {
+		if (
+			!this.sim.castleCannonUpgraded[this.team] &&
+			this.sim.canUpgradeCastleCannon(this.team, player)
+		) {
+			const enemiesThreatening =
+				castleHpRatio < 0.75 &&
+				this.sim.getCastleCannonEnemyCount(this.team, CASTLE_CANNON_LONG_RANGE) >= 2;
+			const hasSurplus =
+				this.sim.gameTime >= 150 &&
+				player.gold >= CASTLE_CANNON_UPGRADE_GOLD + 150 &&
+				(player.lumber ?? 0) >= CASTLE_CANNON_UPGRADE_LUMBER + 50;
+			if (enemiesThreatening || hasSurplus) {
+				this.sim.upgradeCastleCannon(this.team, player);
+			}
+		}
+
+		if (this.sim.getCastleCannonCooldown(this.team) > 0) return false;
+
+		const hasHumanAlly = (this.sim.teamMembers[this.team] ?? []).some((m) => !m.isBot);
+		const isOvercharged = (this.sim.castleOverchargeTimer[this.team] ?? 0) > 0;
+		const shortEnemies = this.sim.getCastleCannonEnemyCount(this.team, CASTLE_CANNON_SHORT_RANGE);
+
+		if (hasHumanAlly && !isOvercharged && !(shortEnemies > 0 && castleHpRatio < 0.65)) {
+			if (this.sim.gameTime - this.lastBotCannonFireTime < 3.5) {
+				return false;
+			}
+		}
+
+		const tryFireMode = (mode: 'short' | 'long'): boolean => {
+			if (!this.sim.canFireCastleCannon(this.team, mode, player)) return false;
+			if (!this.sim.fireCastleCannon(this.team, mode, player).fired) return false;
+			this.lastBotCannonFireTime = this.sim.gameTime;
+			return true;
+		};
+
+		if (shortEnemies >= 1 && tryFireMode('short')) return true;
+
+		const longEnemies = this.sim.getCastleCannonEnemyCount(this.team, CASTLE_CANNON_LONG_RANGE);
+		const shouldSpendLongShot =
+			isOvercharged ||
+			(castleHpRatio < 0.45 && longEnemies >= 1) ||
+			(player.gold >= 60 && (longEnemies >= 2 || (castleHpRatio < 0.75 && longEnemies >= 1)));
+
+		return shouldSpendLongShot && longEnemies >= 1 && tryFireMode('long');
 	}
 
 	/**

@@ -128,4 +128,23 @@ describe('actionValidation (безпека та валідація дій гра
 		});
 		expect(badForge.valid).toBe(false);
 	});
+
+	it('дозволяє команди ручної гармати замку CASTLE_SHOT та UPGRADE_CASTLE_CANNON', () => {
+		const validShot = validatePlayerMove({
+			seq: 16,
+			by: 'user_123',
+			type: 'CASTLE_SHOT',
+			payload: { tick: 30, team: 'west', playerSlot: 1, targetId: 'long' }
+		});
+		expect(validShot.valid).toBe(true);
+		expect(validShot.sanitized?.payload?.targetId).toBe('long');
+
+		const validUpgrade = validatePlayerMove({
+			seq: 17,
+			by: 'user_123',
+			type: 'UPGRADE_CASTLE_CANNON',
+			payload: { tick: 31, team: 'west', playerSlot: 1 }
+		});
+		expect(validUpgrade.valid).toBe(true);
+	});
 });

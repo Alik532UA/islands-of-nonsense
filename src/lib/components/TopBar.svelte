@@ -24,7 +24,8 @@
 		onOpenGuide,
 		onOpenShop,
 		onOpenSettings,
-		onBeforeLeave
+		onBeforeLeave,
+		onHoverCastleRange
 	}: {
 		sim: Simulation;
 		uiTick?: number;
@@ -37,6 +38,7 @@
 		onOpenShop?: () => void;
 		onOpenSettings?: () => void;
 		onBeforeLeave?: (targetUrl: string) => boolean;
+		onHoverCastleRange?: (mode: 'short' | 'long' | null) => void;
 	} = $props();
 
 	const routeBattleCommand = getContext<BattleCommandRouter | undefined>(BATTLE_COMMAND_ROUTER_KEY);
@@ -94,6 +96,52 @@
 
 	let canUseRescue = $derived(uiTick >= 0 ? sim.canUseRescueStrike(player.team, player) : false);
 	let rescueCd = $derived(uiTick >= 0 ? sim.getRescueStrikeCooldown(player.team, player) : 0);
+	let cannonCd = $derived(uiTick >= 0 ? sim.getCastleCannonCooldown(player.team) : 0);
+	const TOPBAR_CANNON_MODES = [
+		{
+			mode: 'short' as const,
+			range: 500,
+			hotkey: 'Alt+1',
+			activeCls:
+				'bg-amber-950/90 hover:bg-amber-900 border-amber-500 text-amber-100 ring-1 ring-amber-500/40',
+			iconCls: 'text-amber-400',
+			badgeCls: 'text-amber-300 border-amber-500/50',
+			tipCls: 'text-amber-200',
+			keyCls: 'text-amber-300 border-amber-500/60'
+		},
+		{
+			mode: 'long' as const,
+			range: 1500,
+			hotkey: 'Alt+2',
+			activeCls:
+				'bg-sky-950/90 hover:bg-sky-900 border-sky-500 text-sky-100 ring-1 ring-sky-500/40',
+			iconCls: 'text-sky-400',
+			badgeCls: 'text-sky-300 border-sky-500/50',
+			tipCls: 'text-sky-200',
+			keyCls: 'text-sky-300 border-sky-500/60'
+		}
+	];
+
+	function getTopBarCannonState(mode: 'short' | 'long', range: number, _tick: number) {
+		return {
+			canFire: sim.canFireCastleCannon(player.team, mode, player),
+			shotCost: sim.getCastleCannonShotCost(player.team, mode),
+			enemyCount: sim.getCastleCannonEnemyCount(player.team, range, true)
+		};
+	}
+
+	function triggerTopBarCannonShot(mode: 'short' | 'long') {
+		if (!sim.canFireCastleCannon(player.team, mode, player)) return;
+		if (
+			!routeBattleCommand?.('CASTLE_SHOT', {
+				team: player.team,
+				playerSlot: player.slot,
+				targetId: mode
+			})
+		) {
+			sim.fireCastleCannon(player.team, mode, player);
+		}
+	}
 
 	let gameTime = $derived(uiTick >= 0 ? sim.gameTime : 0);
 	let bossSpawnTimer = $derived(uiTick >= 0 ? Math.max(0, Math.ceil(sim.bossSpawnTimer)) : 180);
@@ -123,6 +171,10 @@
 		'relative flex items-center justify-center w-9 h-9 [@media(pointer:coarse)]:min-w-[44px] [@media(pointer:coarse)]:min-h-[44px] rounded-lg border text-xs font-semibold transition-all duration-150 cursor-pointer active:scale-95 shadow-sm shrink-0 touch-manipulation';
 
 	const neutralBtnClass = `${baseBtnClass} bg-[#181d28] hover:bg-[#242c3d] border-[#3b3226] hover:border-amber-500/70 text-slate-200 hover:text-amber-300`;
+	const disabledBtnClass =
+		'bg-[#181d28] border-[#3b3226] text-slate-500 cursor-not-allowed opacity-60';
+	const tipBoxClass =
+		'absolute top-full mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px]';
 
 	const speedMenu = createHoverMenu({ closeDelayMs: 300 });
 </script>
@@ -152,9 +204,7 @@
 				>
 					<UiIcon name="arrowLeft" class="w-4 h-4" />
 				</a>
-				<div
-					class="absolute top-full left-0 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-amber-100 flex items-center gap-1.5"
-				>
+				<div class="{tipBoxClass} left-0 text-amber-100 flex items-center gap-1.5">
 					<span>Назад до вибору режимів</span>
 				</div>
 			</div>
@@ -174,9 +224,7 @@
 				>
 					<UiIcon name="house" class="w-4 h-4" />
 				</a>
-				<div
-					class="absolute top-full left-0 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-amber-100 flex items-center gap-1.5"
-				>
+				<div class="{tipBoxClass} left-0 text-amber-100 flex items-center gap-1.5">
 					<span>Головне меню</span>
 				</div>
 			</div>
@@ -193,7 +241,7 @@
 					<UiIcon name="bookOpen" class="w-4 h-4 text-amber-400 shrink-0" />
 				</button>
 				<div
-					class="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-amber-100 flex items-center gap-1.5"
+					class="{tipBoxClass} left-1/2 -translate-x-1/2 text-amber-100 flex items-center gap-1.5"
 				>
 					<span>Довідник гри</span>
 					<span
@@ -215,7 +263,7 @@
 					<UiIcon name="menu" class="w-4 h-4 text-amber-300 shrink-0" />
 				</button>
 				<div
-					class="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-amber-100 flex items-center gap-1.5"
+					class="{tipBoxClass} left-1/2 -translate-x-1/2 text-amber-100 flex items-center gap-1.5"
 				>
 					<span>Меню матчу</span>
 					<span
@@ -244,9 +292,7 @@
 						<UiIcon name="volumeX" class="w-4 h-4 text-slate-500" />
 					{/if}
 				</button>
-				<div
-					class="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-amber-100"
-				>
+				<div class="{tipBoxClass} left-1/2 -translate-x-1/2 text-amber-100">
 					{settings.sound ? 'Звук: Увімкнено' : 'Звук: Вимкнено'}
 				</div>
 			</div>
@@ -266,9 +312,7 @@
 							<UiIcon name="maximize2" class="w-4 h-4 text-slate-300" />
 						{/if}
 					</button>
-					<div
-						class="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-amber-100"
-					>
+					<div class="{tipBoxClass} left-1/2 -translate-x-1/2 text-amber-100">
 						{fullscreen.active ? 'Вийти з повного екрана' : 'Повноекранний режим'}
 					</div>
 				</div>
@@ -285,9 +329,7 @@
 				>
 					{settings.locale === 'uk' ? 'UA' : 'EN'}
 				</button>
-				<div
-					class="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-cyan-200"
-				>
+				<div class="{tipBoxClass} left-1/2 -translate-x-1/2 text-cyan-200">
 					{settings.locale === 'uk' ? 'Мова: Українська (EN)' : 'Language: English (UA)'}
 				</div>
 			</div>
@@ -303,9 +345,7 @@
 				>
 					<UiIcon name="settings" class="w-4 h-4 text-amber-300" />
 				</button>
-				<div
-					class="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-amber-100"
-				>
+				<div class="{tipBoxClass} left-1/2 -translate-x-1/2 text-amber-100">
 					Загальні налаштування
 				</div>
 			</div>
@@ -564,7 +604,7 @@
 						{/if}
 					</button>
 					<div
-						class="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-indigo-200 flex items-center gap-1.5"
+						class="{tipBoxClass} left-1/2 -translate-x-1/2 text-indigo-200 flex items-center gap-1.5"
 					>
 						<span>
 							Командир: {commander
@@ -600,7 +640,7 @@
 						{/if}
 					</button>
 					<div
-						class="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-amber-100 flex items-center gap-1.5"
+						class="{tipBoxClass} left-1/2 -translate-x-1/2 text-amber-100 flex items-center gap-1.5"
 					>
 						<span>Військова Кузня</span>
 						<span
@@ -623,7 +663,7 @@
 						<UiIcon name="shoppingBag" class="w-4 h-4 text-emerald-400 shrink-0" />
 					</button>
 					<div
-						class="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-emerald-200 flex items-center gap-1.5"
+						class="{tipBoxClass} left-1/2 -translate-x-1/2 text-emerald-200 flex items-center gap-1.5"
 					>
 						<span>Магазин замку</span>
 						<span
@@ -652,7 +692,7 @@
 						data-testid="hud-race-ability-btn"
 						class="{baseBtnClass} {canCastRaceSkill
 							? 'bg-purple-900/90 hover:bg-purple-800 border-purple-400 text-purple-100 ring-2 ring-purple-400/50 animate-pulse'
-							: 'bg-[#181d28] border-[#3b3226] text-slate-500 cursor-not-allowed opacity-60'}"
+							: disabledBtnClass}"
 						aria-label="{raceAbility.nameUk}: {raceAbility.descriptionUk} (Гаряча клавіша: R)"
 						aria-keyshortcuts="r"
 					>
@@ -674,9 +714,7 @@
 							</span>
 						{/if}
 					</button>
-					<div
-						class="absolute top-full right-0 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-purple-200 flex items-center gap-1.5"
-					>
+					<div class="{tipBoxClass} right-0 text-purple-200 flex items-center gap-1.5">
 						<span>{raceAbility.nameUk}</span>
 						<span
 							class="text-[9px] font-mono font-bold text-purple-300 bg-black/60 px-1 rounded border border-purple-500/60"
@@ -704,7 +742,7 @@
 						data-testid="hud-rescue-strike-btn"
 						class="{baseBtnClass} {canUseRescue
 							? 'bg-rose-950/90 hover:bg-rose-900 border-rose-500 text-rose-100 ring-2 ring-rose-500/50'
-							: 'bg-[#181d28] border-[#3b3226] text-slate-500 cursor-not-allowed opacity-60'}"
+							: disabledBtnClass}"
 						aria-label="Рятівний Удар навколо вашого замку (-950 облогової шкоди ворогам у 750px, 2× золото за вбитих, особистий КД 180с, клавіша E)"
 						aria-keyshortcuts="e"
 					>
@@ -722,9 +760,7 @@
 							</span>
 						{/if}
 					</button>
-					<div
-						class="absolute top-full right-0 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1.5 rounded-md shadow-2xl text-[11px] text-rose-200 flex flex-col gap-0.5"
-					>
+					<div class="{tipBoxClass} right-0 py-1.5 text-rose-200 flex flex-col gap-0.5">
 						<div class="flex items-center gap-1.5 font-bold">
 							<span>Рятівний удар</span>
 							<span
@@ -738,6 +774,54 @@
 						</span>
 					</div>
 				</div>
+
+				{#each TOPBAR_CANNON_MODES as cfg (cfg.mode)}
+					{@const st = getTopBarCannonState(cfg.mode, cfg.range, uiTick)}
+					<div class="relative group/tip flex items-center">
+						<button
+							type="button"
+							onclick={() => triggerTopBarCannonShot(cfg.mode)}
+							onmouseenter={() => onHoverCastleRange?.(cfg.mode)}
+							onmouseleave={() => onHoverCastleRange?.(null)}
+							disabled={!st.canFire}
+							data-testid="hud-topbar-cannon-{cfg.mode}-btn"
+							class="{baseBtnClass} {st.canFire ? cfg.activeCls : disabledBtnClass}"
+							aria-label="Гармата замку {cfg.range}px ({st.shotCost}g, {cfg.hotkey})"
+							aria-keyshortcuts={cfg.hotkey}
+						>
+							<UiIcon
+								name="crosshair"
+								class="w-4 h-4 shrink-0 {st.canFire ? cfg.iconCls : 'text-slate-500'}"
+							/>
+							{#if cannonCd > 0}
+								<span
+									class="absolute -bottom-1 -right-1 text-[8px] font-mono bg-black/85 px-1 py-0.5 rounded text-rose-400 font-bold leading-none border border-rose-500/40"
+								>
+									{cannonCd.toFixed(1)}с
+								</span>
+							{:else if st.enemyCount > 0}
+								<span
+									class="absolute -bottom-1 -right-1 text-[8px] font-mono bg-black/85 px-1 py-0.5 rounded font-bold leading-none border {cfg.badgeCls}"
+								>
+									{st.enemyCount}
+								</span>
+							{/if}
+						</button>
+						<div class="{tipBoxClass} right-0 py-1.5 {cfg.tipCls} flex flex-col gap-0.5">
+							<div class="flex items-center gap-1.5 font-bold">
+								<span>Гармата замку · {cfg.range}px ({st.shotCost}g)</span>
+								<span
+									class="text-[9px] font-mono font-bold bg-black/60 px-1 rounded border {cfg.keyCls}"
+								>
+									{cfg.hotkey}
+								</span>
+							</div>
+							<span class="text-[10px] text-slate-300 font-normal">
+								Ворог у {cfg.range}px або союзник 50% • Ворогів: {st.enemyCount}
+							</span>
+						</div>
+					</div>
+				{/each}
 			</div>
 		{/if}
 

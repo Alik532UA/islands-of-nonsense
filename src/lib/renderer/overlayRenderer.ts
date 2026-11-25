@@ -18,7 +18,9 @@ import {
 	EAST_ISLAND_CENTER_X,
 	EAST_ISLAND_CENTER_Y,
 	ISLAND_RADIUS_X,
-	ISLAND_RADIUS_Y
+	ISLAND_RADIUS_Y,
+	CASTLE_CANNON_SHORT_RANGE,
+	CASTLE_CANNON_LONG_RANGE
 } from '../engine/constants';
 import { rc, rr, ci, el } from './gfx';
 
@@ -284,9 +286,30 @@ export class OverlayRenderer {
 		g: Graphics,
 		isBoxSelecting: boolean,
 		boxStartWorld: { x: number; y: number } | null,
-		boxCurrentWorld: { x: number; y: number } | null
+		boxCurrentWorld: { x: number; y: number } | null,
+		castleRangeOverlay?: { team: MatchTeam; hoveredMode: 'short' | 'long' | null } | null
 	): void {
 		g.clear();
+		if (castleRangeOverlay) {
+			const castle = this.sim.castles[castleRangeOverlay.team];
+			if (castle && castle.hp > 0) {
+				const hMode = castleRangeOverlay.hoveredMode;
+				const rings: [number, number, boolean, number, number, number][] = [
+					[CASTLE_CANNON_LONG_RANGE, 0x38bdf8, hMode === 'long', 0.025, 1.5, 0.38],
+					[CASTLE_CANNON_SHORT_RANGE, 0xfbbf24, hMode === 'short', 0.04, 1.8, 0.5]
+				];
+				for (const [radius, color, active, baseFill, baseW, baseA] of rings) {
+					ci(
+						g,
+						castle.x,
+						castle.y,
+						radius,
+						{ color, alpha: active ? baseFill * 2.8 : baseFill },
+						{ color, width: active ? 3 : baseW, alpha: active ? 0.85 : baseA }
+					);
+				}
+			}
+		}
 		if (isBoxSelecting && boxStartWorld && boxCurrentWorld) {
 			rc(
 				g,

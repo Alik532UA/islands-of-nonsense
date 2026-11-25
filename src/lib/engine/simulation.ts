@@ -198,9 +198,10 @@ export class Simulation {
 	// Race skills cooldown (unlocked at 300s, cooldown 150s)
 	public raceSkillCooldown = { west: 0, east: 0 };
 
-	// Castle Shop & Consumables
+	// Castle Shop & Consumables & Manual Castle Cannon
 	public castleInvulnerableTimer: Record<MatchTeam, number> = { west: 0, east: 0 };
 	public castleOverchargeTimer: Record<MatchTeam, number> = { west: 0, east: 0 };
+	public castleCannonUpgraded: Record<MatchTeam, boolean> = { west: false, east: false };
 	public itemCooldowns: Record<MatchTeam, Record<string, number>> = { west: {}, east: {} };
 
 	// Rescue Strike (Emergency Castle Defense, 180s personal CD + 10s bot team stagger)
@@ -1166,6 +1167,8 @@ export class Simulation {
 		this.raceSkillCooldown = { west: 0, east: 0 };
 		this.castleInvulnerableTimer = { west: 0, east: 0 };
 		this.castleOverchargeTimer = { west: 0, east: 0 };
+		this.castleCannonUpgraded = { west: false, east: false };
+		this.combatSystem.defenseSystem.castleCooldowns = { west: 0, east: 0 };
 		this.itemCooldowns = { west: {}, east: {} };
 		this.rescueStrikeCooldown = { west: 0, east: 0 };
 		this.teamBotRescueCooldown = { west: 0, east: 0 };
@@ -1891,6 +1894,46 @@ export class Simulation {
 		player?: PlayerState
 	): { hitCount: number; damageDealt: number; killCount: number; bountyEarned: number } | null {
 		return this.economySystem.triggerRescueStrike(team, player);
+	}
+
+	public getCastleCannonCooldown(team: MatchTeam): number {
+		return Math.max(0, this.combatSystem.defenseSystem.castleCooldowns[team] ?? 0);
+	}
+
+	public getCastleCannonEffectiveMaxCooldown(team: MatchTeam): number {
+		return this.combatSystem.defenseSystem.getCastleCannonEffectiveCooldown(team);
+	}
+
+	public getCastleCannonShotCost(team: MatchTeam, mode: 'short' | 'long'): number {
+		return this.combatSystem.defenseSystem.getCastleCannonShotCost(team, mode);
+	}
+
+	public canFireCastleCannon(
+		team: MatchTeam,
+		mode: 'short' | 'long',
+		player?: PlayerState
+	): boolean {
+		return this.combatSystem.defenseSystem.canFireCastleCannon(team, mode, player);
+	}
+
+	public fireCastleCannon(
+		team: MatchTeam,
+		mode: 'short' | 'long',
+		player?: PlayerState
+	): { fired: boolean; hitEnemy: boolean; hitAlly: boolean; targetId: string | null } {
+		return this.combatSystem.defenseSystem.fireCastleCannon(team, mode, player);
+	}
+
+	public canUpgradeCastleCannon(team: MatchTeam, player?: PlayerState): boolean {
+		return this.combatSystem.defenseSystem.canUpgradeCastleCannon(team, player);
+	}
+
+	public upgradeCastleCannon(team: MatchTeam, player?: PlayerState): boolean {
+		return this.combatSystem.defenseSystem.upgradeCastleCannon(team, player);
+	}
+
+	public getCastleCannonEnemyCount(team: MatchTeam, range: number, visibleOnly = false): number {
+		return this.combatSystem.defenseSystem.countEnemiesInRange(team, range, visibleOnly);
 	}
 
 	public isPointOnIsland(team: MatchTeam, x: number, y: number, margin = 20): boolean {

@@ -99,3 +99,16 @@ export const SOLID_MAP_OBSTACLES: MapObstacle[] = [
 
 export const BRIDGE_REPAIR_LUMBER_COST = 50;
 export const BOT_BRIDGE_REPAIR_COOLDOWN = 180; // 3 minutes cooldown for bot bridge repairs
+
+export type CastleCannonMode = 'short' | 'long';
+export const CASTLE_CANNON_SHORT_RANGE = 500;
+export const CASTLE_CANNON_SHORT_COST = 1;
+export const CASTLE_CANNON_LONG_RANGE = 1500;
+export const CASTLE_CANNON_LONG_COST = 3;
+export const CASTLE_CANNON_BASE_COOLDOWN = 2.0;
+export const CASTLE_CANNON_UPGRADED_COOLDOWN = 1.0;
+export const CASTLE_CANNON_UPGRADE_GOLD = 100;
+export const CASTLE_CANNON_UPGRADE_LUMBER = 100;
+export const CASTLE_CANNON_BASE_DAMAGE = 85;
+export const CASTLE_CANNON_SPLASH_RADIUS = 90;
+export const CASTLE_CANNON_FRIENDLY_FIRE_FACTOR = 0.5;

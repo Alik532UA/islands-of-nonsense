@@ -260,7 +260,7 @@ export function resolveUnitKillBounty(
 	buildingGoldCost = 0,
 	fallbackMaxHp = 400
 ): number {
-	const rawUbba = Number(unitDef?.raw_fields?.ubba);
+	const rawUbba = Number(unitDef?.bounty ?? unitDef?.raw_fields?.ubba);
 	if (Number.isFinite(rawUbba) && rawUbba > 0) {
 		return Math.round(rawUbba);
 	}
@@ -537,326 +537,363 @@ export function getInitialSpawnDelay(building: BuildingDefinition, unit?: UnitDe
 	return getSpawnCooldown(building, unit);
 }
 
+const mkAbil = (
+	type: UnitAbilityType,
+	nameUk: string,
+	nameEn: string,
+	descriptionUk: string,
+	descriptionEn: string,
+	icon?: string,
+	cooldown?: number,
+	manaCost?: number
+): Omit<UnitAbilityDef, 'id'> => ({
+	nameUk,
+	nameEn,
+	type,
+	isPassive: cooldown === undefined,
+	...(cooldown !== undefined ? { cooldown } : {}),
+	...(manaCost !== undefined ? { manaCost } : {}),
+	descriptionUk,
+	descriptionEn,
+	...(icon ? { icon } : {})
+});
+
 export const UNIT_ABILITY_CATALOG: Record<UnitAbilityType, Omit<UnitAbilityDef, 'id'>> = {
-	none: {
-		nameUk: 'Без здібності',
-		nameEn: 'None',
-		type: 'none',
-		isPassive: true,
-		descriptionUk: 'Звичайний боєць без спеціальних навичок.',
-		descriptionEn: 'Standard unit without special abilities.'
-	},
-	ensnare: {
-		nameUk: 'Сітка',
-		nameEn: 'Ensnare',
-		type: 'ensnare',
-		isPassive: false,
-		cooldown: 12.0,
-		descriptionUk: 'Приземляє та знерухомлює літаючого або наземного ворога на 6 с.',
-		descriptionEn: 'Brings flying enemies to ground and roots them for 6s.',
-		icon: 'Net'
-	},
-	poison: {
-		nameUk: 'Отрута',
-		nameEn: 'Poison',
-		type: 'poison',
-		isPassive: true,
-		descriptionUk: 'Атаки отруюють ворога: 15 шкоди/с та -30% швидкості бігу на 5 с.',
-		descriptionEn: 'Attacks poison enemy: 15 dps and -30% move speed for 5s.',
-		icon: 'Droplet'
-	},
-	heal: {
-		nameUk: 'Лікування',
-		nameEn: 'Heal',
-		type: 'heal',
-		isPassive: false,
-		cooldown: 3.5,
-		descriptionUk: 'Відновлює 75 HP найближчому пораненому союзнику.',
-		descriptionEn: 'Restores 75 HP to closest wounded ally.',
-		icon: 'Heart'
-	},
-	bash: {
-		nameUk: 'Оглушення',
-		nameEn: 'Bash',
-		type: 'bash',
-		isPassive: true,
-		descriptionUk: '20% шанс приголомшити ворога на 1.2 с та завдати +25 шкоди.',
-		descriptionEn: '20% chance to stun enemy for 1.2s and deal +25 bonus damage.',
-		icon: 'Hammer'
-	},
-	aura_dmg: {
-		nameUk: 'Аура Командира',
-		nameEn: 'Command Aura',
-		type: 'aura_dmg',
-		isPassive: true,
-		descriptionUk: '+15% до атаки всім дружнім бійцям у радіусі 300.',
-		descriptionEn: '+15% attack damage to nearby allies in 300 radius.',
-		icon: 'Shield'
-	},
-	aura_armor: {
-		nameUk: 'Аура Вірності',
-		nameEn: 'Devotion Aura',
-		type: 'aura_armor',
-		isPassive: true,
-		descriptionUk: '+3 до броні всім дружнім бійцям у радіусі 300.',
-		descriptionEn: '+3 armor bonus to nearby allies in 300 radius.',
-		icon: 'Shield'
-	},
-	aura_speed: {
-		nameUk: 'Аура Витривалості',
-		nameEn: 'Endurance Aura',
-		type: 'aura_speed',
-		isPassive: true,
-		descriptionUk: '+20% до швидкості атаки та бігу всім союзникам у радіусі 300.',
-		descriptionEn: '+20% attack & move speed to nearby allies in 300 radius.',
-		icon: 'Zap'
-	},
-	bloodlust: {
-		nameUk: 'Кровожерливість',
-		nameEn: 'Bloodlust',
-		type: 'bloodlust',
-		isPassive: false,
-		cooldown: 10.0,
-		descriptionUk: 'Дарує союзнику лють: +40% швидкості атаки та +25% швидкості бігу на 10 с.',
-		descriptionEn: 'Grants an ally +40% attack speed and +25% move speed for 10s.',
-		icon: 'Flame'
-	},
-	slow: {
-		nameUk: 'Уповільнення',
-		nameEn: 'Slow',
-		type: 'slow',
-		isPassive: false,
-		cooldown: 8.0,
-		descriptionUk: 'Знижує швидкість бігу ворога на 40% та атаки на 30% на 6 с.',
-		descriptionEn: 'Reduces enemy move speed by 40% and attack speed by 30% for 6s.',
-		icon: 'Clock'
-	},
-	crit: {
-		nameUk: 'Смертельний удар',
-		nameEn: 'Critical Strike',
-		type: 'crit',
-		isPassive: true,
-		descriptionUk: '22% шанс завдати подвійної (2x) шкоди при кожній атаці.',
-		descriptionEn: '22% chance to deal double (2x) damage on each attack.',
-		icon: 'Sword'
-	},
-	evasion: {
-		nameUk: 'Ухилення',
-		nameEn: 'Evasion',
-		type: 'evasion',
-		isPassive: true,
-		descriptionUk: '20% шанс повністю ухилитися від ворожої атаки.',
-		descriptionEn: '20% chance to completely dodge enemy attacks.',
-		icon: 'Wind'
-	},
-	cleave: {
-		nameUk: 'Розсікаючий удар',
-		nameEn: 'Cleave',
-		type: 'cleave',
-		isPassive: true,
-		descriptionUk: '40% завданої шкоди ближнього бою передається ворогам поблизу цілі.',
-		descriptionEn: '40% of melee damage splashes to surrounding enemy units.',
-		icon: 'Axe'
-	},
-	frost: {
-		nameUk: 'Крижана атака',
-		nameEn: 'Frost Attack',
-		type: 'frost',
-		isPassive: true,
-		descriptionUk: 'Удари сковують ворога холодом: -35% швидкості бігу та атаки на 3.5 с.',
-		descriptionEn: 'Chills targets on hit: -35% move and attack speed for 3.5s.',
-		icon: 'Snowflake'
-	},
-	thorns: {
-		nameUk: 'Панцир із шипами',
-		nameEn: 'Thorns Aura',
-		type: 'thorns',
-		isPassive: true,
-		descriptionUk: 'Повертає 25% фізичної шкоди ближнього бою назад нападнику.',
-		descriptionEn: 'Returns 25% of melee attack damage back to the attacker.',
-		icon: 'ShieldAlert'
-	},
-	reincarnation: {
-		nameUk: 'Переродження',
-		nameEn: 'Reincarnation',
-		type: 'reincarnation',
-		isPassive: true,
-		descriptionUk: 'Після смерті миттєво воскресає з повним здоров’ям один раз за раунд.',
-		descriptionEn: 'Upon fatal damage, revives once with 100% HP.',
-		icon: 'RefreshCw'
-	},
-	pulverize: {
-		nameUk: 'Розтрощення',
-		nameEn: 'Pulverize',
-		type: 'pulverize',
-		isPassive: true,
-		descriptionUk: '20% шанс завдати 50 сплеш-шкоди всім ворогам поряд.',
-		descriptionEn: '20% chance on hit to deal 50 AoE damage to nearby foes.',
-		icon: 'Zap'
-	},
-	immolation: {
-		nameUk: 'Полум’яний жар',
-		nameEn: 'Immolation',
-		type: 'immolation',
-		isPassive: true,
-		descriptionUk: 'Постійно обпікає ворогів у радіусі 200, завдаючи 18 шкоди щосекунди.',
-		descriptionEn: 'Burns nearby enemies in 200 radius for 18 damage every second.',
-		icon: 'Flame'
-	},
-	curse: {
-		nameUk: 'Прокляття',
-		nameEn: 'Curse',
-		type: 'curse',
-		isPassive: false,
-		cooldown: 9.0,
-		descriptionUk: 'Накладає прокляття на 8 с: ціль схибить у 33% своїх атак.',
-		descriptionEn: 'Curses enemy for 8s: target misses 33% of its attacks.',
-		icon: 'EyeOff'
-	},
-	inner_fire: {
-		nameUk: 'Вогонь віри',
-		nameEn: 'Inner Fire',
-		type: 'inner_fire',
-		isPassive: false,
-		cooldown: 12.0,
-		descriptionUk: 'Підвищує шкоду союзника на 25% та броню на +5 на 12 с.',
-		descriptionEn: 'Grants an ally +25% damage and +5 armor for 12s.',
-		icon: 'Sparkles'
-	},
-	thunderbolt: {
-		nameUk: 'Громовий удар',
-		nameEn: 'Storm Bolt',
-		type: 'thunderbolt',
-		isPassive: false,
-		cooldown: 12.0,
-		descriptionUk: 'Кидає магічний молот: 100 магічної шкоди та оглушення на 2 с.',
-		descriptionEn: 'Hurls a magic hammer: 100 damage and 2s stun.',
-		icon: 'Zap'
-	},
-	chain_lightning: {
-		nameUk: 'Ланцюгова блискавка',
-		nameEn: 'Chain Lightning',
-		type: 'chain_lightning',
-		isPassive: false,
-		cooldown: 12.0,
-		descriptionUk: 'Вражає до 4 ворогів магічною блискавкою (120/90/65/45 шкоди).',
-		descriptionEn: 'Strikes up to 4 enemies with chain lightning (120/90/65/45 dmg).',
-		icon: 'Zap'
-	},
-	stomp: {
-		nameUk: 'Громовий тупіт',
-		nameEn: 'War Stomp',
-		type: 'stomp',
-		isPassive: false,
-		cooldown: 10.0,
-		descriptionUk: 'Струшує землю: 75 шкоди та 1.5 с оглушення ворогам навколо.',
-		descriptionEn: 'Slams ground: 75 damage and 1.5s stun to nearby foes.',
-		icon: 'Activity'
-	},
-	mana_burn: {
-		nameUk: 'Спалення мани',
-		nameEn: 'Mana Burn',
-		type: 'mana_burn',
-		isPassive: false,
-		cooldown: 10.0,
-		manaCost: 35,
-		descriptionUk: 'Спалює до 50 мани у ворожого кастера і завдає еквівалентної магічної шкоди.',
-		descriptionEn: 'Burns up to 50 mana from an enemy caster and deals equivalent magic damage.',
-		icon: 'Flame'
-	},
-	raise_dead: {
-		nameUk: 'Підняття мерців',
-		nameEn: 'Raise Dead',
-		type: 'raise_dead',
-		isPassive: false,
-		cooldown: 8.0,
-		manaCost: 45,
-		descriptionUk: 'Піднімає полеглого воїна у вигляді Скелета-воїна (240 HP) на 25 с.',
-		descriptionEn: 'Raises a fallen corpse as a Skeleton Warrior (240 HP) for 25s.',
-		icon: 'Skull'
-	},
-	corpse_explosion: {
-		nameUk: 'Вибух трупа',
-		nameEn: 'Corpse Explosion',
-		type: 'corpse_explosion',
-		isPassive: false,
-		cooldown: 9.0,
-		manaCost: 35,
-		descriptionUk: 'Підриває труп ворога або союзника, завдаючи 100 шкоди всім ворогам навколо.',
-		descriptionEn: 'Detonates a nearby corpse dealing 100 AoE damage to nearby foes.',
-		icon: 'Bomb'
-	},
-	cannibalize: {
-		nameUk: 'Канібалізм',
-		nameEn: 'Cannibalize',
-		type: 'cannibalize',
-		isPassive: false,
-		cooldown: 8.0,
-		descriptionUk: 'Пожирає сусідній труп, відновлюючи 35% від максимального здоров’я.',
-		descriptionEn: 'Consumes a nearby corpse to restore 35% of max HP.',
-		icon: 'Utensils'
-	},
-	polymorph: {
-		nameUk: 'Перетворення',
-		nameEn: 'Polymorph',
-		type: 'polymorph',
-		isPassive: false,
-		cooldown: 12.0,
-		manaCost: 60,
-		descriptionUk:
-			'Перетворює ворожого бійця на беззахисну вівцю на 5.5 с (не може битися чи чаклувати).',
-		descriptionEn:
-			'Transforms target enemy into a harmless sheep for 5.5s (cannot attack or cast).',
-		icon: 'Sparkles'
-	},
-	cyclone: {
-		nameUk: 'Смерч',
-		nameEn: 'Cyclone',
-		type: 'cyclone',
-		isPassive: false,
-		cooldown: 14.0,
-		manaCost: 50,
-		descriptionUk: 'Підкидає ворога у повітря вихором на 4.5 с, повністю виводячи його з бою.',
-		descriptionEn: 'Tosses an enemy into the air for 4.5s, completely incapacitating them.',
-		icon: 'Wind'
-	},
-	banish: {
-		nameUk: 'Вигнання в астрал',
-		nameEn: 'Banish',
-		type: 'banish',
-		isPassive: false,
-		cooldown: 11.0,
-		manaCost: 40,
-		descriptionUk:
-			'Переносить ворога в астральний вимір на 6 с: імунітет до фізичної шкоди, але +66% шкоди від магії.',
-		descriptionEn:
-			'Banishes unit to ethereal form for 6s: immune to physical attacks, but +66% magic damage taken.',
-		icon: 'Ghost'
-	},
-	mana_shield: {
-		nameUk: 'Щит мани',
-		nameEn: 'Mana Shield',
-		type: 'mana_shield',
-		isPassive: true,
-		descriptionUk:
-			'Використовує ману кастера для поглинання 50% отриманої шкоди (1 шкода = 0.5 мани).',
-		descriptionEn: 'Absorbs 50% of incoming damage using caster mana pool (1 dmg = 0.5 mana).',
-		icon: 'ShieldCheck'
-	},
-	dispel: {
-		nameUk: 'Розвіювання магії',
-		nameEn: 'Dispel Magic',
-		type: 'dispel',
-		isPassive: false,
-		cooldown: 8.0,
-		manaCost: 45,
-		descriptionUk:
-			'Знімає негативні ефекти з союзників або позитивні баффи з ворогів. Завдає 150 магічної шкоди закликаним істотам.',
-		descriptionEn:
-			'Dispels negative debuffs from allies or positive buffs from enemies. Deals 150 magic damage to summoned units.',
-		icon: 'Sparkles'
-	}
+	none: mkAbil(
+		'none',
+		'Без здібності',
+		'None',
+		'Звичайний боєць без спеціальних навичок.',
+		'Standard unit without special abilities.'
+	),
+	ensnare: mkAbil(
+		'ensnare',
+		'Сітка',
+		'Ensnare',
+		'Приземляє та знерухомлює літаючого або наземного ворога на 6 с.',
+		'Brings flying enemies to ground and roots them for 6s.',
+		'Net',
+		12.0
+	),
+	poison: mkAbil(
+		'poison',
+		'Отрута',
+		'Poison',
+		'Атаки отруюють ворога: 15 шкоди/с та -30% швидкості бігу на 5 с.',
+		'Attacks poison enemy: 15 dps and -30% move speed for 5s.',
+		'Droplet'
+	),
+	heal: mkAbil(
+		'heal',
+		'Лікування',
+		'Heal',
+		'Відновлює 75 HP найближчому пораненому союзнику.',
+		'Restores 75 HP to closest wounded ally.',
+		'Heart',
+		3.5
+	),
+	bash: mkAbil(
+		'bash',
+		'Оглушення',
+		'Bash',
+		'20% шанс приголомшити ворога на 1.2 с та завдати +25 шкоди.',
+		'20% chance to stun enemy for 1.2s and deal +25 bonus damage.',
+		'Hammer'
+	),
+	aura_dmg: mkAbil(
+		'aura_dmg',
+		'Аура Командира',
+		'Command Aura',
+		'+15% до атаки всім дружнім бійцям у радіусі 300.',
+		'+15% attack damage to nearby allies in 300 radius.',
+		'Shield'
+	),
+	aura_armor: mkAbil(
+		'aura_armor',
+		'Аура Вірності',
+		'Devotion Aura',
+		'+3 до броні всім дружнім бійцям у радіусі 300.',
+		'+3 armor bonus to nearby allies in 300 radius.',
+		'Shield'
+	),
+	aura_speed: mkAbil(
+		'aura_speed',
+		'Аура Витривалості',
+		'Endurance Aura',
+		'+20% до швидкості атаки та бігу всім союзникам у радіусі 300.',
+		'+20% attack & move speed to nearby allies in 300 radius.',
+		'Zap'
+	),
+	bloodlust: mkAbil(
+		'bloodlust',
+		'Кровожерливість',
+		'Bloodlust',
+		'Дарує союзнику лють: +40% швидкості атаки та +25% швидкості бігу на 10 с.',
+		'Grants an ally +40% attack speed and +25% move speed for 10s.',
+		'Flame',
+		10.0
+	),
+	slow: mkAbil(
+		'slow',
+		'Уповільнення',
+		'Slow',
+		'Знижує швидкість бігу ворога на 40% та атаки на 30% на 6 с.',
+		'Reduces enemy move speed by 40% and attack speed by 30% for 6s.',
+		'Clock',
+		8.0
+	),
+	crit: mkAbil(
+		'crit',
+		'Смертельний удар',
+		'Critical Strike',
+		'22% шанс завдати подвійної (2x) шкоди при кожній атаці.',
+		'22% chance to deal double (2x) damage on each attack.',
+		'Sword'
+	),
+	evasion: mkAbil(
+		'evasion',
+		'Ухилення',
+		'Evasion',
+		'20% шанс повністю ухилитися від ворожої атаки.',
+		'20% chance to completely dodge enemy attacks.',
+		'Wind'
+	),
+	cleave: mkAbil(
+		'cleave',
+		'Розсікаючий удар',
+		'Cleave',
+		'40% завданої шкоди ближнього бою передається ворогам поблизу цілі.',
+		'40% of melee damage splashes to surrounding enemy units.',
+		'Axe'
+	),
+	frost: mkAbil(
+		'frost',
+		'Крижана атака',
+		'Frost Attack',
+		'Удари сковують ворога холодом: -35% швидкості бігу та атаки на 3.5 с.',
+		'Chills targets on hit: -35% move and attack speed for 3.5s.',
+		'Snowflake'
+	),
+	thorns: mkAbil(
+		'thorns',
+		'Панцир із шипами',
+		'Thorns Aura',
+		'Повертає 25% фізичної шкоди ближнього бою назад нападнику.',
+		'Returns 25% of melee attack damage back to the attacker.',
+		'ShieldAlert'
+	),
+	reincarnation: mkAbil(
+		'reincarnation',
+		'Переродження',
+		'Reincarnation',
+		'Після смерті миттєво воскресає з повним здоров’ям один раз за раунд.',
+		'Upon fatal damage, revives once with 100% HP.',
+		'RefreshCw'
+	),
+	pulverize: mkAbil(
+		'pulverize',
+		'Розтрощення',
+		'Pulverize',
+		'20% шанс завдати 50 сплеш-шкоди всім ворогам поряд.',
+		'20% chance on hit to deal 50 AoE damage to nearby foes.',
+		'Zap'
+	),
+	immolation: mkAbil(
+		'immolation',
+		'Полум’яний жар',
+		'Immolation',
+		'Постійно обпікає ворогів у радіусі 200, завдаючи 18 шкоди щосекунди.',
+		'Burns nearby enemies in 200 radius for 18 damage every second.',
+		'Flame'
+	),
+	curse: mkAbil(
+		'curse',
+		'Прокляття',
+		'Curse',
+		'Накладає прокляття на 8 с: ціль схибить у 33% своїх атак.',
+		'Curses enemy for 8s: target misses 33% of its attacks.',
+		'EyeOff',
+		9.0
+	),
+	inner_fire: mkAbil(
+		'inner_fire',
+		'Вогонь віри',
+		'Inner Fire',
+		'Підвищує шкоду союзника на 25% та броню на +5 на 12 с.',
+		'Grants an ally +25% damage and +5 armor for 12s.',
+		'Sparkles',
+		12.0
+	),
+	thunderbolt: mkAbil(
+		'thunderbolt',
+		'Громовий удар',
+		'Storm Bolt',
+		'Кидає магічний молот: 100 магічної шкоди та оглушення на 2 с.',
+		'Hurls a magic hammer: 100 damage and 2s stun.',
+		'Zap',
+		12.0
+	),
+	chain_lightning: mkAbil(
+		'chain_lightning',
+		'Ланцюгова блискавка',
+		'Chain Lightning',
+		'Вражає до 4 ворогів магічною блискавкою (120/90/65/45 шкоди).',
+		'Strikes up to 4 enemies with chain lightning (120/90/65/45 dmg).',
+		'Zap',
+		12.0
+	),
+	stomp: mkAbil(
+		'stomp',
+		'Громовий тупіт',
+		'War Stomp',
+		'Струшує землю: 75 шкоди та 1.5 с оглушення ворогам навколо.',
+		'Slams ground: 75 damage and 1.5s stun to nearby foes.',
+		'Activity',
+		10.0
+	),
+	mana_burn: mkAbil(
+		'mana_burn',
+		'Спалення мани',
+		'Mana Burn',
+		'Спалює до 50 мани у ворожого кастера і завдає еквівалентної магічної шкоди.',
+		'Burns up to 50 mana from an enemy caster and deals equivalent magic damage.',
+		'Flame',
+		10.0,
+		35
+	),
+	raise_dead: mkAbil(
+		'raise_dead',
+		'Підняття мерців',
+		'Raise Dead',
+		'Піднімає полеглого воїна у вигляді Скелета-воїна (240 HP) на 25 с.',
+		'Raises a fallen corpse as a Skeleton Warrior (240 HP) for 25s.',
+		'Skull',
+		8.0,
+		45
+	),
+	corpse_explosion: mkAbil(
+		'corpse_explosion',
+		'Вибух трупа',
+		'Corpse Explosion',
+		'Підриває труп ворога або союзника, завдаючи 100 шкоди всім ворогам навколо.',
+		'Detonates a nearby corpse dealing 100 AoE damage to nearby foes.',
+		'Bomb',
+		9.0,
+		35
+	),
+	cannibalize: mkAbil(
+		'cannibalize',
+		'Канібалізм',
+		'Cannibalize',
+		'Пожирає сусідній труп, відновлюючи 35% від максимального здоров’я.',
+		'Consumes a nearby corpse to restore 35% of max HP.',
+		'Utensils',
+		8.0
+	),
+	polymorph: mkAbil(
+		'polymorph',
+		'Перетворення',
+		'Polymorph',
+		'Перетворює ворожого бійця на беззахисну вівцю на 5.5 с (не може битися чи чаклувати).',
+		'Transforms target enemy into a harmless sheep for 5.5s (cannot attack or cast).',
+		'Sparkles',
+		12.0,
+		60
+	),
+	cyclone: mkAbil(
+		'cyclone',
+		'Смерч',
+		'Cyclone',
+		'Підкидає ворога у повітря вихором на 4.5 с, повністю виводячи його з бою.',
+		'Tosses an enemy into the air for 4.5s, completely incapacitating them.',
+		'Wind',
+		14.0,
+		50
+	),
+	banish: mkAbil(
+		'banish',
+		'Вигнання в астрал',
+		'Banish',
+		'Переносить ворога в астральний вимір на 6 с: імунітет до фізичної шкоди, але +66% шкоди від магії.',
+		'Banishes unit to ethereal form for 6s: immune to physical attacks, but +66% magic damage taken.',
+		'Ghost',
+		11.0,
+		40
+	),
+	mana_shield: mkAbil(
+		'mana_shield',
+		'Щит мани',
+		'Mana Shield',
+		'Використовує ману кастера для поглинання 50% отриманої шкоди (1 шкода = 0.5 мани).',
+		'Absorbs 50% of incoming damage using caster mana pool (1 dmg = 0.5 mana).',
+		'ShieldCheck'
+	),
+	dispel: mkAbil(
+		'dispel',
+		'Розвіювання магії',
+		'Dispel Magic',
+		'Знімає негативні ефекти з союзників або позитивні баффи з ворогів. Завдає 150 магічної шкоди закликаним істотам.',
+		'Dispels negative debuffs from allies or positive buffs from enemies. Deals 150 magic damage to summoned units.',
+		'Sparkles',
+		8.0,
+		45
+	)
 };
+
+const UNIT_ABILITY_RULES: ReadonlyArray<
+	readonly [UnitAbilityType, readonly string[], readonly string[], readonly string[]]
+> = [
+	['reincarnation', ['AOre'], ['таурен', 'фенікс', 'феникс'], ['o009', 'h00D']],
+	[
+		'crit',
+		['AOcr', 'ACct', 'A03P', 'A00U', 'A07M', 'Ocr1'],
+		['майстер-меч', 'мастер клинка', 'убивця', 'убийца', 'мортир', 'рейнджер'],
+		[]
+	],
+	[
+		'evasion',
+		['ACes', 'ACev', 'A03U', 'Eev1'],
+		['мисливець', 'мисливиця', 'охотник', 'штурмовик', 'тіней'],
+		[]
+	],
+	['cleave', ['ACce', 'A00D'], ['чемпіон', 'чемпион', 'м’ясник', 'вартовий'], []],
+	[
+		'bash',
+		['ACbh', 'A026', 'A02X', 'A03S'],
+		['магнатор', 'вандіго', 'вандиго', 'сокир'],
+		['n016', 'n013', 'n00X']
+	],
+	['poison', ['Aspo', 'ACvs', 'A07J', 'A05T'], ['отрут', 'яд', 'чум'], ['u007', 'n00K']],
+	['frost', ['Afra', 'A070', 'A043'], ['крижа', 'ледян', 'мороз', 'лич'], ['u00D']],
+	['thorns', ['ANth', 'AEah', 'A00C'], ['черепах', 'панцир', 'шип'], ['n007']],
+	['pulverize', ['ACpv', 'A031'], ['голем', 'велетень'], []],
+	['immolation', ['ANpi', 'Apxf'], ['інфернал', 'вогнян', 'пламен'], ['n01E', 'n01F']],
+	['bloodlust', ['Ablo', 'A08W', 'A016'], ['шаман', 'огр-маг', 'лють'], ['o006']],
+	['slow', ['Aslo', 'A06V'], ['чарівниця', 'сповільн'], []],
+	['curse', ['Acrs', 'A05O'], ['банші', 'некромант', 'проклят'], ['u009']],
+	['heal', ['Ahea', 'A0A8', 'A00Y'], ['паладин', 'жрець', 'друїд'], ['h03C', 'e00J', 'h00W']],
+	['inner_fire', ['Ainf', 'A01A'], ['лицар світла', 'священник'], []],
+	['ensnare', ['A06H', 'A07A', 'A02I'], ['капкан', 'павук', 'ловець'], ['n01O']],
+	['chain_lightning', ['A09T', 'A0AH'], ['блискав', 'громов'], []],
+	['thunderbolt', ['A08U', 'A01X', 'A06S', 'A0AK', 'A082', 'A083'], ['молот', 'буревісник'], []],
+	['stomp', ['A05D', 'A09E', 'A00B', 'A031'], ['тупіт', 'громовий'], []],
+	['aura_dmg', ['ACac', 'A00T'], ['кодо'], ['o008']],
+	['aura_armor', ['AHad', 'A01F'], ['обладунок віри'], []],
+	['aura_speed', ['A07H'], [], []],
+	['raise_dead', ['A05O', 'Acrs', 'A09Y', 'A02N', 'A05R'], ['некромант'], ['u009']],
+	['corpse_explosion', ['A00L', 'A073', 'A034'], ['чумна мортира', 'підривник'], []],
+	['cannibalize', ['Acan', 'A00K'], ['вурдалак', 'гуль'], ['u005']],
+	['polymorph', ['Aply', 'A06V', 'A08L'], ['чарівниця', 'волшебница', 'чародійка'], []],
+	['cyclone', ['Acyc', 'A07A', 'A01G'], ['смерч', 'друїд когтя', 'прикликач вітру'], []],
+	['banish', ['Aban', 'A016', 'A05J'], ['астрал', 'маг крові', 'вигнан'], []],
+	['mana_shield', ['Amsh', 'A03H', 'A09P'], ['щит мани', 'морська відьма', 'архімаг'], []],
+	[
+		'dispel',
+		['Adid', 'Adis', 'Acmg', 'A0A9', 'A07R', 'A049'],
+		['диспел', 'розвіюван', 'очищен', 'заклинателька', 'троль-чаклун', 'чарівний дракончик'],
+		['h07B', 'n015', 'e000']
+	]
+];
 
 /**
  * Returns all rich abilities associated with a unit definition.
@@ -873,312 +910,14 @@ export function getUnitAbilities(def?: UnitDefinition): UnitAbilityDef[] {
 	const id = def.id;
 	const matchedTypes = new Set<UnitAbilityType>();
 
-	// 1. Reincarnation
-	if (
-		codes.includes('AOre') ||
-		name.includes('таурен') ||
-		name.includes('фенікс') ||
-		name.includes('феникс') ||
-		id === 'o009' ||
-		id === 'h00D'
-	) {
-		matchedTypes.add('reincarnation');
-	}
-
-	// 2. Critical strike
-	if (
-		codes.some((c) => ['AOcr', 'ACct', 'A03P', 'A00U', 'A07M', 'Ocr1'].includes(c)) ||
-		name.includes('майстер-меч') ||
-		name.includes('мастер клинка') ||
-		name.includes('убивця') ||
-		name.includes('убийца') ||
-		name.includes('мортир') ||
-		name.includes('рейнджер')
-	) {
-		matchedTypes.add('crit');
-	}
-
-	// 3. Evasion
-	if (
-		codes.some((c) => ['ACes', 'ACev', 'A03U', 'Eev1'].includes(c)) ||
-		name.includes('мисливець') ||
-		name.includes('мисливиця') ||
-		name.includes('охотник') ||
-		name.includes('штурмовик') ||
-		name.includes('тіней')
-	) {
-		matchedTypes.add('evasion');
-	}
-
-	// 4. Cleave / Splash
-	if (
-		codes.some((c) => ['ACce', 'A00D'].includes(c)) ||
-		name.includes('чемпіон') ||
-		name.includes('чемпион') ||
-		name.includes('м’ясник') ||
-		name.includes('вартовий')
-	) {
-		matchedTypes.add('cleave');
-	}
-
-	// 5. Bash / Stun
-	if (
-		codes.some((c) => ['ACbh', 'A026', 'A02X', 'A03S'].includes(c)) ||
-		name.includes('магнатор') ||
-		name.includes('вандіго') ||
-		name.includes('вандиго') ||
-		name.includes('сокир') ||
-		id === 'n016' ||
-		id === 'n013' ||
-		id === 'n00X'
-	) {
-		matchedTypes.add('bash');
-	}
-
-	// 6. Poison
-	if (
-		codes.some((c) => ['Aspo', 'ACvs', 'A07J', 'A05T'].includes(c)) ||
-		name.includes('отрут') ||
-		name.includes('яд') ||
-		name.includes('чум') ||
-		id === 'u007' ||
-		id === 'n00K'
-	) {
-		matchedTypes.add('poison');
-	}
-
-	// 7. Frost
-	if (
-		codes.some((c) => ['Afra', 'A070', 'A043'].includes(c)) ||
-		name.includes('крижа') ||
-		name.includes('ледян') ||
-		name.includes('мороз') ||
-		name.includes('лич') ||
-		id === 'u00D'
-	) {
-		matchedTypes.add('frost');
-	}
-
-	// 8. Thorns / Spikes
-	if (
-		codes.some((c) => ['ANth', 'AEah', 'A00C'].includes(c)) ||
-		name.includes('черепах') ||
-		name.includes('панцир') ||
-		name.includes('шип') ||
-		id === 'n007'
-	) {
-		matchedTypes.add('thorns');
-	}
-
-	// 9. Pulverize
-	if (
-		codes.some((c) => ['ACpv', 'A031'].includes(c)) ||
-		name.includes('голем') ||
-		name.includes('велетень')
-	) {
-		matchedTypes.add('pulverize');
-	}
-
-	// 10. Immolation
-	if (
-		codes.some((c) => ['ANpi', 'Apxf'].includes(c)) ||
-		name.includes('інфернал') ||
-		name.includes('вогнян') ||
-		name.includes('пламен') ||
-		id === 'n01E' ||
-		id === 'n01F'
-	) {
-		matchedTypes.add('immolation');
-	}
-
-	// 11. Bloodlust
-	if (
-		codes.some((c) => ['Ablo', 'A08W', 'A016'].includes(c)) ||
-		name.includes('шаман') ||
-		name.includes('огр-маг') ||
-		name.includes('лють') ||
-		id === 'o006'
-	) {
-		matchedTypes.add('bloodlust');
-	}
-
-	// 12. Slow
-	if (
-		codes.some((c) => ['Aslo', 'A06V'].includes(c)) ||
-		name.includes('чарівниця') ||
-		name.includes('сповільн')
-	) {
-		matchedTypes.add('slow');
-	}
-
-	// 13. Curse
-	if (
-		codes.some((c) => ['Acrs', 'A05O'].includes(c)) ||
-		name.includes('банші') ||
-		name.includes('некромант') ||
-		name.includes('проклят') ||
-		id === 'u009'
-	) {
-		matchedTypes.add('curse');
-	}
-
-	// 14. Heal
-	if (
-		codes.some((c) => ['Ahea', 'A0A8', 'A00Y'].includes(c)) ||
-		name.includes('паладин') ||
-		name.includes('жрець') ||
-		name.includes('друїд') ||
-		id === 'h03C' ||
-		id === 'e00J' ||
-		id === 'h00W'
-	) {
-		matchedTypes.add('heal');
-	}
-
-	// 15. Inner Fire
-	if (
-		codes.some((c) => ['Ainf', 'A01A'].includes(c)) ||
-		name.includes('лицар світла') ||
-		name.includes('священник')
-	) {
-		matchedTypes.add('inner_fire');
-	}
-
-	// 16. Ensnare
-	if (
-		codes.some((c) => ['A06H', 'A07A', 'A02I'].includes(c)) ||
-		name.includes('капкан') ||
-		name.includes('павук') ||
-		name.includes('ловець') ||
-		id === 'n01O'
-	) {
-		matchedTypes.add('ensnare');
-	}
-
-	// 17. Chain lightning
-	if (
-		codes.some((c) => ['A09T', 'A0AH'].includes(c)) ||
-		name.includes('блискав') ||
-		name.includes('громов')
-	) {
-		matchedTypes.add('chain_lightning');
-	}
-
-	// 18. Storm bolt
-	if (
-		codes.some((c) => ['A08U', 'A01X', 'A06S', 'A0AK', 'A082', 'A083'].includes(c)) ||
-		name.includes('молот') ||
-		name.includes('буревісник')
-	) {
-		matchedTypes.add('thunderbolt');
-	}
-
-	// 19. Stomp
-	if (
-		codes.some((c) => ['A05D', 'A09E', 'A00B', 'A031'].includes(c)) ||
-		name.includes('тупіт') ||
-		name.includes('громовий')
-	) {
-		matchedTypes.add('stomp');
-	}
-
-	// 20. Command Aura
-	if (codes.some((c) => ['ACac', 'A00T'].includes(c)) || name.includes('кодо') || id === 'o008') {
-		matchedTypes.add('aura_dmg');
-	}
-
-	// 21. Devotion Aura
-	if (codes.some((c) => ['AHad', 'A01F'].includes(c)) || name.includes('обладунок віри')) {
-		matchedTypes.add('aura_armor');
-	}
-
-	// 22. Endurance Aura
-	if (codes.some((c) => ['A07H'].includes(c))) {
-		matchedTypes.add('aura_speed');
-	}
-
-	// 23. Raise Dead
-	if (
-		codes.some((c) => ['A05O', 'Acrs', 'A09Y', 'A02N', 'A05R'].includes(c)) ||
-		name.includes('некромант') ||
-		id === 'u009'
-	) {
-		matchedTypes.add('raise_dead');
-	}
-
-	// 24. Corpse Explosion
-	if (
-		codes.some((c) => ['A00L', 'A073', 'A034'].includes(c)) ||
-		name.includes('чумна мортира') ||
-		name.includes('підривник')
-	) {
-		matchedTypes.add('corpse_explosion');
-	}
-
-	// 25. Cannibalize
-	if (
-		codes.some((c) => ['Acan', 'A00K'].includes(c)) ||
-		name.includes('вурдалак') ||
-		name.includes('гуль') ||
-		id === 'u005'
-	) {
-		matchedTypes.add('cannibalize');
-	}
-
-	// 26. Polymorph
-	if (
-		codes.some((c) => ['Aply', 'A06V', 'A08L'].includes(c)) ||
-		name.includes('чарівниця') ||
-		name.includes('волшебница') ||
-		name.includes('чародійка')
-	) {
-		matchedTypes.add('polymorph');
-	}
-
-	// 27. Cyclone
-	if (
-		codes.some((c) => ['Acyc', 'A07A', 'A01G'].includes(c)) ||
-		name.includes('смерч') ||
-		name.includes('друїд когтя') ||
-		name.includes('прикликач вітру')
-	) {
-		matchedTypes.add('cyclone');
-	}
-
-	// 28. Banish
-	if (
-		codes.some((c) => ['Aban', 'A016', 'A05J'].includes(c)) ||
-		name.includes('астрал') ||
-		name.includes('маг крові') ||
-		name.includes('вигнан')
-	) {
-		matchedTypes.add('banish');
-	}
-
-	// 29. Mana Shield
-	if (
-		codes.some((c) => ['Amsh', 'A03H', 'A09P'].includes(c)) ||
-		name.includes('щит мани') ||
-		name.includes('морська відьма') ||
-		name.includes('архімаг')
-	) {
-		matchedTypes.add('mana_shield');
-	}
-
-	// 30. Dispel Magic / Purge
-	if (
-		codes.some((c) => ['Adid', 'Adis', 'Acmg', 'A0A9', 'A07R', 'A049'].includes(c)) ||
-		name.includes('диспел') ||
-		name.includes('розвіюван') ||
-		name.includes('очищен') ||
-		name.includes('заклинателька') ||
-		name.includes('троль-чаклун') ||
-		name.includes('чарівний дракончик') ||
-		id === 'h07B' ||
-		id === 'n015' ||
-		id === 'e000'
-	) {
-		matchedTypes.add('dispel');
+	for (const [type, ruleCodes, nameKeys, ids] of UNIT_ABILITY_RULES) {
+		if (
+			ruleCodes.some((c) => codes.includes(c)) ||
+			nameKeys.some((k) => name.includes(k)) ||
+			ids.includes(id)
+		) {
+			matchedTypes.add(type);
+		}
 	}
 
 	return Array.from(matchedTypes).map((type) => ({
@@ -1192,6 +931,35 @@ for (const u of UNITS_MAP.values()) {
 	u.abilities = getUnitAbilities(u);
 }
 
+const PRIMARY_ABILITY_RULES: ReadonlyArray<
+	readonly [UnitAbilityType, readonly string[], readonly string[]]
+> = [
+	['polymorph', ['чарівниця', 'волшебница', 'чародійка'], []],
+	['dispel', ['заклинателька', 'троль-чаклун'], ['h07B', 'n015']],
+	['cyclone', ['прикликач вітру', 'смерч'], []],
+	['banish', ['маг крові', 'астрал'], []],
+	['mana_shield', ['морська відьма', 'щит мани'], []],
+	['raise_dead', ['некромант'], ['u009']],
+	['cannibalize', ['вурдалак', 'гуль'], ['u005']],
+	['ensnare', ['капкан', 'павук', 'ловець', 'паук', 'ловец'], ['n01O']],
+	['poison', ['чум', 'отрут', 'вбивця', 'яд', 'убийца'], ['u007', 'n00K']],
+	[
+		'heal',
+		['паладин', 'друїд', 'жрець', 'чарівник', 'друид', 'волшебник'],
+		['h03C', 'e00J', 'h00W']
+	],
+	[
+		'bash',
+		['магнатор', 'вандіго', 'вандиго', 'вартовий', 'страж', 'сокир', 'топор'],
+		['n016', 'n013', 'n00X']
+	],
+	[
+		'aura_dmg',
+		['кодо', 'чемпіон', 'чемпион', 'майстер-меч', 'мастер-меч'],
+		['o008', 'o006', 'n00Z']
+	]
+];
+
 /**
  * Resolves the primary tactical WC3 unit ability archetype for a given unit.
  * Retains strict backward compatibility for single-archetype selectors (Ensnare, Poison, Heal, Bash, Aura).
@@ -1200,91 +968,10 @@ export function resolveUnitAbility(def?: UnitDefinition): UnitAbilityType {
 	if (!def) return 'none';
 	const name = (def.name || '').toLowerCase();
 
-	if (name.includes('чарівниця') || name.includes('волшебница') || name.includes('чародійка')) {
-		return 'polymorph';
-	}
-	if (
-		name.includes('заклинателька') ||
-		name.includes('троль-чаклун') ||
-		def.id === 'h07B' ||
-		def.id === 'n015'
-	) {
-		return 'dispel';
-	}
-	if (name.includes('прикликач вітру') || name.includes('смерч')) {
-		return 'cyclone';
-	}
-	if (name.includes('маг крові') || name.includes('астрал')) {
-		return 'banish';
-	}
-	if (name.includes('морська відьма') || name.includes('щит мани')) {
-		return 'mana_shield';
-	}
-	if (name.includes('некромант') || def.id === 'u009') {
-		return 'raise_dead';
-	}
-	if (name.includes('вурдалак') || name.includes('гуль') || def.id === 'u005') {
-		return 'cannibalize';
-	}
-	if (
-		name.includes('капкан') ||
-		name.includes('павук') ||
-		name.includes('ловець') ||
-		name.includes('паук') ||
-		name.includes('ловец') ||
-		def.id === 'n01O'
-	) {
-		return 'ensnare';
-	}
-	if (
-		name.includes('чум') ||
-		name.includes('отрут') ||
-		name.includes('вбивця') ||
-		name.includes('яд') ||
-		name.includes('убийца') ||
-		def.id === 'u007' ||
-		def.id === 'n00K'
-	) {
-		return 'poison';
-	}
-	if (
-		name.includes('паладин') ||
-		name.includes('друїд') ||
-		name.includes('жрець') ||
-		name.includes('чарівник') ||
-		name.includes('друид') ||
-		name.includes('волшебник') ||
-		def.id === 'h03C' ||
-		def.id === 'e00J' ||
-		def.id === 'h00W'
-	) {
-		return 'heal';
-	}
-	if (
-		name.includes('магнатор') ||
-		name.includes('вандіго') ||
-		name.includes('вандиго') ||
-		name.includes('вартовий') ||
-		name.includes('страж') ||
-		name.includes('сокир') ||
-		name.includes('топор') ||
-		def.id === 'n016' ||
-		def.id === 'n013' ||
-		def.id === 'n00X'
-	) {
-		return 'bash';
-	}
-	if (
-		name.includes('кодо') ||
-		name.includes('чемпіон') ||
-		name.includes('чемпион') ||
-		name.includes('майстер-меч') ||
-		name.includes('мастер-меч') ||
-		def.id === 'o008' ||
-		def.id === 'o006' ||
-		def.id === 'n00Z'
-	) {
-		return 'aura_dmg';
+	for (const [type, nameKeys, ids] of PRIMARY_ABILITY_RULES) {
+		if (nameKeys.some((k) => name.includes(k)) || ids.includes(def.id)) {
+			return type;
+		}
 	}
 
 	const all = getUnitAbilities(def);
@@ -1301,32 +988,34 @@ export function resolveUnitAbility(def?: UnitDefinition): UnitAbilityType {
  * Checks if a building is a Legendary structure requiring Food Cap.
  * Follows WC3 reference: ufoo > 0, cost >= 450, or legendary apex spawners.
  */
+const LEGENDARY_NAME_KEYS = [
+	'давній фонтан',
+	'стародавній фонтан',
+	'древний фонтан',
+	'університет',
+	'университет',
+	'цитадель некромантії',
+	'цитадель некромантии',
+	'руйнівник',
+	'знищувач',
+	'уничтожитель',
+	'амазонок',
+	'елітних големів',
+	'элитных големов',
+	'драконячий цвинтар',
+	'драконяче кладовище',
+	'драконье кладбище',
+	'брама демонів',
+	'врата демонов'
+];
+
 export function isLegendaryBuilding(def?: BuildingDefinition): boolean {
 	if (!def) return false;
 	if (def.is_legendary) return true;
 	if (Number(def.raw_fields?.ufoo) > 0) return true;
 	if (def.gold_cost >= 450) return true;
 	const name = (def.name || '').toLowerCase();
-	return (
-		name.includes('давній фонтан') ||
-		name.includes('стародавній фонтан') ||
-		name.includes('древний фонтан') ||
-		name.includes('університет') ||
-		name.includes('университет') ||
-		name.includes('цитадель некромантії') ||
-		name.includes('цитадель некромантии') ||
-		name.includes('руйнівник') ||
-		name.includes('знищувач') ||
-		name.includes('уничтожитель') ||
-		name.includes('амазонок') ||
-		name.includes('елітних големів') ||
-		name.includes('элитных големов') ||
-		name.includes('драконячий цвинтар') ||
-		name.includes('драконяче кладовище') ||
-		name.includes('драконье кладбище') ||
-		name.includes('брама демонів') ||
-		name.includes('врата демонов')
-	);
+	return LEGENDARY_NAME_KEYS.some((k) => name.includes(k));
 }
 
 /**
@@ -1447,87 +1136,39 @@ export function resolveBuildingDisplayRace(
 	return toPlayableRace(building.race);
 }
 
+const BUILDER_NAME_MAP: Record<string, string> = {
+	Альянс: 'Будівельник Альянсу',
+	Люди: 'Будівельник Людей',
+	Північ: 'Північний будівельник',
+	Орки: 'Будівельник Орків',
+	Нежить: 'Будівельник Нежиті',
+	Ельфи: 'Будівельник Ельфів',
+	Демони: 'Будівельник Демонів',
+	Хаос: 'Будівельник Демонів',
+	Наги: 'Будівельник Наг',
+	Тролі: 'Будівельник Тролів',
+	Тварини: 'Будівельник Тварин',
+	Елементалі: 'Будівельник Елементалів',
+	Небожителі: 'Будівельник Небожителів',
+	Порча: 'Будівельник Скверни',
+	'Нічні ельфи': 'Будівельник Нічних Ельфів',
+	Техніки: 'Будівельник Техніків',
+	Збирачі: 'Будівельник Збирачів'
+};
+
 /**
  * Formats faction name into canonical Ukrainian display (e.g., Люди -> Альянс, Орки -> Орда).
  */
 export function formatFactionName(race: string): string {
 	const canonical = formatRaceName(race);
-	switch (canonical) {
-		case 'Альянс':
-		case 'Люди':
-			return 'Альянс';
-		case 'Орки':
-			return 'Орда';
-		case 'Нежить':
-			return 'Нежить';
-		case 'Ельфи':
-		case 'Нічні ельфи':
-			return 'Ельфи';
-		case 'Демони':
-		case 'Хаос':
-			return 'Демони';
-		case 'Північ':
-			return 'Північ';
-		case 'Наги':
-			return 'Наги';
-		case 'Техніки':
-		case 'Збирачі':
-			return 'Техніки';
-		case 'Тролі':
-			return 'Тролі';
-		case 'Тварини':
-			return 'Тварини';
-		case 'Елементалі':
-		case 'Порча':
-			return 'Елементалі';
-		case 'Небожителі':
-			return 'Небожителі';
-		default:
-			return canonical;
-	}
+	return canonical === 'Орки' ? 'Орда' : canonical;
 }
 
 /**
  * Returns canonical Ukrainian builder unit name for a given race.
  */
 export function getBuilderNameForRace(race: string): string {
-	if (race === 'Люди') return 'Будівельник Людей';
+	if (race === 'Люди') return BUILDER_NAME_MAP.Люди;
 	const canonical = formatRaceName(race);
-	switch (canonical) {
-		case 'Альянс':
-			return 'Будівельник Альянсу';
-		case 'Люди':
-			return 'Будівельник Людей';
-		case 'Північ':
-			return 'Північний будівельник';
-		case 'Орки':
-			return 'Будівельник Орків';
-		case 'Нежить':
-			return 'Будівельник Нежиті';
-		case 'Ельфи':
-			return 'Будівельник Ельфів';
-		case 'Демони':
-		case 'Хаос':
-			return 'Будівельник Демонів';
-		case 'Наги':
-			return 'Будівельник Наг';
-		case 'Тролі':
-			return 'Будівельник Тролів';
-		case 'Тварини':
-			return 'Будівельник Тварин';
-		case 'Елементалі':
-			return 'Будівельник Елементалів';
-		case 'Небожителі':
-			return 'Будівельник Небожителів';
-		case 'Порча':
-			return 'Будівельник Скверни';
-		case 'Нічні ельфи':
-			return 'Будівельник Нічних Ельфів';
-		case 'Техніки':
-			return 'Будівельник Техніків';
-		case 'Збирачі':
-			return 'Будівельник Збирачів';
-		default:
-			return `Будівельник (${canonical})`;
-	}
+	return BUILDER_NAME_MAP[canonical] ?? `Будівельник (${canonical})`;
 }
