@@ -8,6 +8,7 @@
 		type ChatEntry
 	} from '$lib/net/chat';
 	import { chatModeration } from '$lib/services/chatModeration.svelte';
+	import { toast } from '$lib/controllers/toast.svelte';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
 	import { t } from '$lib/i18n';
 
@@ -16,15 +17,23 @@
 		senderAvatar: string;
 		myUid?: string | null;
 		onOpenDm?: (peer: { uid: string; name: string; avatar?: string }) => void;
+		onInspectProfile?: (uid: string) => void;
 	}
 
-	let { senderName, senderAvatar, myUid = null, onOpenDm }: Props = $props();
+	let {
+		senderName,
+		senderAvatar,
+		myUid = null,
+		onOpenDm,
+		onInspectProfile
+	}: Props = $props();
 
 	let isOpen = $state(false);
 	let input = $state('');
 	let messages = $state<ChatEntry[]>([]);
 	let seenCount = $state(0);
 	let sending = $state(false);
+	let listEl = $state<HTMLDivElement | null>(null);
 
 	const visibleMessages = $derived(messages.filter((m) => !chatModeration.isMuted(m.senderUid)));
 	const unreadCount = $derived(isOpen ? 0 : Math.max(0, visibleMessages.length - seenCount));
@@ -32,6 +41,10 @@
 	$effect(() => {
 		if (isOpen) {
 			seenCount = visibleMessages.length;
+			const count = visibleMessages.length;
+			if (listEl && count > 0) {
+				listEl.scrollTop = listEl.scrollHeight;
+			}
 		}
 	});
 
@@ -53,9 +66,16 @@
 		const text = input.trim().slice(0, 200);
 		if (!text || sending) return;
 		sending = true;
-		input = '';
 		try {
-			await sendGlobalChatMessage(senderName, text, { avatar: senderAvatar, kind: 'text' });
+			const ok = await sendGlobalChatMessage(senderName, text, {
+				avatar: senderAvatar,
+				kind: 'text'
+			});
+			if (ok) {
+				input = '';
+			} else {
+				toast.info(t('chat.cooldown'));
+			}
 		} finally {
 			sending = false;
 		}
@@ -65,11 +85,14 @@
 		if (sending) return;
 		sending = true;
 		try {
-			await sendGlobalChatMessage(senderName, emote, {
+			const ok = await sendGlobalChatMessage(senderName, emote, {
 				avatar: senderAvatar,
 				kind: 'emote',
 				emote
 			});
+			if (!ok) {
+				toast.info(t('chat.cooldown'));
+			}
 		} finally {
 			sending = false;
 		}
@@ -116,16 +139,27 @@
 			class="rounded-2xl bg-slate-900/90 border border-slate-700/80 p-3 space-y-2.5 shadow-xl"
 			data-testid="global-chat-panel"
 		>
-			<div class="max-h-52 overflow-y-auto space-y-2 pr-1 text-xs">
+			<div bind:this={listEl} class="max-h-52 overflow-y-auto space-y-2 pr-1 text-xs">
 				{#if visibleMessages.length === 0}
 					<div class="py-4 text-center text-slate-500 italic">{t('online.hud.noMessages')}</div>
 				{:else}
 					{#each visibleMessages as msg (msg.id)}
+						{@const canInspect = Boolean(myUid && msg.senderUid !== myUid && onInspectProfile)}
 						<div class="flex items-start gap-2 group">
 							<Avatar avatar={msg.senderAvatar ?? 'castle:amber'} size={22} showDefault />
 							<div class="flex-1 min-w-0">
 								<div class="flex items-center gap-1.5">
-									<span class="font-bold text-amber-300 truncate">{msg.senderName}</span>
+									{#if canInspect}
+										<button
+											type="button"
+											onclick={() => onInspectProfile?.(msg.senderUid)}
+											class="font-bold text-amber-300 hover:underline truncate cursor-pointer text-left"
+										>
+											{msg.senderName}
+										</button>
+									{:else}
+										<span class="font-bold text-amber-300 truncate">{msg.senderName}</span>
+									{/if}
 									<span class="text-[10px] text-slate-500">
 										{msg.at
 											? new Date(msg.at).toLocaleTimeString([], {
@@ -144,7 +178,9 @@
 								{/if}
 							</div>
 							{#if myUid && msg.senderUid !== myUid}
-								<div class="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition">
+								<div
+									class="opacity-90 sm:opacity-0 sm:group-hover:opacity-100 flex items-center gap-0.5 transition shrink-0"
+								>
 									{#if onOpenDm}
 										<button
 											type="button"

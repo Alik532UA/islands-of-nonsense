@@ -500,12 +500,21 @@
 		e.preventDefault();
 		const text = chatInput.trim().slice(0, 200);
 		if (!text || !localUid) return;
-		chatInput = '';
 		try {
-			await liveNet.sendChatMessage(roomCode, identity.forEntry(settings.locale), text, {
-				avatar: identity.avatar,
-				kind: 'text'
-			});
+			const ok = await liveNet.sendChatMessage(
+				roomCode,
+				identity.forEntry(settings.locale),
+				text,
+				{
+					avatar: identity.avatar,
+					kind: 'text'
+				}
+			);
+			if (ok) {
+				chatInput = '';
+			} else {
+				toast.info(t('chat.cooldown'));
+			}
 		} catch {
 			// Ignore transient chat write failure
 		}
@@ -514,11 +523,19 @@
 	async function sendRoomEmote(emote: string) {
 		if (!localUid) return;
 		try {
-			await liveNet.sendChatMessage(roomCode, identity.forEntry(settings.locale), emote, {
-				avatar: identity.avatar,
-				kind: 'emote',
-				emote
-			});
+			const ok = await liveNet.sendChatMessage(
+				roomCode,
+				identity.forEntry(settings.locale),
+				emote,
+				{
+					avatar: identity.avatar,
+					kind: 'emote',
+					emote
+				}
+			);
+			if (!ok) {
+				toast.info(t('chat.cooldown'));
+			}
 		} catch {
 			// Ignore transient chat write failure
 		}
@@ -1441,9 +1458,20 @@
 						{#if msg.kind === 'system'}
 							<div class="text-[11px] italic text-sky-300/90">{msg.text}</div>
 						{:else}
+							{@const canAct = Boolean(localUid && msg.senderUid !== localUid)}
 							<div class="flex items-start justify-between gap-1 break-words group">
 								<div class="min-w-0">
-									<span class="font-bold text-amber-300">{msg.senderName}:</span>
+									{#if canAct}
+										<button
+											type="button"
+											onclick={() => (inspectMemberUid = msg.senderUid)}
+											class="font-bold text-amber-300 hover:underline cursor-pointer text-left"
+										>
+											{msg.senderName}:
+										</button>
+									{:else}
+										<span class="font-bold text-amber-300">{msg.senderName}:</span>
+									{/if}
 									{#if msg.kind === 'emote'}
 										<span class="text-sm ml-1">{msg.emote ?? msg.text}</span>
 									{:else}
@@ -1452,22 +1480,59 @@
 										</span>
 									{/if}
 								</div>
-								{#if localUid && msg.senderUid !== localUid}
-									<button
-										type="button"
-										onclick={() => chatModeration.toggleMute(msg.senderUid)}
-										class="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-slate-800 text-slate-400 hover:text-rose-300 cursor-pointer shrink-0"
-										title={t('chat.muteUser')}
-										aria-label={t('chat.muteUser')}
+								{#if canAct}
+									<div
+										class="opacity-90 sm:opacity-0 sm:group-hover:opacity-100 flex items-center gap-0.5 shrink-0"
 									>
-										<UiIcon name="volumeX" class="w-3 h-3" />
-									</button>
+										<button
+											type="button"
+											onclick={() =>
+												(dmPeer = {
+													uid: msg.senderUid,
+													name: msg.senderName,
+													avatar: msg.senderAvatar
+												})}
+											class="p-0.5 rounded hover:bg-slate-800 text-slate-400 hover:text-sky-300 cursor-pointer"
+											title={t('chat.openDm')}
+											aria-label={t('chat.openDm')}
+										>
+											<UiIcon name="messageSquare" class="w-3 h-3" />
+										</button>
+										<button
+											type="button"
+											onclick={() => chatModeration.toggleMute(msg.senderUid)}
+											class="p-0.5 rounded hover:bg-slate-800 text-slate-400 hover:text-rose-300 cursor-pointer"
+											title={t('chat.muteUser')}
+											aria-label={t('chat.muteUser')}
+										>
+											<UiIcon name="volumeX" class="w-3 h-3" />
+										</button>
+									</div>
 								{/if}
 							</div>
 						{/if}
 					{/each}
 				{/if}
 			</div>
+			{#if chatModeration.mutedUids.length > 0}
+				<div
+					class="flex items-center justify-between px-2 py-1 rounded bg-slate-950/70 text-[10px] text-slate-400"
+				>
+					<span>{t('chat.mutedCount', { count: chatModeration.mutedUids.length })}</span>
+					<button
+						type="button"
+						onclick={() => {
+							for (const id of [...chatModeration.mutedUids]) {
+								chatModeration.toggleMute(id);
+							}
+						}}
+						class="text-sky-300 hover:underline flex items-center gap-1 cursor-pointer"
+					>
+						<UiIcon name="volume2" class="w-3 h-3" />
+						<span>{t('chat.unmuteAll')}</span>
+					</button>
+				</div>
+			{/if}
 			<div class="flex flex-wrap gap-1">
 				{#each QUICK_EMOTES as em (em)}
 					<button

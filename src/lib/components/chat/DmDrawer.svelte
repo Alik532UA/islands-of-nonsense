@@ -1,7 +1,8 @@
 <script lang="ts">
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
-	import { sendDmMessage, subscribeDmThread, type ChatEntry } from '$lib/net/chat';
+	import { QUICK_EMOTES, sendDmMessage, subscribeDmThread, type ChatEntry } from '$lib/net/chat';
 	import { chatModeration } from '$lib/services/chatModeration.svelte';
+	import { toast } from '$lib/controllers/toast.svelte';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
 	import { t } from '$lib/i18n';
 
@@ -20,6 +21,7 @@
 	let messages = $state<ChatEntry[]>([]);
 	let text = $state('');
 	let sending = $state(false);
+	let listEl = $state<HTMLDivElement | null>(null);
 
 	$effect(() => {
 		const target = peerUid;
@@ -38,14 +40,37 @@
 		};
 	});
 
+	$effect(() => {
+		if (listEl && messages.length > 0) {
+			listEl.scrollTop = listEl.scrollHeight;
+		}
+	});
+
 	async function handleSend(e: SubmitEvent) {
 		e.preventDefault();
 		const clean = text.trim().slice(0, 200);
 		if (!clean || sending) return;
 		sending = true;
-		text = '';
 		try {
-			await sendDmMessage(peerUid, myName, clean, myAvatar);
+			const ok = await sendDmMessage(peerUid, myName, clean, myAvatar);
+			if (ok) {
+				text = '';
+			} else {
+				toast.info(t('chat.cooldown'));
+			}
+		} finally {
+			sending = false;
+		}
+	}
+
+	async function sendEmote(emote: string) {
+		if (sending) return;
+		sending = true;
+		try {
+			const ok = await sendDmMessage(peerUid, myName, emote, myAvatar);
+			if (!ok) {
+				toast.info(t('chat.cooldown'));
+			}
 		} finally {
 			sending = false;
 		}
@@ -81,7 +106,7 @@
 		</button>
 	</div>
 
-	<div class="h-56 overflow-y-auto p-3 space-y-2 text-xs bg-slate-900/95">
+	<div bind:this={listEl} class="h-56 overflow-y-auto p-3 space-y-2 text-xs bg-slate-900/95">
 		{#if messages.length === 0}
 			<div class="py-10 text-center text-slate-500 italic">{t('online.hud.noMessages')}</div>
 		{:else}
@@ -95,12 +120,29 @@
 					>
 						{chatModeration.sanitizeText(msg.text)}
 					</div>
+					{#if msg.at}
+						<span class="text-[9px] text-slate-500 mt-0.5 px-1">
+							{new Date(msg.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+						</span>
+					{/if}
 				</div>
 			{/each}
 		{/if}
 	</div>
 
-	<form onsubmit={handleSend} class="p-2.5 bg-slate-950 border-t border-slate-800 flex gap-1.5">
+	<div class="flex flex-wrap gap-1 px-2.5 pt-2 bg-slate-950 border-t border-slate-800">
+		{#each QUICK_EMOTES as em (em)}
+			<button
+				type="button"
+				onclick={() => void sendEmote(em)}
+				class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] cursor-pointer"
+			>
+				{em}
+			</button>
+		{/each}
+	</div>
+
+	<form onsubmit={handleSend} class="p-2.5 bg-slate-950 flex gap-1.5">
 		<input
 			type="text"
 			bind:value={text}

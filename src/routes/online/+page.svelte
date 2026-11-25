@@ -7,7 +7,15 @@
 	import { settings } from '$lib/services/settings.svelte';
 	import { PlayerIdentity } from '$lib/controllers/playerIdentity.svelte';
 	import { connect } from '$lib/net/firebase';
-	import { dismissInboxItem, loadSocialLists, watchInbox, type InboxItem } from '$lib/net/social';
+	import {
+		dismissInboxItem,
+		followUser,
+		loadSocialLists,
+		unfollowUser,
+		watchInbox,
+		type InboxItem
+	} from '$lib/net/social';
+	import { readProfile, type Profile } from '$lib/net/account';
 	import { notifyIfHidden, requestNotifyPermission } from '$lib/services/browserNotify';
 	import {
 		subscribeLobby,
@@ -28,6 +36,7 @@
 	import RoomList from '$lib/components/online/RoomList.svelte';
 	import GlobalChatDrawer from '$lib/components/chat/GlobalChatDrawer.svelte';
 	import DmDrawer from '$lib/components/chat/DmDrawer.svelte';
+	import PublicProfileModal from '$lib/components/account/PublicProfileModal.svelte';
 
 	const player = new PlayerIdentity();
 
@@ -38,7 +47,9 @@
 	let rooms = $state<LobbyRoom[]>([]);
 	let friendUids = $state<string[]>([]);
 	let myUid = $state<string | null>(null);
+	let myProfile = $state<Profile | null>(null);
 	let dmPeer = $state<{ uid: string; name: string; avatar?: string } | null>(null);
+	let inspectUid = $state<string | null>(null);
 	let searchController: AbortController | null = null;
 	let pendingInvite = $state<{
 		code: string;
@@ -69,6 +80,9 @@
 			.then(({ auth, db, uid }) => {
 				myUid = uid;
 				if (!auth.currentUser?.isAnonymous) {
+					void readProfile().then((p) => {
+						myProfile = p;
+					});
 					void loadSocialLists().then((res) => {
 						friendUids = res.following.map((u) => u.uid);
 					});
@@ -443,6 +457,7 @@
 			senderAvatar={player.avatar}
 			{myUid}
 			onOpenDm={(peer) => (dmPeer = peer)}
+			onInspectProfile={(uid) => (inspectUid = uid)}
 		/>
 
 		<div class="menu-links mt-8">
@@ -508,6 +523,24 @@
 			</div>
 		</div>
 	</div>
+{/if}
+
+{#if inspectUid}
+	<PublicProfileModal
+		targetUid={inspectUid}
+		isFollowing={friendUids.includes(inspectUid)}
+		onClose={() => (inspectUid = null)}
+		onToggleFollow={async (targetUid) => {
+			if (friendUids.includes(targetUid)) {
+				const ok = await unfollowUser(targetUid);
+				if (ok) friendUids = friendUids.filter((id) => id !== targetUid);
+			} else {
+				const ok = await followUser(targetUid, myProfile);
+				if (ok) friendUids = [...friendUids, targetUid];
+			}
+		}}
+		onOpenDm={(peer) => (dmPeer = peer)}
+	/>
 {/if}
 
 {#if dmPeer && myUid}
