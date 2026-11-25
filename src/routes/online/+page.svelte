@@ -7,6 +7,7 @@
 	import { settings } from '$lib/services/settings.svelte';
 	import { PlayerIdentity } from '$lib/controllers/playerIdentity.svelte';
 	import { connect } from '$lib/net/firebase';
+	import { loadSocialLists } from '$lib/net/social';
 	import {
 		subscribeLobby,
 		publishToLobby,
@@ -34,6 +35,7 @@
 	let busy = $state(false);
 	let errorMessage = $state<string | null>(null);
 	let rooms = $state<LobbyRoom[]>([]);
+	let friendUids = $state<string[]>([]);
 	let myUid = $state<string | null>(null);
 	let dmPeer = $state<{ uid: string; name: string; avatar?: string } | null>(null);
 	let searchController: AbortController | null = null;
@@ -49,8 +51,13 @@
 		let unsubscribeLobby = () => {};
 
 		void connect()
-			.then(({ db, uid }) => {
+			.then(({ auth, db, uid }) => {
 				myUid = uid;
+				if (!auth.currentUser?.isAnonymous) {
+					void loadSocialLists().then((res) => {
+						friendUids = res.following.map((u) => u.uid);
+					});
+				}
 				unsubscribeLobby = subscribeLobby(db, (updated) => {
 					rooms = updated;
 				});
@@ -312,7 +319,7 @@
 		</nav>
 
 		<!-- Open Rooms List -->
-		<RoomList {rooms} onJoin={handleJoin} />
+		<RoomList {rooms} {friendUids} onJoin={handleJoin} />
 
 		<!-- Global Lobby Chat -->
 		<GlobalChatDrawer

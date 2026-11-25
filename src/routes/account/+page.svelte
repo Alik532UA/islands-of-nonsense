@@ -7,6 +7,7 @@
 		Trophy,
 		BarChart3,
 		Award,
+		Users,
 		User,
 		CheckCircle,
 		ShieldAlert,
@@ -26,12 +27,17 @@
 	import StatsPanel from '$lib/components/account/StatsPanel.svelte';
 	import LeaderboardPanel from '$lib/components/account/LeaderboardPanel.svelte';
 	import RewardsPanel from '$lib/components/account/RewardsPanel.svelte';
+	import FriendsPanel from '$lib/components/account/FriendsPanel.svelte';
+	import DmDrawer from '$lib/components/chat/DmDrawer.svelte';
+	import { loadSocialLists } from '$lib/net/social';
 	import { rewardsStore } from '$lib/services/rewardsService.svelte';
 
 	const controller = new AccountController();
 
-	type TabType = 'profile' | 'stats' | 'rewards' | 'leaders';
+	type TabType = 'profile' | 'stats' | 'rewards' | 'friends' | 'leaders';
 	let activeTab = $state<TabType>('profile');
+	let friendUids = $state<string[]>([]);
+	let dmPeer = $state<{ uid: string; name: string; avatar?: string } | null>(null);
 
 	let formName = $state('');
 	let formHandle = $state('');
@@ -56,6 +62,11 @@
 				formHandle = controller.profile.handle;
 				formCountry = controller.profile.country ?? '';
 				formAvatar = controller.profile.avatar ?? playerAvatar.value;
+			}
+			if (controller.state === 'linked') {
+				void loadSocialLists().then((res) => {
+					friendUids = res.following.map((u) => u.uid);
+				});
 			}
 		});
 		void controller.loadLeaders();
@@ -194,10 +205,28 @@
 
 			<button
 				type="button"
+				data-testid="tab-friends"
+				onclick={() => (activeTab = 'friends')}
+				class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition {activeTab ===
+				'friends'
+					? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+					: 'text-slate-400 hover:text-slate-200'}"
+			>
+				<Users class="w-4 h-4" />
+				<span>{t('account.tab.friends')}</span>
+			</button>
+
+			<button
+				type="button"
 				data-testid="tab-leaders"
 				onclick={() => {
 					activeTab = 'leaders';
 					void controller.loadLeaders();
+					if (controller.state === 'linked') {
+						void loadSocialLists().then((res) => {
+							friendUids = res.following.map((u) => u.uid);
+						});
+					}
 				}}
 				class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition {activeTab ===
 				'leaders'
@@ -591,7 +620,16 @@
 			<RewardsPanel playData={controller.playData} />
 		{/if}
 
-		<!-- TAB 4: LEADERS -->
+		<!-- TAB 4: FRIENDS -->
+		{#if activeTab === 'friends'}
+			<FriendsPanel
+				accountState={controller.state}
+				profile={controller.profile}
+				onOpenDm={(peer) => (dmPeer = peer)}
+			/>
+		{/if}
+
+		<!-- TAB 5: LEADERS -->
 		{#if activeTab === 'leaders'}
 			<LeaderboardPanel
 				leaders={controller.leaders}
@@ -600,6 +638,8 @@
 				profile={controller.profile}
 				myScore={controller.playData.score}
 				myCountry={formCountry || controller.profile?.country || ''}
+				{friendUids}
+				onOpenDm={(peer) => (dmPeer = peer)}
 				onRefresh={() => controller.loadLeaders()}
 				onPublish={() => controller.publishToLeaderboard()}
 				onWithdraw={() => controller.withdrawFromLeaderboard()}
@@ -607,3 +647,15 @@
 		{/if}
 	</div>
 </div>
+
+{#if dmPeer && controller.uid}
+	<DmDrawer
+		peerUid={dmPeer.uid}
+		peerName={dmPeer.name}
+		peerAvatar={dmPeer.avatar}
+		myUid={controller.uid}
+		myName={formName || controller.profile?.name || 'Гравець'}
+		myAvatar={formAvatar}
+		onClose={() => (dmPeer = null)}
+	/>
+{/if}

@@ -115,7 +115,11 @@ export async function readProfile(): Promise<Profile | null> {
 export async function saveProfile(profile: Profile): Promise<boolean> {
 	try {
 		const { uid, db } = await connect();
-		const { ref, update } = await import('firebase/database');
+		const { get, ref, update } = await import('firebase/database');
+		const prevHandleSnap = await get(ref(db, `users/${uid}/profile/handle`));
+		const prevHandle = prevHandleSnap.exists() ? String(prevHandleSnap.val()) : null;
+		const privacySnap = await get(ref(db, `users/${uid}/privacy/search`));
+		const searchable = privacySnap.exists() ? privacySnap.val() !== false : true;
 
 		const updates: Record<string, unknown> = {
 			[`users/${uid}/profile`]: {
@@ -124,8 +128,21 @@ export async function saveProfile(profile: Profile): Promise<boolean> {
 				...(profile.country ? { country: profile.country } : {}),
 				...(profile.avatar ? { avatar: profile.avatar } : {})
 			},
-			[`handles/${profile.handle}`]: uid
+			[`handles/${profile.handle}`]: uid,
+			[`find/${profile.handle}`]: searchable
+				? {
+						uid,
+						name: profile.name,
+						handle: profile.handle,
+						...(profile.country ? { country: profile.country } : {}),
+						...(profile.avatar ? { avatar: profile.avatar } : {}),
+						search: true
+					}
+				: null
 		};
+		if (prevHandle && prevHandle !== profile.handle) {
+			updates[`find/${prevHandle}`] = null;
+		}
 
 		await update(ref(db), updates);
 		return true;

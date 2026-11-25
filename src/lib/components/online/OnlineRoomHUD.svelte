@@ -27,13 +27,24 @@
 		Trophy,
 		AlertTriangle,
 		ArrowLeftRight,
-		VolumeX
+		VolumeX,
+		UserPlus
 	} from 'lucide-svelte';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
 	import { resolveRoomMemberAvatars } from '$lib/utils/roomAvatars';
 	import { QUICK_EMOTES, type ChatKind } from '$lib/net/chat';
 	import { chatModeration } from '$lib/services/chatModeration.svelte';
 	import DmDrawer from '$lib/components/chat/DmDrawer.svelte';
+	import PublicProfileModal from '$lib/components/account/PublicProfileModal.svelte';
+	import {
+		followUser,
+		loadSocialLists,
+		sendRoomInvite,
+		unfollowUser,
+		type SocialUser
+	} from '$lib/net/social';
+	import { readProfile, type Profile } from '$lib/net/account';
+	import { toast } from '$lib/controllers/toast.svelte';
 	import { connect } from '$lib/net/firebase';
 	import { liveNet } from '$lib/net/roomNet';
 	import { probeNetProblem } from '$lib/utils/netProblem';
@@ -96,6 +107,10 @@
 	let seenChatCount = $state(0);
 	let floatingEmote = $state<{ senderName: string; emote: string } | null>(null);
 	let dmPeer = $state<{ uid: string; name: string; avatar?: string } | null>(null);
+	let inspectMemberUid = $state<string | null>(null);
+	let inviteOpen = $state(false);
+	let myFriends = $state<SocialUser[]>([]);
+	let myProfile = $state<Profile | null>(null);
 	let emoteTimer: ReturnType<typeof setTimeout> | null = null;
 	let roomError = $state<string | null>(null);
 	let hasSeenSelfMember = $state(false);
@@ -195,9 +210,17 @@
 
 		void (async () => {
 			try {
-				const { db, uid } = await connect();
+				const { auth, db, uid } = await connect();
 				if (!active) return;
 				localUid = uid;
+				if (!auth.currentUser?.isAnonymous) {
+					void readProfile().then((p) => {
+						myProfile = p;
+					});
+					void loadSocialLists().then((lists) => {
+						myFriends = lists.following;
+					});
+				}
 
 				const currentInfo = await liveNet.peekRoom(roomCode);
 				if (!currentInfo) {
@@ -622,6 +645,47 @@
 				</div>
 
 				<div class="flex items-center gap-2">
+					{#if myFriends.length > 0}
+						<div class="relative">
+							<button
+								type="button"
+								onclick={() => (inviteOpen = !inviteOpen)}
+								class="min-h-[38px] px-2.5 py-1.5 rounded-[8px] border text-xs font-bold flex items-center gap-1.5 cursor-pointer transition {inviteOpen
+									? 'bg-emerald-500/20 border-emerald-400/70 text-emerald-200'
+									: 'bg-[#161d2b] hover:bg-[#1e273a] border-[#3b3226] text-slate-300 hover:text-white'}"
+								title={t('social.inviteFriend')}
+							>
+								<UserPlus class="w-4 h-4 text-emerald-400" />
+								<span class="hidden sm:inline">{t('social.invite')}</span>
+							</button>
+							{#if inviteOpen}
+								<div
+									class="absolute right-0 mt-1.5 w-56 rounded-xl bg-[#0b0f18] border border-emerald-500/40 shadow-2xl p-2 space-y-1 z-50"
+								>
+									{#each myFriends.slice(0, 8) as friend (friend.uid)}
+										<button
+											type="button"
+											onclick={async () => {
+												const ok = await sendRoomInvite(
+													friend.uid,
+													roomCode,
+													identity.value || myProfile?.name || 'Гравець',
+													identity.avatar
+												);
+												if (ok) toast.success(t('social.invitedToast', { name: friend.name }));
+												inviteOpen = false;
+											}}
+											class="w-full flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-800 text-left text-xs text-slate-200 cursor-pointer"
+										>
+											<Avatar avatar={friend.avatar ?? 'castle:amber'} size={20} showDefault />
+											<span class="truncate flex-1">{friend.name}</span>
+											<span class="text-[10px] text-emerald-400 font-bold">+</span>
+										</button>
+									{/each}
+								</div>
+							{/if}
+						</div>
+					{/if}
 					<button
 						type="button"
 						onclick={() => (chatOpen = !chatOpen)}
@@ -942,7 +1006,18 @@
 										/>
 
 										<div class="flex items-center gap-1.5 min-w-0 flex-1">
-											<span class="font-bold text-slate-100 truncate">{occupant.name}</span>
+											<button
+												type="button"
+												onclick={() => {
+													if (occupant.uid !== localUid) inspectMemberUid = occupant.uid;
+												}}
+												class="font-bold text-slate-100 truncate text-left {occupant.uid !==
+												localUid
+													? 'hover:text-amber-300 cursor-pointer'
+													: 'cursor-default'}"
+											>
+												{occupant.name}
+											</button>
 											{#if occupant.uid === roomInfo?.hostUid}
 												<span title="Господар кімнати" class="shrink-0 text-amber-400">
 													<Crown class="w-3.5 h-3.5" />
@@ -1440,5 +1515,37 @@
 		myName={identity.value || t('online.defaultPlayerName')}
 		myAvatar={identity.avatar}
 		onClose={() => (dmPeer = null)}
+	/>
+{/if}
+
+{#if inspectMemberUid}
+	<PublicProfileModal
+		targetUid={inspectMemberUid}
+		isFollowing={myFriends.some((f) => f.uid === inspectMemberUid)}
+		myRoomCode={roomCode}
+		onClose={() => (inspectMemberUid = null)}
+		onToggleFollow={async (uid) => {
+			if (myFriends.some((f) => f.uid === uid)) {
+				const ok = await unfollowUser(uid);
+				if (ok) myFriends = myFriends.filter((f) => f.uid !== uid);
+			} else {
+				const ok = await followUser(uid, myProfile);
+				if (ok) {
+					const lists = await loadSocialLists();
+					myFriends = lists.following;
+				}
+			}
+		}}
+		onOpenDm={(peer) => (dmPeer = peer)}
+		onInviteRoom={async (uid) => {
+			const targetName = members.find((m) => m.uid === uid)?.name || t('online.defaultPlayerName');
+			const ok = await sendRoomInvite(
+				uid,
+				roomCode,
+				identity.value || myProfile?.name || t('online.defaultPlayerName'),
+				identity.avatar
+			);
+			if (ok) toast.success(t('social.invitedToast', { name: targetName }));
+		}}
 	/>
 {/if}

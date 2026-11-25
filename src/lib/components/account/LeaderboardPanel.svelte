@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Trophy, Globe, MapPin, RefreshCw, EyeOff, Upload } from 'lucide-svelte';
+	import { Trophy, Globe, MapPin, RefreshCw, EyeOff, Upload, Users } from 'lucide-svelte';
 	import { t } from '$lib/i18n';
 	import {
 		filterLeadersByCountry,
@@ -8,8 +8,10 @@
 		type Leader,
 		type LeaderSort
 	} from '$lib/net/leaders';
+	import { followUser, unfollowUser } from '$lib/net/social';
 	import type { AccountState, Profile } from '$lib/net/account';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
+	import PublicProfileModal from './PublicProfileModal.svelte';
 
 	interface Props {
 		leaders: Leader[];
@@ -18,6 +20,8 @@
 		profile: Profile | null;
 		myScore: number;
 		myCountry?: string;
+		friendUids?: string[];
+		onOpenDm?: (peer: { uid: string; name: string; avatar?: string }) => void;
 		onRefresh: () => Promise<void> | void;
 		onPublish: () => Promise<boolean> | void;
 		onWithdraw: () => Promise<void> | void;
@@ -30,18 +34,29 @@
 		profile,
 		myScore,
 		myCountry = '',
+		friendUids = [],
+		onOpenDm,
 		onRefresh,
 		onPublish,
 		onWithdraw
 	}: Props = $props();
 
-	let scope = $state<'global' | 'country'>('global');
+	let scope = $state<'global' | 'friends' | 'country'>('global');
 	let sortBy = $state<LeaderSort>('score');
 	let busy = $state(false);
+	let selectedLeaderUid = $state<string | null>(null);
+	let localFriendUids = $derived(friendUids);
 
-	const scopedLeaders = $derived(
-		scope === 'country' && myCountry ? filterLeadersByCountry(leaders, myCountry) : leaders
-	);
+	const friendSet = $derived(new Set(localFriendUids));
+	const scopedLeaders = $derived.by(() => {
+		if (scope === 'friends') {
+			return leaders.filter((l) => l.uid === myUid || friendSet.has(l.uid));
+		}
+		if (scope === 'country' && myCountry) {
+			return filterLeadersByCountry(leaders, myCountry);
+		}
+		return leaders;
+	});
 	const sortedLeaders = $derived(sortLeaders(scopedLeaders, sortBy));
 	const myRank = $derived(findLeaderRank(sortedLeaders, myUid));
 	const isListed = $derived(Boolean(myUid && leaders.some((l) => l.uid === myUid)));
@@ -139,6 +154,19 @@
 				<Globe class="w-3.5 h-3.5" />
 				<span>{t('account.leaders.scopeGlobal')}</span>
 			</button>
+			{#if accountState === 'linked'}
+				<button
+					type="button"
+					onclick={() => (scope = 'friends')}
+					class="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer {scope ===
+					'friends'
+						? 'bg-sky-500/20 text-sky-200 border border-sky-500/40'
+						: 'bg-slate-900 text-slate-400 hover:text-slate-200'}"
+				>
+					<Users class="w-3.5 h-3.5" />
+					<span>{t('account.leaders.scopeFriends')}</span>
+				</button>
+			{/if}
 			{#if myCountry}
 				<button
 					type="button"
@@ -208,7 +236,15 @@
 
 					<Avatar avatar={leader.avatar ?? 'castle:amber'} size={28} />
 
-					<div class="flex-1 min-w-0">
+					<button
+						type="button"
+						onclick={() => {
+							if (!isMe) selectedLeaderUid = leader.uid;
+						}}
+						class="flex-1 min-w-0 text-left {isMe
+							? 'cursor-default'
+							: 'cursor-pointer hover:opacity-90'}"
+					>
 						<div class="flex items-center gap-2">
 							<span class="font-bold text-xs text-slate-100 truncate">{leader.name}</span>
 							{#if leader.level}
@@ -240,7 +276,7 @@
 								<span class="text-cyan-400">({computedWr}%)</span>
 							{/if}
 						</div>
-					</div>
+					</button>
 
 					<div class="text-right">
 						<span class="font-black text-xs text-amber-400 font-mono">{leader.score}</span>
@@ -251,3 +287,21 @@
 		</div>
 	{/if}
 </div>
+
+{#if selectedLeaderUid}
+	<PublicProfileModal
+		targetUid={selectedLeaderUid}
+		isFollowing={friendSet.has(selectedLeaderUid)}
+		onClose={() => (selectedLeaderUid = null)}
+		onToggleFollow={async (targetUid) => {
+			if (friendSet.has(targetUid)) {
+				const ok = await unfollowUser(targetUid);
+				if (ok) localFriendUids = localFriendUids.filter((id) => id !== targetUid);
+			} else {
+				const ok = await followUser(targetUid, profile);
+				if (ok) localFriendUids = [...localFriendUids, targetUid];
+			}
+		}}
+		{onOpenDm}
+	/>
+{/if}

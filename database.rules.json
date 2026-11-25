@@ -2,7 +2,7 @@
 	"rules": {
 		"__rulesVersion": {
 			"$v": {
-				".read": "auth != null && $v === 'fb6ad486ff50'"
+				".read": "auth != null && $v === '95319d3c4336'"
 			}
 		},
 		"rooms": {
@@ -585,6 +585,79 @@
 						".validate": false
 					}
 				},
+				"privacy": {
+					".read": "auth != null",
+					".write": "auth != null && $uid === auth.uid && auth.token.firebase.sign_in_provider !== 'anonymous'",
+					"search": {
+						".validate": "newData.isBoolean()"
+					},
+					"follow": {
+						".validate": "newData.isBoolean()"
+					},
+					"board": {
+						".validate": "newData.isBoolean()"
+					},
+					"onlineStatus": {
+						".validate": "newData.isBoolean()"
+					},
+					"$other": {
+						".validate": false
+					}
+				},
+				"following": {
+					".read": "auth != null && $uid === auth.uid",
+					"$targetUid": {
+						".write": "auth != null && ($uid === auth.uid || $targetUid === auth.uid) && auth.token.firebase.sign_in_provider !== 'anonymous'",
+						".validate": "newData.hasChildren(['at'])",
+						"at": {
+							".validate": "newData.isNumber() && newData.val() <= now && newData.val() > now - 60000"
+						},
+						"$other": {
+							".validate": false
+						}
+					}
+				},
+				"followers": {
+					".read": "auth != null && $uid === auth.uid",
+					"$whoUid": {
+						".write": "auth != null && ($whoUid === auth.uid || $uid === auth.uid) && auth.token.firebase.sign_in_provider !== 'anonymous' && (!newData.exists() || root.child('users').child($uid).child('privacy/follow').val() !== false)",
+						".validate": "newData.hasChildren(['at'])",
+						"at": {
+							".validate": "newData.isNumber() && newData.val() <= now && newData.val() > now - 60000"
+						},
+						"$other": {
+							".validate": false
+						}
+					}
+				},
+				"inbox": {
+					".read": "auth != null && $uid === auth.uid",
+					"$itemId": {
+						".write": "auth != null && (($uid === auth.uid && !newData.exists()) || (newData.exists() && newData.child('fromUid').val() === auth.uid && auth.token.firebase.sign_in_provider !== 'anonymous'))",
+						".validate": "newData.hasChildren(['type', 'fromUid', 'fromName', 'at'])",
+						"type": {
+							".validate": "newData.val() === 'follower' || newData.val() === 'room_invite'"
+						},
+						"fromUid": {
+							".validate": "newData.val() === auth.uid"
+						},
+						"fromName": {
+							".validate": "newData.isString() && newData.val().length <= 48"
+						},
+						"fromAvatar": {
+							".validate": "newData.isString() && newData.val().length <= 4096"
+						},
+						"roomCode": {
+							".validate": "newData.isString() && newData.val().matches(/^[0-9A-Z]{2,6}$/)"
+						},
+						"at": {
+							".validate": "newData.isNumber() && newData.val() <= now && newData.val() > now - 60000"
+						},
+						"$other": {
+							".validate": false
+						}
+					}
+				},
 				"$other": {
 					".validate": false
 				}
@@ -728,6 +801,68 @@
 							".validate": false
 						}
 					}
+				},
+				"$other": {
+					".validate": false
+				}
+			}
+		},
+		"find": {
+			".read": "auth != null && query.limitToFirst <= 20",
+			"$handle": {
+				".read": "auth != null",
+				".write": "auth != null && auth.token.firebase.sign_in_provider !== 'anonymous' && $handle.matches(/^[a-z0-9_]{3,20}$/) && (!newData.exists() ? data.child('uid').val() === auth.uid : newData.child('uid').val() === auth.uid && root.child('handles').child($handle).val() === auth.uid)",
+				".validate": "newData.hasChildren(['uid', 'name', 'handle'])",
+				"uid": {
+					".validate": "newData.val() === auth.uid"
+				},
+				"name": {
+					".validate": "newData.isString() && newData.val().length <= 48"
+				},
+				"handle": {
+					".validate": "newData.val() === $handle"
+				},
+				"country": {
+					".validate": "newData.isString() && newData.val().length === 2"
+				},
+				"avatar": {
+					".validate": "newData.isString() && newData.val().length <= 4096"
+				},
+				"search": {
+					".validate": "newData.isBoolean()"
+				},
+				"$other": {
+					".validate": false
+				}
+			}
+		},
+		"presenceGlobal": {
+			".read": "auth != null && query.limitToLast <= 30",
+			".indexOn": ["at"],
+			"$uid": {
+				".read": "auth != null",
+				".write": "auth != null && $uid === auth.uid",
+				".validate": "newData.hasChildren(['uid', 'name', 'at'])",
+				"uid": {
+					".validate": "newData.val() === auth.uid"
+				},
+				"name": {
+					".validate": "newData.isString() && newData.val().length <= 48"
+				},
+				"handle": {
+					".validate": "newData.isString() && newData.val().length <= 20"
+				},
+				"country": {
+					".validate": "newData.isString() && newData.val().length === 2"
+				},
+				"avatar": {
+					".validate": "newData.isString() && newData.val().length <= 4096"
+				},
+				"roomCode": {
+					".validate": "newData.isString() && newData.val().matches(/^[0-9A-Z]{2,6}$/)"
+				},
+				"at": {
+					".validate": "newData.isNumber() && newData.val() <= now && newData.val() > now - 60000"
 				},
 				"$other": {
 					".validate": false

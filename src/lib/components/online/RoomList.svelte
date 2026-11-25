@@ -1,15 +1,25 @@
 <script lang="ts">
 	import Avatar from '$lib/components/ui/Avatar.svelte';
 	import type { LobbyRoom } from '$lib/net/roomTypes';
-	import { Users, LogIn } from 'lucide-svelte';
+	import { Users, LogIn, Heart } from 'lucide-svelte';
 	import { t } from '$lib/i18n';
 
 	interface Props {
 		rooms: LobbyRoom[];
+		friendUids?: string[];
 		onJoin: (code: string) => void;
 	}
 
-	let { rooms = [], onJoin }: Props = $props();
+	let { rooms = [], friendUids = [], onJoin }: Props = $props();
+
+	const friendSet = $derived(new Set(friendUids));
+	const orderedRooms = $derived(
+		[...rooms].sort((a, b) => {
+			const aFriend = friendSet.has(a.hostUid) ? 0 : 1;
+			const bFriend = friendSet.has(b.hostUid) ? 0 : 1;
+			return aFriend - bFriend || b.createdAt - a.createdAt;
+		})
+	);
 </script>
 
 <div class="w-full max-w-xl mx-auto mt-6">
@@ -18,16 +28,16 @@
 	>
 		<Users class="w-4 h-4 text-sky-400" />
 		<span>{t('online.openRooms')}</span>
-		{#if rooms.length > 0}
+		{#if orderedRooms.length > 0}
 			<span
 				class="text-xs px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30 font-semibold"
 			>
-				{rooms.length}
+				{orderedRooms.length}
 			</span>
 		{/if}
 	</h3>
 
-	{#if rooms.length === 0}
+	{#if orderedRooms.length === 0}
 		<div
 			class="p-6 bg-slate-800/50 border border-dashed border-slate-700 rounded-xl text-center text-slate-400 text-sm"
 		>
@@ -35,15 +45,26 @@
 		</div>
 	{:else}
 		<div class="flex flex-col gap-2">
-			{#each rooms as room (room.code)}
+			{#each orderedRooms as room (room.code)}
+				{@const isFriendRoom = friendSet.has(room.hostUid)}
 				<div
-					class="flex items-center justify-between p-3 bg-slate-800/90 border border-slate-700/80 rounded-xl hover:border-slate-600 transition-colors"
+					class="flex items-center justify-between p-3 rounded-xl border transition-colors {isFriendRoom
+						? 'bg-amber-950/25 border-amber-500/50 hover:border-amber-400'
+						: 'bg-slate-800/90 border-slate-700/80 hover:border-slate-600'}"
 				>
 					<div class="flex items-center gap-3">
 						<Avatar avatar={room.hostAvatar} size={32} showDefault />
 						<div>
 							<div class="flex items-center gap-2">
 								<span class="font-bold text-slate-200 text-sm">{room.hostName}</span>
+								{#if isFriendRoom}
+									<span
+										class="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/50 text-amber-300 font-bold"
+									>
+										<Heart class="w-2.5 h-2.5" />
+										{t('social.friendBadge')}
+									</span>
+								{/if}
 								{#if room.hostCountry}
 									<span
 										class="text-[10px] px-1 bg-slate-900 border border-slate-700 rounded text-slate-400 font-mono"
