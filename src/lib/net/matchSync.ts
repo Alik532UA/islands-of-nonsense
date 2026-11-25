@@ -39,7 +39,7 @@ const IMMEDIATE_MOVE_TYPES = new Set([
 
 const TELEMETRY_MOVE_TYPES = new Set(['HEARTBEAT', 'CHECKSUM', 'CHAT', 'lead']);
 
-export function computeSimStateChecksum(sim: Simulation): string {
+export function computeSimStateSignature(sim: Simulation): { checksum: string; raw: string } {
 	const westHp = Math.round((sim.castles?.west?.hp ?? 0) * 10);
 	const eastHp = Math.round((sim.castles?.east?.hp ?? 0) * 10);
 	const playerSignatures = (
@@ -55,16 +55,24 @@ export function computeSimStateChecksum(sim: Simulation): string {
 	const buildingsHp = (sim.buildings ?? []).reduce((sum, b) => sum + Math.round(b.hp), 0);
 	const unitsCount = sim.units?.length ?? 0;
 	const unitsHp = (sim.units ?? []).reduce((sum, u) => sum + Math.round(u.hp), 0);
+	const unitsPos = (sim.units ?? []).reduce(
+		(sum, u) => (sum + Math.round(u.x) * 31 + Math.round(u.y) * 17) | 0,
+		0
+	);
 	const rngState = typeof sim.getRngState === 'function' ? sim.getRngState() : 0;
 
 	const cannonSig = `${sim.castleCannonUpgraded?.west ? 1 : 0}${sim.castleCannonUpgraded?.east ? 1 : 0}`;
 
-	const raw = `${sim.tick}:t${Math.round(sim.gameTime * 10)}:r${sim.round}:${sim.score.west}-${sim.score.east}:${sim.brokenBridge ?? 'none'}:${westHp},${eastHp}:${cannonSig}:${playerSignatures}:b${buildingsCount}/${buildingsHp}:u${unitsCount}/${unitsHp}:g${rngState}`;
+	const raw = `${sim.tick}:t${Math.round(sim.gameTime * 10)}:r${sim.round}:${sim.score.west}-${sim.score.east}:${sim.brokenBridge ?? 'none'}:${westHp},${eastHp}:${cannonSig}:${playerSignatures}:b${buildingsCount}/${buildingsHp}:u${unitsCount}/${unitsHp}/${unitsPos}:g${rngState}`;
 	let hash = 5381;
 	for (let i = 0; i < raw.length; i++) {
 		hash = ((hash << 5) + hash + raw.charCodeAt(i)) & 0xffffffff;
 	}
-	return (hash >>> 0).toString(16);
+	return { checksum: (hash >>> 0).toString(16), raw };
+}
+
+export function computeSimStateChecksum(sim: Simulation): string {
+	return computeSimStateSignature(sim).checksum;
 }
 
 /**
@@ -102,9 +110,11 @@ export class MatchSync {
 	private peerSeen = new Map<string, number>();
 	private peerRtt = new Map<string, number>();
 	private checksumHistory = new Map<number, string>();
+	private rawHistory = new Map<number, string>();
 	private pendingRemoteChecksums = new Map<number, { peerUid: string; checksum: string }[]>();
 	private pendingMoves: Move[] = [];
 	private appliedHistory: Move[] = [];
+	private syncLog: string[] = [];
 	private lastDispatchMs = 0;
 	private lastDesyncResyncTick = -1;
 
@@ -147,6 +157,44 @@ export class MatchSync {
 		);
 	}
 
+	private logSyncEvent(event: string, data?: Record<string, unknown>) {
+		const entry = data
+			? `[t=${this.sim.tick}] ${event} ${JSON.stringify(data)}`
+			: `[t=${this.sim.tick}] ${event}`;
+		this.syncLog.push(entry);
+		if (this.syncLog.length > 250) {
+			this.syncLog.shift();
+		}
+	}
+
+	getForensicLog(): string {
+		const sig = computeSimStateSignature(this.sim);
+		const historyLines = this.appliedHistory.slice(-60).map((m) =>
+			JSON.stringify({
+				seq: m.seq,
+				by: m.by.slice(0, 8),
+				type: m.type,
+				at: m.at ?? null,
+				tick: m.payload?.tick ?? null,
+				slot: m.payload?.playerSlot ?? null,
+				team: m.payload?.team ?? null,
+				race: m.payload?.race ?? null,
+				bld: m.payload?.buildingType ?? null,
+				x: m.payload?.x ?? null,
+				y: m.payload?.y ?? null
+			})
+		);
+		return [
+			`localUid=${this.localUid} team=${this.localTeam} slot=${this.localSlot} running=${this.sim.isRunning}`,
+			`uidToSlot=${JSON.stringify(Object.fromEntries(this.uidToSlot))}`,
+			`currentSig=${sig.checksum} raw=${sig.raw}`,
+			`--- SYNC EVENTS (${this.syncLog.length}) ---`,
+			...this.syncLog,
+			`--- APPLIED HISTORY (last ${historyLines.length}/${this.appliedHistory.length}) ---`,
+			...historyLines
+		].join('\n');
+	}
+
 	setSimulation(sim: Simulation) {
 		this.sim = sim;
 		this.hydrated = false;
@@ -155,8 +203,10 @@ export class MatchSync {
 		this.pendingMoves = [];
 		this.appliedHistory = [];
 		this.checksumHistory.clear();
+		this.rawHistory.clear();
 		this.pendingRemoteChecksums.clear();
 		this.lastDesyncResyncTick = -1;
+		this.logSyncEvent('SET_SIM', { raw: computeSimStateSignature(sim).raw });
 	}
 
 	setRosterSlots(mapping: Record<string, number>) {
@@ -223,12 +273,14 @@ export class MatchSync {
 	 */
 	recordCheckpointChecksum(): string {
 		const tick = this.sim.tick;
-		const sum = this.getSimChecksum();
+		const { checksum: sum, raw } = computeSimStateSignature(this.sim);
 		this.checksumHistory.set(tick, sum);
+		this.rawHistory.set(tick, raw);
 		if (this.checksumHistory.size > MAX_CHECKPOINT_HISTORY) {
 			const oldestKey = this.checksumHistory.keys().next().value;
 			if (oldestKey !== undefined) {
 				this.checksumHistory.delete(oldestKey);
+				this.rawHistory.delete(oldestKey);
 			}
 		}
 
@@ -378,11 +430,13 @@ export class MatchSync {
 		}
 
 		if (needsLateResync) {
+			this.logSyncEvent('LATE_RESYNC', { targetTick: resyncTargetTick });
 			this.resyncSimulationToTick(resyncTargetTick);
 		}
 	}
 
 	private replayHistoricalBatch(sorted: Move[]) {
+		this.logSyncEvent('HYDRATE_BATCH_START', { count: sorted.length });
 		const validMoves: Move[] = [];
 		for (const rawMove of sorted) {
 			if (this.processedSeqs.has(rawMove.seq)) continue;
@@ -406,6 +460,13 @@ export class MatchSync {
 	}
 
 	private handleChecksumMismatch(tick: number, localChecksum: string, remoteChecksum: string) {
+		const rawAtTick = this.rawHistory.get(tick) ?? computeSimStateSignature(this.sim).raw;
+		this.logSyncEvent('CHECKSUM_MISMATCH', {
+			mismatchTick: tick,
+			localChecksum,
+			remoteChecksum,
+			rawAtTick
+		});
 		const canAttemptRecovery =
 			Boolean(this.createResyncSimulation) &&
 			!this.resyncInProgress &&
@@ -420,11 +481,13 @@ export class MatchSync {
 		const targetTick = this.sim.tick;
 		this.lastDesyncResyncTick = targetTick;
 		let verifiedChecksumAtTick: string | null = null;
+		let verifiedRawAtTick: string | null = null;
 
 		const resynced = this.resyncSimulationToTick(targetTick, {
 			tick,
 			onTickReached: (checksum) => {
 				verifiedChecksumAtTick = checksum;
+				verifiedRawAtTick = computeSimStateSignature(this.sim).raw;
 			}
 		});
 
@@ -434,6 +497,12 @@ export class MatchSync {
 		}
 
 		const postResyncChecksum = verifiedChecksumAtTick ?? this.getSimChecksum();
+		this.logSyncEvent('CHECKSUM_POST_RESYNC', {
+			mismatchTick: tick,
+			verifiedChecksum: postResyncChecksum,
+			remoteChecksum,
+			verifiedRawAtTick
+		});
 		if (verifiedChecksumAtTick !== null && verifiedChecksumAtTick !== remoteChecksum) {
 			this.onDesync?.({
 				tick,
@@ -456,8 +525,13 @@ export class MatchSync {
 			this.sim = freshSim;
 			this.pendingMoves = [];
 			this.checksumHistory.clear();
+			this.rawHistory.clear();
 			this.pendingRemoteChecksums.clear();
 			this.replayMovesThroughCurrentSim(this.appliedHistory, targetTick, false, verifyCheckpoint);
+			this.logSyncEvent('RESYNC_DONE', {
+				targetTick,
+				raw: computeSimStateSignature(this.sim).raw
+			});
 			this.onSimResynced?.(this.sim);
 			return true;
 		} finally {

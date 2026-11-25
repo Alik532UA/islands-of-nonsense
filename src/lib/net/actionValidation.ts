@@ -219,6 +219,7 @@ export function validatePlayerMove(raw: unknown): ValidationResult {
 			seq: m.seq,
 			by: m.by.trim(),
 			type: m.type,
+			...(typeof m.at === 'number' && Number.isFinite(m.at) ? { at: m.at } : {}),
 			payload: sanitizedPayload
 		}
 	};

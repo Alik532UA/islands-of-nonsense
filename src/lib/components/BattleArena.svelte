@@ -442,7 +442,27 @@
 	let peerOnline = $state(false);
 	let peerPingMs = $state<number | null>(null);
 	let networkNotice = $state<string | null>(null);
+	let desyncLogCopied = $state(false);
+	let desyncCopyTimer: ReturnType<typeof setTimeout> | null = null;
 	const heldPanKeys = new Set<string>();
+
+	function handleCopyDesyncLog() {
+		const report = onlineSession?.getSyncDiagnosticLog() ?? networkNotice ?? '';
+		if (!report) return;
+		const markCopied = () => {
+			desyncLogCopied = true;
+			if (desyncCopyTimer) clearTimeout(desyncCopyTimer);
+			desyncCopyTimer = setTimeout(() => {
+				desyncLogCopied = false;
+			}, 2500);
+		};
+		if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+			void navigator.clipboard
+				.writeText(report)
+				.then(markCopied)
+				.catch(() => {});
+		}
+	}
 
 	function syncKeyboardPan() {
 		const allowWasd = settings.controlPreset === 'islands-of-nonsense';
@@ -1735,20 +1755,25 @@
 		{/if}
 
 		{#if matchSync}
+			{@const isDesyncNotice = Boolean(networkNotice?.includes('розсинхронізація'))}
 			<div
 				class="absolute {isOnlineSpectator
 					? 'top-24'
-					: 'top-16'} left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-md shadow-md border pointer-events-none {peerOnline
-					? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-300'
-					: 'bg-amber-950/80 border-amber-500/40 text-amber-300'}"
+					: 'top-16'} left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-md shadow-md border {isDesyncNotice
+					? 'pointer-events-auto bg-rose-950/90 border-rose-500/60 text-rose-200'
+					: peerOnline
+						? 'pointer-events-none bg-emerald-950/80 border-emerald-500/40 text-emerald-300'
+						: 'pointer-events-none bg-amber-950/80 border-amber-500/40 text-amber-300'}"
 			>
 				<span
-					class="inline-block w-2 h-2 rounded-full {peerOnline
-						? 'bg-emerald-400 animate-pulse'
-						: 'bg-amber-400'}"
+					class="inline-block w-2 h-2 rounded-full {isDesyncNotice
+						? 'bg-rose-400 animate-ping'
+						: peerOnline
+							? 'bg-emerald-400 animate-pulse'
+							: 'bg-amber-400'}"
 				></span>
 				<span>
-					{#if networkNotice?.includes('розсинхронізація')}
+					{#if isDesyncNotice}
 						{networkNotice}
 					{:else if isOnlineSpectator}
 						{t('online.spectator.badge')}{peerPingMs !== null ? ` · ${peerPingMs} мс` : ''}
@@ -1761,6 +1786,16 @@
 						{networkNotice ?? 'Очікування суперника...'}
 					{/if}
 				</span>
+				{#if isDesyncNotice}
+					<button
+						type="button"
+						onclick={handleCopyDesyncLog}
+						data-testid="copy-desync-log-btn"
+						class="ml-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/25 hover:bg-rose-500/40 border border-rose-400/50 text-rose-100 transition-colors cursor-pointer"
+					>
+						{desyncLogCopied ? 'Скопійовано ✓' : 'Копіювати лог'}
+					</button>
+				{/if}
 			</div>
 		{/if}
 

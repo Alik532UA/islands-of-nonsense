@@ -835,4 +835,95 @@ describe('Online Deterministic Parity & Team Slot Sync', () => {
 		syncB.dispose();
 		syncC.dispose();
 	});
+
+	it('preserves server move.at and maintains 4-player (2v2) parity over 2400 ticks with commanders, spells, and late resyncs', async () => {
+		const validated = validatePlayerMove({
+			seq: 1,
+			by: 'u_west_1',
+			type: 'RESUME',
+			at: 1_700_000_123,
+			payload: { tick: 0 }
+		});
+		expect(validated.valid).toBe(true);
+		expect(validated.sanitized?.at).toBe(1_700_000_123);
+
+		const info2v2: RoomInfo = {
+			...baseInfo,
+			seed: 88888,
+			roster: [
+				{ uid: 'u_west_1', name: 'W1', team: 'west', slot: 1, race: 'Альянс' },
+				{ uid: 'u_west_2', name: 'W2', team: 'west', slot: 3, race: 'Ельфи' },
+				{ uid: 'u_east_1', name: 'E1', team: 'east', slot: 2, race: 'Орки' },
+				{ uid: 'u_east_2', name: 'E2', team: 'east', slot: 4, race: 'Нежить' }
+			]
+		};
+		const room = new LocalRoom(info2v2, members);
+		const peers = (['u_west_1', 'u_west_2', 'u_east_1', 'u_east_2'] as const).map((uid, idx) => {
+			const init = createOnlineSimulation(info2v2, members, uid);
+			for (const p of init.sim.allPlayers) {
+				p.gold = 3000;
+				p.lumber = 3000;
+			}
+			const state = { sim: init.sim, desyncs: [] as number[] };
+			const sync = new MatchSync({
+				sim: state.sim,
+				transport: room.transport({ as: uid }),
+				localUid: uid,
+				localTeam: init.localTeam,
+				localSlot: init.localSlot,
+				uidToSlot: init.uidToSlot,
+				commandLeadTicks: 24,
+				createResyncSimulation: () => {
+					const fresh = createOnlineSimulation(info2v2, members, uid).sim;
+					for (const p of fresh.allPlayers) {
+						p.gold = 3000;
+						p.lumber = 3000;
+					}
+					return fresh;
+				},
+				onSimResynced: (nextSim) => {
+					state.sim = nextSim;
+				},
+				onDesync: (info) => state.desyncs.push(info.tick)
+			});
+			return { uid, idx, state, sync };
+		});
+
+		// All 4 players build barracks and commander hall
+		await peers[0].sync.dispatch('BUILD', { buildingType: 'h000', x: 24, y: 18 });
+		await peers[1].sync.dispatch('BUILD', { buildingType: 'h00S', x: 20, y: 24 });
+		await peers[2].sync.dispatch('BUILD', { buildingType: 'h029', x: 24, y: 18 });
+		await peers[3].sync.dispatch('BUILD', { buildingType: 'h01K', x: 20, y: 24 });
+		await peers[0].sync.dispatch('BUILD', { buildingType: 'cg12_commander', x: 28, y: 18 });
+		await peers[2].sync.dispatch('BUILD', { buildingType: 'cg12_commander', x: 28, y: 18 });
+
+		for (let t = 0; t < 2400; t++) {
+			if (t === 600) {
+				await peers[0].sync.dispatch('SELECT_COMMANDER', { commanderId: 'random' });
+				await peers[2].sync.dispatch('SELECT_COMMANDER', { commanderId: 'random' });
+			}
+			if (t === 900) {
+				await peers[2].sync.dispatch('CASTLE_SHOT', { targetId: 'short' });
+			}
+			if (t === 1200) {
+				await peers[0].sync.dispatch('RESCUE_STRIKE');
+			}
+			for (const p of peers) {
+				p.sync.flushTick(p.state.sim.tick);
+				p.state.sim.step(1 / 60);
+			}
+			if (t > 0 && t % 450 === 0) {
+				for (const p of peers) {
+					await p.sync.broadcastChecksum();
+				}
+			}
+		}
+
+		const refSum = computeSimStateChecksum(peers[0].state.sim);
+		for (const p of peers) {
+			expect(p.state.desyncs).toEqual([]);
+			expect(computeSimStateChecksum(p.state.sim)).toBe(refSum);
+			p.sync.dispose();
+		}
+	});
 });

@@ -42,6 +42,7 @@ export interface OnlineBattleSession {
 	readonly isCountdownCoordinator: boolean;
 	getTargetTick: () => number | null;
 	getCountdownRemainingSec: () => number | null;
+	getSyncDiagnosticLog: () => string;
 	dispose: () => void;
 }
 
@@ -97,7 +98,8 @@ export async function startOnlineBattleSession(
 	let stopPresenceWatch: (() => void) | null = null;
 	let stopRoomWatch: (() => void) | null = null;
 	let heartbeatDelayTimer: ReturnType<typeof setTimeout> | null = null;
-	let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+	let heartbeatTimer: ReturnType<typeof setTimeout> | null = null;
+	let disposed = false;
 	let sync: MatchSync | null = null;
 
 	try {
@@ -241,12 +243,13 @@ export async function startOnlineBattleSession(
 				callbacks.onDesync(tick);
 			},
 			onGone: (reason) => {
+				disposed = true;
 				if (heartbeatDelayTimer) {
 					clearTimeout(heartbeatDelayTimer);
 					heartbeatDelayTimer = null;
 				}
 				if (heartbeatTimer) {
-					clearInterval(heartbeatTimer);
+					clearTimeout(heartbeatTimer);
 					heartbeatTimer = null;
 				}
 				callbacks.onGone(reason);
@@ -313,11 +316,20 @@ export async function startOnlineBattleSession(
 				void sync.sendHeartbeat();
 			}
 		};
-		// Stagger heartbeat phase across slots so peers don't collide on identical seq numbers every 12s
-		const heartbeatOffsetMs = ((Math.max(1, localSlot) - 1) % 7) * 1700;
+		// Stagger heartbeat phase across slots + per-client jitter so peers/tabs never phase-lock on identical seqs
+		const scheduleNextHeartbeat = () => {
+			if (disposed) return;
+			const nextDelayMs = 11_500 + Math.floor(Math.random() * 1_500);
+			heartbeatTimer = setTimeout(() => {
+				sendBeatIfActive();
+				scheduleNextHeartbeat();
+			}, nextDelayMs);
+		};
+		const heartbeatOffsetMs =
+			((Math.max(1, localSlot) - 1) % 7) * 1700 + Math.floor(Math.random() * 900);
 		heartbeatDelayTimer = setTimeout(() => {
 			sendBeatIfActive();
-			heartbeatTimer = setInterval(sendBeatIfActive, 12_000);
+			scheduleNextHeartbeat();
 		}, heartbeatOffsetMs);
 
 		const createdSync = sync;
@@ -347,7 +359,30 @@ export async function startOnlineBattleSession(
 				);
 				return Math.max(0, 15 - elapsedSec);
 			},
+			getSyncDiagnosticLog() {
+				const targetTick = getTargetTickInternal();
+				const membersSummary = latestMembers.map((m) => ({
+					uid: m.uid.slice(0, 8),
+					name: m.name,
+					role: m.role,
+					team: m.team ?? null,
+					slot: m.slot ?? null,
+					race: m.race ?? null,
+					order: m.order
+				}));
+				return [
+					`=== ONLINE DESYNC DIAGNOSTIC LOG ===`,
+					`date=${new Date().toISOString()} room=${roomCode} isHostHint=${isHostHint} isSpectator=${isSpectator}`,
+					`seed=${latestRoomInfo?.seed ?? 'none'} status=${latestRoomInfo?.status ?? 'none'} startedAt=${latestRoomInfo?.startedAt ?? 'none'}`,
+					`epochAnchor=${epochAnchorServerMs} pausedAt=${pausedAtServerMs} targetTick=${targetTick} simTick=${activeSim.tick}`,
+					`config=${JSON.stringify(latestRoomInfo?.config ?? null)}`,
+					`roster=${JSON.stringify(latestRoomInfo?.roster ?? null)}`,
+					`members=${JSON.stringify(membersSummary)}`,
+					createdSync.getForensicLog()
+				].join('\n');
+			},
 			dispose() {
+				disposed = true;
 				stopPresenceTrack?.();
 				stopPresenceTrack = null;
 				stopPresenceWatch?.();
@@ -359,18 +394,19 @@ export async function startOnlineBattleSession(
 					heartbeatDelayTimer = null;
 				}
 				if (heartbeatTimer) {
-					clearInterval(heartbeatTimer);
+					clearTimeout(heartbeatTimer);
 					heartbeatTimer = null;
 				}
 				createdSync.dispose();
 			}
 		};
 	} catch (err) {
+		disposed = true;
 		stopPresenceTrack?.();
 		stopPresenceWatch?.();
 		stopRoomWatch?.();
 		if (heartbeatDelayTimer) clearTimeout(heartbeatDelayTimer);
-		if (heartbeatTimer) clearInterval(heartbeatTimer);
+		if (heartbeatTimer) clearTimeout(heartbeatTimer);
 		sync?.dispose();
 
 		logService.warn('network', 'Failed to connect room match sync', { err: String(err) });
