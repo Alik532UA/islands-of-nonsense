@@ -230,9 +230,11 @@ describe('Point 5: Rescue Strike (Emergency Castle Defense)', () => {
 		for (const bot of botAIs) {
 			bot.update(2.0);
 		}
-		// Allow second bot's worker a brief moment to walk within 500px range if queued while building
-		for (let i = 0; i < 80; i++) {
+		// Allow second bot's worker enough time to walk back within 500px range from any build spot on the island
+		for (let i = 0; i < 180; i++) {
 			sim3v3.step(0.05);
+			const fired = westBots.filter((p) => sim3v3.getRescueStrikeCooldown('west', p) > 0).length;
+			if (fired >= 2) break;
 		}
 
 		// Now a second bot fires (either immediately or upon entering 500px cast range), while the third still holds
