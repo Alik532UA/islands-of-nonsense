@@ -754,9 +754,24 @@
 		let lastTime = performance.now();
 		let lastUiTickTime = 0;
 		let lastStateVersion = -1;
-		let lastChecksumTick = -1;
+		let lastCheckpointTick = -1;
 		let accumulator = 0;
 		const FIXED_STEP = 1 / 60;
+
+		function maybeSyncChecksum(serverTargetTick: number | null) {
+			if (!matchSync || sim.tick <= 0 || sim.tick === lastCheckpointTick) return;
+			if (sim.tick % 30 !== 0) return;
+			lastCheckpointTick = sim.tick;
+
+			// Stagger CHECKSUM broadcasts per slot (0.5s apart) so synchronized peers never collide on RTDB move seqs
+			const slotOffset = ((Math.max(1, matchSync.localSlot) - 1) * 30) % 300;
+			const isNearLive = serverTargetTick === null || serverTargetTick - sim.tick <= 30;
+			if (sim.tick % 300 === slotOffset && isNearLive) {
+				void matchSync.broadcastChecksum();
+			} else {
+				matchSync.recordCheckpointChecksum();
+			}
+		}
 
 		function gameLoop(now: number) {
 			const rawDelta = Math.min(0.25, (now - lastTime) / 1000);
@@ -778,10 +793,7 @@
 					while (sim.tick < serverTargetTick && stepsCount < maxCatchupSteps) {
 						matchSync.flushTick(sim.tick);
 						sim.step(FIXED_STEP);
-						if (sim.tick > 0 && sim.tick % 300 === 0 && sim.tick !== lastChecksumTick) {
-							lastChecksumTick = sim.tick;
-							void matchSync.broadcastChecksum();
-						}
+						maybeSyncChecksum(serverTargetTick);
 						stepsCount++;
 					}
 					accumulator = 0;
@@ -795,15 +807,7 @@
 							matchSync.flushTick(sim.tick);
 						}
 						sim.step(subDt);
-						if (
-							matchSync &&
-							sim.tick > 0 &&
-							sim.tick % 300 === 0 &&
-							sim.tick !== lastChecksumTick
-						) {
-							lastChecksumTick = sim.tick;
-							void matchSync.broadcastChecksum();
-						}
+						maybeSyncChecksum(null);
 						accumulator -= subDt;
 						stepsCount++;
 					}
