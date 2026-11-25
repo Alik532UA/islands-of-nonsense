@@ -24,6 +24,8 @@
 	import CreateWindow from '$lib/components/online/CreateWindow.svelte';
 	import JoinWindow from '$lib/components/online/JoinWindow.svelte';
 	import RoomList from '$lib/components/online/RoomList.svelte';
+	import GlobalChatDrawer from '$lib/components/chat/GlobalChatDrawer.svelte';
+	import DmDrawer from '$lib/components/chat/DmDrawer.svelte';
 
 	const player = new PlayerIdentity();
 
@@ -32,6 +34,8 @@
 	let busy = $state(false);
 	let errorMessage = $state<string | null>(null);
 	let rooms = $state<LobbyRoom[]>([]);
+	let myUid = $state<string | null>(null);
+	let dmPeer = $state<{ uid: string; name: string; avatar?: string } | null>(null);
 	let searchController: AbortController | null = null;
 
 	$effect(() => {
@@ -45,7 +49,8 @@
 		let unsubscribeLobby = () => {};
 
 		void connect()
-			.then(({ db }) => {
+			.then(({ db, uid }) => {
+				myUid = uid;
 				unsubscribeLobby = subscribeLobby(db, (updated) => {
 					rooms = updated;
 				});
@@ -309,6 +314,14 @@
 		<!-- Open Rooms List -->
 		<RoomList {rooms} onJoin={handleJoin} />
 
+		<!-- Global Lobby Chat -->
+		<GlobalChatDrawer
+			senderName={player.value || t('online.defaultPlayerName')}
+			senderAvatar={player.avatar}
+			{myUid}
+			onOpenDm={(peer) => (dmPeer = peer)}
+		/>
+
 		<div class="menu-links mt-8">
 			<a href={resolve('/')} class="menu-btn menu-btn--link" data-testid="online-back-link">
 				<ArrowLeft class="menu-link__icon" />
@@ -317,3 +330,15 @@
 		</div>
 	{/if}
 </div>
+
+{#if dmPeer && myUid}
+	<DmDrawer
+		peerUid={dmPeer.uid}
+		peerName={dmPeer.name}
+		peerAvatar={dmPeer.avatar}
+		{myUid}
+		myName={player.value || t('online.defaultPlayerName')}
+		myAvatar={player.avatar}
+		onClose={() => (dmPeer = null)}
+	/>
+{/if}

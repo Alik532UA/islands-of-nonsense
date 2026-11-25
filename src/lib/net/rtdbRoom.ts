@@ -456,7 +456,8 @@ export async function kickMember(code: string, targetUid: string): Promise<void>
 export async function sendChatMessage(
 	code: string,
 	senderName: string,
-	text: string
+	text: string,
+	options: { avatar?: string; kind?: 'text' | 'emote' | 'system'; emote?: string } = {}
 ): Promise<boolean> {
 	const cleanText = text.trim().slice(0, 200);
 	if (!cleanText) return false;
@@ -472,6 +473,9 @@ export async function sendChatMessage(
 			[`chat/${msgKey}`]: {
 				senderUid: uid,
 				senderName: senderName.slice(0, 48),
+				...(options.avatar ? { senderAvatar: options.avatar } : {}),
+				...(options.kind ? { kind: options.kind } : {}),
+				...(options.emote ? { emote: options.emote.slice(0, 16) } : {}),
 				text: cleanText,
 				at: stamp
 			},

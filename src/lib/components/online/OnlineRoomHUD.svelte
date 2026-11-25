@@ -26,10 +26,14 @@
 		Ban,
 		Trophy,
 		AlertTriangle,
-		ArrowLeftRight
+		ArrowLeftRight,
+		VolumeX
 	} from 'lucide-svelte';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
 	import { resolveRoomMemberAvatars } from '$lib/utils/roomAvatars';
+	import { QUICK_EMOTES, type ChatKind } from '$lib/net/chat';
+	import { chatModeration } from '$lib/services/chatModeration.svelte';
+	import DmDrawer from '$lib/components/chat/DmDrawer.svelte';
 	import { connect } from '$lib/net/firebase';
 	import { liveNet } from '$lib/net/roomNet';
 	import { probeNetProblem } from '$lib/utils/netProblem';
@@ -68,6 +72,9 @@
 		id: string;
 		senderUid: string;
 		senderName: string;
+		senderAvatar?: string;
+		kind?: ChatKind;
+		emote?: string;
 		text: string;
 		at: number;
 	}
@@ -86,6 +93,10 @@
 	let chatOpen = $state(false);
 	let chatInput = $state('');
 	let messages = $state<ChatMessage[]>([]);
+	let seenChatCount = $state(0);
+	let floatingEmote = $state<{ senderName: string; emote: string } | null>(null);
+	let dmPeer = $state<{ uid: string; name: string; avatar?: string } | null>(null);
+	let emoteTimer: ReturnType<typeof setTimeout> | null = null;
 	let roomError = $state<string | null>(null);
 	let hasSeenSelfMember = $state(false);
 	let leavingIntentional = $state(false);
@@ -161,6 +172,16 @@
 	);
 	let humanClaimedColorIds = $derived(getHumanClaimedColorIds(members));
 	let resolvedAvatars = $derived(resolveRoomMemberAvatars(members));
+	let visibleMessages = $derived(messages.filter((m) => !chatModeration.isMuted(m.senderUid)));
+	let unreadChatCount = $derived(
+		chatOpen ? 0 : Math.max(0, visibleMessages.length - seenChatCount)
+	);
+
+	$effect(() => {
+		if (chatOpen) {
+			seenChatCount = visibleMessages.length;
+		}
+	});
 
 	onMount(() => {
 		let stopPresence = () => {};
@@ -186,12 +207,19 @@
 
 				const currentMembers = (await liveNet.peekMembers(roomCode)) ?? [];
 				if (!currentMembers.some((m) => m.uid === uid)) {
+					const joinName = identity.forEntry(settings.locale);
 					await liveNet.joinRoom(roomCode, {
-						name: identity.forEntry(settings.locale),
+						name: joinName,
 						role: currentInfo.status === 'playing' ? 'spectator' : 'player',
 						country: identity.country,
 						avatar: identity.avatar
 					});
+					void liveNet
+						.sendChatMessage(roomCode, joinName, t('chat.systemJoined', { name: joinName }), {
+							avatar: identity.avatar,
+							kind: 'system'
+						})
+						.catch(() => {});
 				}
 
 				const rt = await liveNet.roomTransport(roomCode);
@@ -228,6 +256,7 @@
 				if (!active) return;
 				const chatQuery = query(ref(db, `rooms/${roomCode}/chat`), limitToLast(30));
 				const seenMessageIds = new Set<string>();
+				let initialChatLoaded = false;
 				stopChat = onChildAdded(chatQuery, (snap) => {
 					const id = snap.key;
 					const val = snap.val() as Omit<ChatMessage, 'id'> | null;
@@ -236,7 +265,23 @@
 					messages = [...messages, { id, ...val }]
 						.sort((a, b) => (a.at ?? 0) - (b.at ?? 0))
 						.slice(-30);
+					if (chatOpen) {
+						seenChatCount = messages.filter((m) => !chatModeration.isMuted(m.senderUid)).length;
+					}
+					if (initialChatLoaded && val.kind === 'emote' && !chatModeration.isMuted(val.senderUid)) {
+						floatingEmote = {
+							senderName: val.senderName,
+							emote: val.emote ?? val.text
+						};
+						if (emoteTimer) clearTimeout(emoteTimer);
+						emoteTimer = setTimeout(() => {
+							floatingEmote = null;
+						}, 2600);
+					}
 				});
+				setTimeout(() => {
+					initialChatLoaded = true;
+				}, 600);
 			} catch (err) {
 				const problem = await probeNetProblem(err).catch(() => null);
 				roomError =
@@ -452,7 +497,23 @@
 		if (!text || !localUid) return;
 		chatInput = '';
 		try {
-			await liveNet.sendChatMessage(roomCode, identity.forEntry(settings.locale), text);
+			await liveNet.sendChatMessage(roomCode, identity.forEntry(settings.locale), text, {
+				avatar: identity.avatar,
+				kind: 'text'
+			});
+		} catch {
+			// Ignore transient chat write failure
+		}
+	}
+
+	async function sendRoomEmote(emote: string) {
+		if (!localUid) return;
+		try {
+			await liveNet.sendChatMessage(roomCode, identity.forEntry(settings.locale), emote, {
+				avatar: identity.avatar,
+				kind: 'emote',
+				emote
+			});
 		} catch {
 			// Ignore transient chat write failure
 		}
@@ -571,11 +632,17 @@
 					>
 						<MessageSquare class="w-4 h-4 text-sky-400" />
 						<span class="hidden sm:inline">Чат</span>
-						{#if messages.length > 0}
+						{#if unreadChatCount > 0}
+							<span
+								class="px-1.5 py-0.5 rounded-[4px] bg-amber-500 text-slate-950 text-[10px] font-black leading-none"
+							>
+								{unreadChatCount}
+							</span>
+						{:else if visibleMessages.length > 0}
 							<span
 								class="px-1.5 py-0.5 rounded-[4px] bg-sky-500/25 text-sky-200 text-[10px] font-mono leading-none"
 							>
-								{messages.length}
+								{visibleMessages.length}
 							</span>
 						{/if}
 					</button>
@@ -605,17 +672,69 @@
 				<div
 					class="mb-3 rounded-[10px] bg-[#0b0f18] border border-sky-500/40 p-2.5 space-y-2 shadow-inner"
 				>
-					<div class="max-h-28 overflow-y-auto space-y-1 text-xs pr-1">
-						{#if messages.length === 0}
+					<div class="max-h-32 overflow-y-auto space-y-1 text-xs pr-1">
+						{#if visibleMessages.length === 0}
 							<div class="text-slate-500 italic">{t('online.hud.noMessages')}</div>
 						{:else}
-							{#each messages as msg (msg.id)}
-								<div class="break-words">
-									<span class="font-bold text-amber-300">{msg.senderName}:</span>
-									<span class="text-slate-200"> {msg.text}</span>
-								</div>
+							{#each visibleMessages as msg (msg.id)}
+								{#if msg.kind === 'system'}
+									<div class="text-[11px] italic text-sky-300/90 py-0.5">{msg.text}</div>
+								{:else}
+									<div class="flex items-start justify-between gap-1.5 break-words group">
+										<div class="min-w-0">
+											<span class="font-bold text-amber-300">{msg.senderName}:</span>
+											{#if msg.kind === 'emote'}
+												<span class="text-sm ml-1">{msg.emote ?? msg.text}</span>
+											{:else}
+												<span class="text-slate-200">
+													{chatModeration.sanitizeText(msg.text)}
+												</span>
+											{/if}
+										</div>
+										{#if localUid && msg.senderUid !== localUid}
+											<div
+												class="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shrink-0"
+											>
+												<button
+													type="button"
+													onclick={() =>
+														(dmPeer = {
+															uid: msg.senderUid,
+															name: msg.senderName,
+															avatar: msg.senderAvatar
+														})}
+													class="p-0.5 rounded hover:bg-slate-800 text-slate-400 hover:text-sky-300 cursor-pointer"
+													title={t('chat.openDm')}
+													aria-label={t('chat.openDm')}
+												>
+													<MessageSquare class="w-3 h-3" />
+												</button>
+												<button
+													type="button"
+													onclick={() => chatModeration.toggleMute(msg.senderUid)}
+													class="p-0.5 rounded hover:bg-slate-800 text-slate-400 hover:text-rose-300 cursor-pointer"
+													title={t('chat.muteUser')}
+													aria-label={t('chat.muteUser')}
+												>
+													<VolumeX class="w-3 h-3" />
+												</button>
+											</div>
+										{/if}
+									</div>
+								{/if}
 							{/each}
 						{/if}
+					</div>
+					<div class="flex flex-wrap gap-1">
+						{#each QUICK_EMOTES as em (em)}
+							<button
+								type="button"
+								onclick={() => void sendRoomEmote(em)}
+								class="px-1.5 py-0.5 rounded bg-[#141a26] hover:bg-slate-800 border border-slate-700 text-[11px] cursor-pointer"
+							>
+								{em}
+							</button>
+						{/each}
 					</div>
 					<form onsubmit={sendChat} class="flex gap-1.5">
 						<input
@@ -1201,10 +1320,17 @@
 		<button
 			type="button"
 			onclick={() => (chatOpen = !chatOpen)}
-			class="min-h-[44px] min-w-[44px] p-2 rounded hover:bg-slate-800 text-sky-300 cursor-pointer flex items-center justify-center"
+			class="relative min-h-[44px] min-w-[44px] p-2 rounded hover:bg-slate-800 text-sky-300 cursor-pointer flex items-center justify-center"
 			aria-label={t('online.hud.roomChatLabel')}
 		>
 			<MessageSquare class="w-4 h-4" />
+			{#if unreadChatCount > 0}
+				<span
+					class="absolute top-1 right-1 px-1 rounded-full bg-amber-500 text-slate-950 text-[9px] font-black leading-tight"
+				>
+					{unreadChatCount}
+				</span>
+			{/if}
 		</button>
 		<button
 			type="button"
@@ -1225,21 +1351,65 @@
 		</div>
 	{/if}
 
+	{#if floatingEmote}
+		<div
+			class="px-3 py-1.5 rounded-xl bg-slate-900/95 border border-amber-400/60 shadow-xl text-xs flex items-center gap-2 animate-bounce"
+			data-testid="floating-emote-bubble"
+		>
+			<span class="font-bold text-amber-300">{floatingEmote.senderName}:</span>
+			<span class="text-base leading-none">{floatingEmote.emote}</span>
+		</div>
+	{/if}
+
 	{#if chatOpen}
 		<div
 			class="w-72 rounded-xl bg-slate-900/95 border border-slate-700 shadow-2xl p-3 flex flex-col gap-2"
 		>
 			<div class="max-h-40 overflow-y-auto space-y-1 text-xs">
-				{#if messages.length === 0}
+				{#if visibleMessages.length === 0}
 					<div class="text-slate-500 italic">{t('online.hud.noMessages')}</div>
 				{:else}
-					{#each messages as msg (msg.id)}
-						<div class="break-words">
-							<span class="font-bold text-amber-300">{msg.senderName}:</span>
-							<span class="text-slate-200"> {msg.text}</span>
-						</div>
+					{#each visibleMessages as msg (msg.id)}
+						{#if msg.kind === 'system'}
+							<div class="text-[11px] italic text-sky-300/90">{msg.text}</div>
+						{:else}
+							<div class="flex items-start justify-between gap-1 break-words group">
+								<div class="min-w-0">
+									<span class="font-bold text-amber-300">{msg.senderName}:</span>
+									{#if msg.kind === 'emote'}
+										<span class="text-sm ml-1">{msg.emote ?? msg.text}</span>
+									{:else}
+										<span class="text-slate-200">
+											{chatModeration.sanitizeText(msg.text)}
+										</span>
+									{/if}
+								</div>
+								{#if localUid && msg.senderUid !== localUid}
+									<button
+										type="button"
+										onclick={() => chatModeration.toggleMute(msg.senderUid)}
+										class="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-slate-800 text-slate-400 hover:text-rose-300 cursor-pointer shrink-0"
+										title={t('chat.muteUser')}
+										aria-label={t('chat.muteUser')}
+									>
+										<VolumeX class="w-3 h-3" />
+									</button>
+								{/if}
+							</div>
+						{/if}
 					{/each}
 				{/if}
+			</div>
+			<div class="flex flex-wrap gap-1">
+				{#each QUICK_EMOTES as em (em)}
+					<button
+						type="button"
+						onclick={() => void sendRoomEmote(em)}
+						class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] cursor-pointer"
+					>
+						{em}
+					</button>
+				{/each}
 			</div>
 			<form onsubmit={sendChat} class="flex gap-1.5">
 				<input
@@ -1260,3 +1430,15 @@
 		</div>
 	{/if}
 </div>
+
+{#if dmPeer && localUid}
+	<DmDrawer
+		peerUid={dmPeer.uid}
+		peerName={dmPeer.name}
+		peerAvatar={dmPeer.avatar}
+		myUid={localUid}
+		myName={identity.value || t('online.defaultPlayerName')}
+		myAvatar={identity.avatar}
+		onClose={() => (dmPeer = null)}
+	/>
+{/if}
