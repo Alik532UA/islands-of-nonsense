@@ -461,6 +461,9 @@ export const translations = {
 		'online.myRooms.playing': 'Триває бій',
 		'online.myRooms.lobby': 'Лобі',
 		'online.rulesStale': 'Доступне оновлення мережевих правил. Оновіть сторінку для сумісності.',
+		'online.rulesServerOutdated':
+			'Мережеві правила на сервері ще не синхронізовані з цим клієнтом (зачекайте на оновлення сервера).',
+		'online.rulesRecheck': 'Перевірити',
 		'online.spectator.badge': 'Спостереження (Онлайн)',
 		'online.spectator.waitingRace': 'Гравці обирають раси... Очікування початку бою',
 		'online.spectator.deniedDisabled': 'Господар заборонив режим глядачів у цій кімнаті',
@@ -878,6 +881,9 @@ export const translations = {
 		'online.myRooms.playing': 'In Battle',
 		'online.myRooms.lobby': 'Lobby',
 		'online.rulesStale': 'A network rules update is available. Reload to stay compatible.',
+		'online.rulesServerOutdated':
+			'Server network rules have not synced with this client build yet. Please wait for the server update.',
+		'online.rulesRecheck': 'Recheck',
 		'online.spectator.badge': 'Spectator Mode (Live)',
 		'online.spectator.waitingRace': 'Players are picking races... Waiting for battle to start',
 		'online.spectator.deniedDisabled': 'Host has disabled spectators for this room',

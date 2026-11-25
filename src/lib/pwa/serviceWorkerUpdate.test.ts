@@ -1,88 +1,76 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { initServiceWorkerUpdate } from './serviceWorkerUpdate';
-import { toast } from '$lib/controllers/toast.svelte';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { applyAppUpdateOrReload } from './serviceWorkerUpdate';
 
-vi.mock('$app/env', () => ({
-	browser: true
-}));
+describe('applyAppUpdateOrReload', () => {
+	const originalWindow = globalThis.window;
+	const originalNavigator = globalThis.navigator;
 
-describe('serviceWorkerUpdate', () => {
-	beforeEach(() => {
-		toast.clear();
+	afterEach(() => {
 		vi.restoreAllMocks();
-		vi.unstubAllGlobals();
+		Object.defineProperty(globalThis, 'window', {
+			value: originalWindow,
+			configurable: true,
+			writable: true
+		});
+		Object.defineProperty(globalThis, 'navigator', {
+			value: originalNavigator,
+			configurable: true,
+			writable: true
+		});
 	});
 
-	it('returns a cleanup function without throwing in node/SSR', () => {
-		const cleanup = initServiceWorkerUpdate();
-		expect(typeof cleanup).toBe('function');
-		expect(() => cleanup()).not.toThrow();
-	});
+	it('posts SKIP_WAITING when a waiting service worker exists', async () => {
+		const postMessage = vi.fn();
+		const update = vi.fn().mockResolvedValue(undefined);
+		const reload = vi.fn();
 
-	it('prompts user and sends SKIP_WAITING when action is run', async () => {
-		const postMessageMock = vi.fn();
-		const mockWorker = {
-			postMessage: postMessageMock
-		} as unknown as ServiceWorker;
-
-		const addEventListenerMock = vi.fn();
-		const removeEventListenerMock = vi.fn();
-
-		const mockReg = {
-			waiting: mockWorker,
-			installing: null,
-			addEventListener: vi.fn()
-		};
-
-		vi.stubGlobal('navigator', {
-			serviceWorker: {
-				addEventListener: addEventListenerMock,
-				removeEventListener: removeEventListenerMock,
-				getRegistration: vi.fn().mockResolvedValue(mockReg),
-				controller: {}
-			}
+		Object.defineProperty(globalThis, 'window', {
+			value: { location: { pathname: '/online', reload } },
+			configurable: true,
+			writable: true
+		});
+		Object.defineProperty(globalThis, 'navigator', {
+			value: {
+				serviceWorker: {
+					getRegistration: vi.fn().mockResolvedValue({
+						update,
+						waiting: { postMessage }
+					})
+				}
+			},
+			configurable: true,
+			writable: true
 		});
 
-		const cleanup = initServiceWorkerUpdate();
-		await new Promise((resolve) => setTimeout(resolve, 10));
-
-		expect(toast.items.length).toBe(1);
-		const updateToast = toast.items[0];
-		expect(updateToast.action).toBeDefined();
-		expect(updateToast.action?.label).toBeTruthy();
-
-		// Trigger action
-		updateToast.action?.run();
-		expect(postMessageMock).toHaveBeenCalledWith({ type: 'SKIP_WAITING' });
-
-		cleanup();
-		expect(removeEventListenerMock).toHaveBeenCalledWith('controllerchange', expect.any(Function));
+		await applyAppUpdateOrReload();
+		expect(update).toHaveBeenCalledTimes(1);
+		expect(postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' });
+		expect(reload).not.toHaveBeenCalled();
 	});
 
-	it('deduplicates multiple prompts', async () => {
-		const postMessageMock = vi.fn();
-		const mockWorker = {
-			postMessage: postMessageMock
-		} as unknown as ServiceWorker;
+	it('falls back to window.location.reload when no waiting worker is present', async () => {
+		const reload = vi.fn();
+		const update = vi.fn().mockResolvedValue(undefined);
 
-		const mockReg = {
-			waiting: mockWorker,
-			installing: null,
-			addEventListener: vi.fn()
-		};
-
-		vi.stubGlobal('navigator', {
-			serviceWorker: {
-				addEventListener: vi.fn(),
-				removeEventListener: vi.fn(),
-				getRegistration: vi.fn().mockResolvedValue(mockReg),
-				controller: {}
-			}
+		Object.defineProperty(globalThis, 'window', {
+			value: { location: { pathname: '/online', reload } },
+			configurable: true,
+			writable: true
+		});
+		Object.defineProperty(globalThis, 'navigator', {
+			value: {
+				serviceWorker: {
+					getRegistration: vi.fn().mockResolvedValue({
+						update,
+						waiting: null
+					})
+				}
+			},
+			configurable: true,
+			writable: true
 		});
 
-		initServiceWorkerUpdate();
-		await new Promise((resolve) => setTimeout(resolve, 10));
-
-		expect(toast.items.length).toBe(1);
+		await applyAppUpdateOrReload();
+		expect(reload).toHaveBeenCalledTimes(1);
 	});
 });

@@ -23,11 +23,14 @@
 		publishToLobby,
 		updateLobbyMatchState,
 		GAME_ID,
-		RULES_VERSION
+		RULES_VERSION,
+		RULES_STAMP
 	} from '$lib/net/lobby';
 	import { liveNet } from '$lib/net/roomNet';
 	import { listOwnRooms, type OwnActiveRoom } from '$lib/net/ownRooms';
 	import { checkLiveRules } from '$lib/net/rulesLive';
+	import { applyAppUpdateOrReload } from '$lib/pwa/serviceWorkerUpdate';
+	import { sessionStore } from '$lib/services/storage';
 	import { rewardsStore } from '$lib/services/rewardsService.svelte';
 	import { seekMatch, type SeekFormat } from '$lib/net/seek';
 	import { buildRoomSlots, countOpenHumanCapacity } from '$lib/net/onlineMatchSetup';
@@ -49,6 +52,8 @@
 
 	const player = new PlayerIdentity();
 
+	const RULES_RELOAD_STAMP_KEY = 'online.rules_reload_stamp';
+
 	let openWindow = $state<'hub' | 'search' | 'create' | 'join'>('hub');
 	let searchFormat = $state<SeekFormat>('1v1');
 	let busy = $state(false);
@@ -56,6 +61,9 @@
 	let rooms = $state<LobbyRoom[]>([]);
 	let ownRooms = $state<OwnActiveRoom[]>([]);
 	let rulesStale = $state(false);
+	let rulesReloadAttempted = $state(false);
+	let rulesBannerDismissed = $state(false);
+	let rulesRechecking = $state(false);
 	let friendUids = $state<string[]>([]);
 	let followingUids = $state<string[]>([]);
 	let myUid = $state<string | null>(null);
@@ -79,7 +87,32 @@
 		return settings.claimHeader(t('online.title'), () => goto(resolve('/')));
 	});
 
+	async function recheckLiveRules(isActive = () => true) {
+		rulesRechecking = true;
+		try {
+			const state = await checkLiveRules();
+			if (!isActive()) return;
+			if (state === 'fresh') {
+				sessionStore.remove(RULES_RELOAD_STAMP_KEY);
+				rulesStale = false;
+				rulesReloadAttempted = false;
+				rulesBannerDismissed = false;
+			} else if (state === 'stale') {
+				rulesStale = true;
+			}
+		} finally {
+			rulesRechecking = false;
+		}
+	}
+
+	function handleRulesBannerUpdate() {
+		sessionStore.set(RULES_RELOAD_STAMP_KEY, RULES_STAMP);
+		rulesReloadAttempted = true;
+		void applyAppUpdateOrReload();
+	}
+
 	onMount(() => {
+		rulesReloadAttempted = sessionStore.get(RULES_RELOAD_STAMP_KEY) === RULES_STAMP;
 		void player.load(settings.locale);
 		void player.loadCountry();
 
@@ -137,7 +170,14 @@
 					if (active) ownRooms = list;
 				});
 				void checkLiveRules().then((state) => {
-					if (active && state === 'stale') rulesStale = true;
+					if (!active) return;
+					if (state === 'fresh') {
+						sessionStore.remove(RULES_RELOAD_STAMP_KEY);
+						rulesStale = false;
+						rulesReloadAttempted = false;
+					} else if (state === 'stale') {
+						rulesStale = true;
+					}
 				});
 
 				if (urlCode && /^[0-9A-Z]{2,6}$/.test(urlCode)) {
@@ -451,19 +491,45 @@
 			</p>
 		</header>
 
-		{#if rulesStale}
+		{#if rulesStale && !rulesBannerDismissed}
 			<div
 				class="w-full max-w-xl mx-auto mb-4 px-4 py-3 rounded-xl bg-amber-950/90 border border-amber-500/60 text-amber-100 text-xs flex items-center justify-between gap-3"
 				data-testid="online-rules-stale-banner"
 			>
-				<span>{t('online.rulesStale')}</span>
-				<button
-					type="button"
-					onclick={() => typeof window !== 'undefined' && window.location.reload()}
-					class="px-3 py-1 rounded-lg bg-amber-500 text-slate-950 font-bold cursor-pointer shrink-0"
-				>
-					{t('pwa.updateAction')}
-				</button>
+				<span>
+					{rulesReloadAttempted ? t('online.rulesServerOutdated') : t('online.rulesStale')}
+				</span>
+				<div class="flex items-center gap-1.5 shrink-0">
+					{#if rulesReloadAttempted}
+						<button
+							type="button"
+							disabled={rulesRechecking}
+							onclick={() => void recheckLiveRules()}
+							class="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-bold cursor-pointer"
+							data-testid="online-rules-recheck-btn"
+						>
+							{t('online.rulesRecheck')}
+						</button>
+						<button
+							type="button"
+							onclick={() => (rulesBannerDismissed = true)}
+							class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold cursor-pointer"
+							aria-label={t('common.close')}
+							data-testid="online-rules-dismiss-btn"
+						>
+							✕
+						</button>
+					{:else}
+						<button
+							type="button"
+							onclick={handleRulesBannerUpdate}
+							class="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold cursor-pointer"
+							data-testid="online-rules-update-btn"
+						>
+							{t('pwa.updateAction')}
+						</button>
+					{/if}
+				</div>
 			</div>
 		{/if}
 
