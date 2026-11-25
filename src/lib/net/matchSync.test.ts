@@ -25,8 +25,10 @@ describe('MatchSync', () => {
 	];
 
 	beforeEach(() => {
-		simA = new Simulation({ botDifficulty: 0, startGold: 1000, isRunning: false });
-		simB = new Simulation({ botDifficulty: 0, startGold: 1000, isRunning: false });
+		simA = new Simulation({ botDifficulty: 0, startGold: 1000, isRunning: false, seed: 999 });
+		simB = new Simulation({ botDifficulty: 0, startGold: 1000, isRunning: false, seed: 999 });
+		simA.decorations = [];
+		simB.decorations = [];
 		room = new LocalRoom(defaultInfo, defaultMembers);
 	});
 

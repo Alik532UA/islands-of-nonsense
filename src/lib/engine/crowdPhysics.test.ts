@@ -101,6 +101,7 @@ describe('Point 10: Crowd Physics & Unit Separation (Boids Collision Repulsion)'
 
 	it('should prevent ground units and workers from walking through solid 2x2 buildings', () => {
 		// Build building at (25, 20)
+		sim.decorations = [];
 		sim.build('west', 'h003', 25, 20);
 		const b = sim.buildings[0];
 		expect(b).toBeDefined();
@@ -125,6 +126,7 @@ describe('Point 10: Crowd Physics & Unit Separation (Boids Collision Repulsion)'
 	});
 
 	it('should allow flying units to glide over buildings without obstacle collision', () => {
+		sim.decorations = [];
 		sim.build('west', 'h003', 25, 20);
 		const b = sim.buildings[0];
 

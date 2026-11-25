@@ -46,6 +46,7 @@ describe('Bot-vs-Bot Multi-Player Selection & Control Invariants', () => {
 		);
 
 		// Place a building cleanly for East bot on East island and verify ownership + sell
+		sim.decorations = [];
 		const eastGoldBefore = eastBot.gold;
 		const builtEast = sim.build(eastBot.team, 'h000', 10, 20, 'top', eastBot, false);
 		expect(builtEast).toBe(true);

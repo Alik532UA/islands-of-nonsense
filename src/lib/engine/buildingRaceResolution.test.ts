@@ -47,6 +47,7 @@ describe('Canonical Building Race Ownership & Display Resolution', () => {
 				startGold: 10000,
 				westRace: race
 			});
+			sim.decorations = [];
 			sim.players.west.lumber = 5000;
 			const baseBuildings = getBaseBuildingsForRace(race);
 			const upgradableBase = baseBuildings.find((b) => getUpgradesForBuilding(b.id).length > 0);

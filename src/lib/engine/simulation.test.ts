@@ -7,6 +7,7 @@ describe('Castle Fight Simulation - Economy & Gold', () => {
 
 	beforeEach(() => {
 		sim = new Simulation({ botDifficulty: 0, startGold: 500 });
+		sim.decorations = [];
 	});
 
 	it('should deduct exact gold when building a structure', () => {

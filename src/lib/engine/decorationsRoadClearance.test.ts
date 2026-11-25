@@ -179,4 +179,39 @@ describe('Decorations and Roads Clearance Invariant', () => {
 			}
 		}
 	});
+
+	it('does not retain phantom rear roads behind West or East castles and allows rear decorations', () => {
+		const sim = new Simulation();
+
+		// Behind West Castle (x = 900) and East Castle (x = 6300) at all 3 lane heights must NOT be roads
+		for (const y of [TOP_LANE_Y, MID_LANE_Y, BOTTOM_LANE_Y]) {
+			expect(sim.isPointNearRoad(900, y, 145)).toBe(false);
+			expect(sim.isPointNearRoad(6300, y, 145)).toBe(false);
+		}
+
+		// Across several seeds, decorations must populate behind both castles (including middle corridor behind castle)
+		let foundWestRearMid = false;
+		let foundEastRearMid = false;
+		let westBehindCount = 0;
+		let eastBehindCount = 0;
+
+		for (let seed = 101; seed <= 125; seed++) {
+			const seededSim = new Simulation({ botDifficulty: 0, startGold: 500, seed });
+			for (const d of seededSim.decorations) {
+				if (d.team === 'west' && d.x < WEST_CASTLE_X - 180) {
+					westBehindCount++;
+					if (Math.abs(d.y - MID_LANE_Y) < 110) foundWestRearMid = true;
+				}
+				if (d.team === 'east' && d.x > EAST_CASTLE_X + 180) {
+					eastBehindCount++;
+					if (Math.abs(d.y - MID_LANE_Y) < 110) foundEastRearMid = true;
+				}
+			}
+		}
+
+		expect(westBehindCount).toBeGreaterThan(20);
+		expect(eastBehindCount).toBeGreaterThan(20);
+		expect(foundWestRearMid).toBe(true);
+		expect(foundEastRearMid).toBe(true);
+	});
 });

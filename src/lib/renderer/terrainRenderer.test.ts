@@ -98,4 +98,36 @@ describe('TerrainRenderer meadow clearings & stylized decorations', () => {
 
 		expect(circles.some((c) => c.r === 234)).toBe(false);
 	});
+
+	it('draws unified multi-pass highway bends without per-segment 2.5px curb strokes slicing joints', () => {
+		const renderer = new TerrainRenderer();
+		const circles: Array<{ x: number; y: number; r: number }> = [];
+		const roadStrokes: Array<{ width?: number }> = [];
+		const g = {
+			clear: vi.fn(),
+			beginPath: vi.fn(),
+			closePath: vi.fn(),
+			moveTo: vi.fn(),
+			lineTo: vi.fn(),
+			rect: vi.fn(),
+			roundRect: vi.fn(),
+			circle: vi.fn((x: number, y: number, r: number) => {
+				circles.push({ x, y, r });
+			}),
+			arc: vi.fn(),
+			poly: vi.fn(),
+			ellipse: vi.fn(),
+			fill: vi.fn(),
+			stroke: vi.fn((opts?: { width?: number }) => {
+				if (opts) roadStrokes.push(opts);
+			})
+		};
+
+		renderer.drawNaturalRoadNetwork(g as unknown as Graphics);
+
+		// Unified curb pass should use outer curb caps (r = 77.5) at all 4 elbow corners,
+		// and NEVER emit 2.5px rectangular end-cap strokes inside the road network
+		expect(circles.filter((c) => c.r === 77.5)).toHaveLength(4);
+		expect(roadStrokes.some((s) => s.width === 2.5)).toBe(false);
+	});
 });

@@ -173,20 +173,6 @@ export class BuildingSystem {
 			return true;
 		}
 
-		// West Courtyard & Rear Lanes (x < 1500): keep lane corridors clear for army march
-		if (x < 1500) {
-			if (Math.abs(y - TOP_LANE_Y) < clearance) return true;
-			if (Math.abs(y - MID_LANE_Y) < clearance) return true;
-			if (Math.abs(y - BOTTOM_LANE_Y) < clearance) return true;
-		}
-
-		// East Courtyard & Rear Lanes (x > 5700): keep lane corridors clear for army march
-		if (x > 5700) {
-			if (Math.abs(y - TOP_LANE_Y) < clearance) return true;
-			if (Math.abs(y - MID_LANE_Y) < clearance) return true;
-			if (Math.abs(y - BOTTOM_LANE_Y) < clearance) return true;
-		}
-
 		return false;
 	}
 

@@ -22,6 +22,7 @@ import {
 	EAST_ROAD_MERGE_X,
 	type DecorationObstacle
 } from '../engine/constants';
+import { distToRoadNetwork } from '../engine/buildingSystem';
 
 export class TerrainRenderer {
 	/**
@@ -623,105 +624,206 @@ export class TerrainRenderer {
 
 		// 1. Middle Highway (Direct horizontal connection to Mid Bridge)
 		const midStartX = cx + dir * plazaStartDist;
-		if (isWest) {
-			this.drawOrientedHighwaySegment(
-				g,
-				midStartX,
-				MID_LANE_Y,
-				bridgeEdgeX,
-				MID_LANE_Y,
-				roadH,
-				101
-			);
-		} else {
-			this.drawOrientedHighwaySegment(
-				g,
-				bridgeEdgeX,
-				MID_LANE_Y,
-				midStartX,
-				MID_LANE_Y,
-				roadH,
-				101
-			);
-		}
+		this.drawRoadBranch(
+			g,
+			isWest
+				? [
+						{ x: midStartX, y: MID_LANE_Y },
+						{ x: bridgeEdgeX, y: MID_LANE_Y }
+					]
+				: [
+						{ x: bridgeEdgeX, y: MID_LANE_Y },
+						{ x: midStartX, y: MID_LANE_Y }
+					],
+			roadH,
+			101
+		);
 
-		// 2. Top Highway (Angled fan-out from castle plaza + horizontal pre-bridge highway)
+		// 2. Top Highway (Angled fan-out from castle plaza + seamless elbow + horizontal pre-bridge highway)
 		const topAngle = Math.atan2(TOP_LANE_Y - cy, mergeX - cx);
 		const topStartX = cx + Math.cos(topAngle) * plazaStartDist;
 		const topStartY = cy + Math.sin(topAngle) * plazaStartDist;
+		this.drawRoadBranch(
+			g,
+			isWest
+				? [
+						{ x: topStartX, y: topStartY },
+						{ x: mergeX, y: TOP_LANE_Y },
+						{ x: bridgeEdgeX, y: TOP_LANE_Y }
+					]
+				: [
+						{ x: bridgeEdgeX, y: TOP_LANE_Y },
+						{ x: mergeX, y: TOP_LANE_Y },
+						{ x: topStartX, y: topStartY }
+					],
+			roadH,
+			201
+		);
 
-		// Road elbow junction base
-		g.beginPath();
-		g.circle(mergeX, TOP_LANE_Y, roadH / 2);
-		g.fill({ color: 0x54402d });
-		g.beginPath();
-		g.circle(mergeX, TOP_LANE_Y, roadH / 2 - 3);
-		g.fill({ color: 0x8a7153 });
-
-		if (isWest) {
-			this.drawOrientedHighwaySegment(g, topStartX, topStartY, mergeX, TOP_LANE_Y, roadH, 201);
-			this.drawOrientedHighwaySegment(g, mergeX, TOP_LANE_Y, bridgeEdgeX, TOP_LANE_Y, roadH, 202);
-		} else {
-			this.drawOrientedHighwaySegment(g, bridgeEdgeX, TOP_LANE_Y, mergeX, TOP_LANE_Y, roadH, 202);
-			this.drawOrientedHighwaySegment(g, mergeX, TOP_LANE_Y, topStartX, topStartY, roadH, 201);
-		}
-
-		// 3. Bottom Highway (Angled fan-out from castle plaza + horizontal pre-bridge highway)
+		// 3. Bottom Highway (Angled fan-out from castle plaza + seamless elbow + horizontal pre-bridge highway)
 		const botAngle = Math.atan2(BOTTOM_LANE_Y - cy, mergeX - cx);
 		const botStartX = cx + Math.cos(botAngle) * plazaStartDist;
 		const botStartY = cy + Math.sin(botAngle) * plazaStartDist;
-
-		// Road elbow junction base
-		g.beginPath();
-		g.circle(mergeX, BOTTOM_LANE_Y, roadH / 2);
-		g.fill({ color: 0x54402d });
-		g.beginPath();
-		g.circle(mergeX, BOTTOM_LANE_Y, roadH / 2 - 3);
-		g.fill({ color: 0x8a7153 });
-
-		if (isWest) {
-			this.drawOrientedHighwaySegment(g, botStartX, botStartY, mergeX, BOTTOM_LANE_Y, roadH, 301);
-			this.drawOrientedHighwaySegment(
-				g,
-				mergeX,
-				BOTTOM_LANE_Y,
-				bridgeEdgeX,
-				BOTTOM_LANE_Y,
-				roadH,
-				302
-			);
-		} else {
-			this.drawOrientedHighwaySegment(
-				g,
-				bridgeEdgeX,
-				BOTTOM_LANE_Y,
-				mergeX,
-				BOTTOM_LANE_Y,
-				roadH,
-				302
-			);
-			this.drawOrientedHighwaySegment(g, mergeX, BOTTOM_LANE_Y, botStartX, botStartY, roadH, 301);
-		}
+		this.drawRoadBranch(
+			g,
+			isWest
+				? [
+						{ x: botStartX, y: botStartY },
+						{ x: mergeX, y: BOTTOM_LANE_Y },
+						{ x: bridgeEdgeX, y: BOTTOM_LANE_Y }
+					]
+				: [
+						{ x: bridgeEdgeX, y: BOTTOM_LANE_Y },
+						{ x: mergeX, y: BOTTOM_LANE_Y },
+						{ x: botStartX, y: botStartY }
+					],
+			roadH,
+			301
+		);
 	}
 
 	/**
-	 * Draws a highway segment between two points with authentic interlocking cobblestone pavers,
-	 * realistic color variation, top highlights, and worn cart rut tracks.
-	 * Used identically for Top, Mid, and Bottom highways so all roadways have 100% unified texture and appearance.
+	 * Renders a multi-segment highway branch in 4 unified passes (curb border, earth shoulder,
+	 * inner roadbed, and cobblestone pavers + mitered wheel ruts) so elbow bends have zero internal seam lines.
 	 */
-	private drawOrientedHighwaySegment(
+	private drawRoadBranch(
+		g: Graphics,
+		points: ReadonlyArray<{ x: number; y: number }>,
+		roadH: number,
+		seed: number
+	): void {
+		if (points.length < 2) return;
+		const halfH = roadH / 2;
+		const curbRadius = halfH + 2.5;
+		const innerHalfH = halfH - 3;
+
+		// Pass 1: Continuous dark outer curb silhouette (no per-segment box strokes inside bends)
+		for (let i = 0; i < points.length - 1; i++) {
+			this.drawRoadRibbonQuad(g, points[i], points[i + 1], curbRadius, 0x3b2f21);
+		}
+		for (let i = 1; i < points.length - 1; i++) {
+			g.circle(points[i].x, points[i].y, curbRadius);
+			g.fill({ color: 0x3b2f21 });
+		}
+
+		// Pass 2: Earth shoulder roadbed across all segments & joints
+		for (let i = 0; i < points.length - 1; i++) {
+			this.drawRoadRibbonQuad(g, points[i], points[i + 1], halfH, 0x54402d);
+		}
+		for (let i = 1; i < points.length - 1; i++) {
+			g.circle(points[i].x, points[i].y, halfH);
+			g.fill({ color: 0x54402d });
+		}
+
+		// Pass 3: Warm road base surface across all segments & joints
+		for (let i = 0; i < points.length - 1; i++) {
+			this.drawRoadRibbonQuad(g, points[i], points[i + 1], innerHalfH, 0x8a7153);
+		}
+		for (let i = 1; i < points.length - 1; i++) {
+			g.circle(points[i].x, points[i].y, innerHalfH);
+			g.fill({ color: 0x8a7153 });
+		}
+
+		// Pass 4a: Segment pavers trimmed cleanly away from elbow centers, plus smooth elbow pavers
+		for (let i = 0; i < points.length - 1; i++) {
+			const trimStart = i > 0 ? 22 : 4;
+			const trimEnd = i < points.length - 2 ? 22 : 4;
+			this.drawSegmentPavers(
+				g,
+				points[i].x,
+				points[i].y,
+				points[i + 1].x,
+				points[i + 1].y,
+				roadH,
+				seed + i,
+				trimStart,
+				trimEnd
+			);
+		}
+		for (let i = 1; i < points.length - 1; i++) {
+			this.drawElbowJunctionPavers(
+				g,
+				points[i - 1],
+				points[i],
+				points[i + 1],
+				roadH,
+				seed + 50 + i
+			);
+		}
+
+		// Pass 4b: Continuous mitered wheel ruts running smoothly around every bend
+		this.drawContinuousWheelRuts(g, points, halfH);
+	}
+
+	private drawRoadRibbonQuad(
+		g: Graphics,
+		a: { x: number; y: number },
+		b: { x: number; y: number },
+		halfW: number,
+		color: number
+	): void {
+		const dx = b.x - a.x;
+		const dy = b.y - a.y;
+		const len = Math.hypot(dx, dy);
+		if (len < 1) return;
+		const nx = (-dy / len) * halfW;
+		const ny = (dx / len) * halfW;
+
+		g.beginPath();
+		g.poly([a.x + nx, a.y + ny, b.x + nx, b.y + ny, b.x - nx, b.y - ny, a.x - nx, a.y - ny]);
+		g.fill({ color });
+	}
+
+	private drawPaverQuad(
+		g: Graphics,
+		pcx: number,
+		pcy: number,
+		ux: number,
+		uy: number,
+		nx: number,
+		ny: number,
+		halfStoneL: number,
+		halfStoneW: number,
+		seed: number
+	): void {
+		const stoneColors = [0x92785c, 0x806950, 0x9c8366, 0x765f47, 0xa48d70];
+		const pseudo = Math.sin(pcx * 11.23 + pcy * 19.45 + seed) * 1000;
+		const colIdx = Math.floor(Math.abs(pseudo)) % stoneColors.length;
+
+		const p1x = pcx + ux * halfStoneL + nx * halfStoneW;
+		const p1y = pcy + uy * halfStoneL + ny * halfStoneW;
+		const p2x = pcx - ux * halfStoneL + nx * halfStoneW;
+		const p2y = pcy - uy * halfStoneL + ny * halfStoneW;
+		const p3x = pcx - ux * halfStoneL - nx * halfStoneW;
+		const p3y = pcy - uy * halfStoneL - ny * halfStoneW;
+		const p4x = pcx + ux * halfStoneL - nx * halfStoneW;
+		const p4y = pcy + uy * halfStoneL - ny * halfStoneW;
+
+		g.beginPath();
+		g.poly([p1x, p1y, p2x, p2y, p3x, p3y, p4x, p4y]);
+		g.fill({ color: stoneColors[colIdx] });
+
+		g.beginPath();
+		g.moveTo(p2x, p2y);
+		g.lineTo(p1x, p1y);
+		g.stroke({ color: 0xc4ab91, width: 1, alpha: 0.5 });
+	}
+
+	private drawSegmentPavers(
 		g: Graphics,
 		x1: number,
 		y1: number,
 		x2: number,
 		y2: number,
 		roadH: number,
-		seed: number
+		seed: number,
+		trimStart = 4,
+		trimEnd = 4
 	): void {
 		const dx = x2 - x1;
 		const dy = y2 - y1;
 		const len = Math.hypot(dx, dy);
-		if (len < 1) return;
+		if (len < trimStart + trimEnd + 10) return;
 
 		const ux = dx / len;
 		const uy = dy / len;
@@ -729,45 +831,10 @@ export class TerrainRenderer {
 		const ny = ux;
 		const halfH = roadH / 2;
 
-		// 1. Earth roadbed foundation polygon
-		const c1x = x1 + nx * halfH;
-		const c1y = y1 + ny * halfH;
-		const c2x = x2 + nx * halfH;
-		const c2y = y2 + ny * halfH;
-		const c3x = x2 - nx * halfH;
-		const c3y = y2 - ny * halfH;
-		const c4x = x1 - nx * halfH;
-		const c4y = y1 - ny * halfH;
-
-		g.beginPath();
-		g.poly([c1x, c1y, c2x, c2y, c3x, c3y, c4x, c4y]);
-		g.fill({ color: 0x54402d });
-		g.stroke({ color: 0x3b2f21, width: 2.5 });
-
-		// 2. Inner warm road surface base
-		const inset = 3;
-		const iHalfH = halfH - inset;
-		const ic1x = x1 + ux * inset + nx * iHalfH;
-		const ic1y = y1 + uy * inset + ny * iHalfH;
-		const ic2x = x2 - ux * inset + nx * iHalfH;
-		const ic2y = y2 - uy * inset + ny * iHalfH;
-		const ic3x = x2 - ux * inset - nx * iHalfH;
-		const ic3y = y2 - uy * inset - ny * iHalfH;
-		const ic4x = x1 + ux * inset - nx * iHalfH;
-		const ic4y = y1 + uy * inset - ny * iHalfH;
-
-		g.beginPath();
-		g.poly([ic1x, ic1y, ic2x, ic2y, ic3x, ic3y, ic4x, ic4y]);
-		g.fill({ color: 0x8a7153 });
-
-		// 3. Interlocking procedural cobblestone pavers
-		const stoneL = 28; // along road length
-		const stoneW = 18; // across road width
-		const stoneColors = [0x92785c, 0x806950, 0x9c8366, 0x765f47, 0xa48d70];
-
+		const stoneL = 28;
+		const stoneW = 18;
 		const numRows = Math.floor((roadH - 12) / stoneW);
 		const startV = -halfH + 6;
-
 		const halfStoneL = (stoneL - 4) / 2;
 		const halfStoneW = (stoneW - 3) / 2;
 
@@ -775,52 +842,132 @@ export class TerrainRenderer {
 			const vOffset = startV + r * stoneW + stoneW / 2;
 			const rowStagger = (r % 2) * (stoneL / 2);
 
-			for (let s = 4 + rowStagger; s + stoneL <= len - 4; s += stoneL) {
+			for (let s = trimStart + rowStagger; s + stoneL <= len - trimEnd; s += stoneL) {
 				const uCenter = s + stoneL / 2;
 				const pcx = x1 + ux * uCenter + nx * vOffset;
 				const pcy = y1 + uy * uCenter + ny * vOffset;
-
-				const pseudo = Math.sin(pcx * 11.23 + pcy * 19.45 + seed) * 1000;
-				const colIdx = Math.floor(Math.abs(pseudo)) % stoneColors.length;
-
-				// Paver 4 corners oriented along road
-				const p1x = pcx + ux * halfStoneL + nx * halfStoneW;
-				const p1y = pcy + uy * halfStoneL + ny * halfStoneW;
-				const p2x = pcx - ux * halfStoneL + nx * halfStoneW;
-				const p2y = pcy - uy * halfStoneL + ny * halfStoneW;
-				const p3x = pcx - ux * halfStoneL - nx * halfStoneW;
-				const p3y = pcy - uy * halfStoneL - ny * halfStoneW;
-				const p4x = pcx + ux * halfStoneL - nx * halfStoneW;
-				const p4y = pcy + uy * halfStoneL - ny * halfStoneW;
-
-				g.beginPath();
-				g.poly([p1x, p1y, p2x, p2y, p3x, p3y, p4x, p4y]);
-				g.fill({ color: stoneColors[colIdx] });
-
-				// Paver top edge highlight
-				g.beginPath();
-				g.moveTo(p2x, p2y);
-				g.lineTo(p1x, p1y);
-				g.stroke({ color: 0xc4ab91, width: 1, alpha: 0.5 });
+				this.drawPaverQuad(g, pcx, pcy, ux, uy, nx, ny, halfStoneL, halfStoneW, seed);
 			}
 		}
+	}
 
-		// 4. Two worn wheel rut lines (cart tracks) along the road
+	private drawElbowJunctionPavers(
+		g: Graphics,
+		prev: { x: number; y: number },
+		corner: { x: number; y: number },
+		next: { x: number; y: number },
+		roadH: number,
+		seed: number
+	): void {
+		const dx1 = corner.x - prev.x;
+		const dy1 = corner.y - prev.y;
+		const l1 = Math.hypot(dx1, dy1);
+		const dx2 = next.x - corner.x;
+		const dy2 = next.y - corner.y;
+		const l2 = Math.hypot(dx2, dy2);
+		if (l1 < 1 || l2 < 1) return;
+
+		const u1x = dx1 / l1;
+		const u1y = dy1 / l1;
+		const u2x = dx2 / l2;
+		const u2y = dy2 / l2;
+
+		// Bisector tangent direction turning smoothly through the bend
+		let bx = u1x + u2x;
+		let by = u1y + u2y;
+		const bLen = Math.hypot(bx, by) || 1;
+		bx /= bLen;
+		by /= bLen;
+		const bnx = -by;
+		const bny = bx;
+
+		const halfH = roadH / 2;
+		const stoneL = 24;
+		const stoneW = 18;
+		const numRows = Math.floor((roadH - 14) / stoneW);
+		const startV = -halfH + 7;
+		const halfStoneL = (stoneL - 4) / 2;
+		const halfStoneW = (stoneW - 3) / 2;
+
+		for (let r = 0; r < numRows; r++) {
+			const vOffset = startV + r * stoneW + stoneW / 2;
+			const stagger = (r % 2) * 10 - 5;
+			for (const uOff of [-14 + stagger, 10 + stagger]) {
+				const pcx = corner.x + bx * uOff + bnx * vOffset;
+				const pcy = corner.y + by * uOff + bny * vOffset;
+				this.drawPaverQuad(g, pcx, pcy, bx, by, bnx, bny, halfStoneL, halfStoneW, seed);
+			}
+		}
+	}
+
+	private drawContinuousWheelRuts(
+		g: Graphics,
+		points: ReadonlyArray<{ x: number; y: number }>,
+		halfH: number
+	): void {
+		const segNormals: Array<{ nx: number; ny: number; ux: number; uy: number }> = [];
+		for (let i = 0; i < points.length - 1; i++) {
+			const dx = points[i + 1].x - points[i].x;
+			const dy = points[i + 1].y - points[i].y;
+			const len = Math.hypot(dx, dy) || 1;
+			const ux = dx / len;
+			const uy = dy / len;
+			segNormals.push({ ux, uy, nx: -uy, ny: ux });
+		}
+
 		for (const rutFrac of [-0.34, 0.34]) {
 			const rutV = halfH * rutFrac;
 			const rutW = 3;
-			const r1x = x1 + ux * 8 + nx * (rutV + rutW);
-			const r1y = y1 + uy * 8 + ny * (rutV + rutW);
-			const r2x = x2 - ux * 8 + nx * (rutV + rutW);
-			const r2y = y2 - uy * 8 + ny * (rutV + rutW);
-			const r3x = x2 - ux * 8 + nx * (rutV - rutW);
-			const r3y = y2 - uy * 8 + ny * (rutV - rutW);
-			const r4x = x1 + ux * 8 + nx * (rutV - rutW);
-			const r4y = y1 + uy * 8 + ny * (rutV - rutW);
 
-			g.beginPath();
-			g.poly([r1x, r1y, r2x, r2y, r3x, r3y, r4x, r4y]);
-			g.fill({ color: 0x6e563d, alpha: 0.45 });
+			for (let i = 0; i < points.length - 1; i++) {
+				const a = points[i];
+				const b = points[i + 1];
+				const nCurr = segNormals[i];
+
+				const startInset = i === 0 ? 8 : 0;
+				const endInset = i === points.length - 2 ? 8 : 0;
+
+				let pAx = a.x + nCurr.ux * startInset + nCurr.nx * rutV;
+				let pAy = a.y + nCurr.uy * startInset + nCurr.ny * rutV;
+				if (i > 0) {
+					const nPrev = segNormals[i - 1];
+					const mx = nPrev.nx + nCurr.nx;
+					const my = nPrev.ny + nCurr.ny;
+					const mLen = Math.hypot(mx, my) || 1;
+					const uxM = mx / mLen;
+					const uyM = my / mLen;
+					const miterScale = Math.min(1.5, 1 / Math.max(0.5, uxM * nCurr.nx + uyM * nCurr.ny));
+					pAx = a.x + uxM * rutV * miterScale;
+					pAy = a.y + uyM * rutV * miterScale;
+				}
+
+				let pBx = b.x - nCurr.ux * endInset + nCurr.nx * rutV;
+				let pBy = b.y - nCurr.uy * endInset + nCurr.ny * rutV;
+				if (i < points.length - 2) {
+					const nNext = segNormals[i + 1];
+					const mx = nCurr.nx + nNext.nx;
+					const my = nCurr.ny + nNext.ny;
+					const mLen = Math.hypot(mx, my) || 1;
+					const uxM = mx / mLen;
+					const uyM = my / mLen;
+					const miterScale = Math.min(1.5, 1 / Math.max(0.5, uxM * nCurr.nx + uyM * nCurr.ny));
+					pBx = b.x + uxM * rutV * miterScale;
+					pBy = b.y + uyM * rutV * miterScale;
+				}
+
+				g.beginPath();
+				g.poly([
+					pAx + nCurr.nx * rutW,
+					pAy + nCurr.ny * rutW,
+					pBx + nCurr.nx * rutW,
+					pBy + nCurr.ny * rutW,
+					pBx - nCurr.nx * rutW,
+					pBy - nCurr.ny * rutW,
+					pAx - nCurr.nx * rutW,
+					pAy - nCurr.ny * rutW
+				]);
+				g.fill({ color: 0x6e563d, alpha: 0.45 });
+			}
 		}
 	}
 
@@ -909,15 +1056,9 @@ export class TerrainRenderer {
 			const distToCastle = Math.hypot(x - cx, y - cy);
 			if (distToCastle < 240) continue;
 
-			// Skip if too close to highway lines
-			if ((isWest && x > cx - 60) || (!isWest && x < cx + 60)) {
-				if (
-					Math.abs(y - TOP_LANE_Y) < 100 ||
-					Math.abs(y - MID_LANE_Y) < 100 ||
-					Math.abs(y - BOTTOM_LANE_Y) < 100
-				) {
-					continue;
-				}
+			// Skip if too close to actual highway branches
+			if (distToRoadNetwork(x, y) < 120) {
+				continue;
 			}
 
 			const typeIndex = Math.floor(nextRand() * 5);

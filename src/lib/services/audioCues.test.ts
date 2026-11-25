@@ -161,6 +161,7 @@ describe('Point 10: Authentic WC3 Ambient Audio Cues and Voice Alerts', () => {
 				westRace: 'Люди',
 				eastRace: 'Орки'
 			});
+			sim.decorations = [];
 			sim.onSoundEffect = (s: SoundEffectType) => {
 				soundEvents.push(s);
 			};

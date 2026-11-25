@@ -10,7 +10,6 @@ import {
 	GRID_STEP,
 	ISLAND_RADIUS_X,
 	ISLAND_RADIUS_Y,
-	MID_LANE_Y,
 	ROAD_HALF_WIDTH,
 	WEST_CASTLE_X,
 	WEST_CASTLE_Y,
@@ -292,14 +291,6 @@ export function generateDecorations(
 			const maxRy = ISLAND_RADIUS_Y - (ISLAND_COAST_NOISE_MARGIN + GRID_STEP + 20);
 			const x = Math.round(cx + Math.cos(angle) * maxRx * distNorm);
 			const y = Math.round(cy + Math.sin(angle) * maxRy * distNorm);
-
-			// Also avoid rear lane straight-paths directly behind the castle entrance
-			if (
-				(team === 'west' && x < WEST_CASTLE_X && Math.abs(y - MID_LANE_Y) < 110) ||
-				(team === 'east' && x > EAST_CASTLE_X && Math.abs(y - MID_LANE_Y) < 110)
-			) {
-				return false;
-			}
 
 			const type = pickEcologicalDecorationType(team, x, y, teamDecorations, nextRand);
 			const radius = DECORATION_RADII[type];

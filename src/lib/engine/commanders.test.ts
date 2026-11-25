@@ -226,6 +226,7 @@ describe('Commanders System ([AC-CMD-1])', () => {
 			expect(getCommanderForgeDiscount(sim.players.west)).toBeCloseTo(0.1, 5);
 			expect(sim.getForgePrice('west', 'attack')).toBe(180);
 
+			sim.decorations = [];
 			sim.players.west.gold = 500;
 			expect(sim.build('west', 'cg11_forge', 25, 20, 'top')).toBe(true);
 			expect(sim.players.west.gold).toBe(410); // 100g forge with -10% = 90g
