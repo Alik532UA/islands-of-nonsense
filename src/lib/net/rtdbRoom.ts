@@ -26,6 +26,7 @@ import {
 	type RawInfo
 } from './roomShape';
 import { pickFirstAvailableSeat, pickNextTeamSlot } from './onlineMatchSetup';
+import { GAME_ID } from './lobby';
 
 export interface NewRoomOptions {
 	gameId: string;
@@ -343,6 +344,7 @@ export async function joinRoom(code: string, entry: RoomEntry): Promise<void> {
 	const currentMembers = membersSnap.val() as Record<
 		string,
 		{
+			role?: string;
 			team?: string;
 			slot?: number;
 			order?: number;
@@ -352,11 +354,21 @@ export async function joinRoom(code: string, entry: RoomEntry): Promise<void> {
 		}
 	> | null;
 	const roomConfig = (configSnap.val() as RoomConfig | null) ?? undefined;
-	const memberList = currentMembers ? Object.values(currentMembers) : [];
-	const count = memberList.length;
-	const preferredTeam = entry.team ?? (count % 2 === 0 ? 'west' : 'east');
 	const existingSelf = currentMembers?.[uid];
-	const order = typeof existingSelf?.order === 'number' ? existingSelf.order : count + 1;
+	const allMembers = currentMembers ? Object.values(currentMembers) : [];
+	const otherMembers = currentMembers
+		? Object.entries(currentMembers)
+				.filter(([memberUid]) => memberUid !== uid)
+				.map(([, member]) => member)
+		: [];
+	const westCount = otherMembers.filter((m) => m.role !== 'spectator' && m.team === 'west').length;
+	const eastCount = otherMembers.filter((m) => m.role !== 'spectator' && m.team === 'east').length;
+	const preservedTeam =
+		existingSelf?.team === 'east' || existingSelf?.team === 'west' ? existingSelf.team : undefined;
+	const preferredTeam: 'west' | 'east' =
+		entry.team ?? preservedTeam ?? (westCount <= eastCount ? 'west' : 'east');
+	const order =
+		typeof existingSelf?.order === 'number' ? existingSelf.order : allMembers.length + 1;
 	const resolvedRace = entry.race ?? existingSelf?.race ?? 'in_game';
 	const resolvedColorId = entry.colorId ?? existingSelf?.colorId;
 	const resolvedColorPickedAt = existingSelf?.colorPickedAt;
@@ -365,17 +377,21 @@ export async function joinRoom(code: string, entry: RoomEntry): Promise<void> {
 	let team: 'west' | 'east' = preferredTeam;
 	let slot: number | undefined;
 	if (!isSpectatorJoin) {
-		if (typeof existingSelf?.slot === 'number' && existingSelf.team === preferredTeam) {
+		const selfSlotMatchesTeam =
+			typeof existingSelf?.slot === 'number' &&
+			(existingSelf.slot % 2 === 0 ? 'east' : 'west') === preferredTeam &&
+			!otherMembers.some((m) => m.role !== 'spectator' && m.slot === existingSelf.slot);
+		if (selfSlotMatchesTeam && typeof existingSelf?.slot === 'number') {
 			slot = existingSelf.slot;
 		} else if (typeof entry.slot === 'number') {
 			slot = entry.slot;
 			team = slot % 2 === 0 ? 'east' : 'west';
 		} else if (roomConfig?.slots) {
-			const seat = pickFirstAvailableSeat(memberList, preferredTeam, roomConfig);
+			const seat = pickFirstAvailableSeat(otherMembers, preferredTeam, roomConfig);
 			team = seat.team;
 			slot = seat.slot;
 		} else {
-			slot = pickNextTeamSlot(memberList, preferredTeam, roomConfig);
+			slot = pickNextTeamSlot(otherMembers, preferredTeam, roomConfig);
 		}
 	}
 
@@ -518,6 +534,7 @@ export async function peekMembers(code: string): Promise<Member[] | null> {
 export async function closeRoom(code: string): Promise<void> {
 	const { db } = await connect();
 	const { ref, remove } = await import('firebase/database');
+	await remove(ref(db, `lobby/${GAME_ID}/${code}`)).catch(() => {});
 	await remove(ref(db, `rooms/${code}`));
 	await forgetOwnRoom(code);
 }

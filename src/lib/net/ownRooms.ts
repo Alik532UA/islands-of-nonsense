@@ -2,7 +2,7 @@ import { connect } from './firebase';
 import { logService } from '$lib/services/logService.svelte';
 import { countOpenHumanCapacity } from './onlineMatchSetup';
 import type { RoomConfig } from './roomTypes';
-import { SWEEP_MAX_AGE_MS } from './sweepRooms';
+import { ABANDONED_ROOM_MAX_AGE_MS, DEFAULT_GAME_ID, SWEEP_MAX_AGE_MS } from './sweepRooms';
 
 const ROOM_CODE_PATTERN = /^[0-9A-Z]{2,6}$/;
 
@@ -98,8 +98,8 @@ export async function pruneOwnRooms(now: number = Date.now()): Promise<number> {
 			}
 			const recordedAt = typeof raw === 'number' ? raw : (raw?.at ?? 0);
 			const lastSeen = info.aliveAt ?? info.startedAt ?? info.createdAt ?? recordedAt;
-			if (now - lastSeen > SWEEP_MAX_AGE_MS) {
-				const gameId = typeof info.gameId === 'string' ? info.gameId : 'castlefight';
+			if (now - lastSeen > ABANDONED_ROOM_MAX_AGE_MS) {
+				const gameId = typeof info.gameId === 'string' ? info.gameId : DEFAULT_GAME_ID;
 				await update(ref(db), {
 					[`rooms/${code}`]: null,
 					[`lobby/${gameId}/${code}`]: null,
@@ -121,7 +121,7 @@ export async function pruneOwnRooms(now: number = Date.now()): Promise<number> {
 export async function listOwnRooms(now: number = Date.now()): Promise<OwnActiveRoom[]> {
 	try {
 		const { uid, db } = await connect();
-		const { get, ref, remove } = await import('firebase/database');
+		const { get, ref, remove, update } = await import('firebase/database');
 		const indexSnap = await get(ref(db, `myRooms/${uid}`));
 		if (!indexSnap.exists()) return [];
 
@@ -129,17 +129,22 @@ export async function listOwnRooms(now: number = Date.now()): Promise<OwnActiveR
 		const active: OwnActiveRoom[] = [];
 
 		for (const [code, raw] of Object.entries(entries)) {
-			if (!ROOM_CODE_PATTERN.test(code)) continue;
+			if (!ROOM_CODE_PATTERN.test(code)) {
+				await remove(ref(db, `myRooms/${uid}/${code}`)).catch(() => {});
+				continue;
+			}
 			const [infoSnap, membersSnap] = await Promise.all([
 				get(ref(db, `rooms/${code}/info`)),
 				get(ref(db, `rooms/${code}/members`))
 			]);
 			if (!infoSnap.exists()) {
 				await remove(ref(db, `myRooms/${uid}/${code}`)).catch(() => {});
+				await remove(ref(db, `lobby/${DEFAULT_GAME_ID}/${code}`)).catch(() => {});
 				continue;
 			}
 			const info = infoSnap.val() as {
 				hostUid?: string;
+				gameId?: string;
 				status?: string;
 				aliveAt?: number;
 				startedAt?: number;
@@ -147,7 +152,23 @@ export async function listOwnRooms(now: number = Date.now()): Promise<OwnActiveR
 				config?: RoomConfig;
 			};
 			const recordedAt = typeof raw === 'number' ? raw : (raw?.at ?? 0);
-			if (!isActiveOwnRoomInfo(info, uid, now, recordedAt)) continue;
+			const lastSeen = info.aliveAt ?? info.startedAt ?? info.createdAt ?? recordedAt;
+			const stillAlive =
+				isActiveOwnRoomInfo(info, uid, now, recordedAt) &&
+				now - lastSeen <= ABANDONED_ROOM_MAX_AGE_MS;
+			if (!stillAlive) {
+				if (info.hostUid === uid) {
+					const gameId = typeof info.gameId === 'string' ? info.gameId : DEFAULT_GAME_ID;
+					await update(ref(db), {
+						[`rooms/${code}`]: null,
+						[`lobby/${gameId}/${code}`]: null,
+						[`myRooms/${uid}/${code}`]: null
+					}).catch(() => {});
+				} else {
+					await remove(ref(db, `myRooms/${uid}/${code}`)).catch(() => {});
+				}
+				continue;
+			}
 
 			const membersVal = membersSnap.exists()
 				? (membersSnap.val() as Record<string, { role?: string }>)

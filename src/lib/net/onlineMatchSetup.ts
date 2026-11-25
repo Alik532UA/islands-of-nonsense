@@ -195,7 +195,10 @@ function buildCustomSlotsFromRoom(
 	const occupiedSlots = new Map<number, (typeof participants)[number]>();
 	const unassigned: (typeof participants)[number][] = [];
 	for (const p of participants) {
-		if (typeof p.slot === 'number' && !occupiedSlots.has(p.slot)) {
+		const pTeam: 'west' | 'east' = p.team === 'east' ? 'east' : 'west';
+		const slotMatchesTeam =
+			typeof p.slot === 'number' && (p.slot % 2 === 0 ? 'east' : 'west') === pTeam;
+		if (slotMatchesTeam && typeof p.slot === 'number' && !occupiedSlots.has(p.slot)) {
 			occupiedSlots.set(p.slot, p);
 		} else {
 			unassigned.push(p);
@@ -358,8 +361,11 @@ export function applyOnlineRosterToSimulation(
 	for (const entry of participants) {
 		const team: 'west' | 'east' = entry.team === 'east' ? 'east' : 'west';
 		const teamSlotPool = TEAM_SLOTS[team];
+		const slotMatchesTeam =
+			typeof entry.slot === 'number' && (entry.slot % 2 === 0 ? 'east' : 'west') === team;
 		let slot: number;
 		if (
+			slotMatchesTeam &&
 			typeof entry.slot === 'number' &&
 			resolvePlayerBySlot(entry.slot) &&
 			!usedSlotNumbers.has(entry.slot)

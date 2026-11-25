@@ -242,7 +242,9 @@
 	let controlledPlayerSlot = $state<number>(1);
 	let lastSpaceTime = 0;
 
-	let localTeam = $derived<'west' | 'east'>(matchSync?.localTeam ?? 'west');
+	let onlineLocalTeam = $state<'west' | 'east'>('west');
+	let onlineLocalSlot = $state<number>(1);
+	let localTeam = $derived<'west' | 'east'>(matchSync ? onlineLocalTeam : 'west');
 	let isBotVsBot = $derived(
 		!matchSync &&
 			(Boolean(sim.config.botVsBot) ||
@@ -254,7 +256,9 @@
 		const list = sim.allPlayers?.length ? sim.allPlayers : [sim.players.west, sim.players.east];
 		const found = list.find((p) => p.slot === slot);
 		if (!found) return null;
-		if (isBotVsBot || isSpectatorView || found.team === localTeam) return found;
+		if (isBotVsBot || isSpectatorView) return found;
+		if (matchSync) return found.slot === onlineLocalSlot ? found : null;
+		if (found.team === localTeam) return found;
 		return null;
 	}
 
@@ -262,7 +266,7 @@
 		const _tick = uiTick;
 		if (matchSync && !isOnlineSpectator) {
 			return (
-				sim.allPlayers?.find((p) => p.slot === matchSync?.localSlot) ??
+				sim.allPlayers?.find((p) => p.slot === onlineLocalSlot) ??
 				(localTeam === 'east' ? sim.players.east : sim.players.west)
 			);
 		}
@@ -844,6 +848,8 @@
 				onSimInitialized: (nextSim, init) => {
 					sim = nextSim;
 					isOnlineSpectator = init.isSpectator;
+					onlineLocalTeam = init.localTeam;
+					onlineLocalSlot = init.localSlot;
 					controlledPlayerSlot = init.localSlot;
 					cameraX = init.cameraX;
 					cameraY = init.cameraY;
@@ -929,10 +935,17 @@
 					}
 					uiTick = sim.stateVersion;
 				},
-				onMatchStarted: (nextSim, localSlot, isSpectator) => {
+				onMatchStarted: (nextSim, localSlot, isSpectator, nextLocalTeam) => {
 					sim = nextSim;
 					isOnlineSpectator = isSpectator;
+					onlineLocalTeam = nextLocalTeam;
+					onlineLocalSlot = localSlot;
 					controlledPlayerSlot = localSlot;
+					if (!isSpectator) {
+						cameraX = nextLocalTeam === 'east' ? 5600 : 1600;
+						cameraY = 1200;
+						renderer?.setCamera(cameraX, cameraY);
+					}
 					if (!isSpectator) attachReplayRecorder(sim);
 					perfMonitor.attachSim(sim);
 					if (unlistenAudio) unlistenAudio();
@@ -1078,6 +1091,15 @@
 			getSelectedBuildingDefId: () => selectedBuildingId,
 			getSelectedPlacedBuildingId: () => selectedPlacedBuildingId,
 			getActiveControlPlayer: () => controlledPlayer,
+			getControllableSlots: () => {
+				if (isBotVsBot || isSpectatorView) return null;
+				if (matchSync) return new Set([onlineLocalSlot]);
+				return new Set(
+					(sim.allPlayers?.length ? sim.allPlayers : [sim.players.west, sim.players.east])
+						.filter((p) => p.team === localTeam && typeof p.slot === 'number')
+						.map((p) => p.slot as number)
+				);
+			},
 			getIsRescueTargeting: () => isRescueTargeting,
 			getSpectatorVision: () => (isSpectatorView ? spectatorVision : null),
 			onRescueTargetClick: (worldX: number, worldY: number) => {

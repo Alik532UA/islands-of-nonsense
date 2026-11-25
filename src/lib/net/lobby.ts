@@ -87,7 +87,23 @@ export async function removeFromLobby(db: Database, code: string): Promise<void>
 	await remove(lobbyRef);
 }
 
-export const LOBBY_STALE_MS = 2 * 60 * 60 * 1000;
+export const LOBBY_STALE_MS = 15 * 60 * 1000;
+export const ROOM_HEARTBEAT_STALE_MS = 3 * 60 * 1000;
+
+export function isLiveRoomInfo(
+	info: {
+		status?: string;
+		aliveAt?: number;
+		startedAt?: number;
+		createdAt?: number;
+	} | null,
+	now: number = Date.now()
+): boolean {
+	if (!info || info.status === 'over') return false;
+	const lastSeen = info.aliveAt ?? info.startedAt ?? info.createdAt ?? 0;
+	if (!lastSeen) return false;
+	return now - lastSeen <= ROOM_HEARTBEAT_STALE_MS;
+}
 
 export function isCompatibleLobbyRoom(room: LobbyRoom, now: number = Date.now()): boolean {
 	if (!room) return false;

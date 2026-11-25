@@ -1,33 +1,43 @@
 /**
  * Realtime Database abandoned room and stale state cleaner.
- * Scans rooms, lobby entries, seek tickets, and per-user room bookmarks inactive for > 2 hours.
+ * Scans rooms, lobby entries, seek tickets, and per-user room bookmarks.
  */
-export const SWEEP_MAX_AGE_MS = 2 * 60 * 60 * 1000; // 2 hours stale threshold
-export const DEFAULT_GAME_ID = 'islands-of-nonsense';
+export const SWEEP_MAX_AGE_MS = 15 * 60 * 1000; // 15 minutes hard inactivity threshold
+export const ABANDONED_ROOM_MAX_AGE_MS = 3 * 60 * 1000; // 3 minutes when no online presence remains
+export const DEFAULT_GAME_ID = 'castlefight';
 
 export interface SweepRoomInfo {
 	createdAt?: number;
 	updatedAt?: number;
+	startedAt?: number;
+	aliveAt?: number;
 	lastMoveAt?: number;
+	status?: string;
 	gameId?: string;
 }
 
 export interface SweepRoomData {
 	info?: SweepRoomInfo;
 	members?: Record<string, { lastMoveAt?: number; joinedAt?: number }>;
-	presence?: Record<string, { at?: number }>;
+	presence?: Record<string, { at?: number; lastSeen?: number; online?: boolean }>;
 }
 
 export interface SweepPlanExtras {
 	gameId?: string;
 	lobbyByGame?: Record<string, Record<string, { createdAt?: number }>> | null;
 	seekByGame?: Record<string, Record<string, { at?: number }>> | null;
-	myRooms?: Record<string, Record<string, { createdAt?: number }>> | null;
+	myRooms?: Record<string, Record<string, { at?: number; createdAt?: number }>> | null;
 }
 
 function getLatestRoomActivity(room: SweepRoomData): number {
 	const info = room.info;
-	let latest = Math.max(info?.createdAt ?? 0, info?.updatedAt ?? 0, info?.lastMoveAt ?? 0);
+	let latest = Math.max(
+		info?.createdAt ?? 0,
+		info?.updatedAt ?? 0,
+		info?.startedAt ?? 0,
+		info?.aliveAt ?? 0,
+		info?.lastMoveAt ?? 0
+	);
 	if (room.members) {
 		for (const member of Object.values(room.members)) {
 			if (member && typeof member === 'object') {
@@ -38,11 +48,18 @@ function getLatestRoomActivity(room: SweepRoomData): number {
 	if (room.presence) {
 		for (const p of Object.values(room.presence)) {
 			if (p && typeof p === 'object') {
-				latest = Math.max(latest, p.at ?? 0);
+				latest = Math.max(latest, p.at ?? 0, p.lastSeen ?? 0);
 			}
 		}
 	}
 	return latest;
+}
+
+function hasOnlinePresence(room: SweepRoomData): boolean {
+	if (!room.presence || typeof room.presence !== 'object') return false;
+	return Object.values(room.presence).some((p) =>
+		Boolean(p && typeof p === 'object' && p.online === true)
+	);
 }
 
 export function planRoomSweep(
@@ -69,7 +86,12 @@ export function planRoomSweep(
 
 			const gameId = info.gameId || defaultGameId;
 			const lastActivity = getLatestRoomActivity(typed);
-			if (now - lastActivity > SWEEP_MAX_AGE_MS) {
+			const ageMs = now - lastActivity;
+			const online = hasOnlinePresence(typed);
+			const isOver = info.status === 'over';
+			const isAbandoned = !online && ageMs > ABANDONED_ROOM_MAX_AGE_MS;
+
+			if (isOver || isAbandoned || ageMs > SWEEP_MAX_AGE_MS) {
 				pathsToDelete.add(`rooms/${code}`);
 				pathsToDelete.add(`lobby/${gameId}/${code}`);
 			} else {
@@ -106,8 +128,8 @@ export function planRoomSweep(
 		for (const [uid, rooms] of Object.entries(extras.myRooms)) {
 			if (!rooms || typeof rooms !== 'object') continue;
 			for (const [code, meta] of Object.entries(rooms)) {
-				const createdAt = meta?.createdAt ?? 0;
-				if (!survivingRooms.has(code) || (createdAt > 0 && now - createdAt > SWEEP_MAX_AGE_MS)) {
+				const recordedAt = meta?.at ?? meta?.createdAt ?? 0;
+				if (!survivingRooms.has(code) || (recordedAt > 0 && now - recordedAt > SWEEP_MAX_AGE_MS)) {
 					pathsToDelete.add(`myRooms/${uid}/${code}`);
 				}
 			}

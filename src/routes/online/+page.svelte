@@ -21,13 +21,15 @@
 	import {
 		subscribeLobby,
 		publishToLobby,
+		removeFromLobby,
 		updateLobbyMatchState,
+		isLiveRoomInfo,
 		GAME_ID,
 		RULES_VERSION,
 		RULES_STAMP
 	} from '$lib/net/lobby';
 	import { liveNet } from '$lib/net/roomNet';
-	import { listOwnRooms, type OwnActiveRoom } from '$lib/net/ownRooms';
+	import { listOwnRooms, pruneOwnRooms, type OwnActiveRoom } from '$lib/net/ownRooms';
 	import { checkLiveRules } from '$lib/net/rulesLive';
 	import { applyAppUpdateOrReload } from '$lib/pwa/serviceWorkerUpdate';
 	import { sessionStore } from '$lib/services/storage';
@@ -163,12 +165,52 @@
 						unsubscribeInbox = unsub;
 					});
 				}
+				let filterSeq = 0;
+				const filterAndSetLobbyRooms = async (candidates: LobbyRoom[]) => {
+					const mySeq = ++filterSeq;
+					const { get, ref } = await import('firebase/database');
+					const now = Date.now();
+					const checks = await Promise.all(
+						candidates.map(async (r) => {
+							try {
+								const infoSnap = await get(ref(db, `rooms/${r.code}/info`));
+								if (!infoSnap.exists()) {
+									if (r.hostUid === uid) {
+										await removeFromLobby(db, r.code).catch(() => {});
+									}
+									return null;
+								}
+								const info = infoSnap.val() as {
+									hostUid?: string;
+									status?: string;
+									aliveAt?: number;
+									startedAt?: number;
+									createdAt?: number;
+								};
+								if (!isLiveRoomInfo(info, now)) {
+									if (info.hostUid === uid || r.hostUid === uid) {
+										await liveNet.closeRoom(r.code).catch(() => {});
+									}
+									return null;
+								}
+								return r;
+							} catch {
+								return r;
+							}
+						})
+					);
+					if (!active || mySeq !== filterSeq) return;
+					rooms = checks.filter((r): r is LobbyRoom => r !== null);
+				};
+
 				unsubscribeLobby = subscribeLobby(db, (updated) => {
-					rooms = updated;
+					void filterAndSetLobbyRooms(updated);
 				});
-				void listOwnRooms().then((list) => {
-					if (active) ownRooms = list;
-				});
+				void pruneOwnRooms()
+					.then(() => listOwnRooms())
+					.then((list) => {
+						if (active) ownRooms = list;
+					});
 				void checkLiveRules().then((state) => {
 					if (!active) return;
 					if (state === 'fresh') {

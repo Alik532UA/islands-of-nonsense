@@ -52,6 +52,7 @@ import {
 import type { GraphicsStyle } from '$lib/services/settings.svelte';
 import { stepSmoothCameraPan, type CameraPanInput } from './cameraPan';
 import { rc, rr, el } from './gfx';
+import { resolveBoxSelection } from './boxSelection';
 
 type CastleVisualSide = {
 	textures: Texture[];
@@ -94,6 +95,7 @@ export interface RendererOptions {
 	getSelectedBuildingDefId: () => string | null;
 	getSelectedPlacedBuildingId?: () => string | null;
 	getActiveControlPlayer?: () => PlayerState | null;
+	getControllableSlots?: () => ReadonlySet<number> | null;
 	getIsRescueTargeting?: () => boolean;
 	getSpectatorVision?: () => 'all' | 'west' | 'east' | null;
 	onRescueTargetClick?: (worldX: number, worldY: number) => void;
@@ -112,6 +114,7 @@ export class ArenaRenderer {
 	private getSelectedBuildingDefId: () => string | null;
 	private getSelectedPlacedBuildingId?: () => string | null;
 	private getActiveControlPlayer?: () => PlayerState | null;
+	private getControllableSlots?: () => ReadonlySet<number> | null;
 	private getIsRescueTargeting?: () => boolean;
 	private getSpectatorVision?: () => 'all' | 'west' | 'east' | null;
 	private onRescueTargetClick?: (worldX: number, worldY: number) => void;
@@ -140,6 +143,7 @@ export class ArenaRenderer {
 	private isBoxSelecting = false;
 	private boxStartWorld: { x: number; y: number } | null = null;
 	private boxCurrentWorld: { x: number; y: number } | null = null;
+	private suppressNextClick = false;
 
 	// RTS Order Chevrons (RMB click marker)
 	private moveMarkers: { x: number; y: number; timer: number; maxTimer: number }[] = [];
@@ -216,6 +220,7 @@ export class ArenaRenderer {
 		this.getSelectedBuildingDefId = options.getSelectedBuildingDefId;
 		this.getSelectedPlacedBuildingId = options.getSelectedPlacedBuildingId;
 		this.getActiveControlPlayer = options.getActiveControlPlayer;
+		this.getControllableSlots = options.getControllableSlots;
 		this.getIsRescueTargeting = options.getIsRescueTargeting;
 		this.getSpectatorVision = options.getSpectatorVision;
 		this.onRescueTargetClick = options.onRescueTargetClick;
@@ -734,6 +739,7 @@ export class ArenaRenderer {
 
 			// LEFT CLICK: Start box selection or click
 			if (e.button === 0) {
+				this.suppressNextClick = false;
 				if (!this.getSelectedBuildingDefId() && !this.getIsRescueTargeting?.()) {
 					this.boxStartWorld = { x: world.x, y: world.y };
 					this.boxCurrentWorld = { x: world.x, y: world.y };
@@ -808,34 +814,31 @@ export class ArenaRenderer {
 				const minY = Math.min(this.boxStartWorld.y, this.boxCurrentWorld.y);
 				const maxY = Math.max(this.boxStartWorld.y, this.boxCurrentWorld.y);
 
-				const viewerTeam: MatchTeam = this.getActiveControlPlayer?.()?.team ?? 'west';
-				const selectedUnits = this.sim.units.filter(
-					(u) =>
-						u.state !== 'DEAD' &&
-						u.x >= minX &&
-						u.x <= maxX &&
-						u.y >= minY &&
-						u.y <= maxY &&
-						(!this.enableFog ||
-							u.team === viewerTeam ||
-							this.sim.isPointRevealed(viewerTeam, u.x, u.y))
-				);
+				const activePlayer = this.getActiveControlPlayer?.() ?? null;
+				const viewerTeam: MatchTeam = activePlayer?.team ?? 'west';
+				const activeSlot = activePlayer?.slot ?? null;
+				const playersList = this.sim.allPlayers?.length
+					? this.sim.allPlayers
+					: [this.sim.players.west, this.sim.players.east];
+				const controllableSlots =
+					this.getControllableSlots?.() ??
+					(activeSlot !== null ? new Set<number>([activeSlot]) : null);
 
-				const friendly = selectedUnits.filter((u) => u.team === viewerTeam);
-				const targets = friendly.length > 0 ? friendly : selectedUnits;
-
-				if (targets.length > 1) {
-					this.onSelectEntity?.({
-						type: 'group',
-						unitIds: targets.map((u) => u.instanceId)
-					});
-				} else if (targets.length === 1) {
-					this.onSelectEntity?.({
-						type: 'unit',
-						instanceId: targets[0].instanceId
-					});
+				const selected = resolveBoxSelection({
+					bounds: { minX, maxX, minY, maxY },
+					players: playersList,
+					units: this.sim.units,
+					viewerTeam,
+					activeControlSlot: activeSlot,
+					controllableSlots,
+					enableFog: this.enableFog,
+					isPointRevealed: (team, x, y) => this.sim.isPointRevealed(team, x, y)
+				});
+				if (selected) {
+					this.onSelectEntity?.(selected);
 				}
 
+				this.suppressNextClick = true;
 				this.isBoxSelecting = false;
 				this.boxStartWorld = null;
 				this.boxCurrentWorld = null;
@@ -860,6 +863,10 @@ export class ArenaRenderer {
 		// 5. Left Click: Select Entity OR Place Building OR Fire Rescue Strike
 		canvas.addEventListener('click', (e: MouseEvent) => {
 			if (e.button !== 0) return;
+			if (this.suppressNextClick) {
+				this.suppressNextClick = false;
+				return;
+			}
 			const rect = canvas.getBoundingClientRect();
 			const mouseScreenX = e.clientX - rect.left;
 			const mouseScreenY = e.clientY - rect.top;

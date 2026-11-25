@@ -253,14 +253,34 @@ describe('database.rules.json security invariants & Firebase architecture', () =
 		expect(dailyDate.$uid.$other['.validate']).toBe(false);
 	});
 
-	it('plans database room sweep for stale rooms older than 2 hours', () => {
+	it('plans database room sweep for stale, ended, and abandoned rooms', () => {
 		const now = Date.now();
 		const staleTime = now - (SWEEP_MAX_AGE_MS + 1000);
 		const freshTime = now - 60000;
+		const abandonedTime = now - 4 * 60 * 1000;
 
 		const mockRooms = {
 			STALE1: { info: { createdAt: staleTime, hostUid: 'host1', gameId: 'islands-of-nonsense' } },
-			FRESH1: { info: { createdAt: freshTime, hostUid: 'host2', gameId: 'islands-of-nonsense' } },
+			DEAD2: {
+				info: { createdAt: freshTime, aliveAt: freshTime, hostUid: 'host2', status: 'over' }
+			},
+			ABANDONED3: {
+				info: {
+					createdAt: abandonedTime,
+					aliveAt: abandonedTime,
+					hostUid: 'host2',
+					status: 'lobby'
+				}
+			},
+			FRESH1: {
+				info: {
+					createdAt: freshTime,
+					aliveAt: freshTime,
+					hostUid: 'host2',
+					gameId: 'islands-of-nonsense'
+				},
+				presence: { host2: { online: true, lastSeen: freshTime } }
+			},
 			EMPTY1: {}
 		};
 
@@ -280,13 +300,15 @@ describe('database.rules.json security invariants & Firebase architecture', () =
 			},
 			myRooms: {
 				host1: {
-					STALE1: { createdAt: staleTime },
-					GONE99: { createdAt: freshTime },
+					STALE1: { at: staleTime },
+					GONE99: { at: freshTime },
 					FRESH1: { createdAt: freshTime }
 				}
 			}
 		});
 		expect(toDelete).toContain('rooms/STALE1');
+		expect(toDelete).toContain('rooms/DEAD2');
+		expect(toDelete).toContain('rooms/ABANDONED3');
 		expect(toDelete).toContain('lobby/islands-of-nonsense/STALE1');
 		expect(toDelete).toContain('lobby/islands-of-nonsense/ORPHAN');
 		expect(toDelete).toContain('seek/islands-of-nonsense/oldSeek');

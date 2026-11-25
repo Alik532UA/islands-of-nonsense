@@ -468,6 +468,8 @@
 
 	async function handleMoveToSlot(team: 'west' | 'east', slotNum: number) {
 		if (!isLobby || !localUid) return;
+		const expectedTeam: 'west' | 'east' = slotNum % 2 === 0 ? 'east' : 'west';
+		if (expectedTeam !== team) return;
 		if (slotOccupants.has(slotNum)) return;
 		const wasSpectator = isLocalSpectator;
 		if (wasSpectator && members.filter((m) => m.role === 'player').length >= openHumanCapacity) {

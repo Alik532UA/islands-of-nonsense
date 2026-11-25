@@ -163,6 +163,11 @@ export class MatchSync {
 		}
 	}
 
+	setLocalIdentity(localTeam: 'west' | 'east', localSlot: number) {
+		this.localTeam = localTeam;
+		this.localSlot = localSlot;
+	}
+
 	getPeerLatency(peerUid: string): number | undefined {
 		return this.peerRtt.get(peerUid);
 	}
@@ -481,8 +486,14 @@ export class MatchSync {
 
 	private resolvePlayerForMove(move: Move): PlayerState {
 		const p = move.payload ?? {};
-		const explicitSlot =
-			typeof p.playerSlot === 'number' ? p.playerSlot : this.uidToSlot.get(move.by);
+		const mappedSlot = this.uidToSlot.get(move.by);
+		// Countdown auto-finalization lets coordinator assign 'random' to pending AFK players;
+		// all gameplay commands must strictly act on the sender's authoritative assigned slot.
+		const allowCoordinatorSetRace =
+			move.type === 'SET_RACE' && p.race === 'random' && typeof p.playerSlot === 'number';
+		const explicitSlot = allowCoordinatorSetRace
+			? p.playerSlot
+			: (mappedSlot ?? (typeof p.playerSlot === 'number' ? p.playerSlot : undefined));
 		if (explicitSlot !== undefined && this.sim.allPlayers?.length) {
 			const matched = this.sim.allPlayers.find((pl) => pl.slot === explicitSlot);
 			if (matched) return matched;
@@ -494,7 +505,15 @@ export class MatchSync {
 	private applyMoveToSimulation(move: Move) {
 		const p = move.payload ?? {};
 		const player = this.resolvePlayerForMove(move);
-		const team = p.team === 'west' || p.team === 'east' ? p.team : player.team;
+		const mappedSlot = this.uidToSlot.get(move.by);
+		const allowCoordinatorSetRace =
+			move.type === 'SET_RACE' && p.race === 'random' && typeof p.playerSlot === 'number';
+		const team =
+			mappedSlot !== undefined && !allowCoordinatorSetRace
+				? player.team
+				: p.team === 'west' || p.team === 'east'
+					? p.team
+					: player.team;
 
 		switch (move.type) {
 			case 'BUILD':

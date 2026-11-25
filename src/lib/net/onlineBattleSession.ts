@@ -24,7 +24,12 @@ export interface OnlineBattleSessionCallbacks {
 	onDesync: (tick: number) => void;
 	onGone: (reason: string) => void;
 	onCommandApplied: (move: Move) => void;
-	onMatchStarted: (nextSim: Simulation, localSlot: number, isSpectator: boolean) => void;
+	onMatchStarted: (
+		nextSim: Simulation,
+		localSlot: number,
+		isSpectator: boolean,
+		localTeam: 'west' | 'east'
+	) => void;
 	onErrorNotice: (message: string) => void;
 }
 
@@ -113,8 +118,8 @@ export async function startOnlineBattleSession(
 
 		let activeSim = callbacks.sim;
 		const onlineInit = roomInfo ? createOnlineSimulation(roomInfo, members, uid) : null;
-		const localTeam = onlineInit?.localTeam ?? (isHostHint ? 'west' : 'east');
-		const localSlot = onlineInit?.localSlot ?? (localTeam === 'east' ? 2 : 1);
+		let localTeam: 'west' | 'east' = onlineInit?.localTeam ?? (isHostHint ? 'west' : 'east');
+		let localSlot = onlineInit?.localSlot ?? (localTeam === 'east' ? 2 : 1);
 		let isSpectator = !members.some((m) => m.uid === uid && m.role === 'player');
 
 		if (onlineInit) {
@@ -183,6 +188,8 @@ export async function startOnlineBattleSession(
 				onlineStarted = true;
 				isSpectator = !snap.members.some((m) => m.uid === uid && m.role === 'player');
 				const fresh = createOnlineSimulation(snap.info, snap.members, uid);
+				localTeam = fresh.localTeam;
+				localSlot = fresh.localSlot;
 				activeSim = fresh.sim;
 				const awaitingPick = activeSim.allPlayers.some((p) => !p.isBot && p.pendingRacePick);
 				const startedMs =
@@ -196,9 +203,10 @@ export async function startOnlineBattleSession(
 					epochAnchorServerMs = startedMs;
 					pausedAtServerMs = null;
 				}
+				sync?.setLocalIdentity(localTeam, localSlot);
 				sync?.setRosterSlots(fresh.uidToSlot);
 				sync?.setSimulation(activeSim);
-				callbacks.onMatchStarted(activeSim, fresh.localSlot, isSpectator);
+				callbacks.onMatchStarted(activeSim, fresh.localSlot, isSpectator, fresh.localTeam);
 			}
 		});
 
@@ -315,8 +323,12 @@ export async function startOnlineBattleSession(
 		const createdSync = sync;
 		return {
 			matchSync: createdSync,
-			localTeam,
-			localSlot,
+			get localTeam() {
+				return localTeam;
+			},
+			get localSlot() {
+				return localSlot;
+			},
 			get isSpectator() {
 				return isSpectator;
 			},

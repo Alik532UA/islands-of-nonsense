@@ -191,4 +191,88 @@ describe('Online Room Minimal Creation, 3v3 Default, In-Game Race Sync & Extende
 		syncW.dispose();
 		syncE.dispose();
 	});
+
+	it('updates localTeam/localSlot when switching to West and prevents controlling another player worker', async () => {
+		const slots = buildRoomSlots(3, 3);
+		const initialMembers: Member[] = [
+			{ uid: 'u1', name: 'Host', role: 'player', order: 1, slot: 1, team: 'west', race: 'Альянс' },
+			{ uid: 'u2', name: 'Guest', role: 'player', order: 2, slot: 2, team: 'east', race: 'Орки' }
+		];
+		const playingInfo: RoomInfo = {
+			gameId: 'castlefight',
+			rulesVersion: 1,
+			seed: 8888,
+			status: 'playing',
+			hostUid: 'u1',
+			createdAt: 1000,
+			config: {
+				modeId: 'standard',
+				teamSize: 3,
+				teamSizeWest: 3,
+				teamSizeEast: 3,
+				slots,
+				targetWins: 2
+			},
+			// After sitting in West slot 3 in the lobby, Guest starts on West (slot 3) with their own worker
+			roster: [
+				{ uid: 'u1', name: 'Host', team: 'west', slot: 1, race: 'Альянс' },
+				{ uid: 'u2', name: 'Guest', team: 'west', slot: 3, race: 'Орки' }
+			]
+		};
+
+		const hostInit = createOnlineSimulation(playingInfo, initialMembers, 'u1');
+		const guestInit = createOnlineSimulation(playingInfo, initialMembers, 'u2');
+		expect(guestInit.localTeam).toBe('west');
+		expect(guestInit.localSlot).toBe(3);
+
+		const room = new LocalRoom(playingInfo, [
+			{ uid: 'u1', name: 'Host', role: 'player', order: 1, slot: 1, team: 'west', race: 'Альянс' },
+			{ uid: 'u2', name: 'Guest', role: 'player', order: 2, slot: 3, team: 'west', race: 'Орки' }
+		]);
+
+		// Simulate guest MatchSync having stale initial lobby team/slot updated via setLocalIdentity
+		const syncHost = new MatchSync({
+			sim: hostInit.sim,
+			transport: room.transport({ as: 'u1' }),
+			localUid: 'u1',
+			localTeam: 'west',
+			localSlot: 1,
+			uidToSlot: hostInit.uidToSlot
+		});
+		const syncGuest = new MatchSync({
+			sim: guestInit.sim,
+			transport: room.transport({ as: 'u2' }),
+			localUid: 'u2',
+			localTeam: 'east',
+			localSlot: 2
+		});
+		syncGuest.setLocalIdentity(guestInit.localTeam, guestInit.localSlot);
+		syncGuest.setRosterSlots(guestInit.uidToSlot);
+
+		expect(syncGuest.localTeam).toBe('west');
+		expect(syncGuest.localSlot).toBe(3);
+
+		const hostWorkerBefore = {
+			x: hostInit.sim.allPlayers.find((p) => p.slot === 1)!.worker!.x,
+			y: hostInit.sim.allPlayers.find((p) => p.slot === 1)!.worker!.y
+		};
+		// Even if a client sends a spoofed/stale playerSlot: 1 or team: 'east', u2 can ONLY command slot 3's worker
+		await syncGuest.dispatch('MOVE_WORKER', {
+			team: 'east',
+			playerSlot: 1,
+			worldX: 1100,
+			worldY: 900
+		});
+
+		const hostWorkerOnGuest = guestInit.sim.allPlayers.find((p) => p.slot === 1)!.worker!;
+		const guestWorkerOnHost = hostInit.sim.allPlayers.find((p) => p.slot === 3)!.worker!;
+		expect(hostWorkerOnGuest.targetX).toBe(hostWorkerBefore.x);
+		expect(hostWorkerOnGuest.targetY).toBe(hostWorkerBefore.y);
+		expect(
+			Math.hypot(guestWorkerOnHost.targetX - 1100, guestWorkerOnHost.targetY - 900)
+		).toBeLessThan(80);
+
+		syncHost.dispose();
+		syncGuest.dispose();
+	});
 });

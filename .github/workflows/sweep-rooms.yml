@@ -2,7 +2,7 @@ name: Sweep Stale Rooms
 
 on:
   schedule:
-    - cron: '17 */2 * * *'
+    - cron: '*/15 * * * *'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -24,6 +24,7 @@ jobs:
     env:
       FIREBASE_DATABASE_URL: ${{ vars.FIREBASE_DATABASE_URL }}
       FIREBASE_DATABASE_SECRET: ${{ secrets.FIREBASE_DATABASE_SECRET }}
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,14 +36,14 @@ jobs:
           cache: 'npm'
 
       - name: Setup Java (Emulator Smoke)
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        if: ${{ env.FIREBASE_SERVICE_ACCOUNT == '' && env.FIREBASE_DATABASE_SECRET == '' }}
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
 
       - name: Run RTDB room sweep
-        if: ${{ env.FIREBASE_DATABASE_URL != '' && env.FIREBASE_DATABASE_SECRET != '' }}
+        if: ${{ env.FIREBASE_SERVICE_ACCOUNT != '' || env.FIREBASE_DATABASE_SECRET != '' }}
         run: |
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             node scripts/sweep-rooms.mjs
@@ -51,7 +52,7 @@ jobs:
           fi
 
       - name: Smoke-test sweep planner on Firebase Emulator
-        if: ${{ env.FIREBASE_DATABASE_URL == '' || env.FIREBASE_DATABASE_SECRET == '' }}
+        if: ${{ env.FIREBASE_SERVICE_ACCOUNT == '' && env.FIREBASE_DATABASE_SECRET == '' }}
         run: |
           if command -v java >/dev/null 2>&1; then
             node scripts/sweep-rooms.mjs --emulator
