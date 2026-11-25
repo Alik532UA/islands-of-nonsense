@@ -292,13 +292,13 @@ export default defineConfig(({ mode }) => ({
 						...(mode === 'production'
 							? ([] as const)
 							: ([
-								'http://127.0.0.1:9012',
-								'ws://127.0.0.1:9012',
-								'http://127.0.0.1:9111',
-								'http://localhost:9012',
-								'ws://localhost:9012',
-								'http://localhost:9111'
-							] as const))
+									'http://127.0.0.1:9012',
+									'ws://127.0.0.1:9012',
+									'http://127.0.0.1:9111',
+									'http://localhost:9012',
+									'ws://localhost:9012',
+									'http://localhost:9111'
+								] as const))
 					],
 					'worker-src': ['self', 'blob:'],
 					'frame-src': [
