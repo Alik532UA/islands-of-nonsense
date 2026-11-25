@@ -53,6 +53,7 @@ export interface Connection {
 }
 
 let pending: Promise<Connection> | null = null;
+let emulatorsWired = false;
 let serverOffset = 0;
 let off: (() => void) | null = null;
 let offsetArrived: Promise<void> = Promise.resolve();
@@ -85,26 +86,46 @@ export function connect(): Promise<Connection> {
 
 async function open(): Promise<Connection> {
 	if (EMULATOR) await emulatorUp();
-	const [{ initializeApp }, authModule, dbModule] = await Promise.all([
+	const [{ initializeApp, getApps, getApp }, authModule, dbModule] = await Promise.all([
 		import('firebase/app'),
 		import('firebase/auth'),
 		import('firebase/database')
 	]);
 
-	const app = initializeApp(EMULATOR ? EMULATOR_CONFIG : CONFIG);
-	const auth: Auth = authModule.getAuth(app);
+	const existingApp = getApps().length > 0;
+	const app = existingApp ? getApp() : initializeApp(EMULATOR ? EMULATOR_CONFIG : CONFIG);
+	const auth: Auth =
+		existingApp || !EMULATOR
+			? authModule.getAuth(app)
+			: authModule.initializeAuth(app, {
+					persistence: authModule.browserSessionPersistence,
+					popupRedirectResolver: authModule.browserPopupRedirectResolver
+				});
 
-	if (EMULATOR) {
+	const db = dbModule.getDatabase(app);
+	if (EMULATOR && !emulatorsWired) {
 		authModule.connectAuthEmulator(auth, `http://${EMULATOR_HOST}:${EMULATOR_PORTS.auth}`, {
 			disableWarnings: true
 		});
-	}
-
-	const db = dbModule.getDatabase(app);
-	if (EMULATOR) {
 		dbModule.connectDatabaseEmulator(db, EMULATOR_HOST, EMULATOR_PORTS.database);
+		emulatorsWired = true;
 	}
 
+	await auth.authStateReady();
+
+	let user = auth.currentUser;
+	if (user) {
+		try {
+			// Verify cached emulator token is still accepted after emulator restarts
+			await user.getIdToken(EMULATOR);
+		} catch {
+			await authModule.signOut(auth).catch(() => {});
+			user = null;
+		}
+	}
+	user ??= (await authModule.signInAnonymously(auth)).user;
+
+	// Subscribe to RTDB server offset only after auth holds a verified active user/token
 	const { onValue, ref } = dbModule;
 	const offsetNode = ref(db, '.info/serverTimeOffset');
 	if (off) off();
@@ -117,9 +138,6 @@ async function open(): Promise<Connection> {
 		arrived();
 	});
 
-	await auth.authStateReady();
-
-	const user = auth.currentUser ?? (await authModule.signInAnonymously(auth)).user;
 	logService.sessionUid = user.uid;
 	rememberSession();
 	logService.info(
