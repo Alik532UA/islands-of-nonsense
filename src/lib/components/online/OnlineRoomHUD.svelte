@@ -816,53 +816,26 @@
 
 										<Avatar avatar={occupant.avatar} size={26} showDefault />
 
-										<div class="min-w-0 flex-1">
-											<div class="flex items-center gap-1.5 min-w-0">
-												<span class="font-bold text-slate-100 truncate">{occupant.name}</span>
-												{#if occupant.uid === roomInfo?.hostUid}
-													<span title="Господар кімнати" class="shrink-0 text-amber-400">
-														<Crown class="w-3.5 h-3.5" />
-													</span>
-												{/if}
-												{#if occupant.country}
-													<span
-														class="text-[9px] px-1 py-0.5 rounded-[4px] bg-[#0b0f18] border border-slate-700 text-slate-400 font-mono uppercase shrink-0"
-													>
-														{occupant.country}
-													</span>
-												{/if}
-												{#if occupant.ready}
-													<span
-														class="text-[9px] px-1.5 py-0.5 rounded-[4px] bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 font-bold shrink-0"
-													>
-														✓
-													</span>
-												{/if}
-											</div>
-											{#if occupant.uid === localUid && !roomInfo?.config?.allRandom}
-												<select
-													aria-label="Раса"
-													data-testid="lobby-race-select-{slotKey}"
-													value={occupant.race ?? 'in_game'}
-													onchange={(e) =>
-														handleChangeRace((e.currentTarget as HTMLSelectElement).value)}
-													class="mt-1 w-full max-w-[165px] px-2 py-0.5 rounded-[6px] bg-[#0b0f18] border border-[#8c7456]/60 hover:border-amber-400 text-[11px] font-semibold text-amber-200 cursor-pointer focus:outline-none focus:border-amber-400"
+										<div class="flex items-center gap-1.5 min-w-0 flex-1">
+											<span class="font-bold text-slate-100 truncate">{occupant.name}</span>
+											{#if occupant.uid === roomInfo?.hostUid}
+												<span title="Господар кімнати" class="shrink-0 text-amber-400">
+													<Crown class="w-3.5 h-3.5" />
+												</span>
+											{/if}
+											{#if occupant.country}
+												<span
+													class="text-[9px] px-1 py-0.5 rounded-[4px] bg-[#0b0f18] border border-slate-700 text-slate-400 font-mono uppercase shrink-0"
 												>
-													<option value="in_game">{t('online.hud.raceInGame')}</option>
-													<option value="random">{t('online.hud.randomRaceBonus')}</option>
-													{#each availablePlayableRaces as race (race)}
-														<option value={race}>{formatRaceName(race)}</option>
-													{/each}
-												</select>
-											{:else if !roomInfo?.config?.allRandom}
-												{@const occRace = occupant.race ?? 'in_game'}
-												<div class="text-[10px] text-amber-300/90 font-medium mt-0.5">
-													{occRace === 'in_game'
-														? t('online.hud.raceInGame')
-														: occRace === 'random'
-															? t('online.hud.randomRaceBonus')
-															: formatRaceName(occRace)}
-												</div>
+													{occupant.country}
+												</span>
+											{/if}
+											{#if occupant.ready}
+												<span
+													class="text-[9px] px-1.5 py-0.5 rounded-[4px] bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 font-bold shrink-0"
+												>
+													✓
+												</span>
 											{/if}
 										</div>
 									{:else if slotCfg.kind === 'bot'}
@@ -902,29 +875,11 @@
 											>
 												<Bot class="w-3.5 h-3.5 text-amber-300" />
 											</span>
-											{#if isEffectiveHost && !roomInfo?.config?.allRandom}
-												<select
-													aria-label="Раса бота"
-													value={slotCfg.race ?? 'random'}
-													onchange={(e) =>
-														handleHostSetSlot(
-															slotKey,
-															'bot',
-															slotCfg.botDifficulty ?? 15,
-															(e.currentTarget as HTMLSelectElement).value
-														)}
-													class="px-2 py-0.5 rounded-[6px] bg-[#0b0f18] border border-slate-700 hover:border-amber-400/70 text-[11px] font-semibold text-amber-200 max-w-[130px] cursor-pointer"
-												>
-													<option value="random">{t('online.hud.randomRaceBonus')}</option>
-													{#each availablePlayableRaces as race (race)}
-														<option value={race}>{formatRaceName(race)}</option>
-													{/each}
-												</select>
-											{:else}
-												<span class="text-amber-200 font-semibold truncate">
-													{t('online.hud.slotBot')} ({slotCfg.botDifficulty ?? 15}%)
-												</span>
-											{/if}
+											<span class="text-amber-200 font-semibold truncate">
+												{isEffectiveHost
+													? t('online.hud.slotBot')
+													: `${t('online.hud.slotBot')} (${slotCfg.botDifficulty ?? 15}%)`}
+											</span>
 										</div>
 									{:else if slotCfg.kind === 'open'}
 										<span
@@ -949,6 +904,33 @@
 
 								<div class="flex items-center gap-1.5 shrink-0">
 									{#if occupant}
+										{#if occupant.uid === localUid && !roomInfo?.config?.allRandom}
+											<select
+												aria-label="Раса"
+												data-testid="lobby-race-select-{slotKey}"
+												value={occupant.race ?? 'in_game'}
+												onchange={(e) =>
+													handleChangeRace((e.currentTarget as HTMLSelectElement).value)}
+												class="px-2 py-1 rounded-[6px] bg-[#0b0f18] border border-[#8c7456]/60 hover:border-amber-400 text-[11px] font-semibold text-amber-200 max-w-[145px] cursor-pointer focus:outline-none focus:border-amber-400"
+											>
+												<option value="in_game">{t('online.hud.raceInGame')}</option>
+												<option value="random">{t('online.hud.randomRaceBonus')}</option>
+												{#each availablePlayableRaces as race (race)}
+													<option value={race}>{formatRaceName(race)}</option>
+												{/each}
+											</select>
+										{:else if !roomInfo?.config?.allRandom}
+											{@const occRace = occupant.race ?? 'in_game'}
+											<span
+												class="px-2 py-1 rounded-[6px] bg-[#0b0f18]/80 border border-slate-700/80 text-[11px] text-amber-300/95 font-medium"
+											>
+												{occRace === 'in_game'
+													? t('online.hud.raceInGame')
+													: occRace === 'random'
+														? t('online.hud.randomRaceBonus')
+														: formatRaceName(occRace)}
+											</span>
+										{/if}
 										{#if isEffectiveHost && occupant.uid !== localUid}
 											<button
 												type="button"
@@ -969,6 +951,25 @@
 											</button>
 										{/if}
 									{:else}
+										{#if slotCfg.kind === 'bot' && isEffectiveHost && !roomInfo?.config?.allRandom}
+											<select
+												aria-label="Раса бота"
+												value={slotCfg.race ?? 'random'}
+												onchange={(e) =>
+													handleHostSetSlot(
+														slotKey,
+														'bot',
+														slotCfg.botDifficulty ?? 15,
+														(e.currentTarget as HTMLSelectElement).value
+													)}
+												class="px-2 py-1 rounded-[6px] bg-[#0b0f18] border border-slate-700 hover:border-amber-400/70 text-[11px] font-semibold text-amber-200 max-w-[115px] cursor-pointer"
+											>
+												<option value="random">{t('online.hud.randomRaceBonus')}</option>
+												{#each availablePlayableRaces as race (race)}
+													<option value={race}>{formatRaceName(race)}</option>
+												{/each}
+											</select>
+										{/if}
 										{#if slotCfg.kind === 'open' && localMember}
 											<button
 												type="button"
