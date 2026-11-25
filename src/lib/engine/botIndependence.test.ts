@@ -10,7 +10,8 @@ describe('Bot Independence & Courtyard Isolation (2v2 and 3v3)', () => {
 			startGold: 1000,
 			teamSize: 2,
 			westRace: 'Люди',
-			eastRace: 'Орки'
+			eastRace: 'Орки',
+			seed: 12345
 		});
 
 		// East team has p2 (Slot 2, Mid) and p4 (Slot 4, Top)
@@ -146,7 +147,8 @@ describe('Bot Independence & Courtyard Isolation (2v2 and 3v3)', () => {
 			startGold: 1000,
 			teamSize: 2,
 			westRace: 'Люди',
-			eastRace: 'Орки'
+			eastRace: 'Орки',
+			seed: 12345
 		});
 
 		const p2 = sim.players.east;
@@ -185,7 +187,8 @@ describe('Bot Independence & Courtyard Isolation (2v2 and 3v3)', () => {
 			startGold: 1000,
 			teamSize: 2,
 			westRace: 'Люди',
-			eastRace: 'Орки'
+			eastRace: 'Орки',
+			seed: 12345
 		});
 
 		const p2 = sim.players.east;

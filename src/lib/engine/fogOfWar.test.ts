@@ -35,7 +35,8 @@ describe('Point 5: Fog of War System & Vision Masking', () => {
 	let sim: Simulation;
 
 	beforeEach(() => {
-		sim = new Simulation({ botDifficulty: 0, startGold: 2000, fogOfWar: true });
+		// Pin seed so procedural decorations stay deterministic and don't randomly reveal test coordinates
+		sim = new Simulation({ botDifficulty: 0, startGold: 2000, fogOfWar: true, seed: 12345 });
 	});
 
 	it('Castle provides wide panoramic vision (750px radius)', () => {
