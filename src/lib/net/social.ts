@@ -104,13 +104,13 @@ export async function savePrivacy(
 		if (profile?.handle) {
 			updates[`find/${profile.handle}`] = privacy.search
 				? {
-						uid,
-						name: profile.name,
-						handle: profile.handle,
-						...(profile.country ? { country: profile.country } : {}),
-						...(profile.avatar ? { avatar: profile.avatar } : {}),
-						search: true
-					}
+					uid,
+					name: profile.name,
+					handle: profile.handle,
+					...(profile.country ? { country: profile.country } : {}),
+					...(profile.avatar ? { avatar: profile.avatar } : {}),
+					search: true
+				}
 				: null;
 		}
 		await update(ref(db), updates);
@@ -313,7 +313,7 @@ export async function watchInbox(onItems: (items: InboxItem[]) => void): Promise
 			onItems(list);
 		});
 	} catch {
-		return () => {};
+		return () => { };
 	}
 }
 
@@ -325,6 +325,30 @@ export async function dismissInboxItem(id: string): Promise<void> {
 	} catch {
 		// ignore
 	}
+}
+
+export function sortFriendsForInvite(
+	mutual: readonly SocialUser[],
+	following: readonly SocialUser[],
+	onlineUids: ReadonlySet<string> = new Set()
+): SocialUser[] {
+	const seen = new Set<string>();
+	const mutualSet = new Set(mutual.map((u) => u.uid));
+	const merged: SocialUser[] = [];
+	for (const u of [...mutual, ...following]) {
+		if (!u.uid || seen.has(u.uid)) continue;
+		seen.add(u.uid);
+		merged.push({
+			...u,
+			mutual: mutualSet.has(u.uid) || Boolean(u.mutual),
+			online: Boolean(u.online || onlineUids.has(u.uid))
+		});
+	}
+	return merged.sort((a, b) => {
+		const aScore = (a.online ? 2 : 0) + (a.mutual ? 1 : 0);
+		const bScore = (b.online ? 2 : 0) + (b.mutual ? 1 : 0);
+		return bScore - aScore || a.name.localeCompare(b.name);
+	});
 }
 
 export async function trackGlobalPresence(info: {
@@ -354,7 +378,7 @@ export async function trackGlobalPresence(info: {
 			void remove(node);
 		};
 	} catch {
-		return () => {};
+		return () => { };
 	}
 }
 
@@ -379,7 +403,7 @@ export async function watchGlobalPresence(
 			onUsers(list.reverse());
 		});
 	} catch {
-		return () => {};
+		return () => { };
 	}
 }
 

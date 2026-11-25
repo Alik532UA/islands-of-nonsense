@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_PRIVACY, markMutualConnections, type SocialUser } from './social';
+import {
+	DEFAULT_PRIVACY,
+	markMutualConnections,
+	sortFriendsForInvite,
+	type SocialUser
+} from './social';
 
 describe('social & follow graph helpers', () => {
 	it('marks mutual connections across following and followers lists', () => {
@@ -26,5 +31,19 @@ describe('social & follow graph helpers', () => {
 			board: true,
 			onlineStatus: true
 		});
+	});
+
+	it('sorts invite candidates prioritizing online mutual friends first', () => {
+		const mutual: SocialUser[] = [
+			{ uid: 'm_off', name: 'Zed', handle: 'zed' },
+			{ uid: 'm_on', name: 'Anna', handle: 'anna' }
+		];
+		const following: SocialUser[] = [
+			{ uid: 'f_off', name: 'Boris', handle: 'boris' },
+			{ uid: 'f_on', name: 'Clara', handle: 'clara' },
+			{ uid: 'm_on', name: 'Anna', handle: 'anna' }
+		];
+		const ordered = sortFriendsForInvite(mutual, following, new Set(['m_on', 'f_on']));
+		expect(ordered.map((u) => u.uid)).toEqual(['m_on', 'f_on', 'm_off', 'f_off']);
 	});
 });

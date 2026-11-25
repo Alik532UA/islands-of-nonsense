@@ -19,7 +19,7 @@
 	import RewardsPanel from '$lib/components/account/RewardsPanel.svelte';
 	import FriendsPanel from '$lib/components/account/FriendsPanel.svelte';
 	import DmDrawer from '$lib/components/chat/DmDrawer.svelte';
-	import { loadSocialLists } from '$lib/net/social';
+	import { loadSocialLists, watchInbox } from '$lib/net/social';
 	import { rewardsStore } from '$lib/services/rewardsService.svelte';
 	import { computeLevelProgress, titleLabel } from '$lib/config/rewards';
 	import { withAvatarFrame, type AvatarFrame } from '$lib/config/avatars';
@@ -29,6 +29,8 @@
 	type TabType = 'profile' | 'stats' | 'rewards' | 'friends' | 'leaders';
 	let activeTab = $state<TabType>('profile');
 	let friendUids = $state<string[]>([]);
+	let followingUids = $state<string[]>([]);
+	let inboxCount = $state(0);
 	let dmPeer = $state<{ uid: string; name: string; avatar?: string } | null>(null);
 
 	let formName = $state('');
@@ -109,6 +111,7 @@
 	});
 
 	onMount(() => {
+		let unsubInbox = () => {};
 		void controller.load().then(() => {
 			if (controller.profile) {
 				formName = controller.profile.name;
@@ -118,12 +121,19 @@
 			}
 			if (controller.state === 'linked') {
 				void loadSocialLists().then((res) => {
-					friendUids = res.following.map((u) => u.uid);
+					friendUids = res.mutual.map((u) => u.uid);
+					followingUids = res.following.map((u) => u.uid);
 					void controller.loadLeaders(friendUids);
+				});
+				void watchInbox((items) => {
+					inboxCount = items.length;
+				}).then((fn) => {
+					unsubInbox = fn;
 				});
 			}
 		});
 		void controller.loadLeaders();
+		return () => unsubInbox();
 	});
 
 	async function handleSaveProfile() {
@@ -268,6 +278,14 @@
 			>
 				<UiIcon name="users" class="w-4 h-4" />
 				<span>{t('account.tab.friends')}</span>
+				{#if inboxCount > 0}
+					<span
+						class="px-1.5 py-0.5 rounded-full bg-amber-500 text-slate-950 text-[10px] font-black leading-none"
+						data-testid="friends-inbox-badge"
+					>
+						{inboxCount}
+					</span>
+				{/if}
 			</button>
 
 			<button
@@ -278,7 +296,8 @@
 					void controller.loadLeaders(friendUids);
 					if (controller.state === 'linked') {
 						void loadSocialLists().then((res) => {
-							friendUids = res.following.map((u) => u.uid);
+							friendUids = res.mutual.map((u) => u.uid);
+							followingUids = res.following.map((u) => u.uid);
 							void controller.loadLeaders(friendUids);
 						});
 					}
@@ -734,6 +753,7 @@
 				myScore={controller.playData.score}
 				myCountry={formCountry || controller.profile?.country || ''}
 				{friendUids}
+				{followingUids}
 				onOpenDm={(peer) => (dmPeer = peer)}
 				onRefresh={() => controller.loadLeaders(friendUids)}
 				onPublish={() => controller.publishToLeaderboard()}

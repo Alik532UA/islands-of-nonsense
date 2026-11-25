@@ -14,8 +14,12 @@
 	import {
 		followUser,
 		loadSocialLists,
+		readPrivacy,
 		sendRoomInvite,
+		sortFriendsForInvite,
+		trackGlobalPresence,
 		unfollowUser,
+		watchGlobalPresence,
 		type SocialUser
 	} from '$lib/net/social';
 	import { readProfile, type Profile } from '$lib/net/account';
@@ -92,6 +96,9 @@
 	);
 	let shareQr = $derived(shareOpen ? generateQrSvgPath(shareUrl) : null);
 	let myFriends = $state<SocialUser[]>([]);
+	let myMutualFriends = $state<SocialUser[]>([]);
+	let onlineSocialUids = $state<Set<string>>(new Set());
+	let inviteFriends = $derived(sortFriendsForInvite(myMutualFriends, myFriends, onlineSocialUids));
 	let myProfile = $state<Profile | null>(null);
 	let emoteTimer: ReturnType<typeof setTimeout> | null = null;
 	let roomError = $state<string | null>(null);
@@ -182,6 +189,8 @@
 
 	onMount(() => {
 		let stopPresence = () => {};
+		let stopGlobalPresence = () => {};
+		let stopWatchGlobalPresence = () => {};
 		let stopWatchPresence = () => {};
 		let stopBeat = () => {};
 		let stopWatchRoom = () => {};
@@ -196,11 +205,31 @@
 				if (!active) return;
 				localUid = uid;
 				if (!auth.currentUser?.isAnonymous) {
-					void readProfile().then((p) => {
+					void Promise.all([readProfile(), readPrivacy()]).then(([p, priv]) => {
+						if (!active) return;
 						myProfile = p;
+						if (priv.onlineStatus) {
+							void trackGlobalPresence({
+								name: p?.name || identity.value || t('online.defaultPlayerName'),
+								handle: p?.handle,
+								country: p?.country || identity.country,
+								avatar: p?.avatar || identity.avatar,
+								roomCode
+							}).then((fn) => {
+								if (active) stopGlobalPresence = fn;
+								else fn();
+							});
+						}
 					});
 					void loadSocialLists().then((lists) => {
 						myFriends = lists.following;
+						myMutualFriends = lists.mutual;
+					});
+					void watchGlobalPresence((users) => {
+						onlineSocialUids = new Set(users.map((u) => u.uid));
+					}).then((fn) => {
+						if (active) stopWatchGlobalPresence = fn;
+						else fn();
 					});
 				}
 
@@ -301,6 +330,8 @@
 			stopBeat();
 			stopWatchPresence();
 			stopPresence();
+			stopWatchGlobalPresence();
+			stopGlobalPresence();
 		};
 	});
 
@@ -656,7 +687,7 @@
 						<UiIcon name="share2" class="w-4 h-4 text-amber-300" />
 						<span class="hidden sm:inline">{t('online.hud.shareBtn')}</span>
 					</button>
-					{#if myFriends.length > 0}
+					{#if inviteFriends.length > 0}
 						<div class="relative">
 							<button
 								type="button"
@@ -671,9 +702,9 @@
 							</button>
 							{#if inviteOpen}
 								<div
-									class="absolute right-0 mt-1.5 w-56 rounded-xl bg-[#0b0f18] border border-emerald-500/40 shadow-2xl p-2 space-y-1 z-50"
+									class="absolute right-0 mt-1.5 w-60 rounded-xl bg-[#0b0f18] border border-emerald-500/40 shadow-2xl p-2 space-y-1 z-50"
 								>
-									{#each myFriends.slice(0, 8) as friend (friend.uid)}
+									{#each inviteFriends.slice(0, 8) as friend (friend.uid)}
 										<button
 											type="button"
 											onclick={async () => {
@@ -688,8 +719,18 @@
 											}}
 											class="w-full flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-800 text-left text-xs text-slate-200 cursor-pointer"
 										>
-											<Avatar avatar={friend.avatar ?? 'castle:amber'} size={20} showDefault />
+											<div class="relative shrink-0">
+												<Avatar avatar={friend.avatar ?? 'castle:amber'} size={20} showDefault />
+												{#if friend.online}
+													<span
+														class="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-1 ring-[#0b0f18]"
+													></span>
+												{/if}
+											</div>
 											<span class="truncate flex-1">{friend.name}</span>
+											{#if friend.mutual}
+												<UiIcon name="heart" class="w-3 h-3 text-amber-400 shrink-0" />
+											{/if}
 											<span class="text-[10px] text-emerald-400 font-bold">+</span>
 										</button>
 									{/each}
@@ -1591,6 +1632,7 @@
 				if (ok) {
 					const lists = await loadSocialLists();
 					myFriends = lists.following;
+					myMutualFriends = lists.mutual;
 				}
 			}
 		}}

@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { readPublicPlayerProfile, type PublicPlayerProfile } from '$lib/net/social';
 	import { titleLabel } from '$lib/config/rewards';
@@ -157,6 +159,21 @@
 					>
 						<UiIcon name="send" class="w-3.5 h-3.5" />
 						<span>{t('social.invite')}</span>
+					</button>
+				{/if}
+
+				{#if profile.online && profile.roomCode && profile.roomCode !== myRoomCode}
+					<button
+						type="button"
+						onclick={() => {
+							const code = profile!.roomCode!;
+							onClose();
+							void goto(`${resolve('/online')}?room=${encodeURIComponent(code)}`);
+						}}
+						class="py-2 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+					>
+						<UiIcon name="logIn" class="w-3.5 h-3.5" />
+						<span>{t('social.joinRoom', { code: profile.roomCode })}</span>
 					</button>
 				{/if}
 			</div>

@@ -328,7 +328,9 @@
 				class="divide-y divide-slate-800/60 rounded-2xl border border-slate-800 bg-slate-950/40 overflow-hidden"
 			>
 				{#each activeList as user (user.uid)}
-					{@const isOnline = Boolean(user.online || onlineByUid.has(user.uid))}
+					{@const liveInfo = onlineByUid.get(user.uid)}
+					{@const isOnline = Boolean(user.online || liveInfo)}
+					{@const liveRoom = user.roomCode ?? liveInfo?.roomCode}
 					<div class="flex items-center justify-between gap-3 p-3 text-xs">
 						<button
 							type="button"
@@ -364,6 +366,17 @@
 						</button>
 
 						<div class="flex items-center gap-1.5 shrink-0">
+							{#if liveRoom}
+								<button
+									type="button"
+									onclick={() =>
+										void goto(`${resolve('/online')}?room=${encodeURIComponent(liveRoom)}`)}
+									class="px-2 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-[11px] flex items-center gap-1 cursor-pointer"
+								>
+									<UiIcon name="logIn" class="w-3 h-3" />
+									<span>{t('social.joinRoom', { code: liveRoom })}</span>
+								</button>
+							{/if}
 							<button
 								type="button"
 								onclick={() => (selectedUid = user.uid)}

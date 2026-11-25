@@ -11,6 +11,8 @@
 		dismissInboxItem,
 		followUser,
 		loadSocialLists,
+		readPrivacy,
+		trackGlobalPresence,
 		unfollowUser,
 		watchInbox,
 		type InboxItem
@@ -46,6 +48,7 @@
 	let errorMessage = $state<string | null>(null);
 	let rooms = $state<LobbyRoom[]>([]);
 	let friendUids = $state<string[]>([]);
+	let followingUids = $state<string[]>([]);
 	let myUid = $state<string | null>(null);
 	let myProfile = $state<Profile | null>(null);
 	let dmPeer = $state<{ uid: string; name: string; avatar?: string } | null>(null);
@@ -70,6 +73,8 @@
 
 		let unsubscribeLobby = () => {};
 		let unsubscribeInbox = () => {};
+		let stopGlobalPresence = () => {};
+		let active = true;
 
 		const urlCode =
 			typeof window !== 'undefined'
@@ -78,13 +83,27 @@
 
 		void connect()
 			.then(({ auth, db, uid }) => {
+				if (!active) return;
 				myUid = uid;
 				if (!auth.currentUser?.isAnonymous) {
-					void readProfile().then((p) => {
+					void Promise.all([readProfile(), readPrivacy()]).then(([p, priv]) => {
+						if (!active) return;
 						myProfile = p;
+						if (priv.onlineStatus) {
+							void trackGlobalPresence({
+								name: p?.name || player.value || t('online.defaultPlayerName'),
+								handle: p?.handle,
+								country: p?.country || player.country,
+								avatar: p?.avatar || player.avatar
+							}).then((fn) => {
+								if (active) stopGlobalPresence = fn;
+								else fn();
+							});
+						}
 					});
 					void loadSocialLists().then((res) => {
-						friendUids = res.following.map((u) => u.uid);
+						friendUids = res.mutual.map((u) => u.uid);
+						followingUids = res.following.map((u) => u.uid);
 					});
 					void watchInbox((items) => {
 						const invites = items.filter((i) => i.type === 'room_invite' && i.roomCode);
@@ -126,6 +145,8 @@
 			});
 
 		return () => {
+			active = false;
+			stopGlobalPresence();
 			unsubscribeLobby();
 			unsubscribeInbox();
 			if (searchController) searchController.abort();
@@ -528,15 +549,22 @@
 {#if inspectUid}
 	<PublicProfileModal
 		targetUid={inspectUid}
-		isFollowing={friendUids.includes(inspectUid)}
+		isFollowing={followingUids.includes(inspectUid)}
 		onClose={() => (inspectUid = null)}
 		onToggleFollow={async (targetUid) => {
-			if (friendUids.includes(targetUid)) {
+			if (followingUids.includes(targetUid)) {
 				const ok = await unfollowUser(targetUid);
-				if (ok) friendUids = friendUids.filter((id) => id !== targetUid);
+				if (ok) {
+					followingUids = followingUids.filter((id) => id !== targetUid);
+					friendUids = friendUids.filter((id) => id !== targetUid);
+				}
 			} else {
 				const ok = await followUser(targetUid, myProfile);
-				if (ok) friendUids = [...friendUids, targetUid];
+				if (ok) {
+					const lists = await loadSocialLists();
+					followingUids = lists.following.map((u) => u.uid);
+					friendUids = lists.mutual.map((u) => u.uid);
+				}
 			}
 		}}
 		onOpenDm={(peer) => (dmPeer = peer)}

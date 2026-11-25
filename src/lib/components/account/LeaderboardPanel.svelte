@@ -24,6 +24,7 @@
 		myScore: number;
 		myCountry?: string;
 		friendUids?: string[];
+		followingUids?: string[];
 		onOpenDm?: (peer: { uid: string; name: string; avatar?: string }) => void;
 		onRefresh: () => Promise<void> | void;
 		onPublish: () => Promise<boolean> | void;
@@ -38,6 +39,7 @@
 		myScore,
 		myCountry = '',
 		friendUids = [],
+		followingUids,
 		onOpenDm,
 		onRefresh,
 		onPublish,
@@ -48,9 +50,10 @@
 	let sortBy = $state<LeaderSort>('score');
 	let busy = $state(false);
 	let selectedLeaderUid = $state<string | null>(null);
-	let localFriendUids = $derived(friendUids);
+	let localFollowingUids = $derived(followingUids ?? friendUids);
 
-	const friendSet = $derived(new Set(localFriendUids));
+	const friendSet = $derived(new Set(friendUids));
+	const followingSet = $derived(new Set(localFollowingUids));
 	const scopedLeaders = $derived.by(() => {
 		if (scope === 'friends') {
 			return leaders.filter((l) => l.uid === myUid || friendSet.has(l.uid));
@@ -299,15 +302,15 @@
 {#if selectedLeaderUid}
 	<PublicProfileModal
 		targetUid={selectedLeaderUid}
-		isFollowing={friendSet.has(selectedLeaderUid)}
+		isFollowing={followingSet.has(selectedLeaderUid)}
 		onClose={() => (selectedLeaderUid = null)}
 		onToggleFollow={async (targetUid) => {
-			if (friendSet.has(targetUid)) {
+			if (followingSet.has(targetUid)) {
 				const ok = await unfollowUser(targetUid);
-				if (ok) localFriendUids = localFriendUids.filter((id) => id !== targetUid);
+				if (ok) localFollowingUids = localFollowingUids.filter((id) => id !== targetUid);
 			} else {
 				const ok = await followUser(targetUid, profile);
-				if (ok) localFriendUids = [...localFriendUids, targetUid];
+				if (ok) localFollowingUids = [...localFollowingUids, targetUid];
 			}
 		}}
 		{onOpenDm}
