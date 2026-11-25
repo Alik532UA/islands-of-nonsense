@@ -92,10 +92,33 @@ jobs:
     needs: build
     if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && github.event_name != 'pull_request'
     permissions:
+      contents: read
       pages: write
       id-token: write
     timeout-minutes: 15
+    env:
+      HAS_FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
     steps:
+      - name: Checkout rules config
+        if: ${{ env.HAS_FIREBASE_SA == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js for Firebase CLI
+        if: ${{ env.HAS_FIREBASE_SA == 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Deploy Firebase RTDB rules
+        if: ${{ env.HAS_FIREBASE_SA == 'true' }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          KEY_PATH="${RUNNER_TEMP}/firebase-sa.json"
+          trap 'rm -f "$KEY_PATH"' EXIT
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$KEY_PATH"
+          GOOGLE_APPLICATION_CREDENTIALS="$KEY_PATH" npx --yes --engine-strict=false firebase-tools@15.37.0 deploy --only database --project islands-of-nonsense --non-interactive
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
