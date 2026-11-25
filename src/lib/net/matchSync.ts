@@ -411,7 +411,7 @@ export class MatchSync {
 
 		for (const move of moves) {
 			const tick = typeof move.payload?.tick === 'number' ? move.payload.tick : 0;
-			if (tick > maxTick && (minFinalTargetTick === 0 || tick <= minFinalTargetTick)) {
+			if (tick > maxTick) {
 				maxTick = tick;
 			}
 
@@ -428,9 +428,8 @@ export class MatchSync {
 		for (let segIdx = 0; segIdx < segments.length; segIdx++) {
 			const seg = segments[segIdx];
 			const isLastSeg = segIdx === segments.length - 1;
-			const desiredTarget = isLastSeg
-				? Math.max(seg.targetTick, minFinalTargetTick)
-				: seg.targetTick;
+			const desiredTarget =
+				isLastSeg && minFinalTargetTick > 0 ? minFinalTargetTick : seg.targetTick;
 			const clampedTarget = Math.min(desiredTarget, MAX_CATCHUP_TICKS);
 			const checksums: Move[] = [];
 			for (const move of seg.moves) {

@@ -1100,7 +1100,11 @@
 		const FIXED_STEP = 1 / 60;
 
 		function maybeSyncChecksum(serverTargetTick: number | null) {
-			if (!matchSync || sim.tick <= 0 || sim.tick === lastCheckpointTick) return;
+			if (!matchSync || sim.tick <= 0) return;
+			if (sim.tick < lastCheckpointTick) {
+				lastCheckpointTick = -1;
+			}
+			if (sim.tick === lastCheckpointTick) return;
 			if (sim.tick % 30 !== 0) return;
 			lastCheckpointTick = sim.tick;
 

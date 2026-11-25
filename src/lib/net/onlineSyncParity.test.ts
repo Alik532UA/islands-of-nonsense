@@ -426,4 +426,68 @@ describe('Online Deterministic Parity & Team Slot Sync', () => {
 		syncA.dispose();
 		syncB.dispose();
 	});
+
+	it('resets sim.tick to 0 and keeps workers responsive across NEXT_ROUND in online matches', async () => {
+		const initA = createOnlineSimulation(baseInfo, members, 'u_west_1');
+		const initB = createOnlineSimulation(baseInfo, members, 'u_east_1');
+		const room = new LocalRoom(baseInfo, members);
+
+		const syncA = new MatchSync({
+			sim: initA.sim,
+			transport: room.transport({ as: 'u_west_1' }),
+			localUid: 'u_west_1',
+			localTeam: 'west',
+			localSlot: 1,
+			uidToSlot: initA.uidToSlot,
+			commandLeadTicks: 24
+		});
+		const syncB = new MatchSync({
+			sim: initB.sim,
+			transport: room.transport({ as: 'u_east_1' }),
+			localUid: 'u_east_1',
+			localTeam: 'east',
+			localSlot: 2,
+			uidToSlot: initB.uidToSlot,
+			commandLeadTicks: 24
+		});
+
+		// Advance Round 1 to tick 300 with pending rescue strike / build state, then end Round 1
+		for (let t = 0; t < 300; t++) {
+			initA.sim.step(1 / 60);
+			initB.sim.step(1 / 60);
+		}
+		expect(initA.sim.tick).toBe(300);
+		initA.sim.players.west.worker!.pendingRescueStrike = { x: 1600, y: 1200 };
+		initB.sim.players.west.worker!.pendingRescueStrike = { x: 1600, y: 1200 };
+		initA.sim.winner = 'west';
+		initB.sim.winner = 'west';
+
+		await syncA.dispatch('NEXT_ROUND', { round: 1 });
+
+		expect(initA.sim.round).toBe(2);
+		expect(initB.sim.round).toBe(2);
+		expect(initA.sim.tick).toBe(0);
+		expect(initB.sim.tick).toBe(0);
+		expect(initA.sim.players.west.worker?.pendingRescueStrike).toBeNull();
+
+		// Dispatch MOVE_WORKER & BUILD in Round 2; both must schedule from tick 0 + lead (24) and move workers immediately
+		const startWorkerX = initA.sim.players.west.worker!.x;
+		await syncA.dispatch('MOVE_WORKER', { worldX: 1100, worldY: 950 });
+
+		for (let t = 0; t < 90; t++) {
+			syncA.flushTick(initA.sim.tick);
+			syncB.flushTick(initB.sim.tick);
+			initA.sim.step(1 / 60);
+			initB.sim.step(1 / 60);
+		}
+
+		expect(initA.sim.players.west.worker!.x).not.toBe(startWorkerX);
+		expect(Math.round(initA.sim.players.west.worker!.x)).toBe(
+			Math.round(initB.sim.players.west.worker!.x)
+		);
+		expect(computeSimStateChecksum(initA.sim)).toBe(computeSimStateChecksum(initB.sim));
+
+		syncA.dispose();
+		syncB.dispose();
+	});
 });

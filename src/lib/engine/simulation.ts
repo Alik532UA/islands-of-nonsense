@@ -1168,6 +1168,7 @@ export class Simulation {
 		this.lastCastleHpSnapshot = { west: this.castles.west.maxHp, east: this.castles.east.maxHp };
 		this.castleHpLossRate = { west: 0, east: 0 };
 
+		this.tick = 0;
 		this.gameTime = 0;
 		this.incomeTimer = 5.0;
 		this.incomeInterval = 5.0;
@@ -1254,10 +1255,14 @@ export class Simulation {
 				p.worker.targetX = spawnPt.x;
 				p.worker.targetY = spawnPt.y;
 				p.worker.isBuilding = false;
+				p.worker.buildTimer = 0;
+				p.worker.stuckTimer = 0;
 				p.worker.targetBuildingId = null;
 				p.worker.isRepairing = false;
 				p.worker.targetRepairBuildingId = null;
 				p.worker.repairGoldAccumulator = 0;
+				p.worker.buildQueue = [];
+				p.worker.pendingRescueStrike = null;
 				p.worker.path = [];
 			}
 		}
