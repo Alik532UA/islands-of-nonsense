@@ -47,6 +47,7 @@ const CODE_TRIES = 12;
 const MOVE_RETRY_LIMIT = 10;
 const DEFAULT_COOLDOWN_RETRIES = 3;
 const MOVE_RATE_LIMIT_BACKOFF_MS = 95;
+const MIN_OUTBOUND_MOVE_SPACING_MS = 95;
 
 export interface RetryMoveWriteOptions {
 	initialSeq: number;
@@ -526,6 +527,26 @@ export async function roomTransport(code: string): Promise<RoomTransport> {
 	await serverTime();
 	const channel = await acquireSharedChannel(code);
 	const { get, ref, serverTimestamp, update } = await import('firebase/database');
+	let outboundWriteChain: Promise<void> = Promise.resolve();
+	let lastOutboundAttemptAt = 0;
+
+	const enqueueOutboundWrite = <T>(fn: () => Promise<T>): Promise<T> => {
+		const run = outboundWriteChain.then(async () => {
+			const elapsed = Date.now() - lastOutboundAttemptAt;
+			if (elapsed < MIN_OUTBOUND_MOVE_SPACING_MS) {
+				await new Promise<void>((resolve) =>
+					setTimeout(resolve, MIN_OUTBOUND_MOVE_SPACING_MS - elapsed)
+				);
+			}
+			lastOutboundAttemptAt = Date.now();
+			return fn();
+		});
+		outboundWriteChain = run.then(
+			() => undefined,
+			() => undefined
+		);
+		return run;
+	};
 
 	return {
 		code,
@@ -536,29 +557,31 @@ export async function roomTransport(code: string): Promise<RoomTransport> {
 		},
 
 		async append(move: Move) {
-			return writeMoveWithRetry({
-				initialSeq: move.seq,
-				getHighestSeq: () => channel.highestSeq,
-				attemptWrite: async (seq) => {
-					const stamp = serverTimestamp();
-					await update(ref(db, `rooms/${code}`), {
-						[`moves/${moveKey(seq)}`]: {
-							...move,
-							by: uid,
-							seq,
-							at: stamp
-						},
-						[`members/${uid}/lastMoveAt`]: stamp
-					});
-					if (seq > channel.highestSeq) {
-						channel.highestSeq = seq;
+			return enqueueOutboundWrite(() =>
+				writeMoveWithRetry({
+					initialSeq: move.seq,
+					getHighestSeq: () => channel.highestSeq,
+					attemptWrite: async (seq) => {
+						const stamp = serverTimestamp();
+						await update(ref(db, `rooms/${code}`), {
+							[`moves/${moveKey(seq)}`]: {
+								...move,
+								by: uid,
+								seq,
+								at: stamp
+							},
+							[`members/${uid}/lastMoveAt`]: stamp
+						});
+						if (seq > channel.highestSeq) {
+							channel.highestSeq = seq;
+						}
+					},
+					doesSeqExist: async (seq) => {
+						const snap = await get(ref(db, `rooms/${code}/moves/${moveKey(seq)}`));
+						return snap.exists();
 					}
-				},
-				doesSeqExist: async (seq) => {
-					const snap = await get(ref(db, `rooms/${code}/moves/${moveKey(seq)}`));
-					return snap.exists();
-				}
-			});
+				})
+			);
 		},
 
 		async setStatus(status: RoomStatus, roster?: RosterEntry[], config?: RoomConfig) {

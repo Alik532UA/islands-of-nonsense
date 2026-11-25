@@ -87,6 +87,7 @@ export class MatchSync {
 	private resyncInProgress = false;
 	private nextSeq = 1;
 	private appliedSeq = 0;
+	private processedSeqs = new Set<number>();
 	private unwatch: (() => void) | null = null;
 	private onCommandApplied?: (move: Move) => void;
 	private onPeerStatusChange?: (status: { peerUid: string; online: boolean }) => void;
@@ -124,9 +125,10 @@ export class MatchSync {
 
 		this.unwatch = this.transport.watch(
 			(snapshot) => {
-				if (snapshot.moves.length === 0 && this.appliedSeq > 0) {
+				if (snapshot.moves.length === 0 && (this.appliedSeq > 0 || this.processedSeqs.size > 0)) {
 					this.appliedSeq = 0;
 					this.nextSeq = 1;
+					this.processedSeqs.clear();
 					this.pendingMoves = [];
 					this.appliedHistory = [];
 					this.checksumHistory.clear();
@@ -145,6 +147,7 @@ export class MatchSync {
 		this.sim = sim;
 		this.hydrated = false;
 		this.appliedSeq = 0;
+		this.processedSeqs.clear();
 		this.pendingMoves = [];
 		this.appliedHistory = [];
 		this.checksumHistory.clear();
@@ -320,19 +323,25 @@ export class MatchSync {
 		const resyncTargetTick = this.sim.tick;
 
 		for (const rawMove of sorted) {
-			if (rawMove.seq <= this.appliedSeq) continue;
+			if (this.processedSeqs.has(rawMove.seq)) continue;
 
 			const validation = validatePlayerMove(rawMove);
 			if (!validation.valid || !validation.sanitized) {
+				this.processedSeqs.add(rawMove.seq);
 				continue;
 			}
 			const move = validation.sanitized;
 
-			this.appliedSeq = move.seq;
-			this.nextSeq = Math.max(this.nextSeq, move.seq + 1);
+			this.processedSeqs.add(move.seq);
+			const isOutOfOrderSeq = move.seq < this.appliedSeq;
+			this.appliedSeq = Math.max(this.appliedSeq, move.seq);
+			this.nextSeq = Math.max(this.nextSeq, this.appliedSeq + 1);
 
 			if (!TELEMETRY_MOVE_TYPES.has(move.type)) {
 				this.appliedHistory.push(move);
+				if (isOutOfOrderSeq) {
+					this.appliedHistory.sort((a, b) => a.seq - b.seq);
+				}
 			}
 
 			const targetTick = move.payload?.tick;
@@ -345,7 +354,11 @@ export class MatchSync {
 					this.pendingMoves.push(move);
 					continue;
 				}
-				if (targetTick < this.sim.tick && this.createResyncSimulation && !this.resyncInProgress) {
+				if (
+					(targetTick < this.sim.tick || isOutOfOrderSeq) &&
+					this.createResyncSimulation &&
+					!this.resyncInProgress
+				) {
 					needsLateResync = true;
 					this.onCommandApplied?.(move);
 					continue;
@@ -364,12 +377,16 @@ export class MatchSync {
 	private replayHistoricalBatch(sorted: Move[]) {
 		const validMoves: Move[] = [];
 		for (const rawMove of sorted) {
-			if (rawMove.seq <= this.appliedSeq) continue;
+			if (this.processedSeqs.has(rawMove.seq)) continue;
 			const validation = validatePlayerMove(rawMove);
-			if (!validation.valid || !validation.sanitized) continue;
+			if (!validation.valid || !validation.sanitized) {
+				this.processedSeqs.add(rawMove.seq);
+				continue;
+			}
 			const move = validation.sanitized;
-			this.appliedSeq = move.seq;
-			this.nextSeq = Math.max(this.nextSeq, move.seq + 1);
+			this.processedSeqs.add(move.seq);
+			this.appliedSeq = Math.max(this.appliedSeq, move.seq);
+			this.nextSeq = Math.max(this.nextSeq, this.appliedSeq + 1);
 			if (!TELEMETRY_MOVE_TYPES.has(move.type)) {
 				this.appliedHistory.push(move);
 			}
@@ -669,6 +686,7 @@ export class MatchSync {
 			this.unwatch();
 			this.unwatch = null;
 		}
+		this.processedSeqs.clear();
 		this.pendingMoves = [];
 		this.appliedHistory = [];
 		this.checksumHistory.clear();

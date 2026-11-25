@@ -490,4 +490,129 @@ describe('Online Deterministic Parity & Team Slot Sync', () => {
 		syncA.dispose();
 		syncB.dispose();
 	});
+
+	it('never drops out-of-order seq moves arriving behind higher seq numbers', async () => {
+		const initA = createOnlineSimulation(baseInfo, members, 'u_west_1');
+		const initB = createOnlineSimulation(baseInfo, members, 'u_east_1');
+
+		const watchers: Array<
+			(snap: { info: RoomInfo; members: Member[]; moves: import('./roomTypes').Move[] }) => void
+		> = [];
+		const sharedRoom = new LocalRoom(baseInfo, members);
+		const transportA = sharedRoom.transport({ as: 'u_west_1' });
+		const transportB = sharedRoom.transport({ as: 'u_east_1' });
+
+		// Custom transport for Peer B that delivers seq 2 BEFORE seq 1 (simulating Firebase latency compensation)
+		const delayedTransportB: import('./roomTypes').RoomTransport = {
+			...transportB,
+			watch: (onSnap) => {
+				const cb = (s: {
+					info: RoomInfo;
+					members: Member[];
+					moves: import('./roomTypes').Move[];
+				}) => onSnap(s);
+				watchers.push(cb);
+				onSnap({ info: baseInfo, members, moves: [] });
+				return () => {
+					const idx = watchers.indexOf(cb);
+					if (idx !== -1) watchers.splice(idx, 1);
+				};
+			}
+		};
+
+		let currentSimB = initB.sim;
+		const desyncs: number[] = [];
+
+		const syncA = new MatchSync({
+			sim: initA.sim,
+			transport: transportA,
+			localUid: 'u_west_1',
+			localTeam: 'west',
+			localSlot: 1,
+			uidToSlot: initA.uidToSlot,
+			commandLeadTicks: 24,
+			createResyncSimulation: () => createOnlineSimulation(baseInfo, members, 'u_west_1').sim
+		});
+
+		const syncB = new MatchSync({
+			sim: initB.sim,
+			transport: delayedTransportB,
+			localUid: 'u_east_1',
+			localTeam: 'east',
+			localSlot: 2,
+			uidToSlot: initB.uidToSlot,
+			commandLeadTicks: 24,
+			createResyncSimulation: () => createOnlineSimulation(baseInfo, members, 'u_east_1').sim,
+			onSimResynced: (nextSim) => {
+				currentSimB = nextSim;
+			},
+			onDesync: (info) => desyncs.push(info.tick)
+		});
+
+		for (let t = 0; t < 20; t++) {
+			initA.sim.step(1 / 60);
+			currentSimB.step(1 / 60);
+		}
+
+		// Peer A writes seq 1 (west BUILD) and Peer B writes seq 2 (east BUILD)
+		const move1 = {
+			seq: 1,
+			by: 'u_west_1',
+			type: 'BUILD',
+			payload: {
+				tick: 44,
+				team: 'west' as const,
+				playerSlot: 1,
+				buildingType: 'cg11_forge',
+				x: 25,
+				y: 20
+			}
+		};
+		const move2 = {
+			seq: 2,
+			by: 'u_east_1',
+			type: 'BUILD',
+			payload: {
+				tick: 44,
+				team: 'east' as const,
+				playerSlot: 2,
+				buildingType: 'cg11_forge',
+				x: 25,
+				y: 20
+			}
+		};
+
+		// Peer A sees both in order 1 -> 2
+		await transportA.append(move1);
+		await transportB.append(move2);
+
+		// Peer B sees seq 2 FIRST, then steps past tick 44, and THEN receives delayed seq 1
+		for (const w of watchers) w({ info: baseInfo, members, moves: [move2] });
+		for (let t = 20; t < 60; t++) {
+			syncA.flushTick(initA.sim.tick);
+			syncB.flushTick(currentSimB.tick);
+			initA.sim.step(1 / 60);
+			currentSimB.step(1 / 60);
+		}
+		for (const w of watchers) w({ info: baseInfo, members, moves: [move1, move2] });
+
+		for (let t = 60; t < 200; t++) {
+			syncA.flushTick(initA.sim.tick);
+			syncB.flushTick(currentSimB.tick);
+			initA.sim.step(1 / 60);
+			currentSimB.step(1 / 60);
+			if (initA.sim.tick % 100 === 0) {
+				await syncA.broadcastChecksum();
+				await syncB.broadcastChecksum();
+			}
+		}
+
+		expect(desyncs).toEqual([]);
+		expect(initA.sim.buildings.length).toBe(2);
+		expect(currentSimB.buildings.length).toBe(2);
+		expect(computeSimStateChecksum(initA.sim)).toBe(computeSimStateChecksum(currentSimB));
+
+		syncA.dispose();
+		syncB.dispose();
+	});
 });

@@ -215,6 +215,8 @@ export async function startOnlineBattleSession(
 				latestRoomInfo ? createOnlineSimulation(latestRoomInfo, latestMembers, uid).sim : null,
 			onSimResynced: (nextSim) => {
 				activeSim = nextSim;
+				currentDesyncNotice = null;
+				publishPeerOnline();
 				callbacks.onSimResynced?.(nextSim);
 			},
 			onPeerStatusChange: (status) => {
