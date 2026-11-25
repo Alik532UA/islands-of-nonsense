@@ -83,8 +83,8 @@ export interface MemberPatch {
 	role?: Role;
 	country?: string;
 	avatar?: string;
-	team?: MatchTeamId;
-	slot?: number;
+	team?: MatchTeamId | null;
+	slot?: number | null;
 	race?: string;
 	colorId?: number | null;
 	colorPickedAt?: number | object | null;

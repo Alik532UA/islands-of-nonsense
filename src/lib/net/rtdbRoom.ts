@@ -360,32 +360,38 @@ export async function joinRoom(code: string, entry: RoomEntry): Promise<void> {
 	const resolvedColorId = entry.colorId ?? existingSelf?.colorId;
 	const resolvedColorPickedAt = existingSelf?.colorPickedAt;
 
+	const isSpectatorJoin = entry.role === 'spectator';
 	let team: 'west' | 'east' = preferredTeam;
-	let slot: number;
-	if (typeof existingSelf?.slot === 'number' && existingSelf.team === preferredTeam) {
-		slot = existingSelf.slot;
-	} else if (typeof entry.slot === 'number') {
-		slot = entry.slot;
-		team = slot % 2 === 0 ? 'east' : 'west';
-	} else if (roomConfig?.slots) {
-		const seat = pickFirstAvailableSeat(memberList, preferredTeam, roomConfig);
-		team = seat.team;
-		slot = seat.slot;
-	} else {
-		slot = pickNextTeamSlot(memberList, preferredTeam, roomConfig);
+	let slot: number | undefined;
+	if (!isSpectatorJoin) {
+		if (typeof existingSelf?.slot === 'number' && existingSelf.team === preferredTeam) {
+			slot = existingSelf.slot;
+		} else if (typeof entry.slot === 'number') {
+			slot = entry.slot;
+			team = slot % 2 === 0 ? 'east' : 'west';
+		} else if (roomConfig?.slots) {
+			const seat = pickFirstAvailableSeat(memberList, preferredTeam, roomConfig);
+			team = seat.team;
+			slot = seat.slot;
+		} else {
+			slot = pickNextTeamSlot(memberList, preferredTeam, roomConfig);
+		}
 	}
 
 	await set(ref(db, `rooms/${code}/members/${uid}`), {
 		name: entry.name,
 		role: entry.role,
 		order,
-		slot,
+		...(typeof slot === 'number' ? { slot, team } : {}),
 		...(entry.country && entry.country.length === 2 ? { country: entry.country } : {}),
 		...(entry.avatar ? { avatar: entry.avatar } : {}),
-		team,
-		race: resolvedRace,
-		...(typeof resolvedColorId === 'number' ? { colorId: resolvedColorId } : {}),
-		...(typeof resolvedColorPickedAt === 'number' ? { colorPickedAt: resolvedColorPickedAt } : {}),
+		...(!isSpectatorJoin ? { race: resolvedRace } : {}),
+		...(!isSpectatorJoin && typeof resolvedColorId === 'number'
+			? { colorId: resolvedColorId }
+			: {}),
+		...(!isSpectatorJoin && typeof resolvedColorPickedAt === 'number'
+			? { colorPickedAt: resolvedColorPickedAt }
+			: {}),
 		...(entry.compact ? { compact: true } : {}),
 		...(auth.currentUser?.isAnonymous === false ? { account: true } : {})
 	});
@@ -561,7 +567,7 @@ export async function roomTransport(code: string): Promise<RoomTransport> {
 					'info/status': status,
 					'info/startedAt': serverTimestamp(),
 					'info/countdownAt': null,
-					...(roster ? { 'info/roster': rosterToRecord(roster) } : {}),
+					...(roster && roster.length > 0 ? { 'info/roster': rosterToRecord(roster) } : {}),
 					...(config ? { 'info/config': config } : {}),
 					moves: null
 				});

@@ -33,9 +33,23 @@ export interface OnlineBattleSession {
 	readonly localSlot: number;
 	readonly isSpectator: boolean;
 	readonly isPlaying: boolean;
+	readonly isCountdownCoordinator: boolean;
 	getTargetTick: () => number | null;
 	getCountdownRemainingSec: () => number | null;
 	dispose: () => void;
+}
+
+/**
+ * Picks which active player coordinates countdown auto-finalization (`SET_RACE` + `RESUME`).
+ * Falls back to the lowest-order player if the room host is sitting in spectators.
+ */
+export function selectCountdownCoordinatorUid(
+	members: readonly Member[],
+	hostUid: string
+): string | null {
+	const players = members.filter((m) => m.role === 'player').sort((a, b) => a.order - b.order);
+	if (players.some((m) => m.uid === hostUid)) return hostUid;
+	return players[0]?.uid ?? null;
 }
 
 /**
@@ -264,6 +278,10 @@ export async function startOnlineBattleSession(
 			},
 			get isPlaying() {
 				return onlineStarted && latestRoomInfo?.status === 'playing';
+			},
+			get isCountdownCoordinator() {
+				if (!latestRoomInfo) return isHostHint;
+				return selectCountdownCoordinatorUid(latestMembers, latestRoomInfo.hostUid) === uid;
 			},
 			getTargetTick() {
 				if (!onlineStarted || epochAnchorServerMs === null) return null;

@@ -418,15 +418,18 @@
 		if (isLocalSpectator) {
 			if (!canSwitchToPlayer) return;
 			const seat = pickFirstAvailableSeat(members, 'west', roomInfo.config);
-			await liveNet
-				.updateMe(roomCode, {
+			try {
+				await liveNet.updateMe(roomCode, {
 					role: 'player',
 					team: seat.team,
 					slot: seat.slot,
 					race: 'in_game',
 					ready: false
-				})
-				.catch(() => {});
+				});
+			} catch (err) {
+				toast.error(err instanceof Error ? err.message : t('online.hud.joinError'));
+				return;
+			}
 			if (!roomInfo.config?.isPrivate) {
 				const { db } = await connect();
 				const nextPlayers = members.filter((m) => m.role === 'player').length + 1;
@@ -438,7 +441,19 @@
 			}
 		} else {
 			if (!canSwitchToSpectator) return;
-			await liveNet.updateMe(roomCode, { role: 'spectator', ready: false }).catch(() => {});
+			try {
+				await liveNet.updateMe(roomCode, {
+					role: 'spectator',
+					ready: false,
+					slot: null,
+					team: null,
+					colorId: null,
+					colorPickedAt: null
+				});
+			} catch (err) {
+				toast.error(err instanceof Error ? err.message : t('online.hud.joinError'));
+				return;
+			}
 			if (!roomInfo.config?.isPrivate) {
 				const { db } = await connect();
 				const nextPlayers = Math.max(1, members.filter((m) => m.role === 'player').length - 1);
@@ -627,7 +642,7 @@
 			const hasInGamePicks =
 				!roomInfo?.config?.allRandom && roster.some((r) => !r.race || r.race === 'in_game');
 			await transport.setStatus('playing', roster);
-			if (!hasInGamePicks) {
+			if (!hasInGamePicks && localMember?.role === 'player') {
 				await transport.append({
 					seq: maxMoveSeq + 1,
 					by: localUid,
@@ -1471,7 +1486,10 @@
 						{:else}
 							{#each spectatorsList as spec (spec.uid)}
 								<div
-									class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#151c2c] border border-slate-700 text-slate-200"
+									class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#151c2c] border {spec.uid ===
+									roomInfo?.hostUid
+										? 'border-amber-500/60 text-amber-100'
+										: 'border-slate-700 text-slate-200'}"
 								>
 									<Avatar
 										avatar={resolvedAvatars.get(spec.uid) ?? spec.avatar}
@@ -1479,6 +1497,9 @@
 										showDefault
 									/>
 									<span class="font-semibold truncate max-w-[120px]">{spec.name}</span>
+									{#if spec.uid === roomInfo?.hostUid}
+										<UiIcon name="crown" class="w-3 h-3 text-amber-400 shrink-0" />
+									{/if}
 									{#if spec.country}
 										<Flag code={spec.country} />
 									{/if}
@@ -1495,6 +1516,27 @@
 									{/if}
 								</div>
 							{/each}
+						{/if}
+					</div>
+					<div class="flex items-center gap-2 shrink-0">
+						{#if canSwitchToSpectator}
+							<button
+								type="button"
+								data-testid="lobby-sit-spectator-btn"
+								onclick={handleToggleSpectatorRole}
+								class="px-2.5 py-1 rounded-[6px] bg-sky-500/20 hover:bg-sky-500/35 border border-sky-400/60 text-[11px] font-bold text-sky-200 cursor-pointer transition"
+							>
+								{t('online.hud.sitHere')}
+							</button>
+						{:else if isLocalSpectator && canSwitchToPlayer}
+							<button
+								type="button"
+								data-testid="lobby-spectators-become-player-btn"
+								onclick={handleToggleSpectatorRole}
+								class="px-2.5 py-1 rounded-[6px] bg-amber-500/20 hover:bg-amber-500/35 border border-amber-400/60 text-[11px] font-bold text-amber-200 cursor-pointer transition"
+							>
+								{t('online.hud.becomePlayer')}
+							</button>
 						{/if}
 					</div>
 				</div>

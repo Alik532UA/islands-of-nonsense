@@ -108,13 +108,15 @@ export function countOpenHumanCapacity(config?: Partial<RoomConfig>): number {
  * given existing room members and optional slot configuration.
  */
 export function pickNextTeamSlot(
-	members: ReadonlyArray<{ team?: string; slot?: number }>,
+	members: ReadonlyArray<{ team?: string; slot?: number; role?: string }>,
 	team: 'west' | 'east',
 	config?: Partial<RoomConfig>
 ): number {
 	const pool = TEAM_SLOTS[team];
 	const taken = new Set(
-		members.filter((m) => typeof m.slot === 'number').map((m) => m.slot as number)
+		members
+			.filter((m) => m.role !== 'spectator' && typeof m.slot === 'number')
+			.map((m) => m.slot as number)
 	);
 	if (config?.slots) {
 		const slots = normalizeRoomSlots(config);
@@ -135,7 +137,9 @@ export function pickFirstAvailableSeat(
 	config?: Partial<RoomConfig>
 ): { team: 'west' | 'east'; slot: number } {
 	const taken = new Set(
-		members.filter((m) => typeof m.slot === 'number').map((m) => m.slot as number)
+		members
+			.filter((m) => m.role !== 'spectator' && typeof m.slot === 'number')
+			.map((m) => m.slot as number)
 	);
 	const slots = normalizeRoomSlots(config);
 	const order: ('west' | 'east')[] = preferredTeam === 'east' ? ['east', 'west'] : ['west', 'east'];

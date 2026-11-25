@@ -1446,9 +1446,10 @@
 	}
 
 	async function finalizeOnlineCountdown() {
+		const isCoordinator = onlineSession ? onlineSession.isCountdownCoordinator : isOnlineHost;
 		if (
 			!matchSync ||
-			!isOnlineHost ||
+			!isCoordinator ||
 			onlineResumeSent ||
 			(onlineSession && !onlineSession.isPlaying)
 		) {

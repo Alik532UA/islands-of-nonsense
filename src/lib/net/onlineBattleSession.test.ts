@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { selectAutoHandoverUid, shouldStartOnlineCountdown } from './onlineBattleSession';
+import {
+	selectAutoHandoverUid,
+	selectCountdownCoordinatorUid,
+	shouldStartOnlineCountdown
+} from './onlineBattleSession';
+import { pickFirstAvailableSeat, pickNextTeamSlot } from './onlineMatchSetup';
 import { canJoinAsSpectator, MAX_ROOM_SPECTATORS, normalizeSpectatorMode } from './roomTypes';
 import { isCompatibleLobbyRoom } from './lobby';
 import type { Member } from './roomTypes';
@@ -112,5 +117,23 @@ describe('spectator policy & lobby compatibility', () => {
 				allPlayers: [{ isBot: false, pendingRacePick: false }]
 			} as never)
 		).toBe(false);
+	});
+
+	it('falls back to lowest-order active player for countdown coordination and ignores spectator slots', () => {
+		const specHostMembers: Member[] = [
+			{ uid: 'host_u1', name: 'Host', role: 'spectator', order: 1, slot: 1, team: 'west' },
+			{ uid: 'peer_u2', name: 'Peer2', role: 'player', order: 3, slot: 2, team: 'east' },
+			{ uid: 'peer_u3', name: 'Peer3', role: 'player', order: 2, slot: 3, team: 'west' }
+		];
+
+		expect(selectCountdownCoordinatorUid(specHostMembers, 'host_u1')).toBe('peer_u3');
+		expect(
+			selectCountdownCoordinatorUid(
+				[{ uid: 'host_u1', name: 'Host', role: 'spectator', order: 1 }],
+				'host_u1'
+			)
+		).toBeNull();
+		expect(pickNextTeamSlot(specHostMembers, 'west')).toBe(1);
+		expect(pickFirstAvailableSeat(specHostMembers, 'west')).toEqual({ team: 'west', slot: 1 });
 	});
 });
