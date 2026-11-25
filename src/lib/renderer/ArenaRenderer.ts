@@ -335,7 +335,8 @@ export class ArenaRenderer {
 		}
 	}
 
-	public async init(canvas: HTMLCanvasElement): Promise<void> {
+	public async init(canvas: HTMLCanvasElement | null | undefined): Promise<void> {
+		if (!canvas || this.isDestroyed) return;
 		this.canvasEl = canvas;
 		this.enableFog = this.sim.config.fogOfWar ?? true;
 		const hostEl = canvas.parentElement ?? canvas;

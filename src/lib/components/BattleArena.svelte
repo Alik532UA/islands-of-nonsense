@@ -964,6 +964,7 @@
 			handleStartNewMatch(resolveBattleLaunchConfig(urlMode, saved));
 		}
 
+		if (!canvasEl) return;
 		renderer = new ArenaRenderer({
 			canvas: canvasEl,
 			sim,
@@ -1088,6 +1089,7 @@
 		});
 
 		await renderer.init(canvasEl);
+		if (!canvasEl) return;
 		if (urlRoom) {
 			renderer.setCamera(cameraX, cameraY);
 		}

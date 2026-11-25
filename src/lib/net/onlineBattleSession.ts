@@ -91,6 +91,7 @@ export async function startOnlineBattleSession(
 	let stopPresenceTrack: (() => void) | null = null;
 	let stopPresenceWatch: (() => void) | null = null;
 	let stopRoomWatch: (() => void) | null = null;
+	let heartbeatDelayTimer: ReturnType<typeof setTimeout> | null = null;
 	let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 	let sync: MatchSync | null = null;
 
@@ -232,6 +233,10 @@ export async function startOnlineBattleSession(
 				callbacks.onDesync(tick);
 			},
 			onGone: (reason) => {
+				if (heartbeatDelayTimer) {
+					clearTimeout(heartbeatDelayTimer);
+					heartbeatDelayTimer = null;
+				}
 				if (heartbeatTimer) {
 					clearInterval(heartbeatTimer);
 					heartbeatTimer = null;
@@ -289,7 +294,7 @@ export async function startOnlineBattleSession(
 			}
 		});
 
-		heartbeatTimer = setInterval(() => {
+		const sendBeatIfActive = () => {
 			if (
 				sync &&
 				activeSim.isRunning &&
@@ -299,7 +304,13 @@ export async function startOnlineBattleSession(
 			) {
 				void sync.sendHeartbeat();
 			}
-		}, 12_000);
+		};
+		// Stagger heartbeat phase across slots so peers don't collide on identical seq numbers every 12s
+		const heartbeatOffsetMs = ((Math.max(1, localSlot) - 1) % 7) * 1700;
+		heartbeatDelayTimer = setTimeout(() => {
+			sendBeatIfActive();
+			heartbeatTimer = setInterval(sendBeatIfActive, 12_000);
+		}, heartbeatOffsetMs);
 
 		const createdSync = sync;
 		return {
@@ -331,6 +342,10 @@ export async function startOnlineBattleSession(
 				stopPresenceWatch = null;
 				stopRoomWatch?.();
 				stopRoomWatch = null;
+				if (heartbeatDelayTimer) {
+					clearTimeout(heartbeatDelayTimer);
+					heartbeatDelayTimer = null;
+				}
 				if (heartbeatTimer) {
 					clearInterval(heartbeatTimer);
 					heartbeatTimer = null;
@@ -342,6 +357,7 @@ export async function startOnlineBattleSession(
 		stopPresenceTrack?.();
 		stopPresenceWatch?.();
 		stopRoomWatch?.();
+		if (heartbeatDelayTimer) clearTimeout(heartbeatDelayTimer);
 		if (heartbeatTimer) clearInterval(heartbeatTimer);
 		sync?.dispose();
 

@@ -538,8 +538,11 @@ export async function roomTransport(code: string): Promise<RoomTransport> {
 					setTimeout(resolve, MIN_OUTBOUND_MOVE_SPACING_MS - elapsed)
 				);
 			}
-			lastOutboundAttemptAt = Date.now();
-			return fn();
+			try {
+				return await fn();
+			} finally {
+				lastOutboundAttemptAt = Date.now();
+			}
 		});
 		outboundWriteChain = run.then(
 			() => undefined,
