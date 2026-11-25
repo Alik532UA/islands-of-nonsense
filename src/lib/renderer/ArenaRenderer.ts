@@ -33,6 +33,29 @@ import {
 } from './castleAssets';
 import type { GraphicsStyle } from '$lib/services/settings.svelte';
 import { stepSmoothCameraPan, type CameraPanInput } from './cameraPan';
+import { rc, rr, el } from './gfx';
+
+type CastleVisualSide = {
+	textures: Texture[];
+	base: Sprite | null;
+	fade: Sprite | null;
+	stage: number;
+	targetStage: number;
+	fadeStart: number;
+	lastChange: number;
+	isFading: boolean;
+};
+
+const emptyCastleSide = (): CastleVisualSide => ({
+	textures: [],
+	base: null,
+	fade: null,
+	stage: 0,
+	targetStage: 0,
+	fadeStart: 0,
+	lastChange: 0,
+	isFading: false
+});
 
 export type { SelectedEntity };
 
@@ -119,24 +142,23 @@ export class ArenaRenderer {
 	private uiLayer: Graphics;
 
 	// Castle progressive destruction sprites with smooth 400ms crossfade
-	private westCastleTextures: Texture[] = [];
-	private eastCastleTextures: Texture[] = [];
-	private westCastleBaseSprite: Sprite | null = null;
-	private westCastleFadeSprite: Sprite | null = null;
-	private eastCastleBaseSprite: Sprite | null = null;
-	private eastCastleFadeSprite: Sprite | null = null;
+	private castleVisuals: Record<MatchTeam, CastleVisualSide> = {
+		west: emptyCastleSide(),
+		east: emptyCastleSide()
+	};
 
-	private westCastleStage = 0;
-	private westCastleTargetStage = 0;
-	private westCastleFadeStartTime = 0;
-	private westCastleLastStageChangeTime = 0;
-	private westCastleIsFading = false;
-
-	private eastCastleStage = 0;
-	private eastCastleTargetStage = 0;
-	private eastCastleFadeStartTime = 0;
-	private eastCastleLastStageChangeTime = 0;
-	private eastCastleIsFading = false;
+	private get westCastleTextures(): Texture[] {
+		return this.castleVisuals.west.textures;
+	}
+	private set westCastleTextures(val: Texture[]) {
+		this.castleVisuals.west.textures = val;
+	}
+	private get eastCastleTextures(): Texture[] {
+		return this.castleVisuals.east.textures;
+	}
+	private set eastCastleTextures(val: Texture[]) {
+		this.castleVisuals.east.textures = val;
+	}
 
 	private hoveredTile: { x: number; y: number } | null = null;
 	private isDestroyed = false;
@@ -199,92 +221,71 @@ export class ArenaRenderer {
 	}
 
 	public resetCastleVisuals(): void {
-		if (this.westCastleBaseSprite && this.westCastleTextures[0]) {
-			this.westCastleBaseSprite.texture = this.westCastleTextures[0];
-			this.westCastleBaseSprite.alpha = 1;
+		for (const side of [this.castleVisuals.west, this.castleVisuals.east]) {
+			const tex0 = side.textures[0];
+			if (side.base && tex0) {
+				side.base.texture = tex0;
+				side.base.alpha = 1;
+			}
+			if (side.fade && tex0) {
+				side.fade.texture = tex0;
+				side.fade.alpha = 0;
+				side.fade.visible = false;
+			}
+			side.stage = 0;
+			side.targetStage = 0;
+			side.fadeStart = 0;
+			side.lastChange = 0;
+			side.isFading = false;
 		}
-		if (this.westCastleFadeSprite && this.westCastleTextures[0]) {
-			this.westCastleFadeSprite.texture = this.westCastleTextures[0];
-			this.westCastleFadeSprite.alpha = 0;
-			this.westCastleFadeSprite.visible = false;
-		}
-		this.westCastleStage = 0;
-		this.westCastleTargetStage = 0;
-		this.westCastleFadeStartTime = 0;
-		this.westCastleLastStageChangeTime = 0;
-		this.westCastleIsFading = false;
+	}
 
-		if (this.eastCastleBaseSprite && this.eastCastleTextures[0]) {
-			this.eastCastleBaseSprite.texture = this.eastCastleTextures[0];
-			this.eastCastleBaseSprite.alpha = 1;
-		}
-		if (this.eastCastleFadeSprite && this.eastCastleTextures[0]) {
-			this.eastCastleFadeSprite.texture = this.eastCastleTextures[0];
-			this.eastCastleFadeSprite.alpha = 0;
-			this.eastCastleFadeSprite.visible = false;
-		}
-		this.eastCastleStage = 0;
-		this.eastCastleTargetStage = 0;
-		this.eastCastleFadeStartTime = 0;
-		this.eastCastleLastStageChangeTime = 0;
-		this.eastCastleIsFading = false;
+	private initCastleSprites(
+		side: CastleVisualSide,
+		x: number,
+		y: number,
+		width: number,
+		height: number
+	): void {
+		const tex = side.textures[0];
+		if (!tex || side.base) return;
+		const makeSprite = (visible: boolean, alpha: number) => {
+			const sp = new Sprite(tex);
+			sp.anchor.set(0.5, 0.5);
+			sp.x = x;
+			sp.y = y;
+			sp.width = width;
+			sp.height = height;
+			sp.alpha = alpha;
+			sp.visible = visible;
+			this.castlesLayer.addChild(sp);
+			return sp;
+		};
+		side.base = makeSprite(true, 1);
+		side.fade = makeSprite(false, 0);
 	}
 
 	public async loadCastleTexturesIfNeeded(): Promise<void> {
-		if (this.westCastleTextures.length > 0) return;
+		if (this.castleVisuals.west.textures.length > 0) return;
 		try {
 			const [westLoaded, eastLoaded] = await Promise.all([
 				Promise.all(WEST_CASTLE_STAGE_URLS.map((url) => Assets.load<Texture>(url))),
 				Promise.all(EAST_CASTLE_STAGE_URLS.map((url) => Assets.load<Texture>(url)))
 			]);
-			this.westCastleTextures = westLoaded;
-			this.eastCastleTextures = eastLoaded;
-
-			if (this.westCastleTextures[0] && !this.westCastleBaseSprite) {
-				this.westCastleBaseSprite = new Sprite(this.westCastleTextures[0]);
-				this.westCastleBaseSprite.anchor.set(0.5, 0.5);
-				this.westCastleBaseSprite.x = WEST_CASTLE_X;
-				this.westCastleBaseSprite.y = WEST_CASTLE_Y - 20;
-				this.westCastleBaseSprite.width = 410;
-				this.westCastleBaseSprite.height = 380;
-				this.westCastleBaseSprite.alpha = 1;
-
-				this.westCastleFadeSprite = new Sprite(this.westCastleTextures[0]);
-				this.westCastleFadeSprite.anchor.set(0.5, 0.5);
-				this.westCastleFadeSprite.x = WEST_CASTLE_X;
-				this.westCastleFadeSprite.y = WEST_CASTLE_Y - 20;
-				this.westCastleFadeSprite.width = 410;
-				this.westCastleFadeSprite.height = 380;
-				this.westCastleFadeSprite.alpha = 0;
-				this.westCastleFadeSprite.visible = false;
-
-				this.castlesLayer.addChild(this.westCastleBaseSprite);
-				this.castlesLayer.addChild(this.westCastleFadeSprite);
-			}
-
-			if (this.eastCastleTextures[0] && !this.eastCastleBaseSprite) {
-				this.eastCastleBaseSprite = new Sprite(this.eastCastleTextures[0]);
-				this.eastCastleBaseSprite.anchor.set(0.5, 0.5);
-				this.eastCastleBaseSprite.x = EAST_CASTLE_X;
-				this.eastCastleBaseSprite.y = EAST_CASTLE_Y - 15;
-				this.eastCastleBaseSprite.width = 415;
-				this.eastCastleBaseSprite.height = 335;
-				this.eastCastleBaseSprite.alpha = 1;
-
-				this.eastCastleFadeSprite = new Sprite(this.eastCastleTextures[0]);
-				this.eastCastleFadeSprite.anchor.set(0.5, 0.5);
-				this.eastCastleFadeSprite.x = EAST_CASTLE_X;
-				this.eastCastleFadeSprite.y = EAST_CASTLE_Y - 15;
-				this.eastCastleFadeSprite.width = 415;
-				this.eastCastleFadeSprite.height = 335;
-				this.eastCastleFadeSprite.alpha = 0;
-				this.eastCastleFadeSprite.visible = false;
-
-				this.castlesLayer.addChild(this.eastCastleBaseSprite);
-				this.castlesLayer.addChild(this.eastCastleFadeSprite);
-			}
+			this.castleVisuals.west.textures = westLoaded;
+			this.castleVisuals.east.textures = eastLoaded;
+			this.initCastleSprites(this.castleVisuals.west, WEST_CASTLE_X, WEST_CASTLE_Y - 20, 410, 380);
+			this.initCastleSprites(this.castleVisuals.east, EAST_CASTLE_X, EAST_CASTLE_Y - 15, 415, 335);
 		} catch {
-			// In case preloading fails, renderCastles handles procedural authentic castle fallback
+			// Fallback handled by renderCastles
+		}
+	}
+
+	private hideCastleSprites(side?: CastleVisualSide): void {
+		const sides = side ? [side] : [this.castleVisuals.west, this.castleVisuals.east];
+		for (const s of sides) {
+			if (s.base) s.base.visible = false;
+			if (s.fade) s.fade.visible = false;
 		}
 	}
 
@@ -292,10 +293,7 @@ export class ArenaRenderer {
 		if (this.graphicsStyle === style) return;
 		this.graphicsStyle = style;
 		if (style === '2.5d') {
-			if (this.westCastleBaseSprite) this.westCastleBaseSprite.visible = false;
-			if (this.westCastleFadeSprite) this.westCastleFadeSprite.visible = false;
-			if (this.eastCastleBaseSprite) this.eastCastleBaseSprite.visible = false;
-			if (this.eastCastleFadeSprite) this.eastCastleFadeSprite.visible = false;
+			this.hideCastleSprites();
 		} else if (style === 'hd-webp') {
 			void this.loadCastleTexturesIfNeeded();
 		}
@@ -1052,124 +1050,75 @@ export class ArenaRenderer {
 		);
 	}
 
-	private updateCastleCrossfade(
-		isWest: boolean,
-		hp: number,
-		maxHp: number,
-		textures: Texture[],
-		baseSprite: Sprite | null,
-		fadeSprite: Sprite | null
-	): boolean {
-		if (!baseSprite || !fadeSprite || textures.length === 0) return false;
+	private updateCastleCrossfade(team: MatchTeam, hp: number, maxHp: number): boolean {
+		const side = this.castleVisuals[team];
+		if (!side.base || !side.fade || side.textures.length === 0) return false;
 
 		const targetStage = getCastleStageIndex(hp, maxHp);
-		const targetTexture = textures[targetStage];
+		const targetTexture = side.textures[targetStage];
 		if (!targetTexture || targetTexture.width <= 1) return false;
 
-		const currentStage = isWest ? this.westCastleStage : this.eastCastleStage;
-		const inFade = isWest ? this.westCastleIsFading : this.eastCastleIsFading;
-		const fadeTarget = isWest ? this.westCastleTargetStage : this.eastCastleTargetStage;
 		const now = performance.now();
-
-		// Detect full restore (e.g. new round or match restart with full HP)
-		if (targetStage === 0 && (currentStage > 1 || fadeTarget > 1)) {
-			baseSprite.texture = textures[0];
-			baseSprite.alpha = 1;
-			fadeSprite.texture = textures[0];
-			fadeSprite.alpha = 0;
-			fadeSprite.visible = false;
-			if (isWest) {
-				this.westCastleStage = 0;
-				this.westCastleTargetStage = 0;
-				this.westCastleFadeStartTime = 0;
-				this.westCastleLastStageChangeTime = 0;
-				this.westCastleIsFading = false;
-			} else {
-				this.eastCastleStage = 0;
-				this.eastCastleTargetStage = 0;
-				this.eastCastleFadeStartTime = 0;
-				this.eastCastleLastStageChangeTime = 0;
-				this.eastCastleIsFading = false;
-			}
-			baseSprite.visible = true;
+		if (targetStage === 0 && (side.stage > 1 || side.targetStage > 1)) {
+			side.base.texture = side.textures[0];
+			side.base.alpha = 1;
+			side.fade.texture = side.textures[0];
+			side.fade.alpha = 0;
+			side.fade.visible = false;
+			side.stage = 0;
+			side.targetStage = 0;
+			side.fadeStart = 0;
+			side.lastChange = 0;
+			side.isFading = false;
+			side.base.visible = true;
 			return true;
 		}
 
-		// Stage transition check with 1000ms boundary fluctuation cooldown
-		const activeTarget = inFade ? fadeTarget : currentStage;
-		const lastChangeTime = isWest
-			? this.westCastleLastStageChangeTime
-			: this.eastCastleLastStageChangeTime;
-
+		const activeTarget = side.isFading ? side.targetStage : side.stage;
 		if (
-			canTriggerCastleStageTransition(now, lastChangeTime, activeTarget, targetStage, hp, maxHp)
+			canTriggerCastleStageTransition(now, side.lastChange, activeTarget, targetStage, hp, maxHp)
 		) {
-			if (inFade) {
-				// Mid-fade retarget: promote the currently transitioning texture to base
-				baseSprite.texture = fadeSprite.texture;
-				baseSprite.alpha = 1;
+			if (side.isFading) {
+				side.base.texture = side.fade.texture;
+				side.base.alpha = 1;
 			}
-			fadeSprite.texture = targetTexture;
-			fadeSprite.alpha = 0;
-			fadeSprite.visible = true;
-
-			if (isWest) {
-				this.westCastleTargetStage = targetStage;
-				this.westCastleFadeStartTime = now;
-				this.westCastleLastStageChangeTime = now;
-				this.westCastleIsFading = true;
-			} else {
-				this.eastCastleTargetStage = targetStage;
-				this.eastCastleFadeStartTime = now;
-				this.eastCastleLastStageChangeTime = now;
-				this.eastCastleIsFading = true;
-			}
+			side.fade.texture = targetTexture;
+			side.fade.alpha = 0;
+			side.fade.visible = true;
+			side.targetStage = targetStage;
+			side.fadeStart = now;
+			side.lastChange = now;
+			side.isFading = true;
 		}
 
-		// Progress smooth 400ms crossfade
-		const isCurrentlyFading = isWest ? this.westCastleIsFading : this.eastCastleIsFading;
-		if (isCurrentlyFading) {
-			const startTime = isWest ? this.westCastleFadeStartTime : this.eastCastleFadeStartTime;
-			const progress = Math.min(1, Math.max(0, (now - startTime) / CASTLE_FADE_DURATION_MS));
-			fadeSprite.alpha = progress;
-			fadeSprite.visible = true;
-
+		if (side.isFading) {
+			const progress = Math.min(1, Math.max(0, (now - side.fadeStart) / CASTLE_FADE_DURATION_MS));
+			side.fade.alpha = progress;
+			side.fade.visible = true;
 			if (progress >= 1) {
-				baseSprite.texture = fadeSprite.texture;
-				baseSprite.alpha = 1;
-				fadeSprite.alpha = 0;
-				fadeSprite.visible = false;
-				if (isWest) {
-					this.westCastleStage = this.westCastleTargetStage;
-					this.westCastleIsFading = false;
-				} else {
-					this.eastCastleStage = this.eastCastleTargetStage;
-					this.eastCastleIsFading = false;
-				}
+				side.base.texture = side.fade.texture;
+				side.base.alpha = 1;
+				side.fade.alpha = 0;
+				side.fade.visible = false;
+				side.stage = side.targetStage;
+				side.isFading = false;
 			}
 		}
 
-		baseSprite.visible = true;
+		side.base.visible = true;
 		return true;
 	}
 
 	private renderCastles(selectedEntity?: SelectedEntity | null): void {
 		const westCastle = this.sim.castles.west;
 		const eastCastle = this.sim.castles.east;
-
-		// 1. Clear shadow & fallback graphics layer
 		this.castleShadowGraphics.clear();
 
 		const westSelected = selectedEntity?.type === 'castle' && selectedEntity.team === 'west';
 		const eastSelected = selectedEntity?.type === 'castle' && selectedEntity.team === 'east';
 
 		if (this.graphicsStyle === '2.5d') {
-			// 2.5D Mode: ensure WebP sprites are invisible and render procedural authentic castles
-			if (this.westCastleBaseSprite) this.westCastleBaseSprite.visible = false;
-			if (this.westCastleFadeSprite) this.westCastleFadeSprite.visible = false;
-			if (this.eastCastleBaseSprite) this.eastCastleBaseSprite.visible = false;
-			if (this.eastCastleFadeSprite) this.eastCastleFadeSprite.visible = false;
-
+			this.hideCastleSprites();
 			this.entityRenderer.renderAuthenticCastle(
 				this.castleShadowGraphics,
 				westCastle,
@@ -1183,81 +1132,55 @@ export class ArenaRenderer {
 				eastSelected
 			);
 		} else {
-			// HD WebP Mode (Beta):
-			// 2. Render 2.5D active solar drop shadows beneath the castle bases
-			const sunShadow = computeSunShadow(this.sim.dayNightProgress);
-			this.castleShadowGraphics.ellipse(
-				WEST_CASTLE_X + sunShadow.dx * 1.5,
-				WEST_CASTLE_Y + 66 + sunShadow.dy * 1.2,
-				175 + Math.abs(sunShadow.dx),
-				68
+			const sun = computeSunShadow(this.sim.dayNightProgress);
+			el(
+				this.castleShadowGraphics,
+				WEST_CASTLE_X + sun.dx * 1.5,
+				WEST_CASTLE_Y + 66 + sun.dy * 1.2,
+				175 + Math.abs(sun.dx),
+				68,
+				0x000000,
+				undefined,
+				sun.alpha
 			);
-			this.castleShadowGraphics.fill({ color: 0x000000, alpha: sunShadow.alpha });
-			this.castleShadowGraphics.ellipse(
-				EAST_CASTLE_X + sunShadow.dx * 1.5,
-				EAST_CASTLE_Y + 60 + sunShadow.dy * 1.2,
-				180 + Math.abs(sunShadow.dx),
-				64
+			el(
+				this.castleShadowGraphics,
+				EAST_CASTLE_X + sun.dx * 1.5,
+				EAST_CASTLE_Y + 60 + sun.dy * 1.2,
+				180 + Math.abs(sun.dx),
+				64,
+				0x000000,
+				undefined,
+				sun.alpha
 			);
-			this.castleShadowGraphics.fill({ color: 0x000000, alpha: sunShadow.alpha });
 
-			// 3. Update West Castle (Human) Sprite stage based on HP with 400ms smooth fade
-			const westSuccess = this.updateCastleCrossfade(
-				true,
-				westCastle.hp,
-				westCastle.maxHp,
-				this.westCastleTextures,
-				this.westCastleBaseSprite,
-				this.westCastleFadeSprite
-			);
-			if (!westSuccess) {
-				if (this.westCastleBaseSprite) this.westCastleBaseSprite.visible = false;
-				if (this.westCastleFadeSprite) this.westCastleFadeSprite.visible = false;
-				this.entityRenderer.renderAuthenticCastle(
-					this.castleShadowGraphics,
-					westCastle,
-					true,
-					westSelected
-				);
-			}
-
-			// 4. Update East Castle (Chaos) Sprite stage based on HP with 400ms smooth fade
-			const eastSuccess = this.updateCastleCrossfade(
-				false,
-				eastCastle.hp,
-				eastCastle.maxHp,
-				this.eastCastleTextures,
-				this.eastCastleBaseSprite,
-				this.eastCastleFadeSprite
-			);
-			if (!eastSuccess) {
-				if (this.eastCastleBaseSprite) this.eastCastleBaseSprite.visible = false;
-				if (this.eastCastleFadeSprite) this.eastCastleFadeSprite.visible = false;
-				this.entityRenderer.renderAuthenticCastle(
-					this.castleShadowGraphics,
-					eastCastle,
-					false,
-					eastSelected
-				);
+			for (const [team, castle, isWest, sel] of [
+				['west', westCastle, true, westSelected],
+				['east', eastCastle, false, eastSelected]
+			] as const) {
+				if (!this.updateCastleCrossfade(team, castle.hp, castle.maxHp)) {
+					this.hideCastleSprites(this.castleVisuals[team]);
+					this.entityRenderer.renderAuthenticCastle(this.castleShadowGraphics, castle, isWest, sel);
+				}
 			}
 		}
 
-		// 5. Render Selection rings (for HD sprites) and Tactical Health Bars in overlay layer
 		this.castlesOverlayLayer.clear();
 		if (this.graphicsStyle !== '2.5d') {
-			if (westSelected) {
-				this.castlesOverlayLayer.beginPath();
-				this.castlesOverlayLayer.ellipse(WEST_CASTLE_X, WEST_CASTLE_Y + 30, 195, 82);
-				this.castlesOverlayLayer.stroke({ color: 0xfbbf24, width: 3.5, alpha: 0.95 });
-			}
-			if (eastSelected) {
-				this.castlesOverlayLayer.beginPath();
-				this.castlesOverlayLayer.ellipse(EAST_CASTLE_X, EAST_CASTLE_Y + 25, 200, 78);
-				this.castlesOverlayLayer.stroke({ color: 0xf43f5e, width: 3.5, alpha: 0.95 });
-			}
+			if (westSelected)
+				el(this.castlesOverlayLayer, WEST_CASTLE_X, WEST_CASTLE_Y + 30, 195, 82, undefined, {
+					color: 0xfbbf24,
+					width: 3.5,
+					alpha: 0.95
+				});
+			if (eastSelected)
+				el(this.castlesOverlayLayer, EAST_CASTLE_X, EAST_CASTLE_Y + 25, 200, 78, undefined, {
+					color: 0xf43f5e,
+					width: 3.5,
+					alpha: 0.95
+				});
 		}
 
-		// High-contrast RTS Health Bars hovering directly above each castle
 		this.drawCastleHealthBar(WEST_CASTLE_X, WEST_CASTLE_Y - 180, westCastle, true);
 		this.drawCastleHealthBar(EAST_CASTLE_X, EAST_CASTLE_Y - 170, eastCastle, false);
 	}
@@ -1266,27 +1189,30 @@ export class ArenaRenderer {
 		const barW = 180;
 		const barH = 11;
 		const barX = cx - barW / 2;
-		const barY = cy;
 		const hpPct = Math.max(0, Math.min(1, castle.hp / castle.maxHp));
-
-		// Heavy dark border panel
-		const castleBorderColor = castle.color?.num ?? (isWest ? 0x2563eb : 0xdc2626);
-		this.castlesOverlayLayer.beginPath();
-		this.castlesOverlayLayer.roundRect(barX - 2, barY - 2, barW + 4, barH + 4, 3);
-		this.castlesOverlayLayer.fill({ color: 0x090d16, alpha: 0.92 });
-		this.castlesOverlayLayer.stroke({ color: castleBorderColor, width: 2 });
-
-		// Progress fill
+		const borderCol = castle.color?.num ?? (isWest ? 0x2563eb : 0xdc2626);
+		rr(
+			this.castlesOverlayLayer,
+			barX - 2,
+			cy - 2,
+			barW + 4,
+			barH + 4,
+			3,
+			{ color: 0x090d16, alpha: 0.92 },
+			{ color: borderCol, width: 2 }
+		);
 		if (hpPct > 0) {
-			const color = hpPct > 0.5 ? 0x22c55e : hpPct > 0.25 ? 0xf59e0b : 0xef4444;
-			this.castlesOverlayLayer.beginPath();
-			this.castlesOverlayLayer.roundRect(barX, barY, Math.max(3, barW * hpPct), barH, 2);
-			this.castlesOverlayLayer.fill({ color });
-
-			// Top gloss highlight
-			this.castlesOverlayLayer.beginPath();
-			this.castlesOverlayLayer.rect(barX, barY, Math.max(3, barW * hpPct), 3);
-			this.castlesOverlayLayer.fill({ color: 0xffffff, alpha: 0.35 });
+			const w = Math.max(3, barW * hpPct);
+			rr(
+				this.castlesOverlayLayer,
+				barX,
+				cy,
+				w,
+				barH,
+				2,
+				hpPct > 0.5 ? 0x22c55e : hpPct > 0.25 ? 0xf59e0b : 0xef4444
+			);
+			rc(this.castlesOverlayLayer, barX, cy, w, 3, 0xffffff, undefined, 0.35);
 		}
 	}
 
@@ -1297,44 +1223,30 @@ export class ArenaRenderer {
 	public destroy(): void {
 		if (this.isDestroyed) return;
 		this.isDestroyed = true;
-
-		if (this.resizeObserver) {
-			this.resizeObserver.disconnect();
-			this.resizeObserver = null;
-		}
-
+		this.resizeObserver?.disconnect();
+		this.resizeObserver = null;
 		if (typeof window !== 'undefined' && this.windowResizeHandler) {
 			window.removeEventListener('resize', this.windowResizeHandler);
 			this.windowResizeHandler = null;
 		}
-
 		if (typeof window !== 'undefined' && this.windowMouseUpHandler) {
 			window.removeEventListener('mouseup', this.windowMouseUpHandler);
 			this.windowMouseUpHandler = null;
 		}
-
 		if (this.tickerFn && this.app?.ticker) {
 			this.app.ticker.remove(this.tickerFn);
 			this.tickerFn = null;
 		}
-
 		this.overlayRenderer?.destroy();
-
 		if (this.app) {
 			try {
 				this.app.ticker?.stop();
 				this.app.destroy(true, { children: true });
 			} catch {
-				// Prevent crashes during headless/mocked teardown
+				// Prevent crashes during teardown
 			}
 		}
-
 		this.canvasEl = null;
-		this.westCastleTextures = [];
-		this.eastCastleTextures = [];
-		this.westCastleBaseSprite = null;
-		this.westCastleFadeSprite = null;
-		this.eastCastleBaseSprite = null;
-		this.eastCastleFadeSprite = null;
+		this.castleVisuals = { west: emptyCastleSide(), east: emptyCastleSide() };
 	}
 }

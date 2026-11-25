@@ -1,6 +1,7 @@
 import type { SimulationConfig } from './simulation';
 import type { CoinMode } from './constants';
 import { PLAYABLE_RACES } from './gameData';
+import { getDailyChallengeSpec } from '$lib/config/dailyChallenge';
 
 export type QuickModeKey = 'vsBot' | 'sandbox' | 'botVsBot';
 
@@ -269,6 +270,10 @@ export function resolveBattleLaunchConfig(
 		...(normalizedModeId !== undefined ? { modeId: normalizedModeId } : {}),
 		...(savedBotVsBot !== undefined ? { botVsBot: savedBotVsBot } : {})
 	};
+
+	if (urlMode === 'daily') {
+		return getDailyChallengeSpec().config;
+	}
 
 	if (urlMode === 'sandbox') {
 		const defaults: SimulationConfig = {

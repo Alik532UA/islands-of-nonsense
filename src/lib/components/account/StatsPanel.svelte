@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { Download, Flame, Swords, Trophy, Clock } from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { t } from '$lib/i18n';
 	import {
 		GAME_ID,
@@ -9,6 +11,7 @@
 		type PlayData
 	} from '$lib/net/play';
 	import { exportHistoryCSV, exportHistoryJSON } from '$lib/services/matchProgress.svelte';
+	import { listSavedReplays, setPendingReplay } from '$lib/services/replayStore.svelte';
 	import { ReplaySerializer, type MatchReplayData } from '$lib/engine/replaySerializer';
 	import { formatRaceName } from '$lib/engine/gameData';
 	import { toast } from '$lib/controllers/toast.svelte';
@@ -23,6 +26,13 @@
 	let replayStatus = $state<'idle' | 'valid' | 'invalid'>('idle');
 	let parsedReplay = $state<MatchReplayData | null>(null);
 	let historyFilter = $state<'all' | 'online' | 'solo'>('all');
+	const savedReplays = $derived(listSavedReplays());
+
+	function watchSerializedReplay(json: string) {
+		if (setPendingReplay(json)) {
+			void goto(`${resolve('/play/battle')}?replay=1`);
+		}
+	}
 
 	function statsOf(record: GameRecord | undefined) {
 		const wins = record?.wins ?? 0;
@@ -112,7 +122,7 @@
 				{t('account.stats.streak')}
 			</div>
 			<div class="text-2xl font-black text-emerald-400 flex items-center justify-center gap-1">
-				<Flame class="w-5 h-5 text-amber-400" />
+				<UiIcon name="flame" class="w-5 h-5 text-amber-400" />
 				<span>{winStreak}</span>
 			</div>
 			<div class="text-[10px] text-slate-400 mt-0.5">
@@ -126,7 +136,7 @@
 		<div class="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-2">
 			<div class="flex items-center justify-between">
 				<span class="text-xs font-bold text-sky-300 flex items-center gap-1.5">
-					<Swords class="w-4 h-4" />
+					<UiIcon name="swords" class="w-4 h-4" />
 					{t('account.stats.onlineMode')}
 				</span>
 				<span class="text-xs font-mono font-bold text-amber-300">{onlineStats.score} pts</span>
@@ -150,7 +160,7 @@
 		<div class="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-2">
 			<div class="flex items-center justify-between">
 				<span class="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
-					<Trophy class="w-4 h-4" />
+					<UiIcon name="trophy" class="w-4 h-4" />
 					{t('account.stats.soloMode')}
 				</span>
 				<span class="text-xs font-mono font-bold text-amber-300">{soloStats.score} pts</span>
@@ -178,7 +188,7 @@
 			<h3
 				class="text-xs uppercase tracking-wider text-slate-300 font-bold flex items-center gap-1.5"
 			>
-				<Clock class="w-4 h-4 text-amber-400" />
+				<UiIcon name="clock" class="w-4 h-4 text-amber-400" />
 				<span>{t('account.history.title')}</span>
 			</h3>
 			<div class="flex flex-wrap items-center gap-1.5">
@@ -206,7 +216,7 @@
 						class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 font-semibold flex items-center gap-1 cursor-pointer"
 						title={t('account.history.exportJson')}
 					>
-						<Download class="w-3 h-3" />
+						<UiIcon name="download" class="w-3 h-3" />
 						<span>JSON</span>
 					</button>
 					<button
@@ -220,7 +230,7 @@
 						class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 font-semibold flex items-center gap-1 cursor-pointer"
 						title={t('account.history.exportCsv')}
 					>
-						<Download class="w-3 h-3" />
+						<UiIcon name="download" class="w-3 h-3" />
 						<span>CSV</span>
 					</button>
 				{/if}
@@ -312,18 +322,76 @@
 				{t('account.replay.verify')}
 			</button>
 			{#if replayStatus === 'valid' && parsedReplay}
-				<span class="text-xs text-emerald-400 font-semibold" data-testid="replay-verify-status">
-					{t('account.replay.valid')} · {t('account.replay.summary', {
-						mode: parsedReplay.gameMode,
-						winner: parsedReplay.result?.winner ?? '—',
-						actions: parsedReplay.actions.length
-					})}
-				</span>
+				<div class="flex flex-wrap items-center gap-2">
+					<span class="text-xs text-emerald-400 font-semibold" data-testid="replay-verify-status">
+						{t('account.replay.valid')} · {t('account.replay.summary', {
+							mode: parsedReplay.gameMode,
+							winner: parsedReplay.result?.winner ?? '—',
+							actions: parsedReplay.actions.length
+						})}
+					</span>
+					<button
+						type="button"
+						onclick={() => watchSerializedReplay(replayJsonInput.trim())}
+						class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs flex items-center gap-1 cursor-pointer"
+						data-testid="replay-watch-btn"
+					>
+						<UiIcon name="play" class="w-3 h-3 fill-current" />
+						<span>{t('replay.watch')}</span>
+					</button>
+				</div>
 			{:else if replayStatus === 'invalid'}
 				<span class="text-xs text-rose-400 font-semibold" data-testid="replay-verify-status">
 					{t('account.replay.invalid')}
 				</span>
 			{/if}
 		</div>
+
+		{#if savedReplays.length > 0}
+			<div class="pt-3 border-t border-slate-800 space-y-2" data-testid="saved-replays-list">
+				<div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+					{t('replay.savedTitle')}
+				</div>
+				{#each savedReplays as rep (rep.id)}
+					<div
+						class="p-2.5 rounded-xl bg-slate-900/70 border border-slate-800 flex items-center justify-between gap-2 text-xs"
+					>
+						<div class="min-w-0">
+							<div class="font-bold text-slate-200 truncate">
+								{formatRaceName(rep.westRace)} vs {formatRaceName(rep.eastRace)}
+							</div>
+							<div class="text-[10px] text-slate-400">
+								{rep.gameMode} · {t('replay.actionsCount', { count: rep.actionCount })} ·
+								{new Date(rep.timestamp).toLocaleDateString()}
+							</div>
+						</div>
+						<div class="flex items-center gap-1.5 shrink-0">
+							<button
+								type="button"
+								onclick={async () => {
+									try {
+										await navigator.clipboard.writeText(rep.serialized);
+										toast.success(t('common.copied'));
+									} catch {
+										// ignore
+									}
+								}}
+								class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-[11px] cursor-pointer"
+							>
+								{t('replay.copy')}
+							</button>
+							<button
+								type="button"
+								onclick={() => watchSerializedReplay(rep.serialized)}
+								class="px-2.5 py-1.5 rounded-lg bg-emerald-600/25 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/40 font-bold text-[11px] flex items-center gap-1 cursor-pointer"
+							>
+								<UiIcon name="play" class="w-3 h-3" />
+								<span>{t('replay.watch')}</span>
+							</button>
+						</div>
+					</div>
+				{/each}
+			</div>
+		{/if}
 	</div>
 </div>

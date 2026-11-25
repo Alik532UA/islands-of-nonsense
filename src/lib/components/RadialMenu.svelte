@@ -1,24 +1,11 @@
 <script lang="ts">
+	import { Coins, Crown, TreePine } from 'lucide-svelte';
 	import { getContext } from 'svelte';
 	import type { Simulation } from '../engine/simulation';
 	import type { BuildingDefinition, PlayerState, UnitDefinition } from '../engine/types';
 	import { formatRaceName, getUnit, isLegendaryBuilding } from '../engine/gameData';
 	import { BATTLE_COMMAND_ROUTER_KEY, type BattleCommandRouter } from '$lib/net/onlineMatchSetup';
-	import {
-		Swords,
-		Hammer,
-		Zap,
-		ShieldAlert,
-		Wrench,
-		Sparkles,
-		ShoppingBag,
-		Anvil,
-		Coins,
-		TreePine,
-		Crown,
-		Shield,
-		Heart
-	} from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import UnitSilhouette from './ui/UnitSilhouette.svelte';
 	import { sound } from '../services/audio';
 
@@ -353,15 +340,15 @@
 
 {#snippet abilityIcon(iconType: string | undefined, cls: string)}
 	{#if iconType === 'rescue'}
-		<ShieldAlert class="{cls} text-amber-400" />
+		<UiIcon name="shieldAlert" class="{cls} text-amber-400" />
 	{:else if iconType === 'repair' || iconType === 'bridge'}
-		<Wrench class="{cls} text-emerald-400" />
+		<UiIcon name="wrench" class="{cls} text-emerald-400" />
 	{:else if iconType === 'shop'}
-		<ShoppingBag class="{cls} text-sky-400" />
+		<UiIcon name="shoppingBag" class="{cls} text-sky-400" />
 	{:else if iconType === 'forge'}
-		<Anvil class="{cls} text-amber-400" />
+		<UiIcon name="anvil" class="{cls} text-amber-400" />
 	{:else}
-		<Sparkles class="{cls} text-purple-400" />
+		<UiIcon name="sparkles" class="{cls} text-purple-400" />
 	{/if}
 {/snippet}
 
@@ -528,11 +515,11 @@
 				{:else}
 					<div class="flex items-center gap-1.5">
 						{#if category === 'army'}
-							<Swords class="w-8 h-8 text-amber-400 drop-shadow" />
+							<UiIcon name="swords" class="w-8 h-8 text-amber-400 drop-shadow" />
 						{:else if category === 'special'}
-							<Hammer class="w-8 h-8 text-amber-400 drop-shadow" />
+							<UiIcon name="hammer" class="w-8 h-8 text-amber-400 drop-shadow" />
 						{:else}
-							<Zap class="w-8 h-8 text-amber-400 drop-shadow" />
+							<UiIcon name="zap" class="w-8 h-8 text-amber-400 drop-shadow" />
 						{/if}
 						<span
 							class="px-1.5 py-0.5 rounded-[4px] bg-[#0a0d15] border border-[#8c7456]/80 text-[10px] font-mono font-black text-amber-300"
@@ -677,7 +664,7 @@
 								</div>
 								{#if item.unitDef && item.lumberCost === 0}
 									<span class="text-[9.5px] text-slate-300/90 flex items-center gap-0.5">
-										<Swords class="w-2.5 h-2.5 text-amber-400/80" />
+										<UiIcon name="swords" class="w-2.5 h-2.5 text-amber-400/80" />
 										{item.unitDef.damage_base ?? 15}
 									</span>
 								{:else if item.lacksFood}
@@ -715,7 +702,7 @@
 					</div>
 					{#if hoveredItem.unitDef}
 						<span class="text-[11.5px] text-sky-300 font-semibold shrink-0 flex items-center gap-1">
-							<Swords class="w-3.5 h-3.5 text-amber-300" />
+							<UiIcon name="swords" class="w-3.5 h-3.5 text-amber-300" />
 							{hoveredItem.unitDef.name}
 						</span>
 					{/if}
@@ -723,17 +710,17 @@
 				{#if hoveredItem.unitDef}
 					<div class="grid grid-cols-3 gap-2 pt-1.5 text-[11.5px] font-mono">
 						<div class="flex items-center gap-1.5 text-emerald-300 font-semibold">
-							<Heart class="w-3.5 h-3.5 text-emerald-400" />
+							<UiIcon name="heart" class="w-3.5 h-3.5 text-emerald-400" />
 							<span>{Math.round(hoveredItem.unitDef.hp)} HP</span>
 						</div>
 						<div class="flex items-center gap-1.5 text-amber-200 font-semibold justify-center">
-							<Swords class="w-3.5 h-3.5 text-amber-400" />
+							<UiIcon name="swords" class="w-3.5 h-3.5 text-amber-400" />
 							<span>
 								{hoveredItem.unitDef.damage_base ?? 15} ({hoveredItem.unitDef.attack_type})
 							</span>
 						</div>
 						<div class="flex items-center gap-1.5 text-slate-300 font-semibold justify-end">
-							<Shield class="w-3.5 h-3.5 text-sky-400" />
+							<UiIcon name="shield" class="w-3.5 h-3.5 text-sky-400" />
 							<span>{hoveredItem.unitDef.armor} ({hoveredItem.unitDef.armor_type})</span>
 						</div>
 					</div>

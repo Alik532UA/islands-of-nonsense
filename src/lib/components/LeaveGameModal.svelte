@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { X, AlertTriangle, LogOut } from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { t } from '$lib/i18n';
 
 	let {
@@ -44,7 +44,7 @@
 				aria-label={t('common.close')}
 				data-testid="leave-cancel-x"
 			>
-				<X class="w-5 h-5" />
+				<UiIcon name="x" class="w-5 h-5" />
 			</button>
 
 			<!-- Header with Alert Icon -->
@@ -52,7 +52,7 @@
 				<div
 					class="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0 shadow-inner"
 				>
-					<AlertTriangle class="w-5 h-5 text-amber-400" />
+					<UiIcon name="alertTriangle" class="w-5 h-5 text-amber-400" />
 				</div>
 				<div>
 					<div class="text-[10px] uppercase tracking-widest text-[#d4af37] font-bold">
@@ -90,7 +90,7 @@
 					class="py-2.5 px-4 bg-gradient-to-r from-rose-900 to-rose-700 hover:from-rose-800 hover:to-rose-600 text-white font-bold rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-rose-950/40 border border-rose-600/50 cursor-pointer active:scale-98"
 					data-testid="leave-confirm-btn"
 				>
-					<LogOut class="w-4 h-4" />
+					<UiIcon name="logOut" class="w-4 h-4" />
 					<span>{t('battle.confirmLeave')}</span>
 				</button>
 			</div>

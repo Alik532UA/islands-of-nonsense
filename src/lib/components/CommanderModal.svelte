@@ -8,8 +8,7 @@
 	} from '../engine/commanders';
 	import { BUILDINGS_MAP } from '../engine/gameData';
 	import CommanderPickerGrid from './CommanderPickerGrid.svelte';
-	import { Coins, Crown, X, TreePine, Clock } from 'lucide-svelte';
-
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	let {
 		sim,
 		uiTick = 0,
@@ -80,13 +79,13 @@
 				class="absolute top-4 right-4 text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition cursor-pointer"
 				aria-label="Закрити"
 			>
-				<X class="w-5 h-5" />
+				<UiIcon name="x" class="w-5 h-5" />
 			</button>
 
 			<!-- Header -->
 			<div class="flex items-center gap-3 border-b border-[#3b3226] pb-3.5 mb-4 shrink-0">
 				<div class="p-2 rounded-xl bg-indigo-500/15 border border-indigo-500/40 text-indigo-300">
-					<Crown class="w-5 h-5" />
+					<UiIcon name="crown" class="w-5 h-5" />
 				</div>
 				<div>
 					<h2 class="text-base font-bold text-indigo-200 flex items-center gap-2">
@@ -115,7 +114,7 @@
 						data-testid="commander-hall-building-progress"
 					>
 						<div class="flex items-center gap-2.5 min-w-0">
-							<Crown class="w-4 h-4 text-indigo-400 animate-pulse shrink-0" />
+							<UiIcon name="crown" class="w-4 h-4 text-indigo-400 animate-pulse shrink-0" />
 							<div class="text-xs font-bold text-indigo-200">
 								Дім командира зводиться робітником ({pct}%)
 							</div>
@@ -136,7 +135,7 @@
 							<div
 								class="p-2 rounded-lg bg-indigo-500/15 border border-indigo-500/40 text-indigo-300 shrink-0"
 							>
-								<Crown class="w-4 h-4" />
+								<UiIcon name="crown" class="w-4 h-4" />
 							</div>
 							<div class="min-w-0">
 								<div class="text-xs font-bold text-indigo-200">Дім командира ще не збудовано</div>
@@ -157,7 +156,7 @@
 									? 'bg-gradient-to-b from-indigo-500 to-indigo-700 hover:from-indigo-400 hover:to-indigo-600 border-indigo-300 text-white shadow-lg'
 									: 'bg-[#181d28] border-[#3b3226] text-slate-400 opacity-75 cursor-not-allowed'}"
 							>
-								<Crown class="w-3.5 h-3.5 shrink-0" />
+								<UiIcon name="crown" class="w-3.5 h-3.5 shrink-0" />
 								<span>Будувати</span>
 								<span
 									class="flex items-center gap-1.5 font-mono text-[11px] pl-1.5 border-l border-white/20"
@@ -167,7 +166,7 @@
 											? ''
 											: 'text-rose-400'}"
 									>
-										<Coins class="w-3 h-3" />
+										<UiIcon name="coins" class="w-3 h-3" />
 										{hallGoldCost}
 									</span>
 									<span
@@ -175,7 +174,7 @@
 											? 'text-emerald-300'
 											: 'text-rose-400'}"
 									>
-										<TreePine class="w-3 h-3" />
+										<UiIcon name="treePine" class="w-3 h-3" />
 										{hallLumberCost}
 									</span>
 								</span>
@@ -197,7 +196,7 @@
 							{:else if hallStatus.isFree}
 								<span class="font-bold">Кулдаун завершено — зміна командира безкоштовна</span>
 							{:else}
-								<Clock class="w-3.5 h-3.5 text-amber-300 shrink-0" />
+								<UiIcon name="clock" class="w-3.5 h-3.5 text-amber-300 shrink-0" />
 								<span>
 									Безкоштовна зміна через
 									<strong class="font-mono">{formatCooldown(hallStatus.cooldownLeft)}</strong>

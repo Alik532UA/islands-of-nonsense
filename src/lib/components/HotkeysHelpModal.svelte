@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { Keyboard, X } from 'lucide-svelte';
-
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	let {
 		isOpen = false,
 		onClose
@@ -41,7 +40,7 @@
 			<div class="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
 				<div class="flex items-center gap-2.5">
 					<div class="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
-						<Keyboard class="w-5 h-5" />
+						<UiIcon name="keyboard" class="w-5 h-5" />
 					</div>
 					<div>
 						<h2 class="text-base font-bold text-amber-200">Гарячі клавіші та керування</h2>
@@ -55,7 +54,7 @@
 					aria-label="Закрити"
 					data-testid="hotkeys-close-btn"
 				>
-					<X class="w-5 h-5" />
+					<UiIcon name="x" class="w-5 h-5" />
 				</button>
 			</div>
 

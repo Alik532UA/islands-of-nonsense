@@ -22,62 +22,54 @@ import {
 	EAST_ROAD_MERGE_X,
 	type DecorationObstacle
 } from '../engine/constants';
+import { rc as gfxRc, rr, ci, el, pg, ln } from './gfx';
+
+type Pt = { x: number; y: number };
 
 const ROAD_STONE_COLORS = [0x92785c, 0x806950, 0x9c8366, 0x765f47, 0xa48d70];
+const rc = (g: Graphics, x: number, y: number, w: number, h: number, fill: number, alpha = 1) =>
+	gfxRc(g, x, y, w, h, fill, undefined, alpha);
+
+const hash = (x: number, y: number, s: number) => {
+	const v = Math.sin(x * 12.9898 + y * 78.233 + s * 137.5) * 43758.5453;
+	return v - Math.floor(v);
+};
 
 export class TerrainRenderer {
 	/**
 	 * Renders dynamic, living ocean water with slow-drifting swells, shimmering sun caustics,
 	 * central strait river flow, and animated shoreline surf.
-	 * Highly optimized for 60+ FPS performance without massive offscreen loops.
 	 */
 	public drawDynamicWater(g: Graphics, time: number): void {
 		g.clear();
-
-		// 1. Slow-drifting ambient ocean swells across visible water
 		const padX = 3000;
 		const padY = 600;
 		const swellDrift = (time * 14) % 200;
 		for (let y = -padY + swellDrift; y < ARENA_HEIGHT + padY; y += 200) {
-			const isBright = Math.floor((y - swellDrift) / 200) % 2 === 0;
-			g.rect(-padX, y, ARENA_WIDTH + padX * 2, 100);
-			g.fill({ color: isBright ? 0x013858 : 0x012e4a, alpha: 0.5 });
+			const bright = Math.floor((y - swellDrift) / 200) % 2 === 0;
+			rc(g, -padX, y, ARENA_WIDTH + padX * 2, 100, bright ? 0x013858 : 0x012e4a, 0.5);
 		}
 
-		// 2. Flowing Central Strait River Churn (Southward current between the two islands)
-		const riverLeft = 3120;
-		const riverRight = 4080;
-		const riverW = riverRight - riverLeft;
+		const riverMid = (3120 + 4080) / 2;
+		const riverW = 4080 - 3120;
 		const riverDrift = (time * 50) % 120;
-
 		for (let ry = -80 + riverDrift; ry < ARENA_HEIGHT + 80; ry += 65) {
-			const streamOffX = Math.sin(ry * 0.015 + time * 1.2) * 26;
-			g.ellipse(riverLeft + riverW / 2 + streamOffX, ry, riverW * 0.38, 7);
-			g.fill({ color: 0x06b6d4, alpha: 0.3 });
-
-			g.ellipse(riverLeft + riverW / 2 + streamOffX - 10, ry + 2, riverW * 0.22, 3);
-			g.fill({ color: 0xe0f2fe, alpha: 0.45 });
+			const off = Math.sin(ry * 0.015 + time * 1.2) * 26;
+			el(g, riverMid + off, ry, riverW * 0.38, 7, 0x06b6d4, undefined, 0.3);
+			el(g, riverMid + off - 10, ry + 2, riverW * 0.22, 3, 0xe0f2fe, undefined, 0.45);
 		}
 
-		// 3. Shimmering Water Caustics in North and South water channels (lightweight)
 		const t1 = time * 0.4;
-		const causticsCols = [1000, 2000, 3600, 5200, 6200];
-		const causticsRows = [-200, -80, 2480, 2600];
-		for (const cx of causticsCols) {
-			for (const cy of causticsRows) {
-				const waveOffX = Math.sin(cx * 0.005 + cy * 0.007 + t1) * 20;
-				const waveOffY = Math.cos(cx * 0.006 - cy * 0.005 + time * 0.6) * 10;
+		for (const cx of [1000, 2000, 3600, 5200, 6200]) {
+			for (const cy of [-200, -80, 2480, 2600]) {
+				const wx = Math.sin(cx * 0.005 + cy * 0.007 + t1) * 20;
+				const wy = Math.cos(cx * 0.006 - cy * 0.005 + time * 0.6) * 10;
 				const alpha = 0.22 + Math.sin(cx * 0.01 + cy * 0.012 + time * 0.8) * 0.08;
-
-				g.ellipse(cx + waveOffX, cy + waveOffY, 65, 6);
-				g.fill({ color: 0x38bdf8, alpha });
-
-				g.ellipse(cx + waveOffX - 6, cy + waveOffY - 1, 30, 2.5);
-				g.fill({ color: 0xe0f2fe, alpha: alpha * 1.4 });
+				el(g, cx + wx, cy + wy, 65, 6, 0x38bdf8, undefined, alpha);
+				el(g, cx + wx - 6, cy + wy - 1, 30, 2.5, 0xe0f2fe, undefined, alpha * 1.4);
 			}
 		}
 
-		// 4. Breathing Shoreline Surf (gentle pulse against West and East islands)
 		const surfPulse = Math.sin(time * 1.8) * 6;
 		this.drawAnimatedShorelineSurf(g, WEST_ISLAND_CENTER_X, WEST_ISLAND_CENTER_Y, 1337, surfPulse);
 		this.drawAnimatedShorelineSurf(g, EAST_ISLAND_CENTER_X, EAST_ISLAND_CENTER_Y, 7260, surfPulse);
@@ -90,26 +82,19 @@ export class TerrainRenderer {
 		seed: number,
 		pulse: number
 	): void {
-		const numPoints = 84;
-		const surfPoly: number[] = [];
-
-		for (let i = 0; i < numPoints; i++) {
-			const a = (i / numPoints) * Math.PI * 2;
-			const cosA = Math.cos(a);
-			const sinA = Math.sin(a);
-
+		const pts: number[] = [];
+		for (let i = 0; i < 84; i++) {
+			const a = (i / 84) * Math.PI * 2;
 			const noise =
 				Math.sin(a * 4 + seed) * 42 +
 				Math.cos(a * 7 + seed * 1.4) * 25 +
 				Math.sin(a * 13 + seed * 0.7) * 12;
-
-			const px = cx + cosA * (ISLAND_RADIUS_X + noise + 18 + pulse);
-			const py = cy + sinA * (ISLAND_RADIUS_Y + noise + 18 + pulse);
-			surfPoly.push(px, py);
+			pts.push(
+				cx + Math.cos(a) * (ISLAND_RADIUS_X + noise + 18 + pulse),
+				cy + Math.sin(a) * (ISLAND_RADIUS_Y + noise + 18 + pulse)
+			);
 		}
-
-		g.poly(surfPoly);
-		g.stroke({ color: 0xe0f2fe, width: 4.5, alpha: 0.45 });
+		pg(g, pts, undefined, { color: 0xe0f2fe, width: 4.5, alpha: 0.45 });
 	}
 
 	/**
@@ -122,23 +107,8 @@ export class TerrainRenderer {
 		decorations?: DecorationObstacle[]
 	): void {
 		g.clear();
-
-		// =========================================================================
-		// 0. ABYSSAL DEEP OCEAN BASE (Static background canvas)
-		// =========================================================================
-		const oceanPadX = 3000;
-		const oceanPadY = 2000;
-		g.rect(-oceanPadX, -oceanPadY, ARENA_WIDTH + oceanPadX * 2, ARENA_HEIGHT + oceanPadY * 2);
-		g.fill({ color: 0x012e4a });
-
-		// =========================================================================
-		// 1. FORTIFIED STONE BRIDGEHEAD PIERS (Anchor bridges to natural coastlines)
-		// =========================================================================
+		rc(g, -3000, -2000, ARENA_WIDTH + 6000, ARENA_HEIGHT + 4000, 0x012e4a);
 		this.drawBridgeheadPiers(g);
-
-		// =========================================================================
-		// 2. TWO ORGANIC PROCEDURAL OVAL FANTASY ISLANDS (West & East)
-		// =========================================================================
 		this.drawProceduralOvalIsland(
 			g,
 			WEST_ISLAND_CENTER_X,
@@ -148,7 +118,6 @@ export class TerrainRenderer {
 			true,
 			seed
 		);
-
 		this.drawProceduralOvalIsland(
 			g,
 			EAST_ISLAND_CENTER_X,
@@ -158,71 +127,34 @@ export class TerrainRenderer {
 			false,
 			seed + 5923
 		);
-
-		// =========================================================================
-		// 3. NATURAL COBBLESTONE ROADWAYS FANNING OUT FROM CASTLE CENTERS
-		// =========================================================================
 		this.drawNaturalRoadNetwork(g);
-
-		// =========================================================================
-		// 4. RICH PROCEDURALLY GENERATED DECORATIVE OBJECTS (Spyro Aesthetic)
-		// =========================================================================
 		this.drawProceduralDecorations(g, seed, decorations);
 
-		// =========================================================================
-		// 5. THREE 2.5D BRIDGES OVER CENTRAL STRAIT (One Broken)
-		// =========================================================================
-		const bridgeMinX = BRIDGE_SPAN_MIN_X - 20; // 3040
-		const bridgeMaxX = BRIDGE_SPAN_MAX_X + 20; // 4160
-		const bridgeW = bridgeMaxX - bridgeMinX; // 1120
-		const centerX = (bridgeMinX + bridgeMaxX) / 2; // 3600
-
-		// Top Bridge
-		this.drawFantasyBridge(g, centerX, TOP_LANE_Y, bridgeW, brokenBridge === 'top', 'top');
-
-		// Middle Bridge
-		this.drawFantasyBridge(g, centerX, MID_LANE_Y, bridgeW, brokenBridge === 'mid', 'mid');
-
-		// Bottom Bridge
-		this.drawFantasyBridge(g, centerX, BOTTOM_LANE_Y, bridgeW, brokenBridge === 'bottom', 'bottom');
+		const bridgeMinX = BRIDGE_SPAN_MIN_X - 20;
+		const bridgeW = BRIDGE_SPAN_MAX_X + 20 - bridgeMinX;
+		const centerX = bridgeMinX + bridgeW / 2;
+		for (const [lane, ly] of [
+			['top', TOP_LANE_Y],
+			['mid', MID_LANE_Y],
+			['bottom', BOTTOM_LANE_Y]
+		] as const) {
+			this.drawFantasyBridge(g, centerX, ly, bridgeW, brokenBridge === lane, lane);
+		}
 	}
 
-	/**
-	 * Draws heavy stone bridgehead abutments that anchor each bridge into the natural rocky shoreline.
-	 */
 	private drawBridgeheadPiers(g: Graphics): void {
-		const lanes = [TOP_LANE_Y, MID_LANE_Y, BOTTOM_LANE_Y];
-		for (const ly of lanes) {
-			// West landing pier (firmly anchoring west bridgehead at 3060 into green island cape)
-			g.beginPath();
-			g.roundRect(2970, ly - 88, 150, 176, 12);
-			g.fill({ color: 0x334155 });
-			g.stroke({ color: 0x1e293b, width: 3 });
-
-			// Balustrade parapets
-			g.rect(2970, ly - 92, 150, 14);
-			g.fill({ color: 0x64748b });
-			g.rect(2970, ly + 78, 150, 14);
-			g.fill({ color: 0x64748b });
-
-			// East landing pier (firmly anchoring east bridgehead at 4140 into green island cape)
-			g.beginPath();
-			g.roundRect(4080, ly - 88, 150, 176, 12);
-			g.fill({ color: 0x334155 });
-			g.stroke({ color: 0x1e293b, width: 3 });
-
-			// Balustrade parapets
-			g.rect(4080, ly - 92, 150, 14);
-			g.fill({ color: 0x64748b });
-			g.rect(4080, ly + 78, 150, 14);
-			g.fill({ color: 0x64748b });
+		for (const ly of [TOP_LANE_Y, MID_LANE_Y, BOTTOM_LANE_Y]) {
+			for (const px of [2970, 4080]) {
+				g.beginPath();
+				rr(g, px, ly - 88, 150, 176, 12, 0x334155, { color: 0x1e293b, width: 3 });
+				rc(g, px, ly - 92, 150, 14, 0x64748b);
+				rc(g, px, ly + 78, 150, 14, 0x64748b);
+			}
 		}
 	}
 
 	/**
 	 * Draws a lush, organically contoured procedural oval island in Spyro fairytale aesthetic.
-	 * The coastline is 100% procedural with multi-octave organic noise all around (including bridge-facing coast).
-	 * Surface features high-density procedural meadow grass, rolling volumetric mounds, and clovers.
 	 */
 	public drawProceduralOvalIsland(
 		g: Graphics,
@@ -234,125 +166,66 @@ export class TerrainRenderer {
 		seed: number
 	): void {
 		const numPoints = 200;
-		const basePoly: { x: number; y: number }[] = [];
+		const basePoly: Pt[] = [];
+		const lanes = [TOP_LANE_Y, MID_LANE_Y, BOTTOM_LANE_Y];
 
 		for (let i = 0; i < numPoints; i++) {
 			const a = (i / numPoints) * Math.PI * 2;
 			const cosA = Math.cos(a);
 			const sinA = Math.sin(a);
-
-			// Multi-octave sinusoidal procedural noise for craggy/natural coastlines
 			const noise =
 				Math.sin(a * 4 + seed) * 44 +
 				Math.cos(a * 7 + seed * 1.4) * 26 +
 				Math.sin(a * 13 + seed * 0.7) * 14 +
 				Math.cos(a * 23 + seed * 2.1) * 8;
-
 			let px = cx + cosA * (radiusX + noise);
 			const py = cy + sinA * (radiusY + noise);
 
-			// Procedurally extend broad, solid land promontories (capes) at Top, Mid, and Bottom bridgeheads
-			// so that dry green land extends solidly 80px under each bridge and piers with zero water gaps!
-			const lanes = [TOP_LANE_Y, MID_LANE_Y, BOTTOM_LANE_Y];
-			if (isWest && cosA > 0) {
-				let maxCapeReach = 0;
+			if ((isWest && cosA > 0) || (!isWest && cosA < 0)) {
+				const target = isWest ? 3130 : 4070;
+				let reach = isWest ? 0 : Infinity;
 				for (const ly of lanes) {
 					const distY = Math.abs(py - ly);
 					if (distY <= 135) {
-						maxCapeReach = Math.max(maxCapeReach, 3130);
+						reach = isWest ? Math.max(reach, target) : Math.min(reach, target);
 					} else if (distY < 230) {
 						const t = (distY - 135) / 95;
 						const blend = 1 - t * t * (3 - 2 * t);
-						maxCapeReach = Math.max(maxCapeReach, px + Math.max(0, 3130 - px) * blend);
+						const cand = isWest
+							? px + Math.max(0, target - px) * blend
+							: px - Math.max(0, px - target) * blend;
+						reach = isWest ? Math.max(reach, cand) : Math.min(reach, cand);
 					}
 				}
-				if (maxCapeReach > 0) {
-					px = Math.max(px, maxCapeReach);
-				}
-			} else if (!isWest && cosA < 0) {
-				let minCapeReach = Infinity;
-				for (const ly of lanes) {
-					const distY = Math.abs(py - ly);
-					if (distY <= 135) {
-						minCapeReach = Math.min(minCapeReach, 4070);
-					} else if (distY < 230) {
-						const t = (distY - 135) / 95;
-						const blend = 1 - t * t * (3 - 2 * t);
-						minCapeReach = Math.min(minCapeReach, px - Math.max(0, px - 4070) * blend);
-					}
-				}
-				if (minCapeReach < Infinity) {
-					px = Math.min(px, minCapeReach);
+				if (isWest ? reach > 0 : reach < Infinity) {
+					px = isWest ? Math.max(px, reach) : Math.min(px, reach);
 				}
 			}
-
 			basePoly.push({ x: px, y: py });
 		}
 
-		const flatPoly = (poly: { x: number; y: number }[], offX = 0, offY = 0) => {
-			const arr: number[] = [];
-			for (const p of poly) {
-				arr.push(p.x + offX, p.y + offY);
-			}
-			return arr;
-		};
+		const flat = (ox = 0, oy = 0) => basePoly.flatMap((p) => [p.x + ox, p.y + oy]);
 
-		// 1. 2.5D Drop Shadow cast into ocean
-		g.poly(flatPoly(basePoly, 26, 38));
-		g.fill({ color: 0x000000, alpha: 0.45 });
+		pg(g, flat(26, 38), 0x000000, undefined, 0.45);
+		pg(g, flat(0, 12), 0x06b6d4, undefined, 0.35);
+		pg(g, flat(0, 4), undefined, { color: 0xe0f2fe, width: 6, alpha: 0.85 });
+		pg(g, flat(0, 24), 0x5c4033, { color: 0x3e2723, width: 3.5 });
 
-		// 2. Shoreline turquoise shallows & foamy white surf
-		g.poly(flatPoly(basePoly, 0, 12));
-		g.fill({ color: 0x06b6d4, alpha: 0.35 });
-		g.poly(flatPoly(basePoly, 0, 4));
-		g.stroke({ color: 0xe0f2fe, width: 6, alpha: 0.85 });
-
-		// 3. Lower Cliff Layer (Stratified terracotta & weathered granite rock face)
-		g.poly(flatPoly(basePoly, 0, 24));
-		g.fill({ color: 0x5c4033 });
-		g.stroke({ color: 0x3e2723, width: 3.5 });
-
-		// Rock strata horizontal lines on lower cliff
 		for (let s = -0.4; s <= 0.4; s += 0.18) {
 			const sy = cy + radiusY * 0.85 + s * 80;
-			const sx1 = cx - radiusX * 0.6;
-			const sx2 = cx + radiusX * 0.6;
-			g.beginPath();
-			g.moveTo(sx1, sy);
-			g.lineTo(sx2, sy);
-			g.stroke({ color: 0x785138, width: 3, alpha: 0.6 });
+			ln(g, [cx - radiusX * 0.6, sy, cx + radiusX * 0.6, sy], 0x785138, 3, 0.6);
 		}
 
-		// 4. Upper Cliff Bevel (Warm golden sandstone rim)
-		g.poly(flatPoly(basePoly, 0, 10));
-		g.fill({ color: 0x8d5b4c });
+		pg(g, flat(0, 10), 0x8d5b4c);
+		pg(g, flat(0, 0), 0x275d16, { color: 0x1a420e, width: 5 });
 
-		// 5. Fairytale Meadow Surface (Rich green base landscape with soft coastal moss rim)
-		g.poly(flatPoly(basePoly, 0, 0));
-		g.fill({ color: 0x275d16 });
-		g.stroke({ color: 0x1a420e, width: 5 });
-
-		// Subtle inner coastal depth & soft organic meadow variation (replaces harsh geometric ovals)
-		const insetPoly = (scaleX: number, scaleY: number, offX = 0, offY = 0) => {
-			const arr: number[] = [];
-			for (const p of basePoly) {
-				arr.push(cx + (p.x - cx) * scaleX + offX, cy + (p.y - cy) * scaleY + offY);
-			}
-			return arr;
-		};
-		g.poly(insetPoly(0.96, 0.95));
-		g.fill({ color: 0x2d6a1a, alpha: 0.45 });
+		const inset = basePoly.flatMap((p) => [cx + (p.x - cx) * 0.96, cy + (p.y - cy) * 0.95]);
+		pg(g, inset, 0x2d6a1a, undefined, 0.45);
 
 		this.drawOrganicMeadowClearings(g, cx, cy, radiusX, radiusY, isWest, seed);
-
-		// 7. High-Density Procedural Meadow Grass, Clover & Wildflower Texture
 		this.drawProceduralGrassField(g, cx, cy, radiusX, radiusY, seed);
 	}
 
-	/**
-	 * Draws softly feathered, multi-octave irregular sunlit and mossy meadow clearings
-	 * (avoiding harsh concentric geometric ellipses).
-	 */
 	private drawOrganicMeadowClearings(
 		g: Graphics,
 		cx: number,
@@ -362,9 +235,10 @@ export class TerrainRenderer {
 		isWest: boolean,
 		seed: number
 	): void {
+		const dir = isWest ? 1 : -1;
 		const patches = [
 			{
-				ox: isWest ? -120 : 120,
+				ox: -120 * dir,
 				oy: -ry * 0.42,
 				px: rx * 0.48,
 				py: ry * 0.25,
@@ -372,7 +246,7 @@ export class TerrainRenderer {
 				pSeed: seed + 1.3
 			},
 			{
-				ox: isWest ? -100 : 100,
+				ox: -100 * dir,
 				oy: ry * 0.42,
 				px: rx * 0.5,
 				py: ry * 0.26,
@@ -380,7 +254,7 @@ export class TerrainRenderer {
 				pSeed: seed + 4.7
 			},
 			{
-				ox: isWest ? -rx * 0.42 : rx * 0.42,
+				ox: -rx * 0.42 * dir,
 				oy: 0,
 				px: rx * 0.3,
 				py: ry * 0.44,
@@ -388,7 +262,7 @@ export class TerrainRenderer {
 				pSeed: seed + 8.1
 			},
 			{
-				ox: isWest ? rx * 0.2 : -rx * 0.2,
+				ox: rx * 0.2 * dir,
 				oy: -ry * 0.22,
 				px: rx * 0.28,
 				py: ry * 0.18,
@@ -396,7 +270,7 @@ export class TerrainRenderer {
 				pSeed: seed + 12.4
 			},
 			{
-				ox: isWest ? rx * 0.22 : -rx * 0.22,
+				ox: rx * 0.22 * dir,
 				oy: ry * 0.24,
 				px: rx * 0.26,
 				py: ry * 0.17,
@@ -408,34 +282,25 @@ export class TerrainRenderer {
 		for (const p of patches) {
 			const pcx = cx + p.ox;
 			const pcy = cy + p.oy;
-			// Two feathered low-alpha irregular passes create painterly depth without sharp edges
-			for (const layer of [
-				{ scale: 1.0, alpha: 0.14 },
-				{ scale: 0.68, alpha: 0.12 }
-			]) {
+			for (const [scale, alpha] of [
+				[1.0, 0.14],
+				[0.68, 0.12]
+			] as const) {
 				const pts: number[] = [];
-				const segs = 36;
-				for (let i = 0; i < segs; i++) {
-					const a = (i / segs) * Math.PI * 2;
-					const wobble =
+				for (let i = 0; i < 36; i++) {
+					const a = (i / 36) * Math.PI * 2;
+					const w =
 						1 +
 						Math.sin(a * 3 + p.pSeed) * 0.14 +
 						Math.cos(a * 5 - p.pSeed * 1.7) * 0.09 +
 						Math.sin(a * 8 + p.pSeed * 2.3) * 0.05;
-					pts.push(
-						pcx + Math.cos(a) * p.px * layer.scale * wobble,
-						pcy + Math.sin(a) * p.py * layer.scale * wobble
-					);
+					pts.push(pcx + Math.cos(a) * p.px * scale * w, pcy + Math.sin(a) * p.py * scale * w);
 				}
-				g.poly(pts);
-				g.fill({ color: p.color, alpha: layer.alpha });
+				pg(g, pts, p.color, undefined, alpha);
 			}
 		}
 	}
 
-	/**
-	 * Draws a dense, natural procedural field of grass tufts, clovers, wildflower flecks, and light shading.
-	 */
 	private drawProceduralGrassField(
 		g: Graphics,
 		cx: number,
@@ -448,42 +313,23 @@ export class TerrainRenderer {
 		const innerRx = rx - 55;
 		const innerRy = ry - 45;
 
-		const pseudo = (x: number, y: number, s: number) => {
-			const v = Math.sin(x * 12.9898 + y * 78.233 + s * 137.5) * 43758.5453;
-			return v - Math.floor(v);
-		};
-
 		for (let gx = cx - innerRx; gx <= cx + innerRx; gx += step) {
 			for (let gy = cy - innerRy; gy <= cy + innerRy; gy += step) {
 				const nx = (gx - cx) / innerRx;
 				const ny = (gy - cy) / innerRy;
-				if (nx * nx + ny * ny > 0.95) continue;
+				if (nx * nx + ny * ny > 0.95 || Math.hypot(gx - cx, gy - cy) < 220) continue;
 
-				// Skip castle plaza center
-				if (Math.hypot(gx - cx, gy - cy) < 220) continue;
-
-				const r1 = pseudo(gx, gy, seed);
-				const r2 = pseudo(gx, gy, seed + 11);
-				const r3 = pseudo(gx, gy, seed + 29);
-
+				const r1 = hash(gx, gy, seed);
+				const r2 = hash(gx, gy, seed + 11);
+				const r3 = hash(gx, gy, seed + 29);
 				const ox = gx + (r1 - 0.5) * (step * 0.85);
 				const oy = gy + (r2 - 0.5) * (step * 0.85);
-
-				// 1. Procedural grass tuft blades
 				const bladeH = 5 + r3 * 6;
 				const bladeColor = r1 > 0.6 ? 0x5ebd37 : r1 > 0.3 ? 0x469c28 : 0x35771e;
 
-				g.beginPath();
-				g.moveTo(ox, oy);
-				g.lineTo(ox - 3 + r2 * 2, oy - bladeH);
-				g.stroke({ color: bladeColor, width: 1.5, alpha: 0.72 });
+				ln(g, [ox, oy, ox - 3 + r2 * 2, oy - bladeH], bladeColor, 1.5, 0.72);
+				ln(g, [ox + 2, oy, ox + 4 - r1 * 2, oy - bladeH * 0.85], bladeColor, 1.4, 0.65);
 
-				g.beginPath();
-				g.moveTo(ox + 2, oy);
-				g.lineTo(ox + 4 - r1 * 2, oy - bladeH * 0.85);
-				g.stroke({ color: bladeColor, width: 1.4, alpha: 0.65 });
-
-				// 2. Occasional 3-leaf clover cluster
 				if (r3 > 0.75) {
 					g.beginPath();
 					g.circle(ox - 2, oy - 2, 2.2);
@@ -491,70 +337,53 @@ export class TerrainRenderer {
 					g.circle(ox, oy - 4.5, 2.2);
 					g.fill({ color: 0x2a6b18, alpha: 0.8 });
 				}
-
-				// 3. Occasional wildflower flecks & tiny pebbles
 				if (r2 > 0.87) {
-					const flowerColor =
-						r1 > 0.72 ? 0xfef08a : r1 > 0.45 ? 0xf8fafc : r1 > 0.22 ? 0x93c5fd : 0xf9a8d4;
+					const col = r1 > 0.72 ? 0xfef08a : r1 > 0.45 ? 0xf8fafc : r1 > 0.22 ? 0x93c5fd : 0xf9a8d4;
 					g.beginPath();
-					g.circle(ox + 1, oy - bladeH - 1, 1.8);
-					g.fill({ color: flowerColor, alpha: 0.85 });
+					ci(g, ox + 1, oy - bladeH - 1, 1.8, col, undefined, 0.85);
 				} else if (r1 > 0.94) {
-					g.ellipse(ox + 4, oy + 2, 2.4, 1.5);
-					g.fill({ color: 0x64748b, alpha: 0.45 });
+					el(g, ox + 4, oy + 2, 2.4, 1.5, 0x64748b, undefined, 0.45);
 				}
 			}
 		}
 	}
 
 	/**
-	 * Draws authentic cobblestone roadways fanning out from the centered castles
-	 * towards the Top, Mid, and Bottom bridges, with procedural pavers, gravel edges, and worn ruts.
+	 * Draws authentic cobblestone roadways fanning out from the centered castles.
 	 */
 	public drawNaturalRoadNetwork(g: Graphics): void {
-		const roadHeight = ROAD_WIDTH;
-
-		// 1. West Cobblestone Highways (drawn underneath the castle plaza rim)
-		this.drawIslandRoadFanned(g, WEST_CASTLE_X, WEST_CASTLE_Y, BRIDGE_SPAN_MIN_X, roadHeight, true);
-
-		// 2. East Cobblestone Highways (drawn underneath the castle plaza rim)
+		this.drawIslandRoadFanned(g, WEST_CASTLE_X, WEST_CASTLE_Y, BRIDGE_SPAN_MIN_X, ROAD_WIDTH, true);
 		this.drawIslandRoadFanned(
 			g,
 			EAST_CASTLE_X,
 			EAST_CASTLE_Y,
 			BRIDGE_SPAN_MAX_X,
-			roadHeight,
+			ROAD_WIDTH,
 			false
 		);
-
-		// 3. West Castle Grand Stone Plaza (drawn cleanly on top of road origins)
 		this.drawCastlePlaza(g, WEST_CASTLE_X, WEST_CASTLE_Y);
-
-		// 4. East Castle Grand Stone Plaza (drawn cleanly on top of road origins)
 		this.drawCastlePlaza(g, EAST_CASTLE_X, EAST_CASTLE_Y);
 	}
 
 	private drawCastlePlaza(g: Graphics, cx: number, cy: number): void {
-		// Outer carved sandstone curb blocks
-		g.circle(cx, cy, 230);
-		g.fill({ color: 0x7a6348 });
-		g.stroke({ color: 0x3f3224, width: 3.5 });
-
-		// Ashlar radial curb joint lines around outer rim
+		ci(g, cx, cy, 230, 0x7a6348, { color: 0x3f3224, width: 3.5 });
 		for (let i = 0; i < 24; i++) {
 			const ang = (i / 24) * Math.PI * 2;
-			g.beginPath();
-			g.moveTo(cx + Math.cos(ang) * 212, cy + Math.sin(ang) * 212);
-			g.lineTo(cx + Math.cos(ang) * 230, cy + Math.sin(ang) * 230);
-			g.stroke({ color: 0x4a3b2c, width: 2, alpha: 0.7 });
+			ln(
+				g,
+				[
+					cx + Math.cos(ang) * 212,
+					cy + Math.sin(ang) * 212,
+					cx + Math.cos(ang) * 230,
+					cy + Math.sin(ang) * 230
+				],
+				0x4a3b2c,
+				2,
+				0.7
+			);
 		}
+		ci(g, cx, cy, 212, 0x9c866d, { color: 0x52402e, width: 2 });
 
-		// Inner warm stone flagstone pavement
-		g.circle(cx, cy, 212);
-		g.fill({ color: 0x9c866d });
-		g.stroke({ color: 0x52402e, width: 2 });
-
-		// Concentric cobblestone ashlar rings with staggered radial stone joints
 		const ringRadii = [88, 118, 148, 178, 212];
 		for (let ri = 0; ri < ringRadii.length - 1; ri++) {
 			const rInner = ringRadii[ri];
@@ -565,49 +394,57 @@ export class TerrainRenderer {
 			for (let si = 0; si < segments; si++) {
 				const a1 = (si / segments) * Math.PI * 2 + offset;
 				const a2 = ((si + 1) / segments) * Math.PI * 2 + offset;
-				// Alternate subtle stone tint per flagstone
 				if ((si + ri) % 3 === 0) {
 					const midR = (rInner + rOuter) / 2;
 					const midA = (a1 + a2) / 2;
-					g.poly([
-						cx + Math.cos(a1) * (rInner + 2),
-						cy + Math.sin(a1) * (rInner + 2),
-						cx + Math.cos(a2) * (rInner + 2),
-						cy + Math.sin(a2) * (rInner + 2),
-						cx + Math.cos(a2) * (rOuter - 2),
-						cy + Math.sin(a2) * (rOuter - 2),
-						cx + Math.cos(a1) * (rOuter - 2),
-						cy + Math.sin(a1) * (rOuter - 2)
-					]);
-					g.fill({
-						color: (si + ri) % 2 === 0 ? 0x8d775e : 0xab967c,
-						alpha: 0.55
-					});
-					// Subtle stone highlight center
-					g.circle(cx + Math.cos(midA) * midR, cy + Math.sin(midA) * midR, 2);
-					g.fill({ color: 0xb8a38a, alpha: 0.25 });
+					pg(
+						g,
+						[
+							cx + Math.cos(a1) * (rInner + 2),
+							cy + Math.sin(a1) * (rInner + 2),
+							cx + Math.cos(a2) * (rInner + 2),
+							cy + Math.sin(a2) * (rInner + 2),
+							cx + Math.cos(a2) * (rOuter - 2),
+							cy + Math.sin(a2) * (rOuter - 2),
+							cx + Math.cos(a1) * (rOuter - 2),
+							cy + Math.sin(a1) * (rOuter - 2)
+						],
+						(si + ri) % 2 === 0 ? 0x8d775e : 0xab967c,
+						undefined,
+						0.55
+					);
+					ci(
+						g,
+						cx + Math.cos(midA) * midR,
+						cy + Math.sin(midA) * midR,
+						2,
+						0xb8a38a,
+						undefined,
+						0.25
+					);
 				}
-
-				g.beginPath();
-				g.moveTo(cx + Math.cos(a1) * rInner, cy + Math.sin(a1) * rInner);
-				g.lineTo(cx + Math.cos(a1) * rOuter, cy + Math.sin(a1) * rOuter);
-				g.stroke({ color: 0x544332, width: 1.5, alpha: 0.55 });
+				ln(
+					g,
+					[
+						cx + Math.cos(a1) * rInner,
+						cy + Math.sin(a1) * rInner,
+						cx + Math.cos(a1) * rOuter,
+						cy + Math.sin(a1) * rOuter
+					],
+					0x544332,
+					1.5,
+					0.55
+				);
 			}
-
-			g.circle(cx, cy, rInner);
-			g.stroke({ color: 0x4d3d2d, width: 2, alpha: 0.6 });
+			ci(g, cx, cy, rInner, undefined, { color: 0x4d3d2d, width: 2, alpha: 0.6 });
 		}
 
-		// Corner inlaid brass & granite compass points (45°, 135°, 225°, 315°)
 		for (let i = 0; i < 4; i++) {
 			const ang = (i * Math.PI) / 2 + Math.PI / 4;
 			const bx = cx + Math.cos(ang) * 194;
 			const by = cy + Math.sin(ang) * 194;
-			g.circle(bx, by, 10);
-			g.fill({ color: 0x475569 });
-			g.stroke({ color: 0x1e293b, width: 2 });
-			g.circle(bx, by, 4.5);
-			g.fill({ color: 0xf59e0b });
+			ci(g, bx, by, 10, 0x475569, { color: 0x1e293b, width: 2 });
+			ci(g, bx, by, 4.5, 0xf59e0b);
 		}
 	}
 
@@ -620,115 +457,61 @@ export class TerrainRenderer {
 		isWest: boolean
 	): void {
 		const dir = isWest ? 1 : -1;
-		const plazaStartDist = 160; // Start inside plaza circle so edges hide smoothly under rim
+		const plazaStartDist = 160;
 		const mergeX = isWest ? WEST_ROAD_MERGE_X : EAST_ROAD_MERGE_X;
+		const ordered = (pts: Pt[]) => (isWest ? pts : [...pts].reverse());
 
-		// 1. Middle Highway (Direct horizontal connection to Mid Bridge)
-		const midStartX = cx + dir * plazaStartDist;
 		this.drawRoadBranch(
 			g,
-			isWest
-				? [
-						{ x: midStartX, y: MID_LANE_Y },
-						{ x: bridgeEdgeX, y: MID_LANE_Y }
-					]
-				: [
-						{ x: bridgeEdgeX, y: MID_LANE_Y },
-						{ x: midStartX, y: MID_LANE_Y }
-					],
+			ordered([
+				{ x: cx + dir * plazaStartDist, y: MID_LANE_Y },
+				{ x: bridgeEdgeX, y: MID_LANE_Y }
+			]),
 			roadH,
 			101
 		);
 
-		// 2. Top Highway (Angled fan-out from castle plaza + seamless elbow + horizontal pre-bridge highway)
-		const topAngle = Math.atan2(TOP_LANE_Y - cy, mergeX - cx);
-		const topStartX = cx + Math.cos(topAngle) * plazaStartDist;
-		const topStartY = cy + Math.sin(topAngle) * plazaStartDist;
-		this.drawRoadBranch(
-			g,
-			isWest
-				? [
-						{ x: topStartX, y: topStartY },
-						{ x: mergeX, y: TOP_LANE_Y },
-						{ x: bridgeEdgeX, y: TOP_LANE_Y }
-					]
-				: [
-						{ x: bridgeEdgeX, y: TOP_LANE_Y },
-						{ x: mergeX, y: TOP_LANE_Y },
-						{ x: topStartX, y: topStartY }
-					],
-			roadH,
-			201
-		);
-
-		// 3. Bottom Highway (Angled fan-out from castle plaza + seamless elbow + horizontal pre-bridge highway)
-		const botAngle = Math.atan2(BOTTOM_LANE_Y - cy, mergeX - cx);
-		const botStartX = cx + Math.cos(botAngle) * plazaStartDist;
-		const botStartY = cy + Math.sin(botAngle) * plazaStartDist;
-		this.drawRoadBranch(
-			g,
-			isWest
-				? [
-						{ x: botStartX, y: botStartY },
-						{ x: mergeX, y: BOTTOM_LANE_Y },
-						{ x: bridgeEdgeX, y: BOTTOM_LANE_Y }
-					]
-				: [
-						{ x: bridgeEdgeX, y: BOTTOM_LANE_Y },
-						{ x: mergeX, y: BOTTOM_LANE_Y },
-						{ x: botStartX, y: botStartY }
-					],
-			roadH,
-			301
-		);
+		for (const [laneY, seed] of [
+			[TOP_LANE_Y, 201],
+			[BOTTOM_LANE_Y, 301]
+		] as const) {
+			const ang = Math.atan2(laneY - cy, mergeX - cx);
+			this.drawRoadBranch(
+				g,
+				ordered([
+					{ x: cx + Math.cos(ang) * plazaStartDist, y: cy + Math.sin(ang) * plazaStartDist },
+					{ x: mergeX, y: laneY },
+					{ x: bridgeEdgeX, y: laneY }
+				]),
+				roadH,
+				seed
+			);
+		}
 	}
 
-	/**
-	 * Renders a multi-segment highway branch in 4 unified passes (curb border, earth shoulder,
-	 * inner roadbed, and cobblestone pavers + mitered wheel ruts) so elbow bends have zero internal seam lines.
-	 */
 	private drawRoadBranch(
 		g: Graphics,
-		points: ReadonlyArray<{ x: number; y: number }>,
+		points: ReadonlyArray<Pt>,
 		roadH: number,
 		seed: number
 	): void {
 		if (points.length < 2) return;
 		const halfH = roadH / 2;
-		const curbRadius = halfH + 2.5;
-		const innerHalfH = halfH - 3;
 
-		// Pass 1: Continuous dark outer curb silhouette (no per-segment box strokes inside bends)
-		for (let i = 0; i < points.length - 1; i++) {
-			this.drawRoadRibbonQuad(g, points[i], points[i + 1], curbRadius, 0x3b2f21);
-		}
-		for (let i = 1; i < points.length - 1; i++) {
-			g.circle(points[i].x, points[i].y, curbRadius);
-			g.fill({ color: 0x3b2f21 });
-		}
-
-		// Pass 2: Earth shoulder roadbed across all segments & joints
-		for (let i = 0; i < points.length - 1; i++) {
-			this.drawRoadRibbonQuad(g, points[i], points[i + 1], halfH, 0x54402d);
-		}
-		for (let i = 1; i < points.length - 1; i++) {
-			g.circle(points[i].x, points[i].y, halfH);
-			g.fill({ color: 0x54402d });
+		for (const [rad, col] of [
+			[halfH + 2.5, 0x3b2f21],
+			[halfH, 0x54402d],
+			[halfH - 3, 0x8a7153]
+		] as const) {
+			for (let i = 0; i < points.length - 1; i++) {
+				this.drawRoadRibbonQuad(g, points[i], points[i + 1], rad, col);
+			}
+			for (let i = 1; i < points.length - 1; i++) {
+				ci(g, points[i].x, points[i].y, rad, col);
+			}
 		}
 
-		// Pass 3: Warm road base surface across all segments & joints
 		for (let i = 0; i < points.length - 1; i++) {
-			this.drawRoadRibbonQuad(g, points[i], points[i + 1], innerHalfH, 0x8a7153);
-		}
-		for (let i = 1; i < points.length - 1; i++) {
-			g.circle(points[i].x, points[i].y, innerHalfH);
-			g.fill({ color: 0x8a7153 });
-		}
-
-		// Pass 4a: Segment pavers trimmed cleanly away from elbow centers, plus smooth elbow pavers
-		for (let i = 0; i < points.length - 1; i++) {
-			const trimStart = i > 0 ? 22 : 4;
-			const trimEnd = i < points.length - 2 ? 22 : 4;
 			this.drawSegmentPavers(
 				g,
 				points[i].x,
@@ -737,8 +520,8 @@ export class TerrainRenderer {
 				points[i + 1].y,
 				roadH,
 				seed + i,
-				trimStart,
-				trimEnd
+				i > 0 ? 22 : 4,
+				i < points.length - 2 ? 22 : 4
 			);
 		}
 		for (let i = 1; i < points.length - 1; i++) {
@@ -751,28 +534,18 @@ export class TerrainRenderer {
 				seed + 50 + i
 			);
 		}
-
-		// Pass 4b: Continuous mitered wheel ruts running smoothly around every bend
 		this.drawContinuousWheelRuts(g, points, halfH);
 	}
 
-	private drawRoadRibbonQuad(
-		g: Graphics,
-		a: { x: number; y: number },
-		b: { x: number; y: number },
-		halfW: number,
-		color: number
-	): void {
+	private drawRoadRibbonQuad(g: Graphics, a: Pt, b: Pt, halfW: number, color: number): void {
 		const dx = b.x - a.x;
 		const dy = b.y - a.y;
 		const len = Math.hypot(dx, dy);
 		if (len < 1) return;
 		const nx = (-dy / len) * halfW;
 		const ny = (dx / len) * halfW;
-
 		g.beginPath();
-		g.poly([a.x + nx, a.y + ny, b.x + nx, b.y + ny, b.x - nx, b.y - ny, a.x - nx, a.y - ny]);
-		g.fill({ color });
+		pg(g, [a.x + nx, a.y + ny, b.x + nx, b.y + ny, b.x - nx, b.y - ny, a.x - nx, a.y - ny], color);
 	}
 
 	private drawPaverQuad(
@@ -783,30 +556,33 @@ export class TerrainRenderer {
 		uy: number,
 		nx: number,
 		ny: number,
-		halfStoneL: number,
-		halfStoneW: number,
+		hl: number,
+		hw: number,
 		seed: number
 	): void {
-		const pseudo = Math.sin(pcx * 11.23 + pcy * 19.45 + seed) * 1000;
-		const colIdx = Math.floor(Math.abs(pseudo)) % ROAD_STONE_COLORS.length;
-
-		const p1x = pcx + ux * halfStoneL + nx * halfStoneW;
-		const p1y = pcy + uy * halfStoneL + ny * halfStoneW;
-		const p2x = pcx - ux * halfStoneL + nx * halfStoneW;
-		const p2y = pcy - uy * halfStoneL + ny * halfStoneW;
-		const p3x = pcx - ux * halfStoneL - nx * halfStoneW;
-		const p3y = pcy - uy * halfStoneL - ny * halfStoneW;
-		const p4x = pcx + ux * halfStoneL - nx * halfStoneW;
-		const p4y = pcy + uy * halfStoneL - ny * halfStoneW;
-
+		const colIdx =
+			Math.floor(Math.abs(Math.sin(pcx * 11.23 + pcy * 19.45 + seed) * 1000)) %
+			ROAD_STONE_COLORS.length;
+		const p1x = pcx + ux * hl + nx * hw;
+		const p1y = pcy + uy * hl + ny * hw;
+		const p2x = pcx - ux * hl + nx * hw;
+		const p2y = pcy - uy * hl + ny * hw;
 		g.beginPath();
-		g.poly([p1x, p1y, p2x, p2y, p3x, p3y, p4x, p4y]);
-		g.fill({ color: ROAD_STONE_COLORS[colIdx] });
-
-		g.beginPath();
-		g.moveTo(p2x, p2y);
-		g.lineTo(p1x, p1y);
-		g.stroke({ color: 0xc4ab91, width: 1, alpha: 0.5 });
+		pg(
+			g,
+			[
+				p1x,
+				p1y,
+				p2x,
+				p2y,
+				pcx - ux * hl - nx * hw,
+				pcy - uy * hl - ny * hw,
+				pcx + ux * hl - nx * hw,
+				pcy + uy * hl - ny * hw
+			],
+			ROAD_STONE_COLORS[colIdx]
+		);
+		ln(g, [p2x, p2y, p1x, p1y], 0xc4ab91, 1, 0.5);
 	}
 
 	private drawSegmentPavers(
@@ -824,88 +600,81 @@ export class TerrainRenderer {
 		const dy = y2 - y1;
 		const len = Math.hypot(dx, dy);
 		if (len < trimStart + trimEnd + 10) return;
-
 		const ux = dx / len;
 		const uy = dy / len;
 		const nx = -uy;
 		const ny = ux;
-		const halfH = roadH / 2;
-
 		const stoneL = 28;
 		const stoneW = 18;
 		const numRows = Math.floor((roadH - 12) / stoneW);
-		const startV = -halfH + 6;
-		const halfStoneL = (stoneL - 4) / 2;
-		const halfStoneW = (stoneW - 3) / 2;
-
+		const startV = -roadH / 2 + 6;
 		for (let r = 0; r < numRows; r++) {
-			const vOffset = startV + r * stoneW + stoneW / 2;
-			const rowStagger = (r % 2) * (stoneL / 2);
-
-			for (let s = trimStart + rowStagger; s + stoneL <= len - trimEnd; s += stoneL) {
-				const uCenter = s + stoneL / 2;
-				const pcx = x1 + ux * uCenter + nx * vOffset;
-				const pcy = y1 + uy * uCenter + ny * vOffset;
-				this.drawPaverQuad(g, pcx, pcy, ux, uy, nx, ny, halfStoneL, halfStoneW, seed);
+			const vOff = startV + r * stoneW + stoneW / 2;
+			for (let s = trimStart + (r % 2) * 14; s + stoneL <= len - trimEnd; s += stoneL) {
+				const uCenter = s + 14;
+				this.drawPaverQuad(
+					g,
+					x1 + ux * uCenter + nx * vOff,
+					y1 + uy * uCenter + ny * vOff,
+					ux,
+					uy,
+					nx,
+					ny,
+					12,
+					7.5,
+					seed
+				);
 			}
 		}
 	}
 
 	private drawElbowJunctionPavers(
 		g: Graphics,
-		prev: { x: number; y: number },
-		corner: { x: number; y: number },
-		next: { x: number; y: number },
+		prev: Pt,
+		corner: Pt,
+		next: Pt,
 		roadH: number,
 		seed: number
 	): void {
-		const dx1 = corner.x - prev.x;
-		const dy1 = corner.y - prev.y;
-		const l1 = Math.hypot(dx1, dy1);
-		const dx2 = next.x - corner.x;
-		const dy2 = next.y - corner.y;
-		const l2 = Math.hypot(dx2, dy2);
+		const l1 = Math.hypot(corner.x - prev.x, corner.y - prev.y);
+		const l2 = Math.hypot(next.x - corner.x, next.y - corner.y);
 		if (l1 < 1 || l2 < 1) return;
-
-		const u1x = dx1 / l1;
-		const u1y = dy1 / l1;
-		const u2x = dx2 / l2;
-		const u2y = dy2 / l2;
-
-		// Bisector tangent direction turning smoothly through the bend
-		let bx = u1x + u2x;
-		let by = u1y + u2y;
+		let bx = (corner.x - prev.x) / l1 + (next.x - corner.x) / l2;
+		let by = (corner.y - prev.y) / l1 + (next.y - corner.y) / l2;
 		const bLen = Math.hypot(bx, by) || 1;
 		bx /= bLen;
 		by /= bLen;
 		const bnx = -by;
 		const bny = bx;
-
-		const halfH = roadH / 2;
-		const stoneL = 24;
 		const stoneW = 18;
 		const numRows = Math.floor((roadH - 14) / stoneW);
-		const startV = -halfH + 7;
-		const halfStoneL = (stoneL - 4) / 2;
-		const halfStoneW = (stoneW - 3) / 2;
-
+		const startV = -roadH / 2 + 7;
 		for (let r = 0; r < numRows; r++) {
-			const vOffset = startV + r * stoneW + stoneW / 2;
+			const vOff = startV + r * stoneW + stoneW / 2;
 			const stagger = (r % 2) * 10 - 5;
 			for (const uOff of [-14 + stagger, 10 + stagger]) {
-				const pcx = corner.x + bx * uOff + bnx * vOffset;
-				const pcy = corner.y + by * uOff + bny * vOffset;
-				this.drawPaverQuad(g, pcx, pcy, bx, by, bnx, bny, halfStoneL, halfStoneW, seed);
+				this.drawPaverQuad(
+					g,
+					corner.x + bx * uOff + bnx * vOff,
+					corner.y + by * uOff + bny * vOff,
+					bx,
+					by,
+					bnx,
+					bny,
+					10,
+					7.5,
+					seed
+				);
 			}
 		}
 	}
 
 	private miterOffsetPoint(
-		pt: { x: number; y: number },
+		pt: Pt,
 		n1: { nx: number; ny: number },
 		n2: { nx: number; ny: number },
 		dist: number
-	): { x: number; y: number } {
+	): Pt {
 		const mx = n1.nx + n2.nx;
 		const my = n1.ny + n2.ny;
 		const mLen = Math.hypot(mx, my) || 1;
@@ -915,12 +684,8 @@ export class TerrainRenderer {
 		return { x: pt.x + uxM * dist * scale, y: pt.y + uyM * dist * scale };
 	}
 
-	private drawContinuousWheelRuts(
-		g: Graphics,
-		points: ReadonlyArray<{ x: number; y: number }>,
-		halfH: number
-	): void {
-		const segNormals: Array<{ nx: number; ny: number; ux: number; uy: number }> = [];
+	private drawContinuousWheelRuts(g: Graphics, points: ReadonlyArray<Pt>, halfH: number): void {
+		const segNormals = [];
 		for (let i = 0; i < points.length - 1; i++) {
 			const dx = points[i + 1].x - points[i].x;
 			const dy = points[i + 1].y - points[i].y;
@@ -933,51 +698,41 @@ export class TerrainRenderer {
 		for (const rutFrac of [-0.34, 0.34]) {
 			const rutV = halfH * rutFrac;
 			const rutW = 3;
-
 			for (let i = 0; i < points.length - 1; i++) {
 				const a = points[i];
 				const b = points[i + 1];
-				const nCurr = segNormals[i];
-
-				const startInset = i === 0 ? 8 : 0;
-				const endInset = i === points.length - 2 ? 8 : 0;
-
+				const nc = segNormals[i];
 				const pA =
 					i > 0
-						? this.miterOffsetPoint(a, segNormals[i - 1], nCurr, rutV)
-						: {
-								x: a.x + nCurr.ux * startInset + nCurr.nx * rutV,
-								y: a.y + nCurr.uy * startInset + nCurr.ny * rutV
-							};
-
+						? this.miterOffsetPoint(a, segNormals[i - 1], nc, rutV)
+						: { x: a.x + nc.ux * 8 + nc.nx * rutV, y: a.y + nc.uy * 8 + nc.ny * rutV };
 				const pB =
 					i < points.length - 2
-						? this.miterOffsetPoint(b, nCurr, segNormals[i + 1], rutV)
-						: {
-								x: b.x - nCurr.ux * endInset + nCurr.nx * rutV,
-								y: b.y - nCurr.uy * endInset + nCurr.ny * rutV
-							};
-
+						? this.miterOffsetPoint(b, nc, segNormals[i + 1], rutV)
+						: { x: b.x - nc.ux * 8 + nc.nx * rutV, y: b.y - nc.uy * 8 + nc.ny * rutV };
 				g.beginPath();
-				g.poly([
-					pA.x + nCurr.nx * rutW,
-					pA.y + nCurr.ny * rutW,
-					pB.x + nCurr.nx * rutW,
-					pB.y + nCurr.ny * rutW,
-					pB.x - nCurr.nx * rutW,
-					pB.y - nCurr.ny * rutW,
-					pA.x - nCurr.nx * rutW,
-					pA.y - nCurr.ny * rutW
-				]);
-				g.fill({ color: 0x6e563d, alpha: 0.45 });
+				pg(
+					g,
+					[
+						pA.x + nc.nx * rutW,
+						pA.y + nc.ny * rutW,
+						pB.x + nc.nx * rutW,
+						pB.y + nc.ny * rutW,
+						pB.x - nc.nx * rutW,
+						pB.y - nc.ny * rutW,
+						pA.x - nc.nx * rutW,
+						pA.y - nc.ny * rutW
+					],
+					0x6e563d,
+					undefined,
+					0.45
+				);
 			}
 		}
 	}
 
 	/**
-	 * Draws rich, procedurally generated decorative objects matching Spyro fairytale aesthetic:
-	 * Ancient mossy stone monoliths, magical gem crystal clusters, fairytale spotted mushroom patches,
-	 * flowering bushes, roadside torch posts, and coastal shallows water lilies.
+	 * Draws rich, procedurally generated decorative objects matching Spyro fairytale aesthetic.
 	 */
 	public drawProceduralDecorations(
 		g: Graphics,
@@ -986,27 +741,12 @@ export class TerrainRenderer {
 	): void {
 		if (decorations && decorations.length > 0) {
 			for (const d of decorations) {
-				const pseudoRand = () => {
-					const val = Math.sin(d.x * 12.9898 + d.y * 78.233 + (d.variant || 0) * 19.3) * 43758.5453;
-					return val - Math.floor(val);
-				};
-				switch (d.type) {
-					case 'mushroom':
-						this.drawMushroomCluster(g, d.x, d.y, pseudoRand);
-						break;
-					case 'crystal':
-						this.drawCrystalSpire(g, d.x, d.y, pseudoRand);
-						break;
-					case 'monolith':
-						this.drawAncientMonolith(g, d.x, d.y, pseudoRand);
-						break;
-					case 'bush':
-						this.drawFloweringBush(g, d.x, d.y, pseudoRand);
-						break;
-					case 'brazier':
-						this.drawStoneBrazier(g, d.x, d.y, pseudoRand);
-						break;
-				}
+				const rand = () => hash(d.x, d.y, (d.variant || 0) * 0.14036);
+				if (d.type === 'mushroom') this.drawMushroomCluster(g, d.x, d.y, rand);
+				else if (d.type === 'crystal') this.drawCrystalSpire(g, d.x, d.y, rand);
+				else if (d.type === 'monolith') this.drawAncientMonolith(g, d.x, d.y, rand);
+				else if (d.type === 'bush') this.drawFloweringBush(g, d.x, d.y, rand);
+				else if (d.type === 'brazier') this.drawStoneBrazier(g, d.x, d.y);
 			}
 		}
 		this.drawRimWaterLilies(g, WEST_ISLAND_CENTER_X, WEST_ISLAND_CENTER_Y, baseSeed);
@@ -1020,333 +760,211 @@ export class TerrainRenderer {
 			return s / 4294967296;
 		};
 		for (let i = 0; i < 28; i++) {
-			const angle = (i / 28) * Math.PI * 2;
-			const lx = cx + Math.cos(angle) * (ISLAND_RADIUS_X + 25 + nextRand() * 40);
-			const ly = cy + Math.sin(angle) * (ISLAND_RADIUS_Y + 25 + nextRand() * 30);
-			this.drawWaterLily(g, lx, ly);
+			const a = (i / 28) * Math.PI * 2;
+			this.drawWaterLily(
+				g,
+				cx + Math.cos(a) * (ISLAND_RADIUS_X + 25 + nextRand() * 40),
+				cy + Math.sin(a) * (ISLAND_RADIUS_Y + 25 + nextRand() * 30)
+			);
 		}
 	}
 
 	private drawMushroomCluster(g: Graphics, x: number, y: number, rand: () => number): void {
-		// Soft cast shadow & mossy forest turf base
-		g.ellipse(x + 4, y + 6, 17, 7);
-		g.fill({ color: 0x000000, alpha: 0.32 });
-		g.ellipse(x - 1, y + 4, 14, 5.5);
-		g.fill({ color: 0x225419, alpha: 0.9 });
-		g.circle(x - 8, y + 3, 4);
-		g.fill({ color: 0x3b8226, alpha: 0.85 });
-		g.circle(x + 9, y + 3, 3.5);
-		g.fill({ color: 0x3b8226, alpha: 0.85 });
+		el(g, x + 4, y + 6, 17, 7, 0x000000, undefined, 0.32);
+		el(g, x - 1, y + 4, 14, 5.5, 0x225419, undefined, 0.9);
+		ci(g, x - 8, y + 3, 4, 0x3b8226, undefined, 0.85);
+		ci(g, x + 9, y + 3, 3.5, 0x3b8226, undefined, 0.85);
 
 		const palettes = [
-			{ cap: 0xdc2626, light: 0xf87171, rim: 0x7f1d1d, spots: 0xfef9c3 }, // Scarlet Fly Agaric
-			{ cap: 0xea580c, light: 0xfb923c, rim: 0x7c2d12, spots: 0xfef08a }, // Amber Chanterelle
-			{ cap: 0x7c3aed, light: 0xa78bfa, rim: 0x3b0764, spots: 0xe9d5ff }, // Arcane Violet Cap
-			{ cap: 0x0891b2, light: 0x22d3ee, rim: 0x164e63, spots: 0xcffafe } // Luminescent Cyan Cap
-		];
-		const pal = palettes[Math.floor(rand() * palettes.length)];
+			[0xdc2626, 0xf87171, 0x7f1d1d, 0xfef9c3],
+			[0xea580c, 0xfb923c, 0x7c2d12, 0xfef08a],
+			[0x7c3aed, 0xa78bfa, 0x3b0764, 0xe9d5ff],
+			[0x0891b2, 0x22d3ee, 0x164e63, 0xcffafe]
+		] as const;
+		const [cap, light, rim, spots] = palettes[Math.floor(rand() * palettes.length)];
 
-		const drawToadstool = (mx: number, my: number, scale: number, lean: number) => {
-			const stemW = 6 * scale;
-			const stemH = 12 * scale;
-			const capR = 12 * scale;
-
-			// Stem with shaded side & under-cap gill ring
-			g.roundRect(mx - stemW * 0.5 + lean, my - stemH, stemW, stemH + 2, 2.5 * scale);
-			g.fill({ color: 0xfef3c7 });
-			g.stroke({ color: 0x78350f, width: 1.2 * scale });
-			g.rect(mx + lean, my - stemH, stemW * 0.45, stemH + 1);
-			g.fill({ color: 0xd6b98c, alpha: 0.7 });
-
-			// Gill ring / skirt
-			g.ellipse(mx + lean, my - stemH + 2 * scale, capR * 0.88, 3.4 * scale);
-			g.fill({ color: 0x451a03 });
-
-			// Dome cap
-			const capCx = mx + lean;
-			const capCy = my - stemH + 1.5 * scale;
+		const toadstool = (mx: number, my: number, sc: number, lean: number) => {
+			const sw = 6 * sc;
+			const sh = 12 * sc;
+			const cr = 12 * sc;
+			rr(g, mx - sw * 0.5 + lean, my - sh, sw, sh + 2, 2.5 * sc, 0xfef3c7, {
+				color: 0x78350f,
+				width: 1.2 * sc
+			});
+			rc(g, mx + lean, my - sh, sw * 0.45, sh + 1, 0xd6b98c, 0.7);
+			el(g, mx + lean, my - sh + 2 * sc, cr * 0.88, 3.4 * sc, 0x451a03);
+			const cx = mx + lean;
+			const cy = my - sh + 1.5 * sc;
 			g.beginPath();
-			g.arc(capCx, capCy, capR, Math.PI, 0, false);
+			g.arc(cx, cy, cr, Math.PI, 0, false);
 			g.closePath();
-			g.fill({ color: pal.cap });
-			g.stroke({ color: pal.rim, width: 1.5 * scale });
-
-			// Top volumetric crescent highlight
-			g.ellipse(capCx - capR * 0.24, capCy - capR * 0.48, capR * 0.44, capR * 0.24);
-			g.fill({ color: pal.light, alpha: 0.65 });
-
-			// Spotted cap flecks
-			g.circle(capCx - capR * 0.36, capCy - capR * 0.42, 2.1 * scale);
-			g.fill({ color: pal.spots });
-			g.circle(capCx + capR * 0.28, capCy - capR * 0.52, 2.3 * scale);
-			g.fill({ color: pal.spots });
-			g.circle(capCx + capR * 0.04, capCy - capR * 0.22, 1.5 * scale);
-			g.fill({ color: pal.spots });
+			g.fill({ color: cap });
+			g.stroke({ color: rim, width: 1.5 * sc });
+			el(g, cx - cr * 0.24, cy - cr * 0.48, cr * 0.44, cr * 0.24, light, undefined, 0.65);
+			ci(g, cx - cr * 0.36, cy - cr * 0.42, 2.1 * sc, spots);
+			ci(g, cx + cr * 0.28, cy - cr * 0.52, 2.3 * sc, spots);
+			ci(g, cx + cr * 0.04, cy - cr * 0.22, 1.5 * sc, spots);
 		};
-
-		// Side smaller mushrooms behind hero mushroom
-		drawToadstool(x - 10, y + 3, 0.62, -1.5);
-		drawToadstool(x + 10, y + 4, 0.52, 1.2);
-		// Main hero mushroom
-		drawToadstool(x, y + 2, 1.0, 0);
+		toadstool(x - 10, y + 3, 0.62, -1.5);
+		toadstool(x + 10, y + 4, 0.52, 1.2);
+		toadstool(x, y + 2, 1.0, 0);
 	}
 
 	private drawCrystalSpire(g: Graphics, x: number, y: number, rand: () => number): void {
 		const palettes = [
-			{ lit: 0x38bdf8, mid: 0x06b6d4, dark: 0x155e75, glint: 0xe0f2fe }, // Aquamarine
-			{ lit: 0xf43f5e, mid: 0xe11d48, dark: 0x881337, glint: 0xffe4e6 }, // Crimson Ruby
-			{ lit: 0xc084fc, mid: 0x9333ea, dark: 0x581c87, glint: 0xf3e8ff }, // Royal Amethyst
-			{ lit: 0x34d399, mid: 0x10b981, dark: 0x064e3b, glint: 0xd1fae5 }, // Fel Emerald
-			{ lit: 0xf472b6, mid: 0xdb2777, dark: 0x831843, glint: 0xfce7f3 } // Star Sapphire / Rose
-		];
-		const pal = palettes[Math.floor(rand() * palettes.length)];
+			[0x38bdf8, 0x06b6d4, 0x155e75, 0xe0f2fe],
+			[0xf43f5e, 0xe11d48, 0x881337, 0xffe4e6],
+			[0xc084fc, 0x9333ea, 0x581c87, 0xf3e8ff],
+			[0x34d399, 0x10b981, 0x064e3b, 0xd1fae5],
+			[0xf472b6, 0xdb2777, 0x831843, 0xfce7f3]
+		] as const;
+		const [lit, mid, dark, glint] = palettes[Math.floor(rand() * palettes.length)];
 
-		// Ambient magical aura on grass + rock outcrop base
-		g.ellipse(x, y + 3, 22, 11);
-		g.fill({ color: pal.mid, alpha: 0.16 });
-		g.ellipse(x + 4, y + 6, 16, 7);
-		g.fill({ color: 0x000000, alpha: 0.35 });
+		el(g, x, y + 3, 22, 11, mid, undefined, 0.16);
+		el(g, x + 4, y + 6, 16, 7, 0x000000, undefined, 0.35);
+		pg(
+			g,
+			[x - 15, y + 5, x - 9, y - 3, x + 2, y - 4, x + 14, y + 2, x + 11, y + 9, x - 11, y + 9],
+			0x334155,
+			{
+				color: 0x0f172a,
+				width: 1.5
+			}
+		);
 
-		// Slate rock bed cradling the crystal cluster
-		g.poly([
-			x - 15,
-			y + 5,
-			x - 9,
-			y - 3,
-			x + 2,
-			y - 4,
-			x + 14,
-			y + 2,
-			x + 11,
-			y + 9,
-			x - 11,
-			y + 9
-		]);
-		g.fill({ color: 0x334155 });
-		g.stroke({ color: 0x0f172a, width: 1.5 });
-
-		const drawFacetedShard = (
-			bx: number,
-			by: number,
-			tipX: number,
-			tipY: number,
-			halfW: number
-		) => {
-			// Left lit facet
-			g.poly([bx - halfW, by, tipX, tipY, bx, by + 3]);
-			g.fill({ color: pal.lit });
-			// Right shaded facet
-			g.poly([bx, by + 3, tipX, tipY, bx + halfW, by]);
-			g.fill({ color: pal.dark });
-			// Facet outline + crisp light ridge
-			g.poly([bx - halfW, by, tipX, tipY, bx + halfW, by, bx, by + 4]);
-			g.stroke({ color: pal.glint, width: 1.1, alpha: 0.8 });
-			g.beginPath();
-			g.moveTo(bx, by + 3);
-			g.lineTo(tipX, tipY);
-			g.stroke({ color: pal.glint, width: 1.3, alpha: 0.9 });
+		const shard = (bx: number, by: number, tx: number, ty: number, hw: number) => {
+			pg(g, [bx - hw, by, tx, ty, bx, by + 3], lit);
+			pg(g, [bx, by + 3, tx, ty, bx + hw, by], dark);
+			pg(g, [bx - hw, by, tx, ty, bx + hw, by, bx, by + 4], undefined, {
+				color: glint,
+				width: 1.1,
+				alpha: 0.8
+			});
+			ln(g, [bx, by + 3, tx, ty], glint, 1.3, 0.9);
 		};
-
-		// Back left & right flanking shards
-		drawFacetedShard(x - 8, y + 3, x - 13, y - 14, 4.5);
-		drawFacetedShard(x + 8, y + 3, x + 13, y - 16, 4.5);
-		// Mid secondary shard
-		drawFacetedShard(x + 4, y + 5, x + 6, y - 20, 4.2);
-		// Primary tall central shard
-		drawFacetedShard(x - 1, y + 5, x - 1, y - 27, 6.2);
-
-		// Crisp sparkle glint on hero crystal tip
-		g.circle(x - 1, y - 23, 2);
-		g.fill({ color: 0xffffff, alpha: 0.95 });
+		shard(x - 8, y + 3, x - 13, y - 14, 4.5);
+		shard(x + 8, y + 3, x + 13, y - 16, 4.5);
+		shard(x + 4, y + 5, x + 6, y - 20, 4.2);
+		shard(x - 1, y + 5, x - 1, y - 27, 6.2);
+		ci(g, x - 1, y - 23, 2, 0xffffff, undefined, 0.95);
 	}
 
 	private drawAncientMonolith(g: Graphics, x: number, y: number, rand: () => number): void {
-		const isBoulderCairn = rand() > 0.55;
-		g.ellipse(x + 6, y + 8, 20, 9);
-		g.fill({ color: 0x000000, alpha: 0.36 });
-
-		if (isBoulderCairn) {
-			// Stylized 2.5D mossy stone boulder outcrop + pebbles
-			g.poly([x - 17, y + 6, x - 14, y - 9, x - 3, y - 13, x + 4, y - 6, x + 2, y + 7]);
-			g.fill({ color: 0x64748b });
-			g.stroke({ color: 0x1e293b, width: 1.8 });
-			// Sunlit top bevel
-			g.poly([x - 14, y - 9, x - 3, y - 13, x + 3, y - 7, x - 8, y - 5]);
-			g.fill({ color: 0x94a3b8 });
-
-			// Right companion stone in darker shadow tone
-			g.poly([x + 1, y + 7, x + 3, y - 6, x + 13, y - 4, x + 17, y + 6]);
-			g.fill({ color: 0x475569 });
-			g.stroke({ color: 0x1e293b, width: 1.6 });
-
-			// Moss cushions & grass blades around base
-			g.ellipse(x - 6, y - 7, 6, 3.2);
-			g.fill({ color: 0x3b8226, alpha: 0.92 });
-			g.ellipse(x + 7, y + 2, 5, 2.8);
-			g.fill({ color: 0x2d6a1a, alpha: 0.9 });
-			g.circle(x - 16, y + 7, 3);
-			g.fill({ color: 0x64748b });
-			g.stroke({ color: 0x1e293b, width: 1.2 });
+		el(g, x + 6, y + 8, 20, 9, 0x000000, undefined, 0.36);
+		if (rand() > 0.55) {
+			pg(g, [x - 17, y + 6, x - 14, y - 9, x - 3, y - 13, x + 4, y - 6, x + 2, y + 7], 0x64748b, {
+				color: 0x1e293b,
+				width: 1.8
+			});
+			pg(g, [x - 14, y - 9, x - 3, y - 13, x + 3, y - 7, x - 8, y - 5], 0x94a3b8);
+			pg(g, [x + 1, y + 7, x + 3, y - 6, x + 13, y - 4, x + 17, y + 6], 0x475569, {
+				color: 0x1e293b,
+				width: 1.6
+			});
+			el(g, x - 6, y - 7, 6, 3.2, 0x3b8226, undefined, 0.92);
+			el(g, x + 7, y + 2, 5, 2.8, 0x2d6a1a, undefined, 0.9);
+			ci(g, x - 16, y + 7, 3, 0x64748b, { color: 0x1e293b, width: 1.2 });
 			return;
 		}
-
-		// 2.5D Runic Menhir Monolith with chiseled bevel, mossy base, and glowing arcane glyph
-		g.ellipse(x, y + 5, 16, 6);
-		g.fill({ color: 0x334155 });
-		g.stroke({ color: 0x0f172a, width: 1.5 });
-
-		// Front stone face (tapered obelisk slab)
-		g.poly([x - 10, y + 5, x - 8, y - 26, x + 2, y - 31, x + 6, y + 5]);
-		g.fill({ color: 0x64748b });
-		g.stroke({ color: 0x1e293b, width: 1.8 });
-
-		// Right 2.5D depth bevel face
-		g.poly([x + 2, y - 31, x + 10, y - 24, x + 11, y + 4, x + 6, y + 5]);
-		g.fill({ color: 0x475569 });
-		g.stroke({ color: 0x1e293b, width: 1.6 });
-
-		// Top chiseled edge highlight
-		g.poly([x - 8, y - 26, x + 2, y - 31, x + 10, y - 24, x, y - 23]);
-		g.fill({ color: 0x94a3b8 });
-
-		// Creeping moss patches on stone
-		g.circle(x - 5, y + 1, 4.5);
-		g.fill({ color: 0x2f6e1b, alpha: 0.9 });
-		g.circle(x + 6, y - 6, 3.5);
-		g.fill({ color: 0x3b8226, alpha: 0.85 });
-
-		// Glowing carved arcane rune glyph
-		g.circle(x - 2, y - 15, 6);
-		g.fill({ color: 0x38bdf8, alpha: 0.22 });
-		g.beginPath();
-		g.moveTo(x - 2, y - 21);
-		g.lineTo(x - 2, y - 9);
-		g.moveTo(x - 6, y - 16);
-		g.lineTo(x - 2, y - 20);
-		g.lineTo(x + 2, y - 15);
-		g.stroke({ color: 0x38bdf8, width: 2.2, alpha: 0.95 });
-		g.circle(x - 2, y - 15, 2.2);
-		g.fill({ color: 0xe0f2fe });
+		el(g, x, y + 5, 16, 6, 0x334155, { color: 0x0f172a, width: 1.5 });
+		pg(g, [x - 10, y + 5, x - 8, y - 26, x + 2, y - 31, x + 6, y + 5], 0x64748b, {
+			color: 0x1e293b,
+			width: 1.8
+		});
+		pg(g, [x + 2, y - 31, x + 10, y - 24, x + 11, y + 4, x + 6, y + 5], 0x475569, {
+			color: 0x1e293b,
+			width: 1.6
+		});
+		pg(g, [x - 8, y - 26, x + 2, y - 31, x + 10, y - 24, x, y - 23], 0x94a3b8);
+		ci(g, x - 5, y + 1, 4.5, 0x2f6e1b, undefined, 0.9);
+		ci(g, x + 6, y - 6, 3.5, 0x3b8226, undefined, 0.85);
+		ci(g, x - 2, y - 15, 6, 0x38bdf8, undefined, 0.22);
+		ln(g, [x - 2, y - 21, x - 2, y - 9], 0x38bdf8, 2.2, 0.95);
+		ln(g, [x - 6, y - 16, x - 2, y - 20, x + 2, y - 15], 0x38bdf8, 2.2, 0.95);
+		ci(g, x - 2, y - 15, 2.2, 0xe0f2fe);
 	}
 
 	private drawFloweringBush(g: Graphics, x: number, y: number, rand: () => number): void {
-		// Soft shadow + woody root base
-		g.ellipse(x + 4, y + 7, 19, 9);
-		g.fill({ color: 0x000000, alpha: 0.3 });
-		g.rect(x - 4, y + 2, 8, 6);
-		g.fill({ color: 0x5c3a21 });
-
-		// Deep shaded lower foliage base
+		el(g, x + 4, y + 7, 19, 9, 0x000000, undefined, 0.3);
+		rc(g, x - 4, y + 2, 8, 6, 0x5c3a21);
 		g.circle(x - 7, y + 2, 11);
 		g.circle(x + 8, y + 2, 10.5);
 		g.circle(x, y + 4, 12);
 		g.fill({ color: 0x164212 });
-
-		// Mid rich forest leaf lobes
 		g.circle(x - 8, y - 2, 10);
 		g.circle(x + 7, y - 2, 9.5);
 		g.circle(x, y - 6, 11.5);
 		g.fill({ color: 0x2a6e1d });
 		g.stroke({ color: 0x14380e, width: 1.5 });
-
-		// Sunlit upper canopy clusters
 		g.circle(x - 5, y - 6, 8);
 		g.circle(x + 4, y - 5, 7.2);
 		g.fill({ color: 0x429b29 });
-		g.circle(x - 3, y - 9, 5.2);
-		g.fill({ color: 0x62c23c, alpha: 0.85 });
+		ci(g, x - 3, y - 9, 5.2, 0x62c23c, undefined, 0.85);
 
-		// 3-petal blossom clusters with warm nectar centers
-		const blossomPalettes = [0xf472b6, 0xfde047, 0x93c5fd, 0xfb7185];
-		const bCol = blossomPalettes[Math.floor(rand() * blossomPalettes.length)];
-		const spots = [
-			{ fx: x - 7, fy: y - 5 },
-			{ fx: x + 5, fy: y - 4 },
-			{ fx: x - 1, fy: y + 1 }
-		];
-		for (const s of spots) {
-			g.circle(s.fx - 1.5, s.fy, 2.2);
-			g.circle(s.fx + 1.5, s.fy, 2.2);
-			g.circle(s.fx, s.fy - 1.8, 2.2);
+		const bCol = [0xf472b6, 0xfde047, 0x93c5fd, 0xfb7185][Math.floor(rand() * 4)];
+		for (const [fx, fy] of [
+			[x - 7, y - 5],
+			[x + 5, y - 4],
+			[x - 1, y + 1]
+		]) {
+			g.circle(fx - 1.5, fy, 2.2);
+			g.circle(fx + 1.5, fy, 2.2);
+			g.circle(fx, fy - 1.8, 2.2);
 			g.fill({ color: bCol });
-			g.circle(s.fx, s.fy - 0.3, 1.3);
-			g.fill({ color: 0xfef08a });
+			ci(g, fx, fy - 0.3, 1.3, 0xfef08a);
 		}
 	}
 
-	private drawStoneBrazier(g: Graphics, x: number, y: number, _rand: () => number): void {
-		// Warm ambient firelight glow on grass + ground shadow
-		g.ellipse(x, y - 2, 22, 11);
-		g.fill({ color: 0xf59e0b, alpha: 0.16 });
-		g.ellipse(x + 4, y + 6, 13, 5.5);
-		g.fill({ color: 0x000000, alpha: 0.35 });
-
-		// Stepped stone plinth & fluted column
-		g.roundRect(x - 10, y + 1, 20, 6, 2);
-		g.fill({ color: 0x334155 });
-		g.stroke({ color: 0x0f172a, width: 1.5 });
-		g.roundRect(x - 6, y - 11, 12, 14, 2);
-		g.fill({ color: 0x64748b });
-		g.stroke({ color: 0x1e293b, width: 1.5 });
-
-		// Iron collar + flared stone fire-bowl
-		g.poly([x - 11, y - 16, x + 11, y - 16, x + 7, y - 9, x - 7, y - 9]);
-		g.fill({ color: 0x475569 });
-		g.stroke({ color: 0x1e293b, width: 1.5 });
-		g.rect(x - 12, y - 17, 24, 3);
-		g.fill({ color: 0x94a3b8 });
-
-		// Glowing embers + layered stylized flame
-		g.ellipse(x, y - 17, 7, 2.5);
-		g.fill({ color: 0xb91c1c });
-		g.poly([x - 6, y - 17, x - 2, y - 28, x + 1, y - 23, x + 4, y - 30, x + 6, y - 17]);
-		g.fill({ color: 0xf97316 });
-		g.poly([x - 3.5, y - 17, x, y - 26, x + 3.5, y - 17]);
-		g.fill({ color: 0xfacc15 });
-		g.circle(x, y - 19, 2.2);
-		g.fill({ color: 0xfef9c3 });
+	private drawStoneBrazier(g: Graphics, x: number, y: number): void {
+		el(g, x, y - 2, 22, 11, 0xf59e0b, undefined, 0.16);
+		el(g, x + 4, y + 6, 13, 5.5, 0x000000, undefined, 0.35);
+		rr(g, x - 10, y + 1, 20, 6, 2, 0x334155, { color: 0x0f172a, width: 1.5 });
+		rr(g, x - 6, y - 11, 12, 14, 2, 0x64748b, { color: 0x1e293b, width: 1.5 });
+		pg(g, [x - 11, y - 16, x + 11, y - 16, x + 7, y - 9, x - 7, y - 9], 0x475569, {
+			color: 0x1e293b,
+			width: 1.5
+		});
+		rc(g, x - 12, y - 17, 24, 3, 0x94a3b8);
+		el(g, x, y - 17, 7, 2.5, 0xb91c1c);
+		pg(g, [x - 6, y - 17, x - 2, y - 28, x + 1, y - 23, x + 4, y - 30, x + 6, y - 17], 0xf97316);
+		pg(g, [x - 3.5, y - 17, x, y - 26, x + 3.5, y - 17], 0xfacc15);
+		ci(g, x, y - 19, 2.2, 0xfef9c3);
 	}
 
 	private drawWaterLily(g: Graphics, x: number, y: number): void {
-		g.ellipse(x + 2, y + 2, 12, 7.5);
-		g.fill({ color: 0x38bdf8, alpha: 0.18 });
-		// Notched lily pad
-		g.poly([
-			x,
-			y,
-			x + 10,
-			y - 2,
-			x + 8,
-			y - 6,
-			x,
-			y - 7.5,
-			x - 9,
-			y - 4,
-			x - 10,
-			y + 2,
-			x - 4,
-			y + 6,
-			x + 7,
-			y + 5,
-			x + 10,
-			y + 2
-		]);
-		g.fill({ color: 0x15803d, alpha: 0.92 });
-		g.stroke({ color: 0x14532d, width: 1.2 });
-
-		// Layered lotus blossom
+		el(g, x + 2, y + 2, 12, 7.5, 0x38bdf8, undefined, 0.18);
+		pg(
+			g,
+			[
+				x,
+				y,
+				x + 10,
+				y - 2,
+				x + 8,
+				y - 6,
+				x,
+				y - 7.5,
+				x - 9,
+				y - 4,
+				x - 10,
+				y + 2,
+				x - 4,
+				y + 6,
+				x + 7,
+				y + 5,
+				x + 10,
+				y + 2
+			],
+			{ color: 0x15803d, alpha: 0.92 },
+			{ color: 0x14532d, width: 1.2 }
+		);
 		g.circle(x - 2, y - 2, 3);
 		g.circle(x + 2, y - 2, 3);
 		g.circle(x, y - 4.5, 3);
 		g.fill({ color: 0xf472b6 });
-		g.circle(x, y - 2.5, 1.8);
-		g.fill({ color: 0xfef08a });
+		ci(g, x, y - 2.5, 1.8, 0xfef08a);
 	}
 
-	/**
-	 * Renders a continuous bridge deck section (weathered planks, iron strapping,
-	 * stone parapet balustrades) cleanly shared between intact and broken stubs.
-	 */
 	private drawBridgeSpan(
 		g: Graphics,
 		startX: number,
@@ -1355,65 +973,33 @@ export class TerrainRenderer {
 		bridgeH: number,
 		breakSide: 'none' | 'right' | 'left'
 	): void {
-		// 1. 2.5D Drop Shadow on water
-		g.roundRect(startX + 14, topY + 22, spanW, bridgeH, breakSide === 'none' ? 14 : 8);
-		g.fill({ color: 0x000000, alpha: 0.46 });
+		rr(g, startX + 14, topY + 22, spanW, bridgeH, breakSide === 'none' ? 14 : 8, {
+			color: 0x000000,
+			alpha: 0.46
+		});
+		rr(g, startX, topY, spanW, bridgeH, breakSide === 'none' ? 12 : 6, 0x78350f, {
+			color: 0x451a03,
+			width: 3
+		});
 
-		// 2. Heavy Timber Decking
-		g.roundRect(startX, topY, spanW, bridgeH, breakSide === 'none' ? 12 : 6);
-		g.fill({ color: 0x78350f });
-		g.stroke({ color: 0x451a03, width: 3 });
-
-		// Wood deck planks with alternating weathered grain
-		let plankIndex = 0;
-		for (let bx = startX + 18; bx < startX + spanW - 8; bx += 24) {
-			if (plankIndex % 3 === 0) {
-				g.rect(bx - 16, topY + 6, 16, bridgeH - 12);
-				g.fill({ color: 0x6b2e0d, alpha: 0.45 });
-			}
-			g.beginPath();
-			g.moveTo(bx, topY + 8);
-			g.lineTo(bx, topY + bridgeH - 8);
-			g.stroke({ color: 0x451a03, width: 2.5 });
-			plankIndex++;
+		for (let bx = startX + 18, i = 0; bx < startX + spanW - 8; bx += 24, i++) {
+			if (i % 3 === 0) rc(g, bx - 16, topY + 6, 16, bridgeH - 12, 0x6b2e0d, 0.45);
+			ln(g, [bx, topY + 8, bx, topY + bridgeH - 8], 0x451a03, 2.5);
 		}
+		rc(g, startX, topY + 10, spanW, 4, 0x334155);
+		rc(g, startX, topY + bridgeH - 14, spanW, 4, 0x334155);
 
-		// Iron reinforcement strapping along edges
-		g.rect(startX, topY + 10, spanW, 4);
-		g.fill({ color: 0x334155 });
-		g.rect(startX, topY + bridgeH - 14, spanW, 4);
-		g.fill({ color: 0x334155 });
-
-		// 3. Carved Stone Parapet Balustrades (shortened slightly before a collapse fracture)
-		const paraLeft = breakSide === 'left' ? startX + 18 : startX - 12;
-		const paraRight = breakSide === 'right' ? startX + spanW - 18 : startX + spanW + 12;
-		const paraW = Math.max(40, paraRight - paraLeft);
-
-		g.roundRect(paraLeft, topY - 14, paraW, 18, 5);
-		g.fill({ color: 0x94a3b8 });
-		g.stroke({ color: 0x334155, width: 2 });
-
-		g.roundRect(paraLeft, topY + bridgeH - 4, paraW, 18, 5);
-		g.fill({ color: 0x64748b });
-		g.stroke({ color: 0x334155, width: 2 });
-
-		for (let px = paraLeft + 24; px < paraRight - 10; px += 45) {
-			g.beginPath();
-			g.moveTo(px, topY - 14);
-			g.lineTo(px, topY + 4);
-			g.stroke({ color: 0x475569, width: 1.5 });
-
-			g.beginPath();
-			g.moveTo(px, topY + bridgeH - 4);
-			g.lineTo(px, topY + bridgeH + 14);
-			g.stroke({ color: 0x334155, width: 1.5 });
+		const pLeft = breakSide === 'left' ? startX + 18 : startX - 12;
+		const pRight = breakSide === 'right' ? startX + spanW - 18 : startX + spanW + 12;
+		const pW = Math.max(40, pRight - pLeft);
+		rr(g, pLeft, topY - 14, pW, 18, 5, 0x94a3b8, { color: 0x334155, width: 2 });
+		rr(g, pLeft, topY + bridgeH - 4, pW, 18, 5, 0x64748b, { color: 0x334155, width: 2 });
+		for (let px = pLeft + 24; px < pRight - 10; px += 45) {
+			ln(g, [px, topY - 14, px, topY + 4], 0x475569, 1.5);
+			ln(g, [px, topY + bridgeH - 4, px, topY + bridgeH + 14], 0x334155, 1.5);
 		}
 	}
 
-	/**
-	 * Draws ragged splintered timber beams, chipped stone parapet ends, and a medieval
-	 * wooden barrier at one side of a collapsed bridge span.
-	 */
 	private drawCollapsedBridgeEdge(
 		g: Graphics,
 		breakX: number,
@@ -1422,102 +1008,55 @@ export class TerrainRenderer {
 		dir: 1 | -1
 	): void {
 		const laneY = topY + bridgeH / 2;
-
-		// Exposed splintered longitudinal stringers & snapped deck planks jutting over the chasm
 		const plankOffsets = [14, 32, 52, 74, 96, 118, 138, 154];
 		for (let i = 0; i < plankOffsets.length; i++) {
 			const py = topY + plankOffsets[i];
-			const jutLen = 14 + ((i * 19 + 7) % 34);
-			const plankThickness = i % 2 === 0 ? 11 : 8;
+			const jut = 14 + ((i * 19 + 7) % 34);
+			const pt = i % 2 === 0 ? 11 : 8;
 			const startEdge = breakX - dir * 10;
-			const tipX = breakX + dir * jutLen;
-			const minX = Math.min(startEdge, tipX);
-			const w = Math.abs(tipX - startEdge);
-
-			// Beam drop shadow in water
-			g.rect(minX + 6, py + 12, w, plankThickness);
-			g.fill({ color: 0x000000, alpha: 0.35 });
-
-			// Darkened weathered plank body
-			g.poly([
-				startEdge,
-				py - plankThickness / 2,
-				tipX,
-				py - plankThickness / 2 + (i % 2 === 0 ? 2 : -1),
-				tipX - dir * 5,
-				py + plankThickness / 2,
-				startEdge,
-				py + plankThickness / 2
-			]);
-			g.fill({ color: i % 2 === 0 ? 0x6b2e0d : 0x78350f });
-			g.stroke({ color: 0x451a03, width: 1.5 });
-
-			// Freshly snapped lighter inner wood grain at broken tip
-			g.rect(tipX - dir * 5, py - plankThickness / 2 + 2, 4, Math.max(3, plankThickness - 4));
-			g.fill({ color: 0xd97706, alpha: 0.75 });
+			const tipX = breakX + dir * jut;
+			rc(g, Math.min(startEdge, tipX) + 6, py + 12, Math.abs(tipX - startEdge), pt, 0x000000, 0.35);
+			pg(
+				g,
+				[
+					startEdge,
+					py - pt / 2,
+					tipX,
+					py - pt / 2 + (i % 2 === 0 ? 2 : -1),
+					tipX - dir * 5,
+					py + pt / 2,
+					startEdge,
+					py + pt / 2
+				],
+				i % 2 === 0 ? 0x6b2e0d : 0x78350f,
+				{ color: 0x451a03, width: 1.5 }
+			);
+			rc(g, tipX - dir * 5, py - pt / 2 + 2, 4, Math.max(3, pt - 4), 0xd97706, 0.75);
 		}
 
-		// Shattered stone parapet end caps (cracked masonry beside the break)
 		for (const py of [topY - 14, topY + bridgeH - 4]) {
-			const capX = breakX - dir * 20;
-			g.poly([capX, py, capX + dir * 14, py + 3, capX + dir * 6, py + 14, capX, py + 18]);
-			g.fill({ color: 0x64748b });
-			g.stroke({ color: 0x334155, width: 1.5 });
+			const cx = breakX - dir * 20;
+			pg(g, [cx, py, cx + dir * 14, py + 3, cx + dir * 6, py + 14, cx, py + 18], 0x64748b, {
+				color: 0x334155,
+				width: 1.5
+			});
 		}
 
-		// Medieval wooden sawhorse barricades across the deck warning troops of the collapse
 		const barX = breakX - dir * 40;
 		for (const by of [laneY - 46, laneY + 46]) {
-			// Shadow under barricade
-			g.ellipse(barX + 4, by + 6, 14, 18);
-			g.fill({ color: 0x000000, alpha: 0.32 });
-
-			// Crossed X timber beams
-			g.beginPath();
-			g.moveTo(barX - 10, by - 16);
-			g.lineTo(barX + 10, by + 16);
-			g.stroke({ color: 0x451a03, width: 7 });
-			g.beginPath();
-			g.moveTo(barX - 10, by - 16);
-			g.lineTo(barX + 10, by + 16);
-			g.stroke({ color: 0x92400e, width: 4 });
-
-			g.beginPath();
-			g.moveTo(barX + 10, by - 16);
-			g.lineTo(barX - 10, by + 16);
-			g.stroke({ color: 0x451a03, width: 7 });
-			g.beginPath();
-			g.moveTo(barX + 10, by - 16);
-			g.lineTo(barX - 10, by + 16);
-			g.stroke({ color: 0x92400e, width: 4 });
-
-			// Iron center bolt
-			g.circle(barX, by, 3.5);
-			g.fill({ color: 0x94a3b8 });
+			el(g, barX + 4, by + 6, 14, 18, 0x000000, undefined, 0.32);
+			for (const d of [-16, 16]) {
+				ln(g, [barX - 10, by + d, barX + 10, by - d], 0x451a03, 7);
+				ln(g, [barX - 10, by + d, barX + 10, by - d], 0x92400e, 4);
+			}
+			ci(g, barX, by, 3.5, 0x94a3b8);
 		}
-
-		// Taut warning rope & horizontal crossbar linking the two sawhorses
-		g.beginPath();
-		g.moveTo(barX, laneY - 58);
-		g.lineTo(barX, laneY + 58);
-		g.stroke({ color: 0x451a03, width: 6 });
-		g.beginPath();
-		g.moveTo(barX, laneY - 58);
-		g.lineTo(barX, laneY + 58);
-		g.stroke({ color: 0xb45309, width: 3.5 });
-
-		// Small red-amber warning lantern hanging on the center of the barrier
-		g.circle(barX, laneY, 7);
-		g.fill({ color: 0x7f1d1d });
-		g.stroke({ color: 0x451a03, width: 1.5 });
-		g.circle(barX, laneY, 4);
-		g.fill({ color: 0xf97316 });
+		ln(g, [barX, laneY - 58, barX, laneY + 58], 0x451a03, 6);
+		ln(g, [barX, laneY - 58, barX, laneY + 58], 0xb45309, 3.5);
+		ci(g, barX, laneY, 7, 0x7f1d1d, { color: 0x451a03, width: 1.5 });
+		ci(g, barX, laneY, 4, 0xf97316);
 	}
 
-	/**
-	 * Draws sunken masonry, half-submerged boulders, water ripples, and drifting timber
-	 * wreckage in the collapsed center chasm of a broken bridge.
-	 */
 	private drawCollapsedChasmDebris(
 		g: Graphics,
 		centerX: number,
@@ -1525,92 +1064,96 @@ export class TerrainRenderer {
 		gapW: number,
 		bridgeH: number
 	): void {
-		// 1. Sunken central stone pier foundation silhouette beneath the strait water
-		g.roundRect(centerX - gapW * 0.42, laneY - bridgeH * 0.45, gapW * 0.84, bridgeH * 0.9, 18);
-		g.fill({ color: 0x091e32, alpha: 0.55 });
-
-		// 2. Half-submerged broken masonry & stone boulders with upstream whitewater foam
-		const masonryRocks = [
-			{ x: centerX - 58, y: laneY - 38, w: 38, h: 28 },
-			{ x: centerX + 52, y: laneY - 26, w: 42, h: 30 },
-			{ x: centerX - 18, y: laneY + 34, w: 46, h: 32 },
-			{ x: centerX + 68, y: laneY + 42, w: 32, h: 24 },
-			{ x: centerX - 78, y: laneY + 26, w: 28, h: 22 }
-		];
-		for (const rock of masonryRocks) {
-			// Water foam wake upstream (north rim)
-			g.ellipse(rock.x, rock.y - rock.h * 0.3, rock.w * 0.65, rock.h * 0.45);
-			g.stroke({ color: 0x7dd3fc, width: 2.5, alpha: 0.4 });
-
-			// Submerged base shadow
-			g.ellipse(rock.x + 2, rock.y + 4, rock.w * 0.56, rock.h * 0.5);
-			g.fill({ color: 0x0f172a, alpha: 0.6 });
-
-			// Angular rock / broken bridge stone block
-			g.poly([
-				rock.x - rock.w * 0.48,
-				rock.y,
-				rock.x - rock.w * 0.2,
-				rock.y - rock.h * 0.46,
-				rock.x + rock.w * 0.38,
-				rock.y - rock.h * 0.36,
-				rock.x + rock.w * 0.5,
-				rock.y + rock.h * 0.14,
-				rock.x + rock.w * 0.12,
-				rock.y + rock.h * 0.46,
-				rock.x - rock.w * 0.36,
-				rock.y + rock.h * 0.36
-			]);
-			g.fill({ color: 0x475569 });
-			g.stroke({ color: 0x1e293b, width: 2 });
-
-			// Top weathered highlight facet
-			g.poly([
-				rock.x - rock.w * 0.2,
-				rock.y - rock.h * 0.4,
-				rock.x + rock.w * 0.32,
-				rock.y - rock.h * 0.3,
-				rock.x + rock.w * 0.14,
-				rock.y,
-				rock.x - rock.w * 0.3,
-				rock.y - rock.h * 0.05
-			]);
-			g.fill({ color: 0x64748b, alpha: 0.85 });
+		rr(g, centerX - gapW * 0.42, laneY - bridgeH * 0.45, gapW * 0.84, bridgeH * 0.9, 18, {
+			color: 0x091e32,
+			alpha: 0.55
+		});
+		for (const [rx, ry, rw, rh] of [
+			[centerX - 58, laneY - 38, 38, 28],
+			[centerX + 52, laneY - 26, 42, 30],
+			[centerX - 18, laneY + 34, 46, 32],
+			[centerX + 68, laneY + 42, 32, 24],
+			[centerX - 78, laneY + 26, 28, 22]
+		]) {
+			el(g, rx, ry - rh * 0.3, rw * 0.65, rh * 0.45, undefined, {
+				color: 0x7dd3fc,
+				width: 2.5,
+				alpha: 0.4
+			});
+			el(g, rx + 2, ry + 4, rw * 0.56, rh * 0.5, 0x0f172a, undefined, 0.6);
+			pg(
+				g,
+				[
+					rx - rw * 0.48,
+					ry,
+					rx - rw * 0.2,
+					ry - rh * 0.46,
+					rx + rw * 0.38,
+					ry - rh * 0.36,
+					rx + rw * 0.5,
+					ry + rh * 0.14,
+					rx + rw * 0.12,
+					ry + rh * 0.46,
+					rx - rw * 0.36,
+					ry + rh * 0.36
+				],
+				0x475569,
+				{ color: 0x1e293b, width: 2 }
+			);
+			pg(
+				g,
+				[
+					rx - rw * 0.2,
+					ry - rh * 0.4,
+					rx + rw * 0.32,
+					ry - rh * 0.3,
+					rx + rw * 0.14,
+					ry,
+					rx - rw * 0.3,
+					ry - rh * 0.05
+				],
+				0x64748b,
+				undefined,
+				0.85
+			);
 		}
 
-		// 3. Floating broken planks & driftwood beams bobbing in the gap
-		const floatingPlanks = [
-			{ x: centerX - 10, y: laneY - 52, len: 52, thick: 11, tilt: 7 },
-			{ x: centerX + 26, y: laneY - 6, len: 46, thick: 10, tilt: -6 },
-			{ x: centerX - 48, y: laneY + 8, len: 40, thick: 9, tilt: 5 },
-			{ x: centerX + 12, y: laneY + 58, len: 48, thick: 10, tilt: -8 }
-		];
-		for (const p of floatingPlanks) {
-			// Water ripple around drifting wood
-			g.ellipse(p.x, p.y, p.len * 0.56, p.thick * 1.15);
-			g.stroke({ color: 0xbae6fd, width: 1.5, alpha: 0.35 });
-
-			// Skewed plank polygon
-			const hx = p.len / 2;
-			const hy = p.thick / 2;
-			g.poly([
-				p.x - hx,
-				p.y - hy - p.tilt,
-				p.x + hx,
-				p.y - hy + p.tilt,
-				p.x + hx,
-				p.y + hy + p.tilt,
-				p.x - hx,
-				p.y + hy - p.tilt
-			]);
-			g.fill({ color: 0x78350f });
-			g.stroke({ color: 0x451a03, width: 1.8 });
+		for (const [px, py, len, thick, tilt] of [
+			[centerX - 10, laneY - 52, 52, 11, 7],
+			[centerX + 26, laneY - 6, 46, 10, -6],
+			[centerX - 48, laneY + 8, 40, 9, 5],
+			[centerX + 12, laneY + 58, 48, 10, -8]
+		]) {
+			el(g, px, py, len * 0.56, thick * 1.15, undefined, {
+				color: 0xbae6fd,
+				width: 1.5,
+				alpha: 0.35
+			});
+			const hx = len / 2;
+			const hy = thick / 2;
+			pg(
+				g,
+				[
+					px - hx,
+					py - hy - tilt,
+					px + hx,
+					py - hy + tilt,
+					px + hx,
+					py + hy + tilt,
+					px - hx,
+					py + hy - tilt
+				],
+				0x78350f,
+				{
+					color: 0x451a03,
+					width: 1.8
+				}
+			);
 		}
 	}
 
 	/**
-	 * Draws 2.5D fairytale bridge with heavy stone piers, weathered timber decking,
-	 * carved stone balustrades, and glowing magical lanterns.
+	 * Draws 2.5D fairytale bridge with heavy stone piers, weathered timber decking, and lanterns.
 	 */
 	public drawFantasyBridge(
 		g: Graphics,
@@ -1621,66 +1164,40 @@ export class TerrainRenderer {
 		_bridgeLane: 'top' | 'mid' | 'bottom'
 	): void {
 		const bridgeH = 170;
-		const halfW = bridgeW / 2;
-		const leftX = centerX - halfW;
+		const leftX = centerX - bridgeW / 2;
 		const topY = laneY - bridgeH / 2;
 
-		const drawLanternPair = (lx: number, lit: boolean) => {
+		const lanternPair = (lx: number) => {
 			for (const ly of [topY - 16, topY + bridgeH + 16]) {
-				g.circle(lx, ly, 9);
-				g.fill({ color: lit ? 0xfbbf24 : 0x334155 });
-				if (lit) {
-					g.circle(lx, ly, 5);
-					g.fill({ color: 0xffffff });
-				} else {
-					g.stroke({ color: 0x1e293b, width: 1.5 });
-				}
+				ci(g, lx, ly, 9, 0xfbbf24);
+				ci(g, lx, ly, 5, 0xffffff);
 			}
 		};
 
 		if (!isBroken) {
-			// 1. Heavy stone foundation pier in riverbed
-			g.roundRect(centerX - 280, topY + 16, 560, bridgeH + 36, 24);
-			g.fill({ color: 0x1e293b, alpha: 0.9 });
-
-			// 2. Deck, planks, iron strapping & stone balustrades
+			rr(g, centerX - 280, topY + 16, 560, bridgeH + 36, 24, { color: 0x1e293b, alpha: 0.9 });
 			this.drawBridgeSpan(g, leftX, bridgeW, topY, bridgeH, 'none');
-
-			// 3. Glowing Magical Stone Lanterns
-			const lanternXCoords = [
+			for (const lx of [
 				leftX + 30,
 				leftX + 230,
 				centerX - 140,
 				centerX + 140,
 				leftX + bridgeW - 230,
 				leftX + bridgeW - 30
-			];
-			for (const lx of lanternXCoords) {
-				drawLanternPair(lx, true);
+			]) {
+				lanternPair(lx);
 			}
 		} else {
-			// BROKEN / COLLAPSED FANTASY BRIDGE
 			const stubW = bridgeW * 0.34;
 			const gapW = bridgeW - stubW * 2;
-			const leftBreakX = leftX + stubW;
-			const rightStartX = leftX + stubW + gapW;
-
-			// 1. Submerged ruined central pier & drifting wreckage in river gap
 			this.drawCollapsedChasmDebris(g, centerX, laneY, gapW, bridgeH);
-
-			// 2. Left & Right surviving bridge stubs with authentic planks & stone balustrades
 			this.drawBridgeSpan(g, leftX, stubW, topY, bridgeH, 'right');
-			this.drawBridgeSpan(g, rightStartX, stubW, topY, bridgeH, 'left');
-
-			// 3. Splintered timber beams, shattered parapet ends & medieval barricades
-			this.drawCollapsedBridgeEdge(g, leftBreakX, topY, bridgeH, 1);
-			this.drawCollapsedBridgeEdge(g, rightStartX, topY, bridgeH, -1);
-
-			// 4. Surviving bridgehead lanterns (outer pairs stay lit; edge pair near collapse flickers/dim)
-			drawLanternPair(leftX + 30, true);
-			drawLanternPair(leftX + 230, true);
-			drawLanternPair(leftX + bridgeW - 230, true);
-			drawLanternPair(leftX + bridgeW - 30, true);
+			this.drawBridgeSpan(g, leftX + stubW + gapW, stubW, topY, bridgeH, 'left');
+			this.drawCollapsedBridgeEdge(g, leftX + stubW, topY, bridgeH, 1);
+			this.drawCollapsedBridgeEdge(g, leftX + stubW + gapW, topY, bridgeH, -1);
+			for (const lx of [leftX + 30, leftX + 230, leftX + bridgeW - 230, leftX + bridgeW - 30]) {
+				lanternPair(lx);
+			}
 		}
 	}
 }

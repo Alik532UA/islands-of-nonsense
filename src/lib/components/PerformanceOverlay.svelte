@@ -1,6 +1,6 @@
 <!-- src/lib/components/PerformanceOverlay.svelte — накладання моніторингу FPS, пам'яті та навантаження -->
 <script lang="ts">
-	import { Activity, Check, Copy, X } from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { perfMonitor } from '$lib/debug/perfMonitor.svelte';
 	import { t } from '$lib/i18n';
 
@@ -31,7 +31,7 @@
 		<!-- Header -->
 		<div class="flex items-center justify-between border-b border-[#3d3226] pb-2 mb-2">
 			<div class="flex items-center gap-1.5 font-bold text-amber-300">
-				<Activity size={14} class="text-amber-400 animate-pulse" aria-hidden="true" />
+				<UiIcon name="activity" size={14} class="text-amber-400 animate-pulse" />
 				<span class="tracking-wide">{t('debug.perfTitle')}</span>
 			</div>
 			<button
@@ -41,7 +41,7 @@
 				aria-label={t('common.close')}
 				data-testid="close-perf-overlay-btn"
 			>
-				<X size={14} aria-hidden="true" />
+				<UiIcon name="x" size={14} />
 			</button>
 		</div>
 
@@ -128,10 +128,10 @@
 			data-testid="copy-perf-metrics-btn"
 		>
 			{#if perfMonitor.copied}
-				<Check size={14} class="text-emerald-400" aria-hidden="true" />
+				<UiIcon name="check" size={14} class="text-emerald-400" />
 				<span class="text-emerald-300">{t('debug.copied')}</span>
 			{:else}
-				<Copy size={13} class="text-amber-400" aria-hidden="true" />
+				<UiIcon name="copy" size={13} class="text-amber-400" />
 				<span>{t('debug.copyMetrics')}</span>
 			{/if}
 		</button>

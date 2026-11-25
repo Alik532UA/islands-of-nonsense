@@ -32,7 +32,8 @@ import { getRandomBoss } from './bosses';
 import { WorkerSystem } from './workerSystem';
 import { BuildingSystem } from './buildingSystem';
 export { SimulationError, BuildingPlacementError } from '$lib/errors';
-export { ReplaySerializer, type MatchReplayData } from './replaySerializer';
+export { ReplaySerializer, type MatchReplayData, type ReplayAction } from './replaySerializer';
+import type { ReplayAction } from './replaySerializer';
 import { CombatSystem } from './combatSystem';
 import { EconomySystem } from './economySystem';
 import { BotAI } from './botAI';
@@ -264,6 +265,7 @@ export class Simulation {
 	public onCastleUnderAttack?: (team: MatchTeam, hpPercent: number) => void;
 	public onBuildingComplete?: (building: Building) => void;
 	public onBossSpawn?: (unit: Unit) => void;
+	public onReplayAction?: (action: ReplayAction) => void;
 	public onRescueStrikeWarning?: (strike: {
 		team: MatchTeam;
 		x: number;
@@ -1698,7 +1700,16 @@ export class Simulation {
 		buildingInstanceId: string,
 		player?: PlayerState
 	): boolean {
-		return this.workerSystem.repairBuilding(team, buildingInstanceId, player);
+		const ok = this.workerSystem.repairBuilding(team, buildingInstanceId, player);
+		if (ok) {
+			this.onReplayAction?.({
+				tick: this.tick,
+				team,
+				actionType: 'REPAIR',
+				payload: { targetId: buildingInstanceId }
+			});
+		}
+		return ok;
 	}
 
 	public continueConstruction(
@@ -1727,7 +1738,16 @@ export class Simulation {
 		player?: PlayerState,
 		shiftKey = false
 	): boolean {
-		return this.buildingSystem.build(team, defId, tileX, tileY, lane, player, shiftKey);
+		const ok = this.buildingSystem.build(team, defId, tileX, tileY, lane, player, shiftKey);
+		if (ok) {
+			this.onReplayAction?.({
+				tick: this.tick,
+				team,
+				actionType: 'BUILD',
+				payload: { buildingType: defId, x: tileX, y: tileY }
+			});
+		}
+		return ok;
 	}
 
 	public upgradeBuilding(
@@ -1736,11 +1756,29 @@ export class Simulation {
 		targetDefId: string,
 		player?: PlayerState
 	): boolean {
-		return this.buildingSystem.upgradeBuilding(team, buildingInstanceId, targetDefId, player);
+		const ok = this.buildingSystem.upgradeBuilding(team, buildingInstanceId, targetDefId, player);
+		if (ok) {
+			this.onReplayAction?.({
+				tick: this.tick,
+				team,
+				actionType: 'UPGRADE',
+				payload: { targetId: buildingInstanceId, buildingType: targetDefId }
+			});
+		}
+		return ok;
 	}
 
 	public sellBuilding(team: MatchTeam, buildingInstanceId: string, player?: PlayerState): boolean {
-		return this.buildingSystem.sellBuilding(team, buildingInstanceId, player);
+		const ok = this.buildingSystem.sellBuilding(team, buildingInstanceId, player);
+		if (ok) {
+			this.onReplayAction?.({
+				tick: this.tick,
+				team,
+				actionType: 'SELL',
+				payload: { targetId: buildingInstanceId }
+			});
+		}
+		return ok;
 	}
 
 	public spawnUnitFromBuilding(building: Building): Unit | null {
@@ -1816,7 +1854,16 @@ export class Simulation {
 	}
 
 	public useRaceSkill(team: MatchTeam, player?: PlayerState): boolean {
-		return this.economySystem.useRaceSkill(team, player);
+		const ok = this.economySystem.useRaceSkill(team, player);
+		if (ok) {
+			this.onReplayAction?.({
+				tick: this.tick,
+				team,
+				actionType: 'USE_ABILITY',
+				payload: { abilityId: 'race_skill' }
+			});
+		}
+		return ok;
 	}
 
 	public getItemCooldown(team: MatchTeam, itemId: string): number {

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Award, MessageSquare, Send, Trophy, UserMinus, UserPlus, X } from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { readPublicPlayerProfile, type PublicPlayerProfile } from '$lib/net/social';
 	import { titleLabel } from '$lib/config/rewards';
 	import { settings } from '$lib/services/settings.svelte';
@@ -59,7 +59,7 @@
 				class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
 				aria-label={t('common.close')}
 			>
-				<X class="w-4 h-4" />
+				<UiIcon name="x" class="w-4 h-4" />
 			</button>
 		</div>
 
@@ -99,7 +99,7 @@
 					<div
 						class="text-base font-black text-amber-400 flex items-center justify-center gap-1 mt-0.5"
 					>
-						<Trophy class="w-3.5 h-3.5" />
+						<UiIcon name="trophy" class="w-3.5 h-3.5" />
 						<span>{profile.score}</span>
 					</div>
 				</div>
@@ -113,7 +113,7 @@
 					<div
 						class="text-base font-black text-emerald-300 flex items-center justify-center gap-1 mt-0.5"
 					>
-						<Award class="w-3.5 h-3.5" />
+						<UiIcon name="award" class="w-3.5 h-3.5" />
 						<span>{profile.achievementsCount}</span>
 					</div>
 				</div>
@@ -128,10 +128,10 @@
 						: 'bg-amber-500 hover:bg-amber-400 text-slate-950'}"
 				>
 					{#if isFollowing}
-						<UserMinus class="w-3.5 h-3.5" />
+						<UiIcon name="userMinus" class="w-3.5 h-3.5" />
 						<span>{t('social.unfollow')}</span>
 					{:else}
-						<UserPlus class="w-3.5 h-3.5" />
+						<UiIcon name="userPlus" class="w-3.5 h-3.5" />
 						<span>{t('social.follow')}</span>
 					{/if}
 				</button>
@@ -145,7 +145,7 @@
 						}}
 						class="py-2 px-3 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
 					>
-						<MessageSquare class="w-3.5 h-3.5" />
+						<UiIcon name="messageSquare" class="w-3.5 h-3.5" />
 						<span>DM</span>
 					</button>
 				{/if}
@@ -156,7 +156,7 @@
 						onclick={() => void onInviteRoom?.(profile!.uid)}
 						class="py-2 px-3 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
 					>
-						<Send class="w-3.5 h-3.5" />
+						<UiIcon name="send" class="w-3.5 h-3.5" />
 						<span>{t('social.invite')}</span>
 					</button>
 				{/if}

@@ -1,7 +1,7 @@
 <!-- src/lib/components/ErrorLogModal.svelte — лише коли збір логів із пристроїв (DEBUGGING § 3) -->
 <script lang="ts">
 	import { focusTrap } from '$lib/utils/focusTrap';
-	import { AlertCircle, AlertTriangle, Bug, Check, Copy, Info, Trash2, X } from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { t } from '$lib/i18n';
 	import { logService, type Level } from '$lib/services/logService.svelte';
 
@@ -88,7 +88,7 @@
 		<div class="modal-card" data-testid="error-log-modal-container">
 			<div class="modal-header" data-testid="error-log-modal-header">
 				<div class="header-left">
-					<Bug size={18} aria-hidden="true" />
+					<UiIcon name="bug" size={18} />
 					<h2 id="error-log-modal-title" class="modal-title" data-testid="error-log-modal-title">
 						{t('debug.modalTitle')}
 					</h2>
@@ -100,7 +100,7 @@
 					aria-label={t('common.close')}
 					data-testid="error-log-modal-close-btn"
 				>
-					<X size={18} aria-hidden="true" />
+					<UiIcon name="x" size={18} />
 				</button>
 			</div>
 
@@ -164,10 +164,10 @@
 						data-testid="error-log-modal-copy-btn"
 					>
 						{#if copied}
-							<Check size={14} aria-hidden="true" />
+							<UiIcon name="check" size={14} />
 							<span>{t('common.copied')}</span>
 						{:else}
-							<Copy size={14} aria-hidden="true" />
+							<UiIcon name="copy" size={14} />
 							<span>{t('debug.copyReport')}</span>
 						{/if}
 					</button>
@@ -178,7 +178,7 @@
 						disabled={entries.length === 0}
 						data-testid="error-log-modal-clear-btn"
 					>
-						<Trash2 size={14} aria-hidden="true" />
+						<UiIcon name="trash2" size={14} />
 						<span>{t('debug.clearLogs')}</span>
 					</button>
 				</div>
@@ -203,7 +203,7 @@
 			<div class="modal-body" data-testid="error-log-modal-list">
 				{#if filteredList.length === 0}
 					<div class="empty-state" data-testid="error-log-modal-empty-message">
-						<Check size={28} class="empty-icon" aria-hidden="true" />
+						<UiIcon name="check" size={28} class="empty-icon" />
 						<p class="empty-text">{t('debug.emptyLogs')}</p>
 					</div>
 				{:else}
@@ -214,15 +214,15 @@
 									<div class="event-tags">
 										{#if item.level === 'error'}
 											<span class="level-pill level-pill--error">
-												<AlertCircle size={11} aria-hidden="true" /> ERROR
+												<UiIcon name="alertCircle" size={11} /> ERROR
 											</span>
 										{:else if item.level === 'warn'}
 											<span class="level-pill level-pill--warn">
-												<AlertTriangle size={11} aria-hidden="true" /> WARN
+												<UiIcon name="alertTriangle" size={11} /> WARN
 											</span>
 										{:else}
 											<span class="level-pill level-pill--info">
-												<Info size={11} aria-hidden="true" /> INFO
+												<UiIcon name="info" size={11} /> INFO
 											</span>
 										{/if}
 										<span class="meta-pill">{item.category}</span>

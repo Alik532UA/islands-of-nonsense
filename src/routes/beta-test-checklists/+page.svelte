@@ -6,8 +6,7 @@
 	import type { BetaTab, CheckStatus } from '$lib/beta/types';
 	import { storage } from '$lib/services/storage';
 	import { settings } from '$lib/services/settings.svelte';
-	import { CheckCircle2, XCircle, HelpCircle, FastForward, ShieldAlert } from 'lucide-svelte';
-
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	const STORAGE_KEY = 'beta_checklist_results';
 
 	let activeTabId = $state<string>(BETA_TABS[0].id);
@@ -63,7 +62,7 @@
 			<div
 				class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 text-xs font-semibold uppercase tracking-wider mb-2 border border-amber-500/20"
 			>
-				<ShieldAlert class="w-3.5 h-3.5" />
+				<UiIcon name="shieldAlert" class="w-3.5 h-3.5" />
 				{lang === 'uk' ? 'Службовий розділ (поза індексом)' : 'Internal Diagnostics (Noindex)'}
 			</div>
 			<h1 class="text-2xl sm:text-3xl font-black text-amber-300 tracking-tight">
@@ -167,7 +166,7 @@
 								: 'bg-slate-800/80 hover:bg-emerald-950/40 border-slate-700 text-slate-300'}"
 							aria-label="Працює"
 						>
-							<CheckCircle2 class="w-4 h-4" />
+							<UiIcon name="checkCircle2" class="w-4 h-4" />
 							<span>{lang === 'uk' ? 'Працює' : 'OK'}</span>
 						</button>
 
@@ -180,7 +179,7 @@
 								: 'bg-slate-800/80 hover:bg-red-950/40 border-slate-700 text-slate-300'}"
 							aria-label="Не працює"
 						>
-							<XCircle class="w-4 h-4" />
+							<UiIcon name="xCircle" class="w-4 h-4" />
 							<span>{lang === 'uk' ? 'Зламано' : 'Fail'}</span>
 						</button>
 
@@ -193,7 +192,7 @@
 								: 'bg-slate-800/80 hover:bg-amber-950/40 border-slate-700 text-slate-300'}"
 							aria-label="Не зрозуміло"
 						>
-							<HelpCircle class="w-4 h-4" />
+							<UiIcon name="helpCircle" class="w-4 h-4" />
 							<span>{lang === 'uk' ? 'Спірно' : 'Unclear'}</span>
 						</button>
 
@@ -206,7 +205,7 @@
 								: 'bg-slate-800/80 hover:bg-sky-950/40 border-slate-700 text-slate-300'}"
 							aria-label="Пропустити"
 						>
-							<FastForward class="w-4 h-4" />
+							<UiIcon name="fastForward" class="w-4 h-4" />
 							<span>{lang === 'uk' ? 'Пропуск' : 'Skip'}</span>
 						</button>
 					</div>

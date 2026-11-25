@@ -1,15 +1,5 @@
 <script lang="ts">
-	import {
-		Award,
-		Calendar,
-		CheckCircle2,
-		Crown,
-		Flame,
-		Lock,
-		Sparkles,
-		Star,
-		Trophy
-	} from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { t } from '$lib/i18n';
 	import { settings } from '$lib/services/settings.svelte';
 	import {
@@ -106,10 +96,10 @@
 				<span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
 					{t('account.rewards.dailyStreak')}
 				</span>
-				<Calendar class="w-4 h-4 text-amber-400" />
+				<UiIcon name="calendar" class="w-4 h-4 text-amber-400" />
 			</div>
 			<div class="text-2xl font-black text-amber-300 flex items-center gap-1.5 my-1">
-				<Flame class="w-5 h-5 text-orange-400" />
+				<UiIcon name="flame" class="w-5 h-5 text-orange-400" />
 				<span>{rewards.dailyStreak}</span>
 				<span class="text-xs font-semibold text-slate-400">{t('account.rewards.days')}</span>
 			</div>
@@ -124,7 +114,7 @@
 		<div
 			class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5"
 		>
-			<Crown class="w-4 h-4 text-amber-400" />
+			<UiIcon name="crown" class="w-4 h-4 text-amber-400" />
 			<span>{t('account.rewards.titles')}</span>
 		</div>
 		<div class="flex flex-wrap gap-2">
@@ -142,11 +132,11 @@
 							: 'bg-slate-950 border-slate-800 text-slate-600 cursor-not-allowed opacity-60'}"
 				>
 					{#if !unlocked}
-						<Lock class="w-3 h-3" />
+						<UiIcon name="lock" class="w-3 h-3" />
 					{:else if active}
-						<CheckCircle2 class="w-3.5 h-3.5 text-emerald-400" />
+						<UiIcon name="checkCircle2" class="w-3.5 h-3.5 text-emerald-400" />
 					{:else}
-						<Star class="w-3 h-3 text-amber-400" />
+						<UiIcon name="star" class="w-3 h-3 text-amber-400" />
 					{/if}
 					<span>{locale === 'en' ? item.en : item.uk}</span>
 				</button>
@@ -189,9 +179,9 @@
 								: 'bg-slate-900 border-slate-800 text-slate-500'}"
 						>
 							{#if isUnlocked}
-								<Award class="w-4 h-4" />
+								<UiIcon name="award" class="w-4 h-4" />
 							{:else}
-								<Trophy class="w-4 h-4" />
+								<UiIcon name="trophy" class="w-4 h-4" />
 							{/if}
 						</div>
 						<div>
@@ -213,7 +203,7 @@
 				<div class="space-y-1.5">
 					{#if ach.grant}
 						<div class="inline-flex items-center gap-1 text-[10px] font-bold text-cyan-300">
-							<Sparkles class="w-3 h-3" />
+							<UiIcon name="sparkles" class="w-3 h-3" />
 							<span>{locale === 'en' ? ach.grant.labelEn : ach.grant.labelUk}</span>
 						</div>
 					{/if}

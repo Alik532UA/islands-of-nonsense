@@ -5,26 +5,7 @@
 	import { CASTLE_ITEMS_LIST } from '../engine/items';
 	import { sound } from '../services/audio';
 	import { shortcutDigit, isEditableTarget } from '../hotkeys/hotkeys';
-	import {
-		ShoppingBag,
-		Scroll,
-		Shield,
-		Crown,
-		Coins,
-		TreePine,
-		X,
-		Zap,
-		Wrench,
-		Wand2,
-		Volume2,
-		Sparkles,
-		ShieldAlert,
-		Swords,
-		Hammer,
-		CheckCircle2,
-		Clock
-	} from 'lucide-svelte';
-
+	import UiIcon, { type UiIconName } from '$lib/components/ui/UiIcon.svelte';
 	let {
 		sim,
 		uiTick = 0,
@@ -75,23 +56,26 @@
 		)
 	);
 
-	const ITEM_THEMES: Record<string, { icon: typeof Wand2; badgeClass: string }> = {
-		I00E: { icon: Scroll, badgeClass: 'bg-purple-500/15 border-purple-500/40 text-purple-300' },
-		I00F: { icon: Shield, badgeClass: 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300' },
-		I004: { icon: Crown, badgeClass: 'bg-amber-500/15 border-amber-500/40 text-amber-300' },
-		I001: { icon: Swords, badgeClass: 'bg-orange-500/15 border-orange-500/40 text-orange-300' },
-		I000: { icon: Wand2, badgeClass: 'bg-indigo-500/15 border-indigo-500/40 text-indigo-300' },
-		I005: { icon: Zap, badgeClass: 'bg-rose-500/15 border-rose-500/40 text-rose-300' },
-		I009: { icon: Wrench, badgeClass: 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300' },
-		I00A: { icon: Sparkles, badgeClass: 'bg-sky-500/15 border-sky-500/40 text-sky-300' },
-		I008: { icon: ShieldAlert, badgeClass: 'bg-stone-500/15 border-stone-400/40 text-stone-200' },
-		I003: { icon: Volume2, badgeClass: 'bg-blue-500/15 border-blue-500/40 text-blue-300' }
+	const ITEM_THEMES: Record<string, { icon: UiIconName; badgeClass: string }> = {
+		I00E: { icon: 'scroll', badgeClass: 'bg-purple-500/15 border-purple-500/40 text-purple-300' },
+		I00F: { icon: 'shield', badgeClass: 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300' },
+		I004: { icon: 'crown', badgeClass: 'bg-amber-500/15 border-amber-500/40 text-amber-300' },
+		I001: { icon: 'swords', badgeClass: 'bg-orange-500/15 border-orange-500/40 text-orange-300' },
+		I000: { icon: 'wand2', badgeClass: 'bg-indigo-500/15 border-indigo-500/40 text-indigo-300' },
+		I005: { icon: 'zap', badgeClass: 'bg-rose-500/15 border-rose-500/40 text-rose-300' },
+		I009: {
+			icon: 'wrench',
+			badgeClass: 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+		},
+		I00A: { icon: 'sparkles', badgeClass: 'bg-sky-500/15 border-sky-500/40 text-sky-300' },
+		I008: { icon: 'shieldAlert', badgeClass: 'bg-stone-500/15 border-stone-400/40 text-stone-200' },
+		I003: { icon: 'volume2', badgeClass: 'bg-blue-500/15 border-blue-500/40 text-blue-300' }
 	};
 
 	function getItemTheme(id: string) {
 		return (
 			ITEM_THEMES[id] ?? {
-				icon: Wand2,
+				icon: 'wand2' as UiIconName,
 				badgeClass: 'bg-violet-500/15 border-violet-500/40 text-violet-300'
 			}
 		);
@@ -156,7 +140,7 @@
 					<div
 						class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-950/40 border-2 border-emerald-600/60 flex items-center justify-center shadow-inner shrink-0"
 					>
-						<ShoppingBag class="w-5 h-5 text-emerald-400" />
+						<UiIcon name="shoppingBag" class="w-5 h-5 text-emerald-400" />
 					</div>
 					<div class="min-w-0">
 						<h2
@@ -177,7 +161,7 @@
 						class="hidden sm:flex items-center gap-2.5 bg-[#0a0d14] border border-[#3b3226] rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold shadow-inner"
 					>
 						<span class="flex items-center gap-1 text-amber-400" title="Доступне золото">
-							<Coins class="w-3.5 h-3.5 text-amber-400" />
+							<UiIcon name="coins" class="w-3.5 h-3.5 text-amber-400" />
 							{playerGold}
 						</span>
 						<span class="h-3 w-px bg-[#3b3226]"></span>
@@ -187,7 +171,8 @@
 								: 'text-slate-500'}"
 							title="Доступна деревина"
 						>
-							<TreePine
+							<UiIcon
+								name="treePine"
 								class="w-3.5 h-3.5 {playerLumber > 0 ? 'text-emerald-400' : 'text-slate-500'}"
 							/>
 							{playerLumber}
@@ -201,7 +186,7 @@
 						class="w-9 h-9 rounded-lg bg-[#181d28] hover:bg-[#242c3d] border border-[#3b3226] hover:border-amber-500/70 text-slate-300 hover:text-amber-300 flex items-center justify-center transition cursor-pointer active:scale-95"
 						aria-label="Закрити Магазин"
 					>
-						<X class="w-4 h-4" />
+						<UiIcon name="x" class="w-4 h-4" />
 					</button>
 				</div>
 			</div>
@@ -219,7 +204,7 @@
 						data-testid="shop-building-progress"
 					>
 						<div class="flex items-center gap-2 min-w-0">
-							<Hammer class="w-4 h-4 text-amber-400 animate-pulse shrink-0" />
+							<UiIcon name="hammer" class="w-4 h-4 text-amber-400 animate-pulse shrink-0" />
 							<span class="text-xs font-bold text-amber-200">
 								Магазин зводиться робітником ({pct}%)
 							</span>
@@ -240,7 +225,7 @@
 							<div
 								class="p-1.5 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-400 shrink-0"
 							>
-								<ShoppingBag class="w-4 h-4" />
+								<UiIcon name="shoppingBag" class="w-4 h-4" />
 							</div>
 							<div class="min-w-0">
 								<div class="text-xs font-bold text-amber-200">Магазин ще не збудовано</div>
@@ -263,7 +248,7 @@
 									? 'Вибрати місце на мапі для будівництва Магазину'
 									: `Потрібно ${shopGoldCost} золота та ${shopLumberCost} деревини`}
 							>
-								<Hammer class="w-3.5 h-3.5 shrink-0" />
+								<UiIcon name="hammer" class="w-3.5 h-3.5 shrink-0" />
 								<span>Будувати</span>
 								<span
 									class="flex items-center gap-1.5 font-mono text-[11px] pl-1.5 border-l {canAffordBuildShop
@@ -275,7 +260,7 @@
 											? ''
 											: 'text-rose-400'}"
 									>
-										<Coins class="w-3 h-3" />
+										<UiIcon name="coins" class="w-3 h-3" />
 										{shopGoldCost}
 									</span>
 									<span
@@ -283,7 +268,7 @@
 											? ''
 											: 'text-rose-400'}"
 									>
-										<TreePine class="w-3 h-3" />
+										<UiIcon name="treePine" class="w-3 h-3" />
 										{shopLumberCost}
 									</span>
 								</span>
@@ -295,7 +280,7 @@
 						class="px-3 py-1.5 bg-emerald-950/35 border border-emerald-600/40 rounded-lg text-emerald-300 text-[11px] font-semibold flex items-center gap-2 shrink-0"
 						data-testid="shop-active-banner"
 					>
-						<CheckCircle2 class="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+						<UiIcon name="checkCircle2" class="w-3.5 h-3.5 text-emerald-400 shrink-0" />
 						<span>Магазин активний — припаси готові до використання</span>
 					</div>
 				{/if}
@@ -307,7 +292,6 @@
 				>
 					{#each visibleItems as item, idx}
 						{@const theme = getItemTheme(item.id)}
-						{@const Icon = theme.icon}
 						{@const cd = sim.getItemCooldown(localTeam, item.id)}
 						{@const canAfford = playerGold >= item.cost}
 						{@const canBuy = hasShop && canAfford && cd <= 0}
@@ -320,7 +304,7 @@
 								<div
 									class="relative w-10 h-10 rounded-lg border flex items-center justify-center shrink-0 {theme.badgeClass}"
 								>
-									<Icon class="w-4 h-4" />
+									<UiIcon name={theme.icon} class="w-4 h-4" />
 									{#if idx < 9}
 										<span
 											class="absolute -top-1.5 -left-1.5 px-1 rounded bg-[#0a0d14] border border-[#544738] text-[9px] font-mono font-bold text-amber-300 leading-tight"
@@ -342,7 +326,7 @@
 
 							<div class="flex items-center justify-between gap-2 pt-1.5 border-t border-[#1e2433]">
 								<span class="flex items-center gap-1 text-[10px] text-slate-400 font-mono">
-									<Clock class="w-3 h-3 text-slate-500" />
+									<UiIcon name="clock" class="w-3 h-3 text-slate-500" />
 									{item.cooldown}с
 								</span>
 
@@ -366,7 +350,7 @@
 													? 'border-slate-700 text-amber-400/70'
 													: 'border-slate-700 text-rose-400'}"
 										>
-											<Coins class="w-3 h-3" />
+											<UiIcon name="coins" class="w-3 h-3" />
 											{item.cost}
 										</span>
 									{/if}

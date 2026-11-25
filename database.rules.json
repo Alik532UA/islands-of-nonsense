@@ -2,7 +2,7 @@
 	"rules": {
 		"__rulesVersion": {
 			"$v": {
-				".read": "auth != null && $v === '95319d3c4336'"
+				".read": "auth != null && $v === 'c9e2ca2dbd1d'"
 			}
 		},
 		"rooms": {
@@ -217,7 +217,7 @@
 					".read": "auth != null && root.child('rooms').child($code).child('members').child(auth.uid).exists()",
 					".write": "auth != null && !newData.exists() && root.child('rooms').child($code).child('info/hostUid').val() === auth.uid && (root.child('rooms').child($code).child('info/status').val() !== 'playing' || newData.parent().child('info/seed').val() !== root.child('rooms').child($code).child('info/seed').val())",
 					"$seq": {
-						".write": "auth != null && !data.exists() && newData.exists() && root.child('rooms').child($code).child('members').child(auth.uid).exists() && newData.child('by').val() === auth.uid && (root.child('rooms').child($code).child('info/status').val() === 'playing' || newData.child('type').val() === 'lead') && (newData.child('type').val() === 'lead' || (newData.parent().parent().child('members').child(auth.uid).child('lastMoveAt').val() === newData.child('at').val() && (!data.parent().parent().child('members').child(auth.uid).child('lastMoveAt').exists() || data.parent().parent().child('members').child(auth.uid).child('lastMoveAt').val() <= now - 80)))",
+						".write": "auth != null && !data.exists() && newData.exists() && root.child('rooms').child($code).child('members').child(auth.uid).child('role').val() === 'player' && newData.child('by').val() === auth.uid && (root.child('rooms').child($code).child('info/status').val() === 'playing' || newData.child('type').val() === 'lead') && (newData.child('type').val() === 'lead' || (newData.parent().parent().child('members').child(auth.uid).child('lastMoveAt').val() === newData.child('at').val() && (!data.parent().parent().child('members').child(auth.uid).child('lastMoveAt').exists() || data.parent().parent().child('members').child(auth.uid).child('lastMoveAt').val() <= now - 80)))",
 						".validate": "newData.hasChildren(['seq', 'by', 'type', 'at']) && $seq.matches(/^[0-9]{6}$/) && $seq < '010000' && (newData.child('type').val() !== 'lead' || (newData.parent().parent().child('info/hostUid').val() === auth.uid && newData.child('payload/from').val() === root.child('rooms').child($code).child('info/hostUid').val()))",
 						"seq": {
 							".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 9999"
@@ -866,6 +866,41 @@
 				},
 				"$other": {
 					".validate": false
+				}
+			}
+		},
+		"daily": {
+			"$date": {
+				".read": "auth != null && query.orderByChild === 'score' && query.limitToLast <= 30",
+				".indexOn": ["score"],
+				"$uid": {
+					".read": "auth != null",
+					".write": "auth != null && $date.matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/) && $uid === auth.uid && auth.token.firebase.sign_in_provider !== 'anonymous'",
+					".validate": "newData.hasChildren(['uid', 'name', 'score', 'at'])",
+					"uid": {
+						".validate": "newData.val() === auth.uid"
+					},
+					"name": {
+						".validate": "newData.isString() && newData.val().length <= 48"
+					},
+					"avatar": {
+						".validate": "newData.isString() && newData.val().length <= 4096"
+					},
+					"race": {
+						".validate": "newData.isString() && newData.val().length <= 32"
+					},
+					"score": {
+						".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 100000"
+					},
+					"durationSec": {
+						".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 86400"
+					},
+					"at": {
+						".validate": "newData.isNumber() && newData.val() <= now && newData.val() > now - 60000"
+					},
+					"$other": {
+						".validate": false
+					}
 				}
 			}
 		}

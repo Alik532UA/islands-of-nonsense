@@ -10,20 +10,8 @@ import { readFileSync, existsSync } from 'node:fs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf8'));
 
-const USED_RAW_FIELDS = new Set([
-	'utub',
-	'ua1g',
-	'umpm',
-	'umpi',
-	'umpr',
-	'ulum',
-	'umvs',
-	'ubba',
-	'ubld',
-	'uabi',
-	'uabs',
-	'ufoo'
-]);
+const BUILDING_RAW_FIELDS = new Set(['ulum', 'ubld', 'ufoo']);
+const UNIT_RAW_FIELDS = new Set(['ua1g', 'umpm', 'umpi', 'umpr', 'umvs', 'ubba', 'uabi', 'uabs']);
 
 function pruneUnusedGameDataPlugin() {
 	return {
@@ -32,20 +20,50 @@ function pruneUnusedGameDataPlugin() {
 		transform(code: string, id: string) {
 			if (process.env.VITEST) return null;
 			const norm = id.replace(/\\/g, '/');
-			if (
-				!norm.endsWith('/src/lib/data/buildings.json') &&
-				!norm.endsWith('/src/lib/data/units.json')
-			) {
+			const isBuildings = norm.endsWith('/src/lib/data/buildings.json');
+			const isUnits = norm.endsWith('/src/lib/data/units.json');
+			if (!isBuildings && !isUnits) {
 				return null;
 			}
 			const parsed = JSON.parse(code) as Array<Record<string, unknown>>;
 			const slim = parsed.map((entry) => {
-				if (!entry.raw_fields || typeof entry.raw_fields !== 'object') return entry;
-				const kept: Record<string, unknown> = {};
-				for (const [k, v] of Object.entries(entry.raw_fields as Record<string, unknown>)) {
-					if (USED_RAW_FIELDS.has(k)) kept[k] = v;
+				const out: Record<string, unknown> = { ...entry };
+				if (isBuildings) {
+					delete out.building;
+					delete out.gold;
 				}
-				return { ...entry, raw_fields: kept };
+				if (isUnits) {
+					delete out.base_unit;
+				}
+				for (const nk of [
+					'damage_base',
+					'damage_dice',
+					'damage_sides',
+					'cooldown',
+					'range',
+					'move_type',
+					'building'
+				]) {
+					if (out[nk] === null) delete out[nk];
+				}
+				if (out.flying === false) delete out.flying;
+				if (out.raw_fields && typeof out.raw_fields === 'object') {
+					const allowed = isBuildings ? BUILDING_RAW_FIELDS : UNIT_RAW_FIELDS;
+					const kept: Record<string, unknown> = {};
+					for (const [k, v] of Object.entries(out.raw_fields as Record<string, unknown>)) {
+						if (!allowed.has(k)) continue;
+						if (v === '' || v === null || v === undefined) continue;
+						if ((k === 'umpm' || k === 'umpr' || k === 'ulum' || k === 'ufoo') && Number(v) === 0)
+							continue;
+						kept[k] = v;
+					}
+					if (Object.keys(kept).length > 0) {
+						out.raw_fields = kept;
+					} else {
+						delete out.raw_fields;
+					}
+				}
+				return out;
 			});
 			return { code: JSON.stringify(slim), map: null };
 		}

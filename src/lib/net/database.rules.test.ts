@@ -232,6 +232,21 @@ describe('database.rules.json security invariants & Firebase architecture', () =
 		expect(handle['.validate']).toContain('newData.val() === auth.uid');
 	});
 
+	it('blocks spectators from writing moves and locks daily challenge leaderboard node', () => {
+		const raw = readFileSync(rulesPath, 'utf8');
+		const json = JSON.parse(raw);
+
+		const movesWrite = json.rules.rooms.$code.moves.$seq['.write'];
+		expect(movesWrite).toContain("child('role').val() === 'player'");
+
+		const dailyDate = json.rules.daily.$date;
+		expect(dailyDate['.indexOn']).toContain('score');
+		expect(dailyDate['.read']).toContain('limitToLast <= 30');
+		expect(dailyDate.$uid['.write']).toContain('sign_in_provider');
+		expect(dailyDate.$uid.score['.validate']).toContain('100000');
+		expect(dailyDate.$uid.$other['.validate']).toBe(false);
+	});
+
 	it('plans database room sweep for stale rooms older than 2 hours', () => {
 		const now = Date.now();
 		const staleTime = now - (SWEEP_MAX_AGE_MS + 1000);

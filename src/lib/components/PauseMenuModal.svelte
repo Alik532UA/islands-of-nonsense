@@ -1,20 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
-	import {
-		Play,
-		RotateCcw,
-		Volume2,
-		VolumeX,
-		Maximize2,
-		Minimize2,
-		Sliders,
-		Languages,
-		Flag,
-		ArrowLeft,
-		House,
-		X
-	} from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { settings } from '$lib/services/settings.svelte';
 	import { fullscreen, canFullscreen } from '$lib/services/fullscreen.svelte';
 
@@ -66,7 +53,7 @@
 				aria-label="Продовжити (Esc)"
 				data-testid="pause-resume-x"
 			>
-				<X class="w-5 h-5" />
+				<UiIcon name="x" class="w-5 h-5" />
 			</button>
 
 			<!-- Header -->
@@ -85,7 +72,7 @@
 					class="w-full py-2.5 px-4 bg-gradient-to-r from-emerald-700 to-emerald-600 hover:from-emerald-600 hover:to-emerald-500 text-white font-bold rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/30 cursor-pointer active:scale-98"
 					data-testid="pause-resume-btn"
 				>
-					<Play class="w-4 h-4 fill-white" />
+					<UiIcon name="play" class="w-4 h-4 fill-white" />
 					<span>Продовжити бій (Esc)</span>
 				</button>
 
@@ -95,7 +82,7 @@
 					class="w-full py-2.5 px-4 bg-[#231b12] hover:bg-[#32261a] border border-[#8c7456]/60 text-amber-200 font-semibold rounded-xl text-sm transition flex items-center justify-center gap-2 cursor-pointer active:scale-98"
 					data-testid="pause-restart-btn"
 				>
-					<RotateCcw class="w-4 h-4 text-amber-400" />
+					<UiIcon name="rotateCcw" class="w-4 h-4 text-amber-400" />
 					<span>Перезапустити бій</span>
 				</button>
 
@@ -105,7 +92,7 @@
 					class="w-full py-2 px-4 bg-[#181d28] hover:bg-[#252d3d] border border-amber-500/40 text-amber-200 font-semibold rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer active:scale-98"
 					data-testid="pause-game-settings-btn"
 				>
-					<Sliders class="w-3.5 h-3.5 text-amber-400" />
+					<UiIcon name="sliders" class="w-3.5 h-3.5 text-amber-400" />
 					<span>Налаштування гри (Звук, Мова, UI)</span>
 				</button>
 
@@ -116,7 +103,7 @@
 						class="w-full py-2 px-4 bg-[#181d28] hover:bg-[#252d3d] border border-slate-700 text-slate-200 font-semibold rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer active:scale-98"
 						data-testid="pause-settings-btn"
 					>
-						<Sliders class="w-3.5 h-3.5 text-slate-400" />
+						<UiIcon name="sliders" class="w-3.5 h-3.5 text-slate-400" />
 						<span>Налаштування матчу</span>
 					</button>
 				{/if}
@@ -131,10 +118,10 @@
 						title={settings.sound ? 'Звук: Увімкнено' : 'Звук: Вимкнено'}
 					>
 						{#if settings.sound}
-							<Volume2 class="w-4 h-4 text-emerald-400 shrink-0" />
+							<UiIcon name="volume2" class="w-4 h-4 text-emerald-400 shrink-0" />
 							<span>Звук</span>
 						{:else}
-							<VolumeX class="w-4 h-4 text-slate-500 shrink-0" />
+							<UiIcon name="volumeX" class="w-4 h-4 text-slate-500 shrink-0" />
 							<span class="text-slate-500">Вимк</span>
 						{/if}
 					</button>
@@ -148,10 +135,10 @@
 							title={fullscreen.active ? 'Згорнути до вікна' : 'Розгорнути на весь екран'}
 						>
 							{#if fullscreen.active}
-								<Minimize2 class="w-4 h-4 text-amber-400 shrink-0" />
+								<UiIcon name="minimize2" class="w-4 h-4 text-amber-400 shrink-0" />
 								<span>Вікно</span>
 							{:else}
-								<Maximize2 class="w-4 h-4 text-slate-400 shrink-0" />
+								<UiIcon name="maximize2" class="w-4 h-4 text-slate-400 shrink-0" />
 								<span>Екран</span>
 							{/if}
 						</button>
@@ -170,7 +157,7 @@
 						data-testid="pause-locale-toggle"
 						title={settings.locale === 'uk' ? 'Switch to English' : 'Перемкнути на українську'}
 					>
-						<Languages class="w-4 h-4 text-cyan-400 shrink-0" />
+						<UiIcon name="languages" class="w-4 h-4 text-cyan-400 shrink-0" />
 						<span class="font-bold font-mono">{settings.locale === 'uk' ? 'UA' : 'EN'}</span>
 					</button>
 				</div>
@@ -181,7 +168,7 @@
 					class="w-full py-2 px-4 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/60 text-rose-300 font-semibold rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer active:scale-98"
 					data-testid="pause-surrender-btn"
 				>
-					<Flag class="w-3.5 h-3.5 text-rose-400" />
+					<UiIcon name="flag" class="w-3.5 h-3.5 text-rose-400" />
 					<span>Здатися</span>
 				</button>
 			</div>
@@ -193,7 +180,7 @@
 					class="w-full py-2 px-3 bg-[#181d28] hover:bg-[#252d3d] text-slate-300 hover:text-amber-200 border border-slate-700 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2 cursor-pointer"
 					data-testid="pause-exit-modes-btn"
 				>
-					<ArrowLeft class="w-3.5 h-3.5 text-amber-400" />
+					<UiIcon name="arrowLeft" class="w-3.5 h-3.5 text-amber-400" />
 					<span>Вийти до вибору режимів</span>
 				</button>
 
@@ -202,7 +189,7 @@
 					class="w-full py-2 px-3 bg-transparent hover:bg-[#181d28] text-slate-400 hover:text-slate-200 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2 cursor-pointer"
 					data-testid="pause-exit-home-btn"
 				>
-					<House class="w-3.5 h-3.5 text-slate-400" />
+					<UiIcon name="house" class="w-3.5 h-3.5 text-slate-400" />
 					<span>Головне меню</span>
 				</button>
 			</div>

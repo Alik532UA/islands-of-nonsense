@@ -3,28 +3,7 @@
 	import { GAME_MODES } from '../engine/gameModes';
 	import { RACES_LIST, PLAYABLE_RACES } from '../engine/gameData';
 	import { storage } from '../services/storage';
-	import {
-		Swords,
-		Bot,
-		Sparkles,
-		Eye,
-		Coins,
-		Trophy,
-		X,
-		Play,
-		Sliders,
-		Users,
-		Ban,
-		Shield,
-		Check,
-		Settings2,
-		Target,
-		Dices,
-		Sprout,
-		Flame,
-		CircleSlash
-	} from 'lucide-svelte';
-
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	let {
 		isOpen = false,
 		inline = false,
@@ -290,19 +269,19 @@
 		>
 			<div class="flex items-center justify-between pb-1.5 border-b border-slate-800">
 				<span class="font-bold text-xs text-amber-200 flex items-center gap-1.5">
-					<Shield class="w-3.5 h-3.5 text-cyan-400" />
+					<UiIcon name="shield" class="w-3.5 h-3.5 text-cyan-400" />
 					<span>Захід (Гравець)</span>
 				</span>
 			</div>
 			<div class="text-[10px] text-cyan-300 font-bold font-mono truncate px-0.5">
 				{#if westRace === 'in_game'}
 					<span class="inline-flex items-center gap-1">
-						<Target class="w-3 h-3 text-cyan-400" />
+						<UiIcon name="target" class="w-3 h-3 text-cyan-400" />
 						<span>Обрати в грі (15с)</span>
 					</span>
 				{:else if westRace === 'random'}
 					<span class="inline-flex items-center gap-1">
-						<Dices class="w-3 h-3 text-purple-400" />
+						<UiIcon name="dices" class="w-3 h-3 text-purple-400" />
 						<span>Випадкова (+30%)</span>
 					</span>
 				{:else}
@@ -322,11 +301,11 @@
 					data-testid="race-option-in_game"
 				>
 					<span class="text-[11px] font-bold truncate flex items-center gap-1">
-						<Target class="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+						<UiIcon name="target" class="w-3.5 h-3.5 text-cyan-400 shrink-0" />
 						<span>В грі (15с)</span>
 					</span>
 					{#if westRace === 'in_game'}
-						<Check class="w-3.5 h-3.5 text-cyan-400 shrink-0 ml-1" />
+						<UiIcon name="check" class="w-3.5 h-3.5 text-cyan-400 shrink-0 ml-1" />
 					{/if}
 				</button>
 
@@ -341,11 +320,11 @@
 					data-testid="race-option-random"
 				>
 					<span class="text-[11px] font-bold truncate flex items-center gap-1">
-						<Dices class="w-3.5 h-3.5 text-purple-400 shrink-0" />
+						<UiIcon name="dices" class="w-3.5 h-3.5 text-purple-400 shrink-0" />
 						<span>Випадкова</span>
 					</span>
 					{#if westRace === 'random'}
-						<Check class="w-3.5 h-3.5 text-purple-400 shrink-0 ml-1" />
+						<UiIcon name="check" class="w-3.5 h-3.5 text-purple-400 shrink-0 ml-1" />
 					{/if}
 				</button>
 
@@ -361,7 +340,7 @@
 					>
 						<span class="text-[11px] truncate">{r.race}</span>
 						{#if westRace === r.race}
-							<Check class="w-3.5 h-3.5 text-cyan-400 shrink-0 ml-1" />
+							<UiIcon name="check" class="w-3.5 h-3.5 text-cyan-400 shrink-0 ml-1" />
 						{/if}
 					</button>
 				{/each}
@@ -380,10 +359,10 @@
 							: 'text-cyan-400'}"
 					>
 						{#if activePreset === 'custom'}
-							<Settings2 class="w-3 h-3 shrink-0" />
+							<UiIcon name="settings2" class="w-3 h-3 shrink-0" />
 							<span>Користувацькі правила</span>
 						{:else}
-							<Check class="w-3 h-3 shrink-0" />
+							<UiIcon name="check" class="w-3 h-3 shrink-0" />
 							<span>Стандартний пресет</span>
 						{/if}
 					</span>
@@ -398,7 +377,7 @@
 							: 'bg-[#181d28] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
 						data-testid="preset-btn-classic"
 					>
-						<Bot class="w-4 h-4 text-amber-400" />
+						<UiIcon name="bot" class="w-4 h-4 text-amber-400" />
 						<span>Бій проти компʼютера</span>
 					</button>
 
@@ -411,7 +390,7 @@
 							: 'bg-[#181d28] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
 						data-testid="preset-btn-sandbox"
 					>
-						<Sparkles class="w-4 h-4 text-cyan-400" />
+						<UiIcon name="sparkles" class="w-4 h-4 text-cyan-400" />
 						<span>Пісочниця</span>
 					</button>
 
@@ -424,7 +403,7 @@
 							: 'bg-[#181d28] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
 						data-testid="preset-btn-botVsBot"
 					>
-						<Eye class="w-4 h-4 text-emerald-400" />
+						<UiIcon name="eye" class="w-4 h-4 text-emerald-400" />
 						<span>Битва компʼютерів</span>
 					</button>
 
@@ -436,7 +415,7 @@
 							: 'bg-[#131620] border-slate-800/60 text-slate-600'}"
 						data-testid="preset-btn-custom"
 					>
-						<Sliders class="w-4 h-4 text-purple-400" />
+						<UiIcon name="sliders" class="w-4 h-4 text-purple-400" />
 						<span>Власний бій</span>
 						{#if activePreset === 'custom'}
 							<span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse ml-0.5"></span>
@@ -457,7 +436,7 @@
 					<div class="space-y-1.5" data-testid="setup-bot-difficulty">
 						<div class="flex items-center justify-between">
 							<label class="text-xs font-bold text-slate-300 flex items-center gap-1">
-								<Bot class="w-3.5 h-3.5 text-amber-400" />
+								<UiIcon name="bot" class="w-3.5 h-3.5 text-amber-400" />
 								<span>Складність бота:</span>
 							</label>
 							<span
@@ -471,16 +450,16 @@
 											: 'text-red-300 bg-red-950/70 border border-red-500/40'}"
 							>
 								{#if botDifficulty === 0}
-									<Sprout class="w-3 h-3 text-emerald-400 shrink-0" />
+									<UiIcon name="sprout" class="w-3 h-3 text-emerald-400 shrink-0" />
 									<span>0% (Легкий)</span>
 								{:else if botDifficulty <= 20}
-									<Swords class="w-3 h-3 text-amber-400 shrink-0" />
+									<UiIcon name="swords" class="w-3 h-3 text-amber-400 shrink-0" />
 									<span>{botDifficulty}% (Звичайний)</span>
 								{:else if botDifficulty <= 50}
-									<Shield class="w-3 h-3 text-orange-400 shrink-0" />
+									<UiIcon name="shield" class="w-3 h-3 text-orange-400 shrink-0" />
 									<span>{botDifficulty}% (Складний)</span>
 								{:else}
-									<Flame class="w-3 h-3 text-red-400 shrink-0" />
+									<UiIcon name="flame" class="w-3 h-3 text-red-400 shrink-0" />
 									<span>{botDifficulty}% (Божевільний)</span>
 								{/if}
 							</span>
@@ -510,13 +489,13 @@
 									data-testid="difficulty-btn-{diff.val}"
 								>
 									{#if diff.type === 'easy'}
-										<Sprout class="w-3 h-3 text-emerald-400 shrink-0" />
+										<UiIcon name="sprout" class="w-3 h-3 text-emerald-400 shrink-0" />
 									{:else if diff.type === 'normal'}
-										<Swords class="w-3 h-3 text-amber-400 shrink-0" />
+										<UiIcon name="swords" class="w-3 h-3 text-amber-400 shrink-0" />
 									{:else if diff.type === 'hard'}
-										<Shield class="w-3 h-3 text-orange-400 shrink-0" />
+										<UiIcon name="shield" class="w-3 h-3 text-orange-400 shrink-0" />
 									{:else}
-										<Flame class="w-3 h-3 text-red-400 shrink-0" />
+										<UiIcon name="flame" class="w-3 h-3 text-red-400 shrink-0" />
 									{/if}
 									<span>{diff.label}</span>
 								</button>
@@ -528,7 +507,7 @@
 					<div class="space-y-1.5 pt-2 border-t border-slate-800/80" data-testid="setup-start-gold">
 						<div class="flex items-center justify-between">
 							<label class="text-xs font-bold text-slate-300 flex items-center gap-1">
-								<Coins class="w-3.5 h-3.5 text-amber-400" />
+								<UiIcon name="coins" class="w-3.5 h-3.5 text-amber-400" />
 								<span>Стартове золото:</span>
 							</label>
 							<span
@@ -537,7 +516,7 @@
 								{#if startGold >= 90000}
 									<span>∞ Безкінечно</span>
 								{:else}
-									<Coins class="w-3 h-3 text-amber-400 shrink-0" />
+									<UiIcon name="coins" class="w-3 h-3 text-amber-400 shrink-0" />
 									<span>{startGold}</span>
 								{/if}
 							</span>
@@ -569,7 +548,7 @@
 										: 'bg-[#181d28] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
 									data-testid="gold-btn-{gold.val}"
 								>
-									<Coins class="w-2.5 h-2.5 text-amber-400 shrink-0" />
+									<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
 									<span>{gold.label}</span>
 								</button>
 							{/each}
@@ -612,7 +591,8 @@
 						<div
 							class="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-slate-950/20 border-2 border-slate-950/40 flex items-center justify-center group-hover:scale-110 group-hover:bg-slate-950/30 transition-transform duration-300 shadow-inner"
 						>
-							<Play
+							<UiIcon
+								name="play"
 								class="w-8 h-8 sm:w-10 sm:h-10 fill-slate-950 text-slate-950 ml-1 drop-shadow"
 							/>
 						</div>
@@ -635,7 +615,7 @@
 									{#if startGold >= 90000}
 										<span>∞ Золота</span>
 									{:else}
-										<Coins class="w-3 h-3 text-slate-900 inline shrink-0" />
+										<UiIcon name="coins" class="w-3 h-3 text-slate-900 inline shrink-0" />
 										<span>{startGold}</span>
 									{/if}
 								</span>
@@ -659,7 +639,7 @@
 						<!-- Team Size (1..7 per side, supports 1v1..7v7 and asymmetric like 1v6 / 5v3) -->
 						<div class="space-y-1.5" data-testid="setup-team-size">
 							<label class="text-xs font-bold text-slate-300 flex items-center gap-1">
-								<Users class="w-3.5 h-3.5 text-cyan-400" />
+								<UiIcon name="users" class="w-3.5 h-3.5 text-cyan-400" />
 								Формат гри ({teamSizeWest}v{teamSizeEast}):
 							</label>
 							<div class="grid grid-cols-5 gap-1">
@@ -753,7 +733,7 @@
 						<!-- Rounds to Win -->
 						<div class="space-y-1.5" data-testid="setup-target-wins">
 							<label class="text-xs font-bold text-slate-300 flex items-center gap-1">
-								<Trophy class="w-3.5 h-3.5 text-emerald-400" />
+								<UiIcon name="trophy" class="w-3.5 h-3.5 text-emerald-400" />
 								Перемог у матчі:
 							</label>
 							<div class="grid grid-cols-3 gap-1.5">
@@ -780,7 +760,7 @@
 						<!-- Spectator (AI vs AI) Toggle -->
 						<div class="flex items-center justify-between">
 							<span class="text-[10px] font-bold text-slate-300 flex items-center gap-1">
-								<Eye class="w-3 h-3 text-emerald-400" />
+								<UiIcon name="eye" class="w-3 h-3 text-emerald-400" />
 								<span>Бій ботів (AI vs AI):</span>
 							</span>
 							<div class="grid grid-cols-2 gap-1 w-28">
@@ -836,7 +816,7 @@
 						<div class="space-y-1.5" data-testid="setup-coins">
 							<div class="flex items-center justify-between">
 								<span class="text-[10px] font-bold text-slate-300 flex items-center gap-1">
-									<Coins class="w-3.5 h-3.5 text-amber-400" />
+									<UiIcon name="coins" class="w-3.5 h-3.5 text-amber-400" />
 									<span>Монети:</span>
 								</span>
 								<button
@@ -848,7 +828,7 @@
 									title="Налаштування інтервалу та кількості монет"
 									data-testid="toggle-custom-coins-btn"
 								>
-									<Settings2 class="w-3 h-3" />
+									<UiIcon name="settings2" class="w-3 h-3" />
 									<span>{showCoinCustom ? 'Сховати' : 'Повзунки'}</span>
 								</button>
 							</div>
@@ -951,7 +931,7 @@
 			<div class="bg-[#121622]/95 border border-slate-800 rounded-2xl p-3.5 space-y-2 shadow-md">
 				<div class="flex items-center justify-between">
 					<label class="font-bold text-slate-300 flex items-center gap-1.5 text-xs">
-						<Swords class="w-4 h-4 text-amber-400" />
+						<UiIcon name="swords" class="w-4 h-4 text-amber-400" />
 						<span>Режим гри:</span>
 					</label>
 					<span class="text-[10px] text-slate-400 font-mono">
@@ -989,7 +969,7 @@
 		>
 			<div class="flex items-center justify-between pb-1.5 border-b border-slate-800">
 				<span class="font-bold text-xs text-rose-200 flex items-center gap-1.5">
-					<Bot class="w-3.5 h-3.5 text-rose-400" />
+					<UiIcon name="bot" class="w-3.5 h-3.5 text-rose-400" />
 					<span>Схід (Бот)</span>
 				</span>
 				{#if bannedRaces.length > 0}
@@ -1008,7 +988,7 @@
 			<div class="flex items-center justify-between px-0.5 text-[10px] text-rose-300 font-mono">
 				<span class="font-bold truncate flex items-center gap-1">
 					{#if eastRace === 'random'}
-						<Dices class="w-3 h-3 text-rose-400 shrink-0" />
+						<UiIcon name="dices" class="w-3 h-3 text-rose-400 shrink-0" />
 						<span>Випадкова</span>
 					{:else}
 						<span>{eastRace}</span>
@@ -1016,7 +996,7 @@
 				</span>
 				{#if bannedRaces.length > 0}
 					<span class="text-red-400 font-bold flex items-center gap-0.5">
-						<CircleSlash class="w-2.5 h-2.5 shrink-0" />
+						<UiIcon name="circleSlash" class="w-2.5 h-2.5 shrink-0" />
 						<span>{bannedRaces.length} забан.</span>
 					</span>
 				{/if}
@@ -1034,11 +1014,11 @@
 					data-testid="bot-race-random"
 				>
 					<span class="text-[11px] font-bold truncate flex items-center gap-1">
-						<Dices class="w-3.5 h-3.5 text-rose-400 shrink-0" />
+						<UiIcon name="dices" class="w-3.5 h-3.5 text-rose-400 shrink-0" />
 						<span>Випадкова</span>
 					</span>
 					{#if eastRace === 'random'}
-						<Check class="w-3.5 h-3.5 text-rose-400 shrink-0 ml-1" />
+						<UiIcon name="check" class="w-3.5 h-3.5 text-rose-400 shrink-0 ml-1" />
 					{/if}
 				</button>
 
@@ -1064,7 +1044,7 @@
 								{r.race}
 							</span>
 							{#if eastRace === r.race && !isBanned}
-								<Check class="w-3.5 h-3.5 text-rose-400 shrink-0 ml-1" />
+								<UiIcon name="check" class="w-3.5 h-3.5 text-rose-400 shrink-0 ml-1" />
 							{/if}
 						</button>
 
@@ -1082,7 +1062,7 @@
 							aria-label={isBanned ? `Розбанити ${r.race}` : `Забанити ${r.race}`}
 							data-testid="ban-race-{r.race}"
 						>
-							<Ban class="w-3.5 h-3.5 {isBanned ? 'text-red-400' : ''}" />
+							<UiIcon name="ban" class="w-3.5 h-3.5 {isBanned ? 'text-red-400' : ''}" />
 						</button>
 					</div>
 				{/each}
@@ -1121,7 +1101,7 @@
 						<div
 							class="p-2 bg-amber-500/20 text-amber-400 rounded-xl border border-amber-500/30 shrink-0"
 						>
-							<Sliders class="w-5 h-5" />
+							<UiIcon name="sliders" class="w-5 h-5" />
 						</div>
 						<div>
 							<h2
@@ -1142,7 +1122,7 @@
 						aria-label="Закрити (Esc)"
 						data-testid="config-modal-close-btn"
 					>
-						<X class="w-5 h-5" />
+						<UiIcon name="x" class="w-5 h-5" />
 					</button>
 				</div>
 
@@ -1171,7 +1151,7 @@
 						onclick={handleApply}
 						class="py-2.5 px-6 rounded-xl font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition cursor-pointer shadow-lg shadow-amber-500/20 text-xs flex items-center gap-2"
 					>
-						<Play class="w-4 h-4 fill-current" />
+						<UiIcon name="play" class="w-4 h-4 fill-current" />
 						<span>{onStartMatch ? 'Розпочати бій' : 'Зберегти конфігурацію'}</span>
 					</button>
 				</div>

@@ -8,7 +8,13 @@ export interface OnlineBattleSessionCallbacks {
 	sim: Simulation;
 	onSimInitialized: (
 		nextSim: Simulation,
-		info: { localSlot: number; localTeam: 'west' | 'east'; cameraX: number; cameraY: number }
+		info: {
+			localSlot: number;
+			localTeam: 'west' | 'east';
+			cameraX: number;
+			cameraY: number;
+			isSpectator: boolean;
+		}
 	) => void;
 	onHostChange: (isHost: boolean) => void;
 	onPeerStatusChange: (status: { peerOnline: boolean; notice?: string | null }) => void;
@@ -16,7 +22,7 @@ export interface OnlineBattleSessionCallbacks {
 	onDesync: (tick: number) => void;
 	onGone: (reason: string) => void;
 	onCommandApplied: (move: Move) => void;
-	onMatchStarted: (nextSim: Simulation, localSlot: number) => void;
+	onMatchStarted: (nextSim: Simulation, localSlot: number, isSpectator: boolean) => void;
 	onErrorNotice: (message: string) => void;
 }
 
@@ -24,6 +30,7 @@ export interface OnlineBattleSession {
 	readonly matchSync: MatchSync;
 	readonly localTeam: 'west' | 'east';
 	readonly localSlot: number;
+	readonly isSpectator: boolean;
 	getTargetTick: () => number | null;
 	getCountdownRemainingSec: () => number | null;
 	dispose: () => void;
@@ -80,14 +87,16 @@ export async function startOnlineBattleSession(
 		const onlineInit = roomInfo ? createOnlineSimulation(roomInfo, members, uid) : null;
 		const localTeam = onlineInit?.localTeam ?? (isHostHint ? 'west' : 'east');
 		const localSlot = onlineInit?.localSlot ?? (localTeam === 'east' ? 2 : 1);
+		let isSpectator = !members.some((m) => m.uid === uid && m.role === 'player');
 
 		if (onlineInit) {
 			activeSim = onlineInit.sim;
 			callbacks.onSimInitialized(activeSim, {
 				localSlot,
 				localTeam,
-				cameraX: localTeam === 'east' ? 5600 : 1600,
-				cameraY: 1200
+				cameraX: isSpectator ? 3600 : localTeam === 'east' ? 5600 : 1600,
+				cameraY: 1200,
+				isSpectator
 			});
 		}
 
@@ -133,6 +142,7 @@ export async function startOnlineBattleSession(
 			callbacks.onHostChange(snap.info.hostUid === uid);
 			if (snap.info.status === 'playing' && !onlineStarted) {
 				onlineStarted = true;
+				isSpectator = !snap.members.some((m) => m.uid === uid && m.role === 'player');
 				const fresh = createOnlineSimulation(snap.info, snap.members, uid);
 				activeSim = fresh.sim;
 				const awaitingPick = activeSim.allPlayers.some((p) => !p.isBot && p.pendingRacePick);
@@ -147,7 +157,7 @@ export async function startOnlineBattleSession(
 				}
 				sync?.setRosterSlots(fresh.uidToSlot);
 				sync?.setSimulation(activeSim);
-				callbacks.onMatchStarted(activeSim, fresh.localSlot);
+				callbacks.onMatchStarted(activeSim, fresh.localSlot, isSpectator);
 			}
 		});
 
@@ -230,6 +240,9 @@ export async function startOnlineBattleSession(
 			matchSync: createdSync,
 			localTeam,
 			localSlot,
+			get isSpectator() {
+				return isSpectator;
+			},
 			getTargetTick() {
 				if (!onlineStarted || epochAnchorServerMs === null) return null;
 				const elapsedMs = Math.max(0, transport.now() - epochAnchorServerMs);

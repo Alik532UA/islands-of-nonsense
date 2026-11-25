@@ -2,34 +2,8 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import {
-		Copy,
-		Check,
-		MessageSquare,
-		Play,
-		LogOut,
-		Send,
-		Wifi,
-		WifiOff,
-		Bot,
-		UserMinus,
-		Palette,
-		Sliders,
-		Dices,
-		Crown,
-		Lock,
-		Swords,
-		Shield,
-		Flame,
-		Coins,
-		Eye,
-		Ban,
-		Trophy,
-		AlertTriangle,
-		ArrowLeftRight,
-		VolumeX,
-		UserPlus
-	} from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
+	import { generateQrSvgPath } from '$lib/utils/qrSvg';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
 	import { resolveRoomMemberAvatars } from '$lib/utils/roomAvatars';
 	import { QUICK_EMOTES, type ChatKind } from '$lib/net/chat';
@@ -109,6 +83,13 @@
 	let dmPeer = $state<{ uid: string; name: string; avatar?: string } | null>(null);
 	let inspectMemberUid = $state<string | null>(null);
 	let inviteOpen = $state(false);
+	let shareOpen = $state(false);
+	let shareUrl = $derived(
+		typeof window !== 'undefined'
+			? `${window.location.origin}${resolve('/online')}?room=${roomCode}`
+			: `?room=${roomCode}`
+	);
+	let shareQr = $derived(shareOpen ? generateQrSvgPath(shareUrl) : null);
 	let myFriends = $state<SocialUser[]>([]);
 	let myProfile = $state<Profile | null>(null);
 	let emoteTimer: ReturnType<typeof setTimeout> | null = null;
@@ -594,7 +575,7 @@
 					<div
 						class="w-9 h-9 rounded-[8px] bg-amber-500/15 border border-[#8c7456]/70 flex items-center justify-center text-amber-300 shadow-inner"
 					>
-						<Swords class="w-4 h-4" />
+						<UiIcon name="swords" class="w-4 h-4" />
 					</div>
 					<div>
 						<div class="flex items-center gap-2">
@@ -614,9 +595,9 @@
 							>
 								<span>{roomCode}</span>
 								{#if copied}
-									<Check class="w-3 h-3 text-emerald-400" />
+									<UiIcon name="check" class="w-3 h-3 text-emerald-400" />
 								{:else}
-									<Copy class="w-3 h-3 text-sky-400" />
+									<UiIcon name="copy" class="w-3 h-3 text-sky-400" />
 								{/if}
 							</button>
 						</div>
@@ -636,7 +617,7 @@
 								<span
 									class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] bg-slate-800/80 border border-slate-700 text-[10px] text-slate-300"
 								>
-									<Lock class="w-2.5 h-2.5 text-amber-300" />
+									<UiIcon name="lock" class="w-2.5 h-2.5 text-amber-300" />
 									{t('online.private')}
 								</span>
 							{/if}
@@ -645,6 +626,18 @@
 				</div>
 
 				<div class="flex items-center gap-2">
+					<button
+						type="button"
+						onclick={() => (shareOpen = !shareOpen)}
+						data-testid="room-share-btn"
+						class="min-h-[38px] px-2.5 py-1.5 rounded-[8px] border text-xs font-bold flex items-center gap-1.5 cursor-pointer transition {shareOpen
+							? 'bg-amber-500/20 border-amber-400/70 text-amber-200'
+							: 'bg-[#161d2b] hover:bg-[#1e273a] border-[#3b3226] text-slate-300 hover:text-white'}"
+						title={t('online.hud.shareBtn')}
+					>
+						<UiIcon name="share2" class="w-4 h-4 text-amber-300" />
+						<span class="hidden sm:inline">{t('online.hud.shareBtn')}</span>
+					</button>
 					{#if myFriends.length > 0}
 						<div class="relative">
 							<button
@@ -655,7 +648,7 @@
 									: 'bg-[#161d2b] hover:bg-[#1e273a] border-[#3b3226] text-slate-300 hover:text-white'}"
 								title={t('social.inviteFriend')}
 							>
-								<UserPlus class="w-4 h-4 text-emerald-400" />
+								<UiIcon name="userPlus" class="w-4 h-4 text-emerald-400" />
 								<span class="hidden sm:inline">{t('social.invite')}</span>
 							</button>
 							{#if inviteOpen}
@@ -694,7 +687,7 @@
 							: 'bg-[#161d2b] hover:bg-[#1e273a] border-[#3b3226] text-slate-300 hover:text-white'}"
 						aria-label={t('online.hud.roomChatLabel')}
 					>
-						<MessageSquare class="w-4 h-4 text-sky-400" />
+						<UiIcon name="messageSquare" class="w-4 h-4 text-sky-400" />
 						<span class="hidden sm:inline">Чат</span>
 						{#if unreadChatCount > 0}
 							<span
@@ -721,7 +714,7 @@
 								: 'bg-[#161d2b] hover:bg-[#1e273a] border-[#3b3226] hover:border-amber-500/60 text-slate-200'}"
 						>
 							{#if localMember.ready}
-								<Check class="w-3.5 h-3.5 text-emerald-300" />
+								<UiIcon name="check" class="w-3.5 h-3.5 text-emerald-300" />
 							{:else}
 								<span class="w-2 h-2 rounded-full bg-slate-500"></span>
 							{/if}
@@ -771,7 +764,7 @@
 													title={t('chat.openDm')}
 													aria-label={t('chat.openDm')}
 												>
-													<MessageSquare class="w-3 h-3" />
+													<UiIcon name="messageSquare" class="w-3 h-3" />
 												</button>
 												<button
 													type="button"
@@ -780,7 +773,7 @@
 													title={t('chat.muteUser')}
 													aria-label={t('chat.muteUser')}
 												>
-													<VolumeX class="w-3 h-3" />
+													<UiIcon name="volumeX" class="w-3 h-3" />
 												</button>
 											</div>
 										{/if}
@@ -813,7 +806,7 @@
 							class="min-h-[34px] px-3 rounded-[6px] bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold cursor-pointer flex items-center justify-center"
 							aria-label={t('online.hud.sendChat')}
 						>
-							<Send class="w-3.5 h-3.5" />
+							<UiIcon name="send" class="w-3.5 h-3.5" />
 						</button>
 					</form>
 				</div>
@@ -834,19 +827,19 @@
 						<span
 							class="inline-flex items-center gap-1 px-2 py-1 rounded-[6px] bg-[#161c2a] border border-amber-500/35 text-amber-200 font-bold"
 						>
-							<Swords class="w-3 h-3 text-amber-400" />
+							<UiIcon name="swords" class="w-3 h-3 text-amber-400" />
 							{roomModeName}
 						</span>
 						<span
 							class="inline-flex items-center gap-1 px-2 py-1 rounded-[6px] bg-[#161c2a] border border-emerald-500/30 text-emerald-300 font-semibold"
 						>
-							<Trophy class="w-3 h-3 text-emerald-400" />
+							<UiIcon name="trophy" class="w-3 h-3 text-emerald-400" />
 							До {roomInfo.config?.targetWins ?? 2}
 						</span>
 						<span
 							class="inline-flex items-center gap-1 px-2 py-1 rounded-[6px] bg-[#161c2a] border border-slate-700 text-amber-200 font-mono font-semibold"
 						>
-							<Coins class="w-3 h-3 text-amber-400" />
+							<UiIcon name="coins" class="w-3 h-3 text-amber-400" />
 							{roomGold >= 90000 ? '∞ Золото' : `${roomGold}g`}
 						</span>
 						<span
@@ -855,7 +848,7 @@
 								? 'bg-amber-500/12 border-amber-500/40 text-amber-200'
 								: 'bg-emerald-500/12 border-emerald-500/40 text-emerald-200'}"
 						>
-							<Eye class="w-3 h-3" />
+							<UiIcon name="eye" class="w-3 h-3" />
 							{roomFogEnabled ? t('online.fogEnabled') : t('online.fogDisabled')}
 						</span>
 						{#if coinModeVal === 'none' || roomInfo.config?.coinCount === 0}
@@ -875,7 +868,7 @@
 							<span
 								class="inline-flex items-center gap-1 px-2 py-1 rounded-[6px] bg-rose-950/60 border border-rose-500/45 text-rose-300 font-bold"
 							>
-								<Ban class="w-3 h-3" />
+								<UiIcon name="ban" class="w-3 h-3" />
 								Бан: {bannedRacesList.length}
 							</span>
 						{/if}
@@ -886,7 +879,7 @@
 						data-testid="online-room-settings-btn"
 						class="min-h-[34px] px-3 py-1 rounded-[8px] bg-gradient-to-b from-amber-500/25 to-amber-600/15 hover:from-amber-500/35 hover:to-amber-600/25 border border-[#8c7456] hover:border-amber-400 text-xs font-bold text-amber-200 flex items-center gap-1.5 cursor-pointer transition shadow-sm"
 					>
-						<Sliders class="w-3.5 h-3.5 text-amber-300" />
+						<UiIcon name="sliders" class="w-3.5 h-3.5 text-amber-300" />
 						<span>{t('online.hud.settingsBtn')}</span>
 					</button>
 				</div>
@@ -901,9 +894,9 @@
 						>
 							<span class="flex items-center gap-2">
 								{#if teamCol.id === 'west'}
-									<Shield class="w-3.5 h-3.5 text-sky-400" />
+									<UiIcon name="shield" class="w-3.5 h-3.5 text-sky-400" />
 								{:else}
-									<Flame class="w-3.5 h-3.5 text-rose-400" />
+									<UiIcon name="flame" class="w-3.5 h-3.5 text-rose-400" />
 								{/if}
 								<span>{teamCol.title}</span>
 							</span>
@@ -995,7 +988,7 @@
 													</span>
 												{/if}
 											{:else}
-												<Palette class="w-3.5 h-3.5 text-amber-300" />
+												<UiIcon name="palette" class="w-3.5 h-3.5 text-amber-300" />
 											{/if}
 										</button>
 
@@ -1020,7 +1013,7 @@
 											</button>
 											{#if occupant.uid === roomInfo?.hostUid}
 												<span title="Господар кімнати" class="shrink-0 text-amber-400">
-													<Crown class="w-3.5 h-3.5" />
+													<UiIcon name="crown" class="w-3.5 h-3.5" />
 												</span>
 											{/if}
 											{#if occupant.country}
@@ -1066,14 +1059,14 @@
 													style="background-color: {botExplicitColorDef.hex};"
 												></span>
 											{:else}
-												<Palette class="w-3.5 h-3.5 text-slate-300" />
+												<UiIcon name="palette" class="w-3.5 h-3.5 text-slate-300" />
 											{/if}
 										</button>
 										<div class="flex items-center gap-1.5 min-w-0 flex-1">
 											<span
 												class="w-6 h-6 rounded-[6px] bg-amber-500/15 border border-amber-500/40 flex items-center justify-center shrink-0"
 											>
-												<Bot class="w-3.5 h-3.5 text-amber-300" />
+												<UiIcon name="bot" class="w-3.5 h-3.5 text-amber-300" />
 											</span>
 											<span class="text-amber-200 font-semibold truncate">
 												{isEffectiveHost
@@ -1094,7 +1087,7 @@
 										<span
 											class="w-6 h-6 rounded-[6px] bg-[#070a10] border border-slate-800 text-slate-600 flex items-center justify-center shrink-0"
 										>
-											<Lock class="w-3 h-3" />
+											<UiIcon name="lock" class="w-3 h-3" />
 										</span>
 										<span class="text-slate-500 font-medium truncate">
 											{isEffectiveHost ? `Слот #${idx}` : t('online.hud.slotClosed')}
@@ -1138,7 +1131,7 @@
 												class="p-1.5 rounded-[6px] bg-[#0b0f18] hover:bg-slate-800 border border-slate-700 hover:border-sky-400/60 text-sky-300 cursor-pointer transition"
 												title="Змінити команду"
 											>
-												<ArrowLeftRight class="w-3.5 h-3.5" />
+												<UiIcon name="swap" class="w-3.5 h-3.5" />
 											</button>
 											<button
 												type="button"
@@ -1147,7 +1140,7 @@
 												class="p-1.5 rounded-[6px] bg-[#0b0f18] hover:bg-rose-950 border border-slate-700 hover:border-rose-500/60 text-rose-300 cursor-pointer transition"
 												title={t('online.hud.kickPlayer')}
 											>
-												<UserMinus class="w-3.5 h-3.5" />
+												<UiIcon name="userMinus" class="w-3.5 h-3.5" />
 											</button>
 										{/if}
 									{:else}
@@ -1212,7 +1205,7 @@
 				<div
 					class="mb-3 px-3 py-2 rounded-[8px] bg-amber-950/45 border border-amber-500/45 text-xs text-amber-200 flex items-center justify-center gap-2 font-semibold"
 				>
-					<AlertTriangle class="w-4 h-4 text-amber-400 shrink-0" />
+					<UiIcon name="alertTriangle" class="w-4 h-4 text-amber-400 shrink-0" />
 					<span>{t('online.hud.needBothTeams')}</span>
 				</div>
 			{/if}
@@ -1246,7 +1239,7 @@
 							: 'bg-slate-800/80 border border-slate-700 text-slate-500 cursor-not-allowed'}"
 						data-testid="online-start-battle-btn"
 					>
-						<Play class="w-4 h-4 fill-current" />
+						<UiIcon name="play" class="w-4 h-4 fill-current" />
 						<span>{t('online.hud.startBattle')}</span>
 					</button>
 				{:else}
@@ -1263,7 +1256,7 @@
 					class="min-h-[46px] px-4 rounded-[10px] bg-[#151c2c] hover:bg-rose-950/80 border border-[#3b3226] hover:border-rose-500/60 text-slate-300 hover:text-rose-200 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition"
 					aria-label={t('online.hud.leaveRoom')}
 				>
-					<LogOut class="w-4 h-4" />
+					<UiIcon name="logOut" class="w-4 h-4" />
 					<span class="hidden sm:inline">{t('online.hud.leaveRoom')}</span>
 				</button>
 			</div>
@@ -1292,7 +1285,7 @@
 					<span
 						class="text-sm font-black uppercase tracking-wide text-amber-300 flex items-center gap-1.5"
 					>
-						<Palette class="w-4 h-4" />
+						<UiIcon name="palette" class="w-4 h-4" />
 						<span>{t('online.hud.pickColor')}</span>
 					</span>
 					<button
@@ -1313,7 +1306,7 @@
 						? 'bg-amber-500/20 border-amber-400 text-amber-200'
 						: 'bg-[#141a26] border-slate-700 text-slate-300 hover:border-amber-400/50'}"
 				>
-					<Dices class="w-4 h-4 text-amber-300" />
+					<UiIcon name="dices" class="w-4 h-4 text-amber-300" />
 					<span>{t('online.hud.randomColor')}</span>
 				</button>
 
@@ -1341,7 +1334,10 @@
 							style="background-color: {c.hex};"
 						>
 							{#if isSelected}
-								<Check class="w-4 h-4 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" />
+								<UiIcon
+									name="check"
+									class="w-4 h-4 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
+								/>
 							{:else if !isBotTarget && humanContenders > 0}
 								<span
 									class="text-[9px] font-mono font-black px-1 rounded-[4px] bg-black/80 text-amber-300"
@@ -1383,9 +1379,9 @@
 		{/if}
 		<span class="font-mono font-bold text-amber-300">{roomCode}</span>
 		{#if peerOnlineCount > 0}
-			<Wifi class="w-3.5 h-3.5 text-emerald-400" />
+			<UiIcon name="wifi" class="w-3.5 h-3.5 text-emerald-400" />
 		{:else}
-			<WifiOff class="w-3.5 h-3.5 text-slate-400" />
+			<UiIcon name="wifiOff" class="w-3.5 h-3.5 text-slate-400" />
 		{/if}
 		<span>
 			{isPlaying
@@ -1398,7 +1394,7 @@
 			class="relative min-h-[44px] min-w-[44px] p-2 rounded hover:bg-slate-800 text-sky-300 cursor-pointer flex items-center justify-center"
 			aria-label={t('online.hud.roomChatLabel')}
 		>
-			<MessageSquare class="w-4 h-4" />
+			<UiIcon name="messageSquare" class="w-4 h-4" />
 			{#if unreadChatCount > 0}
 				<span
 					class="absolute top-1 right-1 px-1 rounded-full bg-amber-500 text-slate-950 text-[9px] font-black leading-tight"
@@ -1413,7 +1409,7 @@
 			class="min-h-[44px] min-w-[44px] p-2 rounded hover:bg-rose-900/60 text-slate-400 hover:text-rose-200 cursor-pointer flex items-center justify-center"
 			aria-label={t('online.hud.leaveRoom')}
 		>
-			<LogOut class="w-4 h-4" />
+			<UiIcon name="logOut" class="w-4 h-4" />
 		</button>
 	</div>
 
@@ -1467,7 +1463,7 @@
 										title={t('chat.muteUser')}
 										aria-label={t('chat.muteUser')}
 									>
-										<VolumeX class="w-3 h-3" />
+										<UiIcon name="volumeX" class="w-3 h-3" />
 									</button>
 								{/if}
 							</div>
@@ -1499,7 +1495,7 @@
 					class="min-h-[36px] px-2.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold cursor-pointer flex items-center justify-center"
 					aria-label={t('online.hud.sendChat')}
 				>
-					<Send class="w-3.5 h-3.5" />
+					<UiIcon name="send" class="w-3.5 h-3.5" />
 				</button>
 			</form>
 		</div>
@@ -1548,4 +1544,84 @@
 			if (ok) toast.success(t('social.invitedToast', { name: targetName }));
 		}}
 	/>
+{/if}
+
+{#if shareOpen && shareQr}
+	<div
+		class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4"
+		role="dialog"
+		aria-modal="true"
+		data-testid="room-share-modal"
+	>
+		<div
+			class="w-full max-w-sm rounded-2xl bg-[#111622] border-2 border-[#8c7456] p-5 text-center space-y-4 shadow-2xl"
+		>
+			<div class="flex items-center justify-between">
+				<h3 class="text-sm font-black uppercase tracking-wider text-amber-300">
+					{t('online.hud.shareTitle', { code: roomCode })}
+				</h3>
+				<button
+					type="button"
+					onclick={() => (shareOpen = false)}
+					class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 cursor-pointer"
+				>
+					✕
+				</button>
+			</div>
+
+			<div class="inline-block p-3 rounded-xl bg-white shadow-inner mx-auto">
+				<svg
+					viewBox="0 0 {shareQr.size} {shareQr.size}"
+					class="w-44 h-44 block"
+					shape-rendering="crispEdges"
+					aria-label="QR Code {roomCode}"
+				>
+					<rect width={shareQr.size} height={shareQr.size} fill="#ffffff" />
+					<path d={shareQr.path} fill="#0f172a" />
+				</svg>
+			</div>
+
+			<p class="text-xs text-slate-400">{t('online.hud.scanQr')}</p>
+
+			<div
+				class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-[11px] font-mono text-sky-300 break-all select-all"
+			>
+				{shareUrl}
+			</div>
+
+			<div class="flex gap-2">
+				<button
+					type="button"
+					onclick={async () => {
+						try {
+							await navigator.clipboard.writeText(shareUrl);
+							toast.success(t('common.copied'));
+						} catch {
+							// ignore
+						}
+					}}
+					class="flex-1 min-h-[42px] px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs cursor-pointer"
+					data-testid="room-copy-invite-url-btn"
+				>
+					{t('online.hud.copyLink')}
+				</button>
+				{#if typeof navigator !== 'undefined' && typeof navigator.share === 'function'}
+					<button
+						type="button"
+						onclick={() => {
+							void navigator
+								.share({
+									title: t('online.hud.shareTitle', { code: roomCode }),
+									url: shareUrl
+								})
+								.catch(() => {});
+						}}
+						class="min-h-[42px] px-3 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs cursor-pointer"
+					>
+						{t('online.hud.systemShare')}
+					</button>
+				{/if}
+			</div>
+		</div>
+	</div>
 {/if}

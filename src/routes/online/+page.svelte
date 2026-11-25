@@ -2,12 +2,13 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { Swords, PlusCircle, KeyRound, ArrowLeft } from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { t } from '$lib/i18n';
 	import { settings } from '$lib/services/settings.svelte';
 	import { PlayerIdentity } from '$lib/controllers/playerIdentity.svelte';
 	import { connect } from '$lib/net/firebase';
-	import { loadSocialLists } from '$lib/net/social';
+	import { dismissInboxItem, loadSocialLists, watchInbox, type InboxItem } from '$lib/net/social';
+	import { notifyIfHidden, requestNotifyPermission } from '$lib/services/browserNotify';
 	import {
 		subscribeLobby,
 		publishToLobby,
@@ -39,6 +40,14 @@
 	let myUid = $state<string | null>(null);
 	let dmPeer = $state<{ uid: string; name: string; avatar?: string } | null>(null);
 	let searchController: AbortController | null = null;
+	let pendingInvite = $state<{
+		code: string;
+		status: 'lobby' | 'playing';
+		players: number;
+		maxPlayers: number;
+	} | null>(null);
+	let roomInvites = $state<InboxItem[]>([]);
+	let lastNotifiedInviteId = '';
 
 	$effect(() => {
 		return settings.claimHeader(t('online.title'), () => goto(resolve('/')));
@@ -49,6 +58,12 @@
 		void player.loadCountry();
 
 		let unsubscribeLobby = () => {};
+		let unsubscribeInbox = () => {};
+
+		const urlCode =
+			typeof window !== 'undefined'
+				? new URLSearchParams(window.location.search).get('room')?.trim().toUpperCase()
+				: null;
 
 		void connect()
 			.then(({ auth, db, uid }) => {
@@ -57,10 +72,40 @@
 					void loadSocialLists().then((res) => {
 						friendUids = res.following.map((u) => u.uid);
 					});
+					void watchInbox((items) => {
+						const invites = items.filter((i) => i.type === 'room_invite' && i.roomCode);
+						roomInvites = invites;
+						if (invites.length > 0 && invites[0].id !== lastNotifiedInviteId) {
+							lastNotifiedInviteId = invites[0].id;
+							notifyIfHidden(
+								t('notify.inviteTitle', { code: invites[0].roomCode ?? '' }),
+								t('notify.inviteBody', { name: invites[0].fromName })
+							);
+						}
+					}).then((unsub) => {
+						unsubscribeInbox = unsub;
+					});
 				}
 				unsubscribeLobby = subscribeLobby(db, (updated) => {
 					rooms = updated;
 				});
+
+				if (urlCode && /^[0-9A-Z]{2,6}$/.test(urlCode)) {
+					void Promise.all([liveNet.peekRoom(urlCode), liveNet.peekMembers(urlCode)])
+						.then(([info, members]) => {
+							if (!info) {
+								errorMessage = t('online.hud.roomUnavailable', { code: urlCode });
+								return;
+							}
+							pendingInvite = {
+								code: urlCode,
+								status: info.status === 'playing' ? 'playing' : 'lobby',
+								players: (members ?? []).filter((m) => m.role === 'player').length,
+								maxPlayers: countOpenHumanCapacity(info.config)
+							};
+						})
+						.catch(() => {});
+				}
 			})
 			.catch(() => {
 				// Offline or emulator down
@@ -68,11 +113,13 @@
 
 		return () => {
 			unsubscribeLobby();
+			unsubscribeInbox();
 			if (searchController) searchController.abort();
 		};
 	});
 
 	async function handleQuickSearch(nextFormat: SeekFormat = searchFormat) {
+		void requestNotifyPermission();
 		searchFormat = nextFormat;
 		if (searchController) {
 			searchController.abort();
@@ -97,6 +144,11 @@
 				controller.signal,
 				{},
 				{ format: nextFormat }
+			);
+
+			notifyIfHidden(
+				t('notify.matchFoundTitle'),
+				t('notify.matchFoundBody', { code: result.code })
 			);
 
 			await goto(
@@ -227,6 +279,32 @@
 			busy = false;
 		}
 	}
+
+	async function handleSpectate(code: string) {
+		busy = true;
+		errorMessage = null;
+		try {
+			const normalizedCode = code.trim().toUpperCase();
+			const info = await liveNet.peekRoom(normalizedCode);
+			if (!info) {
+				errorMessage = t('online.hud.roomUnavailable', { code: normalizedCode });
+				return;
+			}
+			const entryName = player.forEntry(settings.locale);
+			await liveNet.joinRoom(normalizedCode, {
+				name: entryName,
+				role: 'spectator',
+				country: player.country,
+				avatar: player.avatar
+			});
+			pendingInvite = null;
+			await goto(`${resolve('/play/battle')}?room=${encodeURIComponent(normalizedCode)}`);
+		} catch (err) {
+			errorMessage = err instanceof Error ? err.message : 'Не вдалося підключитися спостерігачем';
+		} finally {
+			busy = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -271,6 +349,44 @@
 		</header>
 
 		<!-- Player Identity Customizer -->
+		{#if roomInvites.length > 0}
+			{@const topInvite = roomInvites[0]}
+			<div
+				class="w-full max-w-xl mx-auto mb-4 px-4 py-3 rounded-xl bg-emerald-950/90 border border-emerald-500/60 text-emerald-100 text-xs flex items-center justify-between gap-3"
+				data-testid="online-invite-banner"
+			>
+				<div class="flex items-center gap-2 min-w-0">
+					<UiIcon name="bell" class="w-4 h-4 text-emerald-400 shrink-0" />
+					<span class="truncate font-semibold">
+						{t('online.inviteBanner.text', {
+							name: topInvite.fromName,
+							code: topInvite.roomCode ?? ''
+						})}
+					</span>
+				</div>
+				<div class="flex items-center gap-1.5 shrink-0">
+					<button
+						type="button"
+						onclick={async () => {
+							const code = topInvite.roomCode;
+							await dismissInboxItem(topInvite.id);
+							if (code) await handleJoin(code);
+						}}
+						class="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold cursor-pointer"
+					>
+						{t('online.join')}
+					</button>
+					<button
+						type="button"
+						onclick={() => void dismissInboxItem(topInvite.id)}
+						class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer"
+					>
+						✕
+					</button>
+				</div>
+			</div>
+		{/if}
+
 		<PlayerBar
 			bind:name={player.value}
 			avatar={player.avatar}
@@ -288,7 +404,7 @@
 				onclick={() => void handleQuickSearch()}
 				data-testid="online-quick-search-btn"
 			>
-				<Swords class="menu-tile__icon text-amber-400" />
+				<UiIcon name="swords" class="menu-tile__icon text-amber-400" />
 				<span class="font-bold text-amber-100">{t('online.quickSearch')}</span>
 				<span class="text-xs text-slate-400 font-normal">{t('online.quickSearchDesc')}</span>
 			</button>
@@ -300,7 +416,7 @@
 				onclick={() => (openWindow = 'create')}
 				data-testid="online-create-room-btn"
 			>
-				<PlusCircle class="menu-tile__icon text-emerald-400" />
+				<UiIcon name="plusCircle" class="menu-tile__icon text-emerald-400" />
 				<span class="font-bold text-emerald-100">{t('online.createRoom')}</span>
 				<span class="text-xs text-slate-400 font-normal">{t('online.createRoomDesc')}</span>
 			</button>
@@ -312,14 +428,14 @@
 				onclick={() => (openWindow = 'join')}
 				data-testid="online-join-code-btn"
 			>
-				<KeyRound class="menu-tile__icon text-sky-400" />
+				<UiIcon name="keyRound" class="menu-tile__icon text-sky-400" />
 				<span class="font-bold text-sky-100">{t('online.joinByCode')}</span>
 				<span class="text-xs text-slate-400 font-normal">{t('online.joinByCodeDesc')}</span>
 			</button>
 		</nav>
 
 		<!-- Open Rooms List -->
-		<RoomList {rooms} {friendUids} onJoin={handleJoin} />
+		<RoomList {rooms} {friendUids} onJoin={handleJoin} onSpectate={handleSpectate} />
 
 		<!-- Global Lobby Chat -->
 		<GlobalChatDrawer
@@ -331,12 +447,68 @@
 
 		<div class="menu-links mt-8">
 			<a href={resolve('/')} class="menu-btn menu-btn--link" data-testid="online-back-link">
-				<ArrowLeft class="menu-link__icon" />
+				<UiIcon name="arrowLeft" class="menu-link__icon" />
 				<span>{t('menu.back')}</span>
 			</a>
 		</div>
 	{/if}
 </div>
+
+{#if pendingInvite}
+	<div
+		class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4"
+		role="dialog"
+		aria-modal="true"
+		data-testid="room-prejoin-modal"
+	>
+		<div
+			class="w-full max-w-md rounded-2xl bg-slate-900 border-2 border-amber-400/70 p-5 space-y-4 shadow-2xl"
+		>
+			<h3 class="text-base font-black text-amber-300 uppercase tracking-wide">
+				{t('online.preJoin.title', { code: pendingInvite.code })}
+			</h3>
+			<p class="text-xs text-slate-300">
+				{pendingInvite.status === 'playing'
+					? t('online.preJoin.playingDesc')
+					: t('online.preJoin.desc')}
+			</p>
+			<div class="flex flex-wrap gap-2">
+				{#if pendingInvite.status === 'lobby' && pendingInvite.players < pendingInvite.maxPlayers}
+					<button
+						type="button"
+						disabled={busy}
+						onclick={async () => {
+							const code = pendingInvite?.code;
+							pendingInvite = null;
+							if (code) await handleJoin(code);
+						}}
+						class="flex-1 min-h-[44px] px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs cursor-pointer"
+						data-testid="prejoin-player-btn"
+					>
+						{t('online.preJoin.asPlayer')}
+					</button>
+				{/if}
+				<button
+					type="button"
+					disabled={busy}
+					onclick={() => pendingInvite && void handleSpectate(pendingInvite.code)}
+					class="flex-1 min-h-[44px] px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-sky-500/40 text-sky-300 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+					data-testid="prejoin-spectate-btn"
+				>
+					<UiIcon name="eye" class="w-4 h-4" />
+					<span>{t('online.preJoin.asSpectator')}</span>
+				</button>
+				<button
+					type="button"
+					onclick={() => (pendingInvite = null)}
+					class="min-h-[44px] px-3 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-400 text-xs cursor-pointer"
+				>
+					{t('online.cancel')}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
 
 {#if dmPeer && myUid}
 	<DmDrawer

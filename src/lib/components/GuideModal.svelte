@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { BookOpen, Coins, Keyboard, Shield, Swords, X } from 'lucide-svelte';
-
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	let {
 		isOpen = $bindable(false)
 	}: {
@@ -27,13 +26,13 @@
 				class="absolute top-4 right-4 text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition cursor-pointer"
 				aria-label="Закрити довідник"
 			>
-				<X class="w-5 h-5" />
+				<UiIcon name="x" class="w-5 h-5" />
 			</button>
 
 			<!-- Header -->
 			<div class="flex items-center gap-3 border-b border-[#3b3226] pb-3.5 mb-4 shrink-0">
 				<div class="p-2 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-400">
-					<BookOpen class="w-5 h-5" />
+					<UiIcon name="bookOpen" class="w-5 h-5" />
 				</div>
 				<div>
 					<h2 class="text-base font-bold text-amber-200 flex items-center gap-2">
@@ -55,7 +54,7 @@
 				<!-- Economy & Rules -->
 				<div class="bg-[#181d28] p-3.5 rounded-xl border border-slate-800">
 					<h3 class="font-bold text-sm text-emerald-300 flex items-center gap-1.5 mb-2">
-						<Coins class="w-4 h-4 text-emerald-400" />
+						<UiIcon name="coins" class="w-4 h-4 text-emerald-400" />
 						Економіка та правила матчу
 					</h3>
 					<ul class="space-y-1.5 leading-relaxed">
@@ -90,13 +89,13 @@
 				<!-- Damage & Armor Matrix -->
 				<div class="bg-[#181d28] p-3.5 rounded-xl border border-slate-800">
 					<h3 class="font-bold text-sm text-blue-300 flex items-center gap-1.5 mb-2">
-						<Shield class="w-4 h-4 text-blue-400" />
+						<UiIcon name="shield" class="w-4 h-4 text-blue-400" />
 						Матриця ефективності: Типи атаки та броні
 					</h3>
 					<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px] text-center font-mono">
 						<div class="p-2 bg-slate-900 rounded-lg border border-slate-700">
 							<strong class="text-amber-300 block mb-1 flex items-center justify-center gap-1">
-								<Swords class="w-3 h-3" />
+								<UiIcon name="swords" class="w-3 h-3" />
 								Звичайна
 							</strong>
 							150% по Середній<br />100% по Легкій<br />70% по Укріпленій
@@ -119,7 +118,7 @@
 				<!-- Hotkeys Section -->
 				<div class="bg-[#181d28] p-3.5 rounded-xl border border-slate-800">
 					<h3 class="font-bold text-sm text-amber-300 flex items-center gap-1.5 mb-2">
-						<Keyboard class="w-4 h-4 text-amber-400" />
+						<UiIcon name="keyboard" class="w-4 h-4 text-amber-400" />
 						Гарячі клавіші управління
 					</h3>
 					<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">

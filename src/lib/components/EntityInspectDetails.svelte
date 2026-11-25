@@ -16,16 +16,7 @@
 		getCommanderDescription
 	} from '../engine/commanders';
 	import { WORKER_MOVE_SPEED } from '../engine/constants';
-	import {
-		Shield,
-		Swords,
-		Footprints,
-		Layers,
-		Crosshair,
-		Zap,
-		Feather,
-		Crown
-	} from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import CombatMatrixTooltip, {
 		ATTACK_NAMES_UK,
 		ARMOR_NAMES_UK,
@@ -82,7 +73,7 @@
 			{player.isBot ? `Бот-будівельник #${player.slot}` : 'Будівельник'}
 		</span>
 		<div class="flex items-center gap-1.5 pt-0.5 text-xs">
-			<Footprints class="w-4 h-4 text-amber-400 shrink-0" />
+			<UiIcon name="footprints" class="w-4 h-4 text-amber-400 shrink-0" />
 			<span class="text-[#9ca3af]">Швидкість:</span>
 			<span class="font-mono text-slate-100 font-bold text-sm">
 				{Math.round(player.worker?.speed ?? WORKER_MOVE_SPEED)}
@@ -101,7 +92,7 @@
 					Boolean(player.isRandomCommander)
 				)}"
 			>
-				<Crown class="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+				<UiIcon name="crown" class="w-3.5 h-3.5 text-indigo-400 shrink-0" />
 				<span class="text-[#9ca3af] shrink-0">Ком.:</span>
 				<span class="font-bold text-indigo-200 truncate">
 					{activeCommander.name}{player.isRandomCommander ? ' ×2' : ''}
@@ -192,7 +183,7 @@
 
 	{#if activeEntityType === 'none'}
 		<div class="flex items-center justify-center text-xs text-slate-400 py-4 gap-2">
-			<Shield class="w-4 h-4 text-amber-500/60" />
+			<UiIcon name="shield" class="w-4 h-4 text-amber-500/60" />
 			<span>Клікніть на воїна, будівлю або свого робітника для огляду</span>
 		</div>
 	{:else if activeEntityType === 'group'}
@@ -225,7 +216,7 @@
 				}}
 				onmouseleave={() => (hoveredMatrix = null)}
 			>
-				<Shield class="w-3.5 h-3.5 text-blue-400 shrink-0" />
+				<UiIcon name="shield" class="w-3.5 h-3.5 text-blue-400 shrink-0" />
 				<span class="text-[#9ca3af]">Захист:</span>
 				<span
 					class="font-bold text-emerald-300 underline decoration-dotted decoration-emerald-500/50"
@@ -251,7 +242,7 @@
 				}}
 				onmouseleave={() => (hoveredMatrix = null)}
 			>
-				<Swords class="w-3.5 h-3.5 text-rose-400 shrink-0" />
+				<UiIcon name="swords" class="w-3.5 h-3.5 text-rose-400 shrink-0" />
 				<span class="text-[#9ca3af]">Атака:</span>
 				<span class="font-bold text-amber-200 underline decoration-dotted decoration-amber-500/50">
 					{selectedUnit.damageMin}-{selectedUnit.damageMax} ({selectedUnit.attackType})
@@ -260,7 +251,7 @@
 
 			<!-- 3. Attack Range Row (Дистанція атаки) -->
 			<div class="flex items-center gap-1.5 text-slate-300">
-				<Crosshair class="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+				<UiIcon name="crosshair" class="w-3.5 h-3.5 text-cyan-400 shrink-0" />
 				<span class="text-[#9ca3af]">Дистанція:</span>
 				<span class="font-mono text-amber-300 font-bold">
 					{selectedUnit.range} px
@@ -269,7 +260,7 @@
 
 			<!-- 4. Attack Speed / Cooldown Row (Швидкість атаки) -->
 			<div class="flex items-center gap-1.5 text-slate-300">
-				<Zap class="w-3.5 h-3.5 text-amber-400 shrink-0" />
+				<UiIcon name="zap" class="w-3.5 h-3.5 text-amber-400 shrink-0" />
 				<span class="text-[#9ca3af]">Швидкість атаки:</span>
 				<span class="font-mono text-slate-200">
 					{selectedUnit.attackCooldown.toFixed(1)} с
@@ -278,7 +269,7 @@
 
 			<!-- 5. Movement Speed Row (Швидкість пересування) -->
 			<div class="flex items-center gap-1.5 text-slate-300">
-				<Footprints class="w-3.5 h-3.5 text-amber-400 shrink-0" />
+				<UiIcon name="footprints" class="w-3.5 h-3.5 text-amber-400 shrink-0" />
 				<span class="text-[#9ca3af]">Швидкість:</span>
 				<span class="font-mono text-slate-200">
 					{selectedUnit.speed}
@@ -287,7 +278,7 @@
 
 			<!-- 6. Movement Type Row (Тип пересування) -->
 			<div class="flex items-center gap-1.5 text-slate-300">
-				<Feather class="w-3.5 h-3.5 text-purple-400 shrink-0" />
+				<UiIcon name="feather" class="w-3.5 h-3.5 text-purple-400 shrink-0" />
 				<span class="text-[#9ca3af]">Тип пересування:</span>
 				<span class="font-bold {selectedUnit.flying ? 'text-cyan-300' : 'text-emerald-300'}">
 					{selectedUnit.flying ? 'Повітряний юніт' : 'Наземний юніт'}
@@ -310,7 +301,7 @@
 				}}
 				onmouseleave={() => (hoveredMatrix = null)}
 			>
-				<Shield class="w-3.5 h-3.5 text-blue-400 shrink-0" />
+				<UiIcon name="shield" class="w-3.5 h-3.5 text-blue-400 shrink-0" />
 				<span class="text-[#9ca3af]">Захист:</span>
 				<span
 					class="font-bold text-emerald-300 underline decoration-dotted decoration-emerald-500/50"
@@ -348,7 +339,7 @@
 				}}
 				onmouseleave={() => (hoveredMatrix = null)}
 			>
-				<Swords class="w-3.5 h-3.5 text-rose-400 shrink-0" />
+				<UiIcon name="swords" class="w-3.5 h-3.5 text-rose-400 shrink-0" />
 				<span class="text-[#9ca3af]">Атака:</span>
 				<span class="font-bold text-amber-200 underline decoration-dotted decoration-amber-500/50">
 					{#if activeEntityType === 'castle'}
@@ -365,14 +356,14 @@
 
 			<!-- Movement / Range Row -->
 			<div class="flex items-center gap-1.5 text-slate-300">
-				<Footprints class="w-3.5 h-3.5 text-amber-400 shrink-0" />
+				<UiIcon name="footprints" class="w-3.5 h-3.5 text-amber-400 shrink-0" />
 				<span class="text-[#9ca3af]">Швидкість:</span>
 				<span class="font-mono text-slate-200"> Нерухомо </span>
 			</div>
 
 			<!-- Secondary Ability / Spawn Status -->
 			<div class="flex items-center gap-1.5 text-slate-300">
-				<Layers class="w-3.5 h-3.5 text-purple-400 shrink-0" />
+				<UiIcon name="layers" class="w-3.5 h-3.5 text-purple-400 shrink-0" />
 				<span class="text-[#9ca3af]">Статус:</span>
 				<span class="text-[11px] text-purple-200 truncate max-w-[130px]">
 					{#if activeEntityType === 'castle'}

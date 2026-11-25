@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ArrowLeft, LogIn } from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { t } from '$lib/i18n';
 	import { isValidRoomCode } from '$lib/net/roomCode';
 
@@ -42,7 +42,7 @@
 			aria-label={t('online.back')}
 			data-testid="window-back-btn"
 		>
-			<ArrowLeft class="w-5 h-5" />
+			<UiIcon name="arrowLeft" class="w-5 h-5" />
 		</button>
 	</div>
 
@@ -66,7 +66,7 @@
 		onclick={submit}
 		class="w-full min-h-[44px] py-3 bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-slate-950 font-extrabold rounded-xl shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
 	>
-		<LogIn class="w-5 h-5" />
+		<UiIcon name="logIn" class="w-5 h-5" />
 		<span>{t('online.join')}</span>
 	</button>
 </div>

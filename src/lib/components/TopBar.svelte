@@ -12,34 +12,12 @@
 	import { createHoverMenu, hoverMenuContainer } from '$lib/ui/hoverMenu.svelte';
 	import { playerAvatar } from '$lib/services/playerAvatar.svelte';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
-	import {
-		ArrowLeft,
-		House,
-		Volume2,
-		VolumeX,
-		Maximize2,
-		Minimize2,
-		Coins,
-		Shield,
-		BookOpen,
-		Hammer,
-		Play,
-		Pause,
-		Sparkles,
-		ShoppingBag,
-		Crown,
-		Flame,
-		Menu,
-		Settings,
-		TreePine,
-		Sun,
-		Moon
-	} from 'lucide-svelte';
-
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	let {
 		sim,
 		uiTick = 0,
 		isOnline = false,
+		isSpectator = false,
 		activePlayer = null,
 		onOpenForge,
 		onOpenCommander,
@@ -51,6 +29,7 @@
 		sim: Simulation;
 		uiTick?: number;
 		isOnline?: boolean;
+		isSpectator?: boolean;
 		activePlayer?: PlayerState | null;
 		onOpenForge: () => void;
 		onOpenCommander: () => void;
@@ -171,7 +150,7 @@
 					aria-label="Назад до вибору режимів"
 					data-testid="topbar-back-link"
 				>
-					<ArrowLeft class="w-4 h-4" />
+					<UiIcon name="arrowLeft" class="w-4 h-4" />
 				</a>
 				<div
 					class="absolute top-full left-0 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-amber-100 flex items-center gap-1.5"
@@ -193,7 +172,7 @@
 					aria-label="Головне меню"
 					data-testid="topbar-home-link"
 				>
-					<House class="w-4 h-4" />
+					<UiIcon name="house" class="w-4 h-4" />
 				</a>
 				<div
 					class="absolute top-full left-0 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-amber-100 flex items-center gap-1.5"
@@ -211,7 +190,7 @@
 					aria-label="Довідник гри: правила, економіка та гарячі клавіші (F9)"
 					aria-keyshortcuts="F9"
 				>
-					<BookOpen class="w-4 h-4 text-amber-400 shrink-0" />
+					<UiIcon name="bookOpen" class="w-4 h-4 text-amber-400 shrink-0" />
 				</button>
 				<div
 					class="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-amber-100 flex items-center gap-1.5"
@@ -233,7 +212,7 @@
 					class={neutralBtnClass}
 					aria-label="Меню налаштувань матчу"
 				>
-					<Menu class="w-4 h-4 text-amber-300 shrink-0" />
+					<UiIcon name="menu" class="w-4 h-4 text-amber-300 shrink-0" />
 				</button>
 				<div
 					class="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-amber-100 flex items-center gap-1.5"
@@ -260,9 +239,9 @@
 					data-testid="topbar-sound-toggle"
 				>
 					{#if settings.sound}
-						<Volume2 class="w-4 h-4 text-emerald-400" />
+						<UiIcon name="volume2" class="w-4 h-4 text-emerald-400" />
 					{:else}
-						<VolumeX class="w-4 h-4 text-slate-500" />
+						<UiIcon name="volumeX" class="w-4 h-4 text-slate-500" />
 					{/if}
 				</button>
 				<div
@@ -282,9 +261,9 @@
 						data-testid="topbar-fullscreen-toggle"
 					>
 						{#if fullscreen.active}
-							<Minimize2 class="w-4 h-4 text-amber-400" />
+							<UiIcon name="minimize2" class="w-4 h-4 text-amber-400" />
 						{:else}
-							<Maximize2 class="w-4 h-4 text-slate-300" />
+							<UiIcon name="maximize2" class="w-4 h-4 text-slate-300" />
 						{/if}
 					</button>
 					<div
@@ -322,7 +301,7 @@
 					aria-label="Загальні налаштування"
 					data-testid="topbar-settings-btn"
 				>
-					<Settings class="w-4 h-4 text-amber-300" />
+					<UiIcon name="settings" class="w-4 h-4 text-amber-300" />
 				</button>
 				<div
 					class="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-amber-100"
@@ -361,9 +340,9 @@
 					style="transform: rotate({sunAngle}deg);"
 				>
 					{#if isDay}
-						<Sun class="w-4 h-4 text-amber-400 transition-all duration-500" />
+						<UiIcon name="sun" class="w-4 h-4 text-amber-400 transition-all duration-500" />
 					{:else}
-						<Moon class="w-4 h-4 text-indigo-300 transition-all duration-500" />
+						<UiIcon name="moon" class="w-4 h-4 text-indigo-300 transition-all duration-500" />
 					{/if}
 				</div>
 			</div>
@@ -420,7 +399,7 @@
 						class="px-2 h-7 rounded-lg bg-amber-950/80 border border-amber-500/70 text-[10px] font-bold text-amber-300 animate-pulse flex items-center gap-1"
 						data-testid="boss-timer-badge"
 					>
-						<Crown class="w-3.5 h-3.5 text-amber-400 shrink-0" />
+						<UiIcon name="crown" class="w-3.5 h-3.5 text-amber-400 shrink-0" />
 						<span>БОС НА АРЕНІ!</span>
 					</div>
 				{:else}
@@ -429,7 +408,7 @@
 						title="Час до появи нейтрального боса"
 						data-testid="boss-timer-badge"
 					>
-						<Crown class="w-3 h-3 text-amber-400/80 shrink-0" />
+						<UiIcon name="crown" class="w-3 h-3 text-amber-400/80 shrink-0" />
 						<span>Бос: {bossSpawnTimer}с</span>
 					</div>
 				{/if}
@@ -458,9 +437,9 @@
 						aria-keyshortcuts="Space"
 					>
 						{#if isRunning}
-							<Pause class="w-4 h-4 text-amber-400" />
+							<UiIcon name="pause" class="w-4 h-4 text-amber-400" />
 						{:else}
-							<Play class="w-4 h-4 text-emerald-400" />
+							<UiIcon name="play" class="w-4 h-4 text-emerald-400" />
 						{/if}
 					</button>
 					<div
@@ -550,210 +529,217 @@
 		{/if}
 
 		<!-- Dock 3B: In-Game Action Buttons (Командири, Кузня, Магазин, Супер сила, Рятівний удар) -->
-		<div class={dockClass} data-testid="topbar-game-actions-dock">
-			<!-- Commanders (C) -->
-			<div class="relative group/tip flex items-center">
-				<button
-					onclick={onOpenCommander}
-					data-testid="hud-commander-btn"
-					class="{baseBtnClass} bg-[#16192b] hover:bg-[#222745] border-indigo-500/70 hover:border-indigo-400 text-indigo-200 {commanderStatus.isFree &&
-					!commander
-						? 'ring-2 ring-indigo-400/50'
-						: ''}"
-					aria-label="Командири: {commander
-						? `${commander.name}${player.isRandomCommander ? ' ×2' : ''} (${commander.nickname})`
-						: commanderStatus.hasHall
-							? 'доступний вибір командира'
-							: 'потрібен Дім командира'} (Гаряча клавіша: C)"
-					aria-keyshortcuts="c"
-				>
-					<Crown class="w-4 h-4 shrink-0 {commander ? 'text-indigo-300' : 'text-indigo-400/80'}" />
-					{#if commanderStatus.isFree && !commander}
-						<span
-							class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-indigo-400 ring-2 ring-[#131722] animate-pulse"
-						></span>
-					{:else if commander}
-						<span
-							class="absolute -bottom-1 -right-1 text-[8px] font-mono bg-indigo-600 px-1 py-0.5 rounded text-white font-bold leading-none border border-indigo-300/60"
-						>
-							{player.isRandomCommander ? '×2' : '✓'}
-						</span>
-					{/if}
-				</button>
-				<div
-					class="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-indigo-200 flex items-center gap-1.5"
-				>
-					<span>
-						Командир: {commander
-							? `${commander.name}${player.isRandomCommander ? ' (×2)' : ''}`
+		{#if !isSpectator}
+			<div class={dockClass} data-testid="topbar-game-actions-dock">
+				<!-- Commanders (C) -->
+				<div class="relative group/tip flex items-center">
+					<button
+						onclick={onOpenCommander}
+						data-testid="hud-commander-btn"
+						class="{baseBtnClass} bg-[#16192b] hover:bg-[#222745] border-indigo-500/70 hover:border-indigo-400 text-indigo-200 {commanderStatus.isFree &&
+						!commander
+							? 'ring-2 ring-indigo-400/50'
+							: ''}"
+						aria-label="Командири: {commander
+							? `${commander.name}${player.isRandomCommander ? ' ×2' : ''} (${commander.nickname})`
 							: commanderStatus.hasHall
-								? 'Можна обрати'
-								: 'Не обрано'}
-					</span>
-					<span
-						class="text-[9px] font-mono font-bold text-indigo-300 bg-black/60 px-1 rounded border border-indigo-500/60"
+								? 'доступний вибір командира'
+								: 'потрібен Дім командира'} (Гаряча клавіша: C)"
+						aria-keyshortcuts="c"
 					>
-						C
-					</span>
-				</div>
-			</div>
-
-			<!-- War Forge (F) -->
-			<div class="relative group/tip flex items-center">
-				<button
-					onclick={onOpenForge}
-					data-testid="hud-forge-btn"
-					class={neutralBtnClass}
-					aria-label="Військова Кузня (Гаряча клавіша: F)"
-					aria-keyshortcuts="f"
-				>
-					<Hammer class="w-4 h-4 text-amber-400 shrink-0" />
-					{#if player.forge.attack + player.forge.armor + player.forge.econ > 0}
-						<span
-							class="absolute -top-1 -right-1 bg-amber-500 text-slate-950 text-[9px] w-4 h-4 rounded-full font-bold flex items-center justify-center leading-none shadow"
-						>
-							{player.forge.attack + player.forge.armor + player.forge.econ}
-						</span>
-					{/if}
-				</button>
-				<div
-					class="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-amber-100 flex items-center gap-1.5"
-				>
-					<span>Військова Кузня</span>
-					<span
-						class="text-[9px] font-mono font-bold text-amber-400 bg-black/60 px-1 rounded border border-[#544738]"
+						<UiIcon
+							name="crown"
+							class="w-4 h-4 shrink-0 {commander ? 'text-indigo-300' : 'text-indigo-400/80'}"
+						/>
+						{#if commanderStatus.isFree && !commander}
+							<span
+								class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-indigo-400 ring-2 ring-[#131722] animate-pulse"
+							></span>
+						{:else if commander}
+							<span
+								class="absolute -bottom-1 -right-1 text-[8px] font-mono bg-indigo-600 px-1 py-0.5 rounded text-white font-bold leading-none border border-indigo-300/60"
+							>
+								{player.isRandomCommander ? '×2' : '✓'}
+							</span>
+						{/if}
+					</button>
+					<div
+						class="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-indigo-200 flex items-center gap-1.5"
 					>
-						F
-					</span>
-				</div>
-			</div>
-
-			<!-- Castle Shop (B) -->
-			<div class="relative group/tip flex items-center">
-				<button
-					onclick={onOpenShop}
-					data-testid="hud-shop-btn"
-					class="{baseBtnClass} bg-[#15281e] hover:bg-[#1b3828] border-emerald-600/70 hover:border-emerald-400 text-emerald-300"
-					aria-label="Магазин замку: припаси та захист (Гаряча клавіша: B)"
-					aria-keyshortcuts="b"
-				>
-					<ShoppingBag class="w-4 h-4 text-emerald-400 shrink-0" />
-				</button>
-				<div
-					class="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-emerald-200 flex items-center gap-1.5"
-				>
-					<span>Магазин замку</span>
-					<span
-						class="text-[9px] font-mono font-bold text-emerald-300 bg-black/60 px-1 rounded border border-emerald-600/70"
-					>
-						B
-					</span>
-				</div>
-			</div>
-
-			<!-- Race Ability Quick Button (R) -->
-			<div class="relative group/tip flex items-center">
-				<button
-					onclick={() => {
-						if (!canCastRaceSkill) return;
-						if (
-							!routeBattleCommand?.('USE_ABILITY', {
-								team: player.team,
-								playerSlot: player.slot
-							})
-						) {
-							sim.useRaceSkill(player.team, player);
-						}
-					}}
-					disabled={!canCastRaceSkill}
-					data-testid="hud-race-ability-btn"
-					class="{baseBtnClass} {canCastRaceSkill
-						? 'bg-purple-900/90 hover:bg-purple-800 border-purple-400 text-purple-100 ring-2 ring-purple-400/50 animate-pulse'
-						: 'bg-[#181d28] border-[#3b3226] text-slate-500 cursor-not-allowed opacity-60'}"
-					aria-label="{raceAbility.nameUk}: {raceAbility.descriptionUk} (Гаряча клавіша: R)"
-					aria-keyshortcuts="r"
-				>
-					<Sparkles
-						class="w-4 h-4 shrink-0 {canCastRaceSkill ? 'text-purple-300' : 'text-slate-500'}"
-					/>
-					{#if raceSkillUnlockLeft > 0}
-						<span
-							class="absolute -bottom-1 -right-1 text-[8px] font-mono bg-black/85 px-1 py-0.5 rounded text-slate-400 leading-none border border-slate-700"
-						>
-							{raceSkillUnlockLeft}с
+						<span>
+							Командир: {commander
+								? `${commander.name}${player.isRandomCommander ? ' (×2)' : ''}`
+								: commanderStatus.hasHall
+									? 'Можна обрати'
+									: 'Не обрано'}
 						</span>
-					{:else if raceSkillCd > 0}
 						<span
-							class="absolute -bottom-1 -right-1 text-[8px] font-mono bg-black/85 px-1 py-0.5 rounded text-amber-400 font-bold leading-none border border-amber-500/40"
+							class="text-[9px] font-mono font-bold text-indigo-300 bg-black/60 px-1 rounded border border-indigo-500/60"
 						>
-							{Math.ceil(raceSkillCd)}с
-						</span>
-					{/if}
-				</button>
-				<div
-					class="absolute top-full right-0 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-purple-200 flex items-center gap-1.5"
-				>
-					<span>{raceAbility.nameUk}</span>
-					<span
-						class="text-[9px] font-mono font-bold text-purple-300 bg-black/60 px-1 rounded border border-purple-500/60"
-					>
-						R
-					</span>
-				</div>
-			</div>
-
-			<!-- Rescue Strike Quick Button (E) -->
-			<div class="relative group/tip flex items-center">
-				<button
-					onclick={() => {
-						if (!canUseRescue) return;
-						if (
-							!routeBattleCommand?.('RESCUE_STRIKE', {
-								team: player.team,
-								playerSlot: player.slot
-							})
-						) {
-							sim.triggerRescueStrike(player.team, player);
-						}
-					}}
-					disabled={!canUseRescue}
-					data-testid="hud-rescue-strike-btn"
-					class="{baseBtnClass} {canUseRescue
-						? 'bg-rose-950/90 hover:bg-rose-900 border-rose-500 text-rose-100 ring-2 ring-rose-500/50'
-						: 'bg-[#181d28] border-[#3b3226] text-slate-500 cursor-not-allowed opacity-60'}"
-					aria-label="Рятівний Удар навколо вашого замку (-950 облогової шкоди ворогам у 750px, 2× золото за вбитих, особистий КД 180с, клавіша E)"
-					aria-keyshortcuts="e"
-				>
-					<Flame
-						class="w-4 h-4 shrink-0 {canUseRescue
-							? 'text-rose-400 animate-pulse'
-							: 'text-slate-500'}"
-					/>
-					{#if rescueCd > 0}
-						<span
-							class="absolute -bottom-1 -right-1 text-[8px] font-mono bg-black/85 px-1 py-0.5 rounded text-amber-400 font-bold leading-none border border-amber-500/40"
-						>
-							{Math.ceil(rescueCd)}с
-						</span>
-					{/if}
-				</button>
-				<div
-					class="absolute top-full right-0 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1.5 rounded-md shadow-2xl text-[11px] text-rose-200 flex flex-col gap-0.5"
-				>
-					<div class="flex items-center gap-1.5 font-bold">
-						<span>Рятівний удар</span>
-						<span
-							class="text-[9px] font-mono font-bold text-rose-300 bg-black/60 px-1 rounded border border-rose-500/60"
-						>
-							E
+							C
 						</span>
 					</div>
-					<span class="text-[10px] text-slate-300 font-normal">
-						950 шкоди ворогам у 750px • 2× золото за знищених • КД: 180с
-					</span>
+				</div>
+
+				<!-- War Forge (F) -->
+				<div class="relative group/tip flex items-center">
+					<button
+						onclick={onOpenForge}
+						data-testid="hud-forge-btn"
+						class={neutralBtnClass}
+						aria-label="Військова Кузня (Гаряча клавіша: F)"
+						aria-keyshortcuts="f"
+					>
+						<UiIcon name="hammer" class="w-4 h-4 text-amber-400 shrink-0" />
+						{#if player.forge.attack + player.forge.armor + player.forge.econ > 0}
+							<span
+								class="absolute -top-1 -right-1 bg-amber-500 text-slate-950 text-[9px] w-4 h-4 rounded-full font-bold flex items-center justify-center leading-none shadow"
+							>
+								{player.forge.attack + player.forge.armor + player.forge.econ}
+							</span>
+						{/if}
+					</button>
+					<div
+						class="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-amber-100 flex items-center gap-1.5"
+					>
+						<span>Військова Кузня</span>
+						<span
+							class="text-[9px] font-mono font-bold text-amber-400 bg-black/60 px-1 rounded border border-[#544738]"
+						>
+							F
+						</span>
+					</div>
+				</div>
+
+				<!-- Castle Shop (B) -->
+				<div class="relative group/tip flex items-center">
+					<button
+						onclick={onOpenShop}
+						data-testid="hud-shop-btn"
+						class="{baseBtnClass} bg-[#15281e] hover:bg-[#1b3828] border-emerald-600/70 hover:border-emerald-400 text-emerald-300"
+						aria-label="Магазин замку: припаси та захист (Гаряча клавіша: B)"
+						aria-keyshortcuts="b"
+					>
+						<UiIcon name="shoppingBag" class="w-4 h-4 text-emerald-400 shrink-0" />
+					</button>
+					<div
+						class="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-emerald-200 flex items-center gap-1.5"
+					>
+						<span>Магазин замку</span>
+						<span
+							class="text-[9px] font-mono font-bold text-emerald-300 bg-black/60 px-1 rounded border border-emerald-600/70"
+						>
+							B
+						</span>
+					</div>
+				</div>
+
+				<!-- Race Ability Quick Button (R) -->
+				<div class="relative group/tip flex items-center">
+					<button
+						onclick={() => {
+							if (!canCastRaceSkill) return;
+							if (
+								!routeBattleCommand?.('USE_ABILITY', {
+									team: player.team,
+									playerSlot: player.slot
+								})
+							) {
+								sim.useRaceSkill(player.team, player);
+							}
+						}}
+						disabled={!canCastRaceSkill}
+						data-testid="hud-race-ability-btn"
+						class="{baseBtnClass} {canCastRaceSkill
+							? 'bg-purple-900/90 hover:bg-purple-800 border-purple-400 text-purple-100 ring-2 ring-purple-400/50 animate-pulse'
+							: 'bg-[#181d28] border-[#3b3226] text-slate-500 cursor-not-allowed opacity-60'}"
+						aria-label="{raceAbility.nameUk}: {raceAbility.descriptionUk} (Гаряча клавіша: R)"
+						aria-keyshortcuts="r"
+					>
+						<UiIcon
+							name="sparkles"
+							class="w-4 h-4 shrink-0 {canCastRaceSkill ? 'text-purple-300' : 'text-slate-500'}"
+						/>
+						{#if raceSkillUnlockLeft > 0}
+							<span
+								class="absolute -bottom-1 -right-1 text-[8px] font-mono bg-black/85 px-1 py-0.5 rounded text-slate-400 leading-none border border-slate-700"
+							>
+								{raceSkillUnlockLeft}с
+							</span>
+						{:else if raceSkillCd > 0}
+							<span
+								class="absolute -bottom-1 -right-1 text-[8px] font-mono bg-black/85 px-1 py-0.5 rounded text-amber-400 font-bold leading-none border border-amber-500/40"
+							>
+								{Math.ceil(raceSkillCd)}с
+							</span>
+						{/if}
+					</button>
+					<div
+						class="absolute top-full right-0 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-purple-200 flex items-center gap-1.5"
+					>
+						<span>{raceAbility.nameUk}</span>
+						<span
+							class="text-[9px] font-mono font-bold text-purple-300 bg-black/60 px-1 rounded border border-purple-500/60"
+						>
+							R
+						</span>
+					</div>
+				</div>
+
+				<!-- Rescue Strike Quick Button (E) -->
+				<div class="relative group/tip flex items-center">
+					<button
+						onclick={() => {
+							if (!canUseRescue) return;
+							if (
+								!routeBattleCommand?.('RESCUE_STRIKE', {
+									team: player.team,
+									playerSlot: player.slot
+								})
+							) {
+								sim.triggerRescueStrike(player.team, player);
+							}
+						}}
+						disabled={!canUseRescue}
+						data-testid="hud-rescue-strike-btn"
+						class="{baseBtnClass} {canUseRescue
+							? 'bg-rose-950/90 hover:bg-rose-900 border-rose-500 text-rose-100 ring-2 ring-rose-500/50'
+							: 'bg-[#181d28] border-[#3b3226] text-slate-500 cursor-not-allowed opacity-60'}"
+						aria-label="Рятівний Удар навколо вашого замку (-950 облогової шкоди ворогам у 750px, 2× золото за вбитих, особистий КД 180с, клавіша E)"
+						aria-keyshortcuts="e"
+					>
+						<UiIcon
+							name="flame"
+							class="w-4 h-4 shrink-0 {canUseRescue
+								? 'text-rose-400 animate-pulse'
+								: 'text-slate-500'}"
+						/>
+						{#if rescueCd > 0}
+							<span
+								class="absolute -bottom-1 -right-1 text-[8px] font-mono bg-black/85 px-1 py-0.5 rounded text-amber-400 font-bold leading-none border border-amber-500/40"
+							>
+								{Math.ceil(rescueCd)}с
+							</span>
+						{/if}
+					</button>
+					<div
+						class="absolute top-full right-0 mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1.5 rounded-md shadow-2xl text-[11px] text-rose-200 flex flex-col gap-0.5"
+					>
+						<div class="flex items-center gap-1.5 font-bold">
+							<span>Рятівний удар</span>
+							<span
+								class="text-[9px] font-mono font-bold text-rose-300 bg-black/60 px-1 rounded border border-rose-500/60"
+							>
+								E
+							</span>
+						</div>
+						<span class="text-[10px] text-slate-300 font-normal">
+							950 шкоди ворогам у 750px • 2× золото за знищених • КД: 180с
+						</span>
+					</div>
 				</div>
 			</div>
-		</div>
+		{/if}
 
 		<!-- Dock 3C: Authentic WC3 Resource Boxes (Dedicated Visual Container) -->
 		<div
@@ -767,7 +753,7 @@
 					class="flex items-center gap-1.5 font-bold text-amber-400 shrink-0"
 					title="Золото гравця • Дохід: +{periodicGold}g кожні {incomeEvery}с (наступне через {incomeIn}с)"
 				>
-					<Coins class="w-4 h-4 text-amber-400 shrink-0" />
+					<UiIcon name="coins" class="w-4 h-4 text-amber-400 shrink-0" />
 					<span class="text-sm font-mono tracking-tight tabular-nums">{playerGold}</span>
 				</div>
 
@@ -778,7 +764,8 @@
 						: 'text-slate-500'} border-l border-[#3b3226] pl-2.5 shrink-0"
 					title="Запас деревини для вдосконалення технологій та будівель вищого тиру"
 				>
-					<TreePine
+					<UiIcon
+						name="treePine"
 						class="w-3.5 h-3.5 shrink-0 {westLumber > 0 ? 'text-emerald-400' : 'text-slate-500'}"
 					/>
 					<span class="font-mono font-bold tabular-nums">{westLumber}</span>
@@ -792,7 +779,8 @@
 						: 'text-slate-500'}"
 					title="Ліміт легендарних будівель (Їжа): {player.food}/{player.maxFood}. Збільшуйте ліміт у магазині замку (B)!"
 				>
-					<Crown
+					<UiIcon
+						name="crown"
 						class="w-3.5 h-3.5 shrink-0 {player.maxFood > 0 ? 'text-amber-400' : 'text-slate-500'}"
 					/>
 					<span class="font-mono font-bold tabular-nums">{player.food}/{player.maxFood}</span>
@@ -800,8 +788,8 @@
 			</div>
 		</div>
 
-		<!-- Dock 3D: Castles HP Meters (Shown ONLY in bot-vs-bot spectator mode without human players) -->
-		{#if isBotVsBot}
+		<!-- Dock 3D: Castles HP Meters (Shown in bot-vs-bot, replay, or spectator mode) -->
+		{#if isBotVsBot || isSpectator}
 			<div
 				class="bg-[#131722]/95 backdrop-blur-md rounded-b-xl rounded-t-none border-b-2 border-x-2 border-t-0 border-[#544738] px-3 py-1.5 shadow-2xl pointer-events-auto flex items-center gap-2.5 shrink-0"
 				data-testid="castle-hp-meters"
@@ -820,7 +808,7 @@
 						class="flex justify-between items-center text-[10px] font-bold mb-0.5 whitespace-nowrap gap-1"
 					>
 						<span class="text-blue-400 flex items-center gap-0.5">
-							<Shield class="w-3 h-3 text-blue-400 shrink-0" />
+							<UiIcon name="shield" class="w-3 h-3 text-blue-400 shrink-0" />
 							Ваш Замок
 						</span>
 						<span class="text-slate-300 font-mono text-[9px]">{westHp}</span>
@@ -851,7 +839,7 @@
 						<span class="text-slate-300 font-mono text-[9px]">{eastHp}</span>
 						<span class="text-rose-400 flex items-center gap-0.5">
 							Замок Ворога
-							<Shield class="w-3 h-3 text-rose-400 shrink-0" />
+							<UiIcon name="shield" class="w-3 h-3 text-rose-400 shrink-0" />
 						</span>
 					</div>
 					<div class="h-2 w-full bg-[#0c1017] rounded-full overflow-hidden border border-[#3b3226]">

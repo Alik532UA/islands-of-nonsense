@@ -2,19 +2,7 @@
 	import type { Simulation } from '../engine/simulation';
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
-	import {
-		Trophy,
-		Skull,
-		RotateCcw,
-		Award,
-		Crown,
-		Pause,
-		Play,
-		Clock,
-		ArrowLeft,
-		House
-	} from 'lucide-svelte';
-
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	let {
 		sim,
 		uiTick = 0,
@@ -22,8 +10,10 @@
 		isOnlineHost = true,
 		earnedScore = null,
 		earnedXp = null,
+		serializedReplay = null,
 		onNextRound,
-		onReselectCommander
+		onReselectCommander,
+		onWatchReplay
 	}: {
 		sim: Simulation;
 		uiTick?: number;
@@ -31,9 +21,23 @@
 		isOnlineHost?: boolean;
 		earnedScore?: number | null;
 		earnedXp?: number | null;
+		serializedReplay?: string | null;
 		onNextRound: () => void;
 		onReselectCommander?: () => void;
+		onWatchReplay?: () => void;
 	} = $props();
+
+	let replayCopied = $state(false);
+	async function copyReplayJson() {
+		if (!serializedReplay || typeof navigator === 'undefined') return;
+		try {
+			await navigator.clipboard.writeText(serializedReplay);
+			replayCopied = true;
+			setTimeout(() => (replayCopied = false), 2000);
+		} catch {
+			// ignore clipboard errors
+		}
+	}
 
 	// Explicitly derive from uiTick so Svelte 5 reacts to simulation round/match completion
 	let winner = $derived(uiTick >= 0 ? sim.winner : null);
@@ -96,14 +100,14 @@
 			>
 				{#if isMatchOver}
 					{#if isWestWin}
-						<Award class="w-12 h-12 text-amber-400 animate-bounce" />
+						<UiIcon name="award" class="w-12 h-12 text-amber-400 animate-bounce" />
 					{:else}
-						<Skull class="w-12 h-12 text-red-400" />
+						<UiIcon name="skull" class="w-12 h-12 text-red-400" />
 					{/if}
 				{:else if isWestWin}
-					<Trophy class="w-12 h-12" />
+					<UiIcon name="trophy" class="w-12 h-12" />
 				{:else}
-					<Skull class="w-12 h-12" />
+					<UiIcon name="skull" class="w-12 h-12" />
 				{/if}
 			</div>
 
@@ -140,7 +144,7 @@
 							class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold"
 							data-testid="victory-earned-score"
 						>
-							<Trophy class="w-3.5 h-3.5" />
+							<UiIcon name="trophy" class="w-3.5 h-3.5" />
 							<span>+{earnedScore} рейтингових очок</span>
 						</div>
 					{/if}
@@ -149,7 +153,7 @@
 							class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs font-bold"
 							data-testid="victory-earned-xp"
 						>
-							<Award class="w-3.5 h-3.5" />
+							<UiIcon name="award" class="w-3.5 h-3.5" />
 							<span>+{earnedXp} XP</span>
 						</div>
 					{/if}
@@ -163,7 +167,7 @@
 				>
 					<div class="flex items-center gap-2">
 						<div class="p-1.5 bg-amber-500/20 text-amber-400 rounded-lg">
-							<Crown class="w-4 h-4" />
+							<UiIcon name="crown" class="w-4 h-4" />
 						</div>
 						<div class="text-left">
 							<div class="text-[10px] font-bold uppercase tracking-wider text-amber-400">
@@ -258,7 +262,7 @@
 			<div class="mb-4 bg-slate-950/60 border border-slate-800 rounded-xl p-2.5 text-xs">
 				<div class="flex items-center justify-between mb-1.5 text-slate-300">
 					<div class="flex items-center gap-1.5">
-						<Clock class="w-3.5 h-3.5 text-amber-400" />
+						<UiIcon name="clock" class="w-3.5 h-3.5 text-amber-400" />
 						{#if isPaused}
 							<span class="text-amber-400 font-bold">Таймер на паузі</span>
 						{:else}
@@ -276,10 +280,10 @@
 						title={isPaused ? 'Відновити зворотний відлік' : 'Призупинити зворотний відлік'}
 					>
 						{#if isPaused}
-							<Play class="w-2.5 h-2.5 text-emerald-400" />
+							<UiIcon name="play" class="w-2.5 h-2.5 text-emerald-400" />
 							<span>Відновити</span>
 						{:else}
-							<Pause class="w-2.5 h-2.5 text-amber-400" />
+							<UiIcon name="pause" class="w-2.5 h-2.5 text-amber-400" />
 							<span>Пауза</span>
 						{/if}
 					</button>
@@ -306,7 +310,7 @@
 							class="py-3 px-4 rounded-xl font-bold text-xs tracking-wide transition flex items-center justify-center gap-1.5 cursor-pointer bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 shadow-lg hover:border-amber-400"
 							data-testid="victory-reselect-commander-btn"
 						>
-							<Crown class="w-4 h-4 text-amber-400" />
+							<UiIcon name="crown" class="w-4 h-4 text-amber-400" />
 							Командир
 						</button>
 					{/if}
@@ -322,7 +326,7 @@
 								: 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/30'}"
 						data-testid="victory-next-round-btn"
 					>
-						<RotateCcw class="w-4 h-4" />
+						<UiIcon name="rotateCcw" class="w-4 h-4" />
 						{#if isMatchOver}
 							Зіграти ще раз {!isPaused ? `(${countdown}с)` : ''}
 						{:else}
@@ -332,6 +336,29 @@
 				</div>
 
 				<!-- Navigation Buttons when match is over or between rounds -->
+				{#if isMatchOver && serializedReplay}
+					<div class="flex gap-2">
+						<button
+							type="button"
+							onclick={copyReplayJson}
+							class="flex-1 py-2 px-3 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-sky-300 border border-sky-500/30 transition cursor-pointer"
+							data-testid="victory-copy-replay-btn"
+						>
+							{replayCopied ? 'Скопійовано!' : 'Копіювати реплей'}
+						</button>
+						{#if onWatchReplay}
+							<button
+								type="button"
+								onclick={onWatchReplay}
+								class="flex-1 py-2 px-3 rounded-lg text-xs font-bold bg-emerald-600/25 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/40 transition cursor-pointer"
+								data-testid="victory-watch-replay-btn"
+							>
+								Повтор бою
+							</button>
+						{/if}
+					</div>
+				{/if}
+
 				<div class="pt-2 border-t border-slate-800 flex items-center justify-between gap-2">
 					<button
 						type="button"
@@ -339,7 +366,7 @@
 						class="flex-1 py-2 px-3 rounded-lg text-xs font-semibold bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition flex items-center justify-center gap-1.5 cursor-pointer"
 						data-testid="victory-exit-modes-btn"
 					>
-						<ArrowLeft class="w-3.5 h-3.5 text-amber-400" />
+						<UiIcon name="arrowLeft" class="w-3.5 h-3.5 text-amber-400" />
 						<span>До режимів</span>
 					</button>
 
@@ -349,7 +376,7 @@
 						class="flex-1 py-2 px-3 rounded-lg text-xs font-semibold bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition flex items-center justify-center gap-1.5 cursor-pointer"
 						data-testid="victory-exit-home-btn"
 					>
-						<House class="w-3.5 h-3.5 text-slate-400" />
+						<UiIcon name="house" class="w-3.5 h-3.5 text-slate-400" />
 						<span>Головне меню</span>
 					</button>
 				</div>

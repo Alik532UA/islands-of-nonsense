@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Coins, TreePine } from 'lucide-svelte';
 	import { getContext } from 'svelte';
 	import type { Simulation } from '../engine/simulation';
 	import { BATTLE_COMMAND_ROUTER_KEY, type BattleCommandRouter } from '$lib/net/onlineMatchSetup';
@@ -60,27 +61,7 @@
 		}
 		sound.playForgeUpgrade();
 	}
-	import {
-		Trash2,
-		X,
-		Crown,
-		Hammer,
-		Castle,
-		Swords,
-		Users,
-		Wrench,
-		ShieldAlert,
-		Sparkles,
-		Crosshair,
-		Feather,
-		Zap,
-		ShoppingBag,
-		Package,
-		Coins,
-		TreePine,
-		Shield,
-		Lightbulb
-	} from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { CASTLE_ITEMS_LIST, type CastleItem } from '../engine/items';
 	import { settings } from '../services/settings.svelte';
 
@@ -198,7 +179,7 @@
 						class="col-span-2 h-10 rounded border border-amber-500 bg-amber-950/70 hover:bg-amber-900/90 text-amber-200 flex items-center justify-center gap-1.5 px-2 transition cursor-pointer shadow"
 						title="Відправити робітника добудувати споруду"
 					>
-						<Hammer class="w-4 h-4 text-amber-400" />
+						<UiIcon name="hammer" class="w-4 h-4 text-amber-400" />
 						<span class="text-[10px] font-bold">Добудувати</span>
 					</button>
 					<button
@@ -207,7 +188,7 @@
 						class="h-10 rounded border border-rose-600/70 bg-rose-950/60 hover:bg-rose-900/80 text-rose-200 flex items-center justify-center gap-1 px-1 transition cursor-pointer"
 						title="Скасувати будівництво"
 					>
-						<Trash2 class="w-3.5 h-3.5 text-rose-400" />
+						<UiIcon name="trash2" class="w-3.5 h-3.5 text-rose-400" />
 						<span class="text-[9px] font-bold">Скасувати</span>
 					</button>
 					<button
@@ -216,7 +197,7 @@
 						class="h-10 rounded border border-slate-600 bg-slate-800 hover:bg-slate-700 text-slate-200 flex flex-col items-center justify-center p-1 transition cursor-pointer"
 						title="Закрити вибір (Esc)"
 					>
-						<X class="w-4 h-4 text-slate-300" />
+						<UiIcon name="x" class="w-4 h-4 text-slate-300" />
 						<span class="text-[8px] font-mono">Esc</span>
 					</button>
 				{:else if placedBuilding.specialType === 'shop'}
@@ -227,7 +208,7 @@
 					<div class="col-span-4 flex flex-col justify-between w-[280px] h-full py-0.5">
 						<div class="flex items-center justify-between border-b border-[#3b3226] pb-1 shrink-0">
 							<span class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
-								<ShoppingBag class="w-3.5 h-3.5 text-amber-400" />
+								<UiIcon name="shoppingBag" class="w-3.5 h-3.5 text-amber-400" />
 								Магазин
 							</span>
 							<div class="flex items-center gap-1">
@@ -237,7 +218,7 @@
 										data-testid="hud-repair-btn"
 										class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-emerald-950/80 hover:bg-emerald-900 border-emerald-500/70 text-emerald-200 cursor-pointer shadow flex items-center gap-0.5"
 									>
-										<Wrench class="w-2.5 h-2.5 text-emerald-400" />
+										<UiIcon name="wrench" class="w-2.5 h-2.5 text-emerald-400" />
 										<span>Ремонт [R]</span>
 									</button>
 								{/if}
@@ -246,7 +227,7 @@
 									data-testid="hud-sell-btn"
 									class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-rose-950/70 hover:bg-rose-900 border-rose-600/70 text-rose-200 cursor-pointer shadow flex items-center gap-0.5"
 								>
-									<Trash2 class="w-2.5 h-2.5 text-rose-400" />
+									<UiIcon name="trash2" class="w-2.5 h-2.5 text-rose-400" />
 									<span>Знести (+25g)</span>
 								</button>
 								<button
@@ -331,7 +312,7 @@
 					<div class="col-span-4 flex flex-col justify-between w-[280px] h-full py-0.5">
 						<div class="flex items-center justify-between border-b border-[#3b3226] pb-1 shrink-0">
 							<span class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
-								<Hammer class="w-3.5 h-3.5 text-amber-400" />
+								<UiIcon name="hammer" class="w-3.5 h-3.5 text-amber-400" />
 								Військова Кузня
 							</span>
 							<div class="flex items-center gap-1">
@@ -341,7 +322,7 @@
 										data-testid="hud-repair-btn"
 										class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-emerald-950/80 hover:bg-emerald-900 border-emerald-500/70 text-emerald-200 cursor-pointer shadow flex items-center gap-0.5"
 									>
-										<Wrench class="w-2.5 h-2.5 text-emerald-400" />
+										<UiIcon name="wrench" class="w-2.5 h-2.5 text-emerald-400" />
 										<span>Ремонт [R]</span>
 									</button>
 								{/if}
@@ -350,7 +331,7 @@
 									data-testid="hud-sell-btn"
 									class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-rose-950/70 hover:bg-rose-900 border-rose-600/70 text-rose-200 cursor-pointer shadow flex items-center gap-0.5"
 								>
-									<Trash2 class="w-2.5 h-2.5 text-rose-400" />
+									<UiIcon name="trash2" class="w-2.5 h-2.5 text-rose-400" />
 									<span>Знести (+50g)</span>
 								</button>
 								<button
@@ -372,7 +353,7 @@
 								title="Атака: +8% шкоди всім військам"
 							>
 								<span class="text-[9.5px] font-bold text-rose-300 flex items-center gap-1">
-									<Swords class="w-3 h-3 text-rose-400 shrink-0" />
+									<UiIcon name="swords" class="w-3 h-3 text-rose-400 shrink-0" />
 									<span>Атака {atkLvl}/5</span>
 								</span>
 								<span class="text-[8px] text-slate-400">+8% шкоди</span>
@@ -405,7 +386,7 @@
 								title="Броня: +1 броні всім військам"
 							>
 								<span class="text-[9.5px] font-bold text-blue-300 flex items-center gap-1">
-									<Shield class="w-3 h-3 text-blue-400 shrink-0" />
+									<UiIcon name="shield" class="w-3 h-3 text-blue-400 shrink-0" />
 									<span>Броня {armLvl}/5</span>
 								</span>
 								<span class="text-[8px] text-slate-400">+1 броня</span>
@@ -470,7 +451,7 @@
 					<div class="col-span-4 flex flex-col justify-between w-[280px] h-full py-0.5">
 						<div class="flex items-center justify-between border-b border-[#3b3226] pb-1 shrink-0">
 							<span class="text-[11px] font-bold text-indigo-300 flex items-center gap-1">
-								<Crown class="w-3.5 h-3.5 text-indigo-400" />
+								<UiIcon name="crown" class="w-3.5 h-3.5 text-indigo-400" />
 								Дім командира
 							</span>
 							<div class="flex items-center gap-1">
@@ -480,7 +461,7 @@
 										data-testid="hud-repair-btn"
 										class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-emerald-950/80 hover:bg-emerald-900 border-emerald-500/70 text-emerald-200 cursor-pointer shadow flex items-center gap-0.5"
 									>
-										<Wrench class="w-2.5 h-2.5 text-emerald-400" />
+										<UiIcon name="wrench" class="w-2.5 h-2.5 text-emerald-400" />
 										<span>Ремонт [R]</span>
 									</button>
 								{/if}
@@ -489,7 +470,7 @@
 									data-testid="hud-sell-btn"
 									class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-rose-950/70 hover:bg-rose-900 border-rose-600/70 text-rose-200 cursor-pointer shadow flex items-center gap-0.5"
 								>
-									<Trash2 class="w-2.5 h-2.5 text-rose-400" />
+									<UiIcon name="trash2" class="w-2.5 h-2.5 text-rose-400" />
 									<span>Знести (+{Math.round(placedBuilding.goldCost * 0.5)}g)</span>
 								</button>
 								<button
@@ -533,7 +514,7 @@
 								data-testid="hud-open-commander-btn"
 								class="w-full py-1.5 px-3 rounded border border-indigo-400/70 bg-indigo-950/80 hover:bg-indigo-900 text-indigo-100 text-[11px] font-bold flex items-center justify-center gap-1.5 cursor-pointer transition shadow"
 							>
-								<Crown class="w-3.5 h-3.5 text-indigo-300" />
+								<UiIcon name="crown" class="w-3.5 h-3.5 text-indigo-300" />
 								<span>{activeCmd ? 'Змінити командира' : 'Обрати командира'}</span>
 							</button>
 						</div>
@@ -582,7 +563,7 @@
 							title="Наказати робітникові відремонтувати споруду (R)"
 						>
 							<span class="text-[10px] font-bold flex items-center gap-0.5">
-								<Wrench class="w-3 h-3 text-emerald-400" />
+								<UiIcon name="wrench" class="w-3 h-3 text-emerald-400" />
 								Ремонт
 							</span>
 							<span class="text-[8px] font-mono text-emerald-300 font-bold">[R]</span>
@@ -596,7 +577,7 @@
 						title="Знести споруду (+50% повернення золота)"
 					>
 						<span class="text-[10px] font-bold flex items-center gap-0.5">
-							<Trash2 class="w-3 h-3 text-rose-400" />
+							<UiIcon name="trash2" class="w-3 h-3 text-rose-400" />
 							Знести
 						</span>
 						<span class="text-[9px] text-emerald-300 font-mono font-bold">
@@ -611,7 +592,7 @@
 						class="relative col-start-4 w-16 h-10 rounded border border-slate-600 bg-slate-800 hover:bg-slate-700 text-slate-200 flex flex-col items-center justify-center p-1 transition cursor-pointer"
 						title="Закрити вибір (Esc)"
 					>
-						<X class="w-4 h-4 text-slate-300" />
+						<UiIcon name="x" class="w-4 h-4 text-slate-300" />
 						<span class="text-[8px] font-mono">Esc</span>
 					</button>
 				{/if}
@@ -621,7 +602,7 @@
 			<div class="flex flex-col justify-between w-[280px] h-full py-1">
 				<div class="flex items-center justify-between border-b border-[#3b3226] pb-1">
 					<span class="text-[11px] font-bold text-rose-400 flex items-center gap-1">
-						<Hammer class="w-3.5 h-3.5 text-rose-400" />
+						<UiIcon name="hammer" class="w-3.5 h-3.5 text-rose-400" />
 						{placedBuilding.name} (Ворог)
 					</span>
 					<button
@@ -661,7 +642,7 @@
 		<div class="flex flex-col justify-between w-[280px] h-full py-1">
 			<div class="flex items-center justify-between border-b border-[#3b3226] pb-1">
 				<span class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
-					<Castle class="w-3.5 h-3.5 text-amber-400" />
+					<UiIcon name="castle" class="w-3.5 h-3.5 text-amber-400" />
 					{selectedCastle.team === player.team ? 'Головна Цитадель' : 'Ворожа База'}
 				</span>
 				<button
@@ -687,7 +668,7 @@
 					<div
 						class="text-[9px] text-slate-400 border-t border-slate-800 pt-1 flex items-center gap-1"
 					>
-						<Lightbulb class="w-3.5 h-3.5 text-amber-400 shrink-0 inline" />
+						<UiIcon name="lightbulb" class="w-3.5 h-3.5 text-amber-400 shrink-0 inline" />
 						<span>
 							Припаси доступні в окремій будівлі <span class="text-amber-300 font-bold">
 								Магазин
@@ -704,7 +685,7 @@
 							title="Наказати робітникові ремонтувати цитадель (R)"
 						>
 							<span class="text-[9.5px] font-bold flex items-center gap-0.5">
-								<Wrench class="w-3 h-3 text-emerald-400" />
+								<UiIcon name="wrench" class="w-3 h-3 text-emerald-400" />
 								Ремонт
 							</span>
 							<span class="text-[8px] font-mono text-emerald-300 font-bold">[R]</span>
@@ -720,7 +701,7 @@
 							title="Наказати робітникові відбудувати зламаний міст (50 деревини)"
 						>
 							<span class="text-[9.5px] font-bold flex items-center gap-0.5">
-								<Wrench class="w-3 h-3 text-amber-400" />
+								<UiIcon name="wrench" class="w-3 h-3 text-amber-400" />
 								Міст
 							</span>
 							<span class="text-[8px] font-mono text-amber-300 font-bold flex items-center gap-0.5">
@@ -760,7 +741,7 @@
 							? 'text-purple-300'
 							: 'text-rose-400'} flex items-center gap-1"
 				>
-					<Swords class="w-3.5 h-3.5" />
+					<UiIcon name="swords" class="w-3.5 h-3.5" />
 					{selectedUnit.name}
 				</span>
 				<button
@@ -795,7 +776,7 @@
 		<div class="flex flex-col justify-between w-[280px] h-full py-1">
 			<div class="flex items-center justify-between border-b border-[#3b3226] pb-1">
 				<span class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
-					<Users class="w-3.5 h-3.5" />
+					<UiIcon name="users" class="w-3.5 h-3.5" />
 					Загін бійців ({groupUnits.length})
 				</span>
 				<button
@@ -848,27 +829,27 @@
 						class="absolute top-0.5 left-0.5 flex items-center justify-center pointer-events-none"
 					>
 						{#if bld.specialType === 'shop'}
-							<ShoppingBag class="w-3 h-3 text-amber-300 drop-shadow" />
+							<UiIcon name="shoppingBag" class="w-3 h-3 text-amber-300 drop-shadow" />
 						{:else if bld.specialType === 'forge'}
-							<Hammer class="w-3 h-3 text-cyan-300 drop-shadow" />
+							<UiIcon name="hammer" class="w-3 h-3 text-cyan-300 drop-shadow" />
 						{:else if bld.specialType === 'commander'}
-							<Crown class="w-3 h-3 text-indigo-300 drop-shadow" />
+							<UiIcon name="crown" class="w-3 h-3 text-indigo-300 drop-shadow" />
 						{:else if bld.id === 'h008'}
-							<Package class="w-3 h-3 text-amber-400 drop-shadow" />
+							<UiIcon name="package" class="w-3 h-3 text-amber-400 drop-shadow" />
 						{:else if isLeg}
-							<Crown class="w-3 h-3 text-amber-300 drop-shadow animate-pulse" />
+							<UiIcon name="crown" class="w-3 h-3 text-amber-300 drop-shadow animate-pulse" />
 						{:else if bld.specialType === 'tower'}
-							<ShieldAlert class="w-3 h-3 text-cyan-400 drop-shadow" />
+							<UiIcon name="shieldAlert" class="w-3 h-3 text-cyan-400 drop-shadow" />
 						{:else if bld.specialType === 'special' || bld.specialType === 'repair' || bld.specialType === 'recycler'}
-							<Zap class="w-3 h-3 text-purple-400 drop-shadow" />
+							<UiIcon name="zap" class="w-3 h-3 text-purple-400 drop-shadow" />
 						{:else if bUnit?.flying}
-							<Feather class="w-3 h-3 text-sky-300 drop-shadow" />
+							<UiIcon name="feather" class="w-3 h-3 text-sky-300 drop-shadow" />
 						{:else if bUnit?.attack_type === 'pierce'}
-							<Crosshair class="w-3 h-3 text-emerald-400 drop-shadow" />
+							<UiIcon name="crosshair" class="w-3 h-3 text-emerald-400 drop-shadow" />
 						{:else if bUnit?.attack_type === 'magic'}
-							<Sparkles class="w-3 h-3 text-indigo-300 drop-shadow" />
+							<UiIcon name="sparkles" class="w-3 h-3 text-indigo-300 drop-shadow" />
 						{:else}
-							<Swords class="w-3 h-3 text-amber-200 drop-shadow" />
+							<UiIcon name="swords" class="w-3 h-3 text-amber-200 drop-shadow" />
 						{/if}
 					</div>
 
@@ -938,7 +919,7 @@
 					<div
 						class="absolute top-0.5 left-0.5 flex items-center justify-center pointer-events-none"
 					>
-						<Wrench class="w-3 h-3 text-amber-400 drop-shadow" />
+						<UiIcon name="wrench" class="w-3 h-3 text-amber-400 drop-shadow" />
 					</div>
 					<!-- Bottom-right: amount then TreePine icon -->
 					<div
@@ -1069,7 +1050,7 @@
 				<div
 					class="mt-2 text-[10px] text-amber-300 bg-amber-950/50 p-1.5 rounded border border-amber-500/40 flex items-center gap-1"
 				>
-					<Crown class="w-3.5 h-3.5 text-amber-400 shrink-0" />
+					<UiIcon name="crown" class="w-3.5 h-3.5 text-amber-400 shrink-0" />
 					<span>Легендарна споруда. Потребує їжу ({player.food}/{player.maxFood}).</span>
 				</div>
 			{/if}

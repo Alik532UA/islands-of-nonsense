@@ -2,18 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import {
-		Bell,
-		Eye,
-		MessageSquare,
-		Radio,
-		Search,
-		Shield,
-		UserMinus,
-		UserPlus,
-		Users,
-		X
-	} from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import type { AccountState, Profile } from '$lib/net/account';
 	import {
 		DEFAULT_PRIVACY,
@@ -171,7 +160,7 @@
 <div class="space-y-5" data-testid="friends-panel">
 	{#if accountState !== 'linked'}
 		<div class="p-6 bg-slate-950/60 border border-slate-800 rounded-2xl text-center space-y-2">
-			<Users class="w-8 h-8 text-amber-400 mx-auto" />
+			<UiIcon name="users" class="w-8 h-8 text-amber-400 mx-auto" />
 			<div class="text-sm font-bold text-slate-200">{t('social.linkTitle')}</div>
 			<div class="text-xs text-slate-400">{t('social.linkDesc')}</div>
 		</div>
@@ -180,7 +169,7 @@
 		{#if inbox.length > 0}
 			<div class="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-2">
 				<div class="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-					<Bell class="w-3.5 h-3.5" />
+					<UiIcon name="bell" class="w-3.5 h-3.5" />
 					<span>{t('social.inboxTitle')} ({inbox.length})</span>
 				</div>
 				{#each inbox.slice(0, 5) as item (item.id)}
@@ -230,7 +219,7 @@
 								class="p-1 rounded hover:bg-slate-800 text-slate-400 cursor-pointer"
 								aria-label={t('common.close')}
 							>
-								<X class="w-3.5 h-3.5" />
+								<UiIcon name="x" class="w-3.5 h-3.5" />
 							</button>
 						</div>
 					</div>
@@ -241,7 +230,10 @@
 		<!-- Handle Search -->
 		<form onsubmit={runSearch} class="flex gap-2">
 			<div class="relative flex-1">
-				<Search class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+				<UiIcon
+					name="search"
+					class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"
+				/>
 				<input
 					type="text"
 					bind:value={searchQuery}
@@ -290,10 +282,10 @@
 								: 'bg-amber-500 text-slate-950'}"
 						>
 							{#if followingSet.has(user.uid)}
-								<UserMinus class="w-3 h-3" />
+								<UiIcon name="userMinus" class="w-3 h-3" />
 								<span>{t('social.unfollow')}</span>
 							{:else}
-								<UserPlus class="w-3 h-3" />
+								<UiIcon name="userPlus" class="w-3 h-3" />
 								<span>{t('social.follow')}</span>
 							{/if}
 						</button>
@@ -315,7 +307,7 @@
 						: 'bg-slate-900 text-slate-400 hover:text-slate-200'}"
 				>
 					{#if tabItem.id === 'discovery'}
-						<Radio class="w-3.5 h-3.5 text-emerald-400" />
+						<UiIcon name="radio" class="w-3.5 h-3.5 text-emerald-400" />
 					{/if}
 					<span>{tabItem.label}</span>
 				</button>
@@ -377,7 +369,7 @@
 								title={t('social.viewProfile')}
 								aria-label={t('social.viewProfile')}
 							>
-								<Eye class="w-3.5 h-3.5" />
+								<UiIcon name="eye" class="w-3.5 h-3.5" />
 							</button>
 							<button
 								type="button"
@@ -386,7 +378,7 @@
 								title={t('chat.openDm')}
 								aria-label={t('chat.openDm')}
 							>
-								<MessageSquare class="w-3.5 h-3.5" />
+								<UiIcon name="messageSquare" class="w-3.5 h-3.5" />
 							</button>
 							{#if listTab === 'followers'}
 								{#if !followingSet.has(user.uid)}
@@ -405,7 +397,7 @@
 									title={t('social.removeFollower')}
 									aria-label={t('social.removeFollower')}
 								>
-									<X class="w-3.5 h-3.5" />
+									<UiIcon name="x" class="w-3.5 h-3.5" />
 								</button>
 							{:else}
 								<button
@@ -431,7 +423,7 @@
 			<div
 				class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5"
 			>
-				<Shield class="w-4 h-4 text-sky-400" />
+				<UiIcon name="shield" class="w-4 h-4 text-sky-400" />
 				<span>{t('social.privacy.title')}</span>
 			</div>
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">

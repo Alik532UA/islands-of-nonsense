@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { CircleUser, Volume2, VolumeX, Maximize2, Minimize2, Sliders } from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { settings } from '$lib/services/settings.svelte';
 	import { fullscreen, canFullscreen, isStandalone } from '$lib/services/fullscreen.svelte';
 	import { playerAvatar } from '$lib/services/playerAvatar.svelte';
@@ -40,9 +40,9 @@
 		data-testid="header-sound-toggle"
 	>
 		{#if settings.sound}
-			<Volume2 class="w-4 h-4 text-emerald-400" />
+			<UiIcon name="volume2" class="w-4 h-4 text-emerald-400" />
 		{:else}
-			<VolumeX class="w-4 h-4 text-slate-400" />
+			<UiIcon name="volumeX" class="w-4 h-4 text-slate-400" />
 		{/if}
 	</button>
 
@@ -55,7 +55,7 @@
 		aria-label={t('settings.btn') || 'Налаштування'}
 		data-testid="header-settings-btn"
 	>
-		<Sliders class="w-4 h-4 text-amber-300 hover:rotate-45 transition-transform" />
+		<UiIcon name="sliders" class="w-4 h-4 text-amber-300 hover:rotate-45 transition-transform" />
 	</button>
 
 	<!-- Account link -->
@@ -69,7 +69,7 @@
 		{#if playerAvatar.value}
 			<Avatar avatar={playerAvatar.value} size={20} />
 		{:else}
-			<CircleUser class="w-5 h-5 text-amber-400" />
+			<UiIcon name="circleUser" class="w-5 h-5 text-amber-400" />
 		{/if}
 	</a>
 
@@ -84,9 +84,9 @@
 			data-testid="header-fullscreen-toggle"
 		>
 			{#if fullscreen.active}
-				<Minimize2 class="w-4 h-4 text-sky-400" />
+				<UiIcon name="minimize2" class="w-4 h-4 text-sky-400" />
 			{:else}
-				<Maximize2 class="w-4 h-4 text-slate-300" />
+				<UiIcon name="maximize2" class="w-4 h-4 text-slate-300" />
 			{/if}
 		</button>
 	{/if}

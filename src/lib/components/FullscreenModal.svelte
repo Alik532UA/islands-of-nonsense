@@ -1,20 +1,6 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
-	import {
-		AppWindow,
-		CircleAlert,
-		Dock,
-		EllipsisVertical,
-		ExternalLink,
-		Grid2x2Plus,
-		Menu,
-		MonitorDown,
-		Share,
-		Smartphone,
-		SquarePlus,
-		Maximize2,
-		X
-	} from 'lucide-svelte';
+	import UiIcon, { type UiIconName } from '$lib/components/ui/UiIcon.svelte';
 	import { t } from '$lib/i18n';
 	import { canPromptInstall, promptInstall } from '$lib/pwa/installPrompt';
 	import { GUIDES, guideFor, type StepIcon } from '$lib/pwa/installGuide';
@@ -35,17 +21,17 @@
 	const which = guideFor(userAgent, maxTouchPoints);
 	const guide = GUIDES[which] ?? GUIDES.desktop;
 
-	const ICONS: Record<StepIcon, typeof Share> = {
-		share: Share,
-		add: SquarePlus,
-		dots: EllipsisVertical,
-		menu: Menu,
-		install: MonitorDown,
-		installEdge: Grid2x2Plus,
-		dock: Dock,
-		browser: ExternalLink,
-		phone: Smartphone,
-		app: AppWindow
+	const ICONS: Record<StepIcon, UiIconName> = {
+		share: 'share',
+		add: 'squarePlus',
+		dots: 'ellipsisVertical',
+		menu: 'menu',
+		install: 'monitorDown',
+		installEdge: 'grid2x2Plus',
+		dock: 'dock',
+		browser: 'externalLink',
+		phone: 'smartphone',
+		app: 'appWindow'
 	};
 
 	let dialog = $state<HTMLDialogElement>();
@@ -115,7 +101,7 @@
 				aria-label={t('common.close')}
 				data-testid="fullscreen-modal-close-btn"
 			>
-				<X class="w-5 h-5" aria-hidden="true" />
+				<UiIcon name="x" class="w-5 h-5" />
 			</button>
 		</div>
 
@@ -132,7 +118,7 @@
 						class="w-10 h-10 rounded-lg bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400 shrink-0 group-hover:scale-105 transition-transform"
 						aria-hidden="true"
 					>
-						<Maximize2 class="w-5 h-5" />
+						<UiIcon name="maximize2" class="w-5 h-5" />
 					</div>
 					<div class="flex-1 min-w-0">
 						<div class="font-bold text-sm text-slate-100 group-hover:text-amber-200">
@@ -155,9 +141,9 @@
 						aria-hidden="true"
 					>
 						{#if which === 'edge'}
-							<Grid2x2Plus class="w-5 h-5 -rotate-90" />
+							<UiIcon name="grid2x2Plus" class="w-5 h-5 -rotate-90" />
 						{:else}
-							<MonitorDown class="w-5 h-5" />
+							<UiIcon name="monitorDown" class="w-5 h-5" />
 						{/if}
 					</div>
 					<div class="flex-1 min-w-0">
@@ -186,7 +172,6 @@
 
 			<ol class="space-y-2.5 my-2" data-testid="fullscreen-modal-steps-list">
 				{#each guide.steps as step, index (step.text)}
-					{@const StepIconComponent = ICONS[step.icon]}
 					<li
 						class="flex items-center gap-3 p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs text-slate-200"
 						data-testid="fullscreen-modal-step-item"
@@ -197,7 +182,8 @@
 							{index + 1}
 						</span>
 						<span class="text-amber-400 shrink-0" aria-hidden="true">
-							<StepIconComponent
+							<UiIcon
+								name={ICONS[step.icon]}
 								class="w-4 h-4 {step.icon === 'installEdge' ? '-rotate-90' : ''}"
 							/>
 						</span>
@@ -211,7 +197,7 @@
 					class="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs"
 					data-testid="fullscreen-modal-warning-text"
 				>
-					<CircleAlert class="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
+					<UiIcon name="circleAlert" class="w-4 h-4 shrink-0 mt-0.5" />
 					<span class="leading-relaxed">{t(guide.warning)}</span>
 				</div>
 			{/if}

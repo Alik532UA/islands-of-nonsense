@@ -2,23 +2,12 @@
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import {
-		CircleUser,
-		Trophy,
-		BarChart3,
-		Award,
-		Users,
-		User,
-		CheckCircle,
-		ShieldAlert,
-		LogOut,
-		Save
-	} from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { t } from '$lib/i18n';
 	import { settings } from '$lib/services/settings.svelte';
 	import { AccountController } from '$lib/controllers/account.svelte';
 	import { playerAvatar } from '$lib/services/playerAvatar.svelte';
-	import { saveAvatar } from '$lib/net/account';
+	import { handleFree, saveAvatar } from '$lib/net/account';
 	import { toast } from '$lib/controllers/toast.svelte';
 	import { FLAG_COUNTRIES, countryName } from '$lib/config/countries';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
@@ -50,6 +39,54 @@
 	let authErrorMessage = $state('');
 	let authInfoMessage = $state('');
 	let savedSuccess = $state(false);
+	let handleStatus = $state<'idle' | 'invalid' | 'checking' | 'available' | 'taken'>('idle');
+	let handleClean = $derived(formHandle.trim().replace(/^@/, '').toLowerCase());
+
+	$effect(() => {
+		const candidate = handleClean;
+		if (!candidate) {
+			handleStatus = 'idle';
+			return;
+		}
+		if (!/^[a-z0-9_]{3,20}$/.test(candidate)) {
+			handleStatus = 'invalid';
+			return;
+		}
+		if (controller.profile?.handle && candidate === controller.profile.handle.toLowerCase()) {
+			handleStatus = 'idle';
+			return;
+		}
+		handleStatus = 'checking';
+		let active = true;
+		const timer = setTimeout(() => {
+			void handleFree(candidate).then((free) => {
+				if (active && handleClean === candidate) {
+					handleStatus = free ? 'available' : 'taken';
+				}
+			});
+		}, 350);
+		return () => {
+			active = false;
+			clearTimeout(timer);
+		};
+	});
+
+	async function handleGoogleSignIn() {
+		authErrorMessage = '';
+		authInfoMessage = '';
+		const ok = await controller.signInWithGoogle();
+		if (ok) {
+			authInfoMessage = 'Успішний вхід через Google!';
+			if (controller.profile) {
+				formName = controller.profile.name;
+				formHandle = controller.profile.handle;
+				formCountry = controller.profile.country ?? '';
+				formAvatar = controller.profile.avatar ?? playerAvatar.value;
+			}
+		} else if (controller.error) {
+			authErrorMessage = controller.error;
+		}
+	}
 
 	$effect(() => {
 		return settings.claimHeader(t('account.title'), () => goto(resolve('/')));
@@ -143,7 +180,7 @@
 		<div class="flex items-center justify-between border-b border-slate-800 pb-5 mb-6">
 			<div class="flex items-center gap-4">
 				<div class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl">
-					<CircleUser class="w-8 h-8 text-amber-400" />
+					<UiIcon name="circleUser" class="w-8 h-8 text-amber-400" />
 				</div>
 				<div>
 					<h1 class="text-2xl font-bold text-amber-300">{t('account.title')}</h1>
@@ -163,7 +200,7 @@
 					? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
 					: 'text-slate-400 hover:text-slate-200'}"
 			>
-				<User class="w-4 h-4" />
+				<UiIcon name="circleUser" class="w-4 h-4" />
 				<span>{t('account.tab.profile')}</span>
 			</button>
 
@@ -176,7 +213,7 @@
 					? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
 					: 'text-slate-400 hover:text-slate-200'}"
 			>
-				<BarChart3 class="w-4 h-4" />
+				<UiIcon name="barChart" class="w-4 h-4" />
 				<span>{t('account.tab.stats')}</span>
 			</button>
 
@@ -192,7 +229,7 @@
 					? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
 					: 'text-slate-400 hover:text-slate-200'}"
 			>
-				<Award class="w-4 h-4" />
+				<UiIcon name="award" class="w-4 h-4" />
 				<span>{t('account.tab.rewards')}</span>
 				{#if rewardsStore.unseenCount > 0}
 					<span
@@ -212,7 +249,7 @@
 					? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
 					: 'text-slate-400 hover:text-slate-200'}"
 			>
-				<Users class="w-4 h-4" />
+				<UiIcon name="users" class="w-4 h-4" />
 				<span>{t('account.tab.friends')}</span>
 			</button>
 
@@ -233,7 +270,7 @@
 					? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
 					: 'text-slate-400 hover:text-slate-200'}"
 			>
-				<Trophy class="w-4 h-4" />
+				<UiIcon name="trophy" class="w-4 h-4" />
 				<span>{t('account.tab.leaders')}</span>
 			</button>
 		</div>
@@ -242,7 +279,7 @@
 			<div
 				class="mb-6 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs text-rose-300 flex items-center gap-2"
 			>
-				<ShieldAlert class="w-4 h-4 text-rose-400 shrink-0" />
+				<UiIcon name="shieldAlert" class="w-4 h-4 text-rose-400 shrink-0" />
 				<span>{controller.error}</span>
 			</div>
 		{/if}
@@ -276,7 +313,7 @@
 								: 'bg-slate-800 text-slate-400'}"
 						>
 							{#if controller.state === 'linked'}
-								<CheckCircle class="w-3 h-3 text-emerald-400" />
+								<UiIcon name="checkCircle" class="w-3 h-3 text-emerald-400" />
 								{t('account.auth.linked')}
 							{:else}
 								{t('account.auth.anonymous')}
@@ -334,6 +371,19 @@
 								maxlength="20"
 								class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-amber-500"
 							/>
+							{#if handleStatus === 'available'}
+								<p class="text-[11px] text-emerald-400 mt-1" data-testid="handle-status">
+									{t('account.handleAvailable', { handle: handleClean })}
+								</p>
+							{:else if handleStatus === 'taken'}
+								<p class="text-[11px] text-rose-400 mt-1" data-testid="handle-status">
+									{t('account.handleTaken', { handle: handleClean })}
+								</p>
+							{:else if handleStatus === 'invalid'}
+								<p class="text-[11px] text-amber-400 mt-1" data-testid="handle-status">
+									{t('account.handleInvalid')}
+								</p>
+							{/if}
 						</div>
 					</div>
 
@@ -357,7 +407,7 @@
 					<div class="flex items-center justify-between pt-2">
 						{#if savedSuccess}
 							<span class="text-xs text-emerald-400 font-bold flex items-center gap-1.5">
-								<CheckCircle class="w-4 h-4" />
+								<UiIcon name="checkCircle" class="w-4 h-4" />
 								{t('account.saved')}
 							</span>
 						{:else}
@@ -370,7 +420,7 @@
 							disabled={controller.busy}
 							class="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition shadow-lg shadow-amber-600/20 cursor-pointer disabled:opacity-50"
 						>
-							<Save class="w-4 h-4" />
+							<UiIcon name="save" class="w-4 h-4" />
 							<span>{t('account.save')}</span>
 						</button>
 					</div>
@@ -393,7 +443,7 @@
 								disabled={controller.busy}
 								class="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-rose-300 font-bold rounded-xl text-xs transition cursor-pointer"
 							>
-								<LogOut class="w-4 h-4" />
+								<UiIcon name="logOut" class="w-4 h-4" />
 								<span>{t('account.auth.signOut')}</span>
 							</button>
 						</div>
@@ -604,6 +654,21 @@
 									</div>
 								</form>
 							{/if}
+
+							<div
+								class="pt-3 border-t border-slate-800/80 flex items-center justify-between gap-3"
+							>
+								<button
+									type="button"
+									data-testid="btn-google-signin"
+									onclick={handleGoogleSignIn}
+									disabled={controller.busy}
+									class="w-full min-h-[40px] px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-sky-400/60 text-slate-100 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50"
+								>
+									<span>G</span>
+									<span>{t('account.auth.googleBtn')}</span>
+								</button>
+							</div>
 						</div>
 					{/if}
 				</div>

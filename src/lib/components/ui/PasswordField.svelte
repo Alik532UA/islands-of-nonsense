@@ -1,7 +1,7 @@
 <script lang="ts">
+	import { Eye, EyeOff } from 'lucide-svelte';
 	import type { HTMLInputAttributes } from 'svelte/elements';
-	import { Eye, EyeOff, AlertTriangle } from 'lucide-svelte';
-
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	interface Props {
 		value?: string;
 		placeholder?: string;
@@ -78,9 +78,9 @@
 			onclick={() => (visible = !visible)}
 		>
 			{#if visible}
-				<EyeOff class="w-4 h-4" aria-hidden="true" />
+				<EyeOff class="w-4 h-4" />
 			{:else}
-				<Eye class="w-4 h-4" aria-hidden="true" />
+				<Eye class="w-4 h-4" />
 			{/if}
 		</button>
 	</div>
@@ -91,7 +91,7 @@
 			data-testid="{testId}-caps-warning"
 			role="status"
 		>
-			<AlertTriangle class="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+			<UiIcon name="alertTriangle" class="w-3.5 h-3.5 shrink-0" />
 			<span>CapsLock увімкнено</span>
 		</div>
 	{/if}

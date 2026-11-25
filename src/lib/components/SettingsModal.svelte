@@ -1,20 +1,5 @@
 <script lang="ts">
-	import {
-		X,
-		Volume2,
-		VolumeX,
-		Languages,
-		Sliders,
-		Monitor,
-		Maximize2,
-		Minimize2,
-		Sparkles,
-		Check,
-		Swords,
-		Castle,
-		Zap,
-		Scroll
-	} from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import {
 		settings,
 		UI_SCALES,
@@ -80,7 +65,7 @@
 					<div
 						class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0"
 					>
-						<Sliders class="w-5 h-5" />
+						<UiIcon name="sliders" class="w-5 h-5" />
 					</div>
 					<div>
 						<div class="text-[10px] uppercase tracking-widest text-[#d4af37] font-bold">
@@ -100,7 +85,7 @@
 					aria-label={t('common.close')}
 					data-testid="settings-close-btn"
 				>
-					<X class="w-5 h-5" />
+					<UiIcon name="x" class="w-5 h-5" />
 				</button>
 			</div>
 
@@ -115,7 +100,7 @@
 					onclick={() => (activeTab = 'audio')}
 					data-testid="settings-tab-audio"
 				>
-					<Volume2 class="w-4 h-4 shrink-0" />
+					<UiIcon name="volume2" class="w-4 h-4 shrink-0" />
 					<span>{t('settings.tab.audio')}</span>
 				</button>
 
@@ -128,7 +113,7 @@
 					onclick={() => (activeTab = 'language')}
 					data-testid="settings-tab-language"
 				>
-					<Languages class="w-4 h-4 shrink-0" />
+					<UiIcon name="languages" class="w-4 h-4 shrink-0" />
 					<span>{t('settings.tab.language')}</span>
 				</button>
 
@@ -141,7 +126,7 @@
 					onclick={() => (activeTab = 'interface')}
 					data-testid="settings-tab-interface"
 				>
-					<Monitor class="w-4 h-4 shrink-0" />
+					<UiIcon name="monitor" class="w-4 h-4 shrink-0" />
 					<span>{t('settings.tab.interface')}</span>
 				</button>
 			</div>
@@ -157,7 +142,7 @@
 						<div class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 space-y-2">
 							<div class="flex items-center justify-between text-xs font-semibold">
 								<span class="text-slate-200 flex items-center gap-2">
-									<Volume2 class="w-4 h-4 text-amber-400" />
+									<UiIcon name="volume2" class="w-4 h-4 text-amber-400" />
 									{t('settings.masterVolume')}
 								</span>
 								<span
@@ -197,10 +182,10 @@
 									data-testid="settings-sound-toggle"
 								>
 									{#if settings.sound}
-										<Volume2 class="w-4 h-4 text-emerald-400" />
+										<UiIcon name="volume2" class="w-4 h-4 text-emerald-400" />
 										<span>{t('settings.enabled')}</span>
 									{:else}
-										<VolumeX class="w-4 h-4 text-slate-500" />
+										<UiIcon name="volumeX" class="w-4 h-4 text-slate-500" />
 										<span>{t('settings.disabled')}</span>
 									{/if}
 								</button>
@@ -212,7 +197,7 @@
 									title={t('settings.testSound')}
 									data-testid="settings-test-sound-btn"
 								>
-									<Sparkles class="w-3.5 h-3.5" />
+									<UiIcon name="sparkles" class="w-3.5 h-3.5" />
 									<span class="hidden sm:inline">{t('settings.testSound')}</span>
 								</button>
 							</div>
@@ -239,7 +224,7 @@
 										<span
 											class="p-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40"
 										>
-											<Check class="w-3.5 h-3.5" />
+											<UiIcon name="check" class="w-3.5 h-3.5" />
 										</span>
 									{/if}
 								</div>
@@ -265,7 +250,7 @@
 										<span
 											class="p-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40"
 										>
-											<Check class="w-3.5 h-3.5" />
+											<UiIcon name="check" class="w-3.5 h-3.5" />
 										</span>
 									{/if}
 								</div>
@@ -321,7 +306,7 @@
 												<span
 													class="p-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 shrink-0"
 												>
-													<Check class="w-3.5 h-3.5" />
+													<UiIcon name="check" class="w-3.5 h-3.5" />
 												</span>
 											{/if}
 										</button>
@@ -355,9 +340,9 @@
 														: 'bg-slate-800/80 text-slate-400'}"
 												>
 													{#if presetId === 'islands-of-nonsense'}
-														<Sparkles class="w-4 h-4 text-amber-300" />
+														<UiIcon name="sparkles" class="w-4 h-4 text-amber-300" />
 													{:else}
-														<Swords class="w-4 h-4 text-slate-300" />
+														<UiIcon name="swords" class="w-4 h-4 text-slate-300" />
 													{/if}
 												</div>
 												<div>
@@ -374,7 +359,7 @@
 												<span
 													class="p-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 shrink-0"
 												>
-													<Check class="w-3.5 h-3.5" />
+													<UiIcon name="check" class="w-3.5 h-3.5" />
 												</span>
 											{/if}
 										</button>
@@ -408,9 +393,9 @@
 														: 'bg-slate-800/80 text-slate-400'}"
 												>
 													{#if layoutId === 'islands-of-nonsense'}
-														<Sparkles class="w-4 h-4 text-amber-300" />
+														<UiIcon name="sparkles" class="w-4 h-4 text-amber-300" />
 													{:else}
-														<Castle class="w-4 h-4 text-slate-300" />
+														<UiIcon name="castle" class="w-4 h-4 text-slate-300" />
 													{/if}
 												</div>
 												<div>
@@ -427,7 +412,7 @@
 												<span
 													class="p-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 shrink-0"
 												>
-													<Check class="w-3.5 h-3.5" />
+													<UiIcon name="check" class="w-3.5 h-3.5" />
 												</span>
 											{/if}
 										</button>
@@ -497,9 +482,9 @@
 														: 'bg-slate-800/80 text-slate-400'}"
 												>
 													{#if modeId === 'convenient'}
-														<Zap class="w-4 h-4 text-amber-300" />
+														<UiIcon name="zap" class="w-4 h-4 text-amber-300" />
 													{:else}
-														<Scroll class="w-4 h-4 text-slate-300" />
+														<UiIcon name="scroll" class="w-4 h-4 text-slate-300" />
 													{/if}
 												</div>
 												<div>
@@ -518,7 +503,7 @@
 												<span
 													class="p-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 shrink-0"
 												>
-													<Check class="w-3.5 h-3.5" />
+													<UiIcon name="check" class="w-3.5 h-3.5" />
 												</span>
 											{/if}
 										</button>
@@ -562,7 +547,7 @@
 															? 'bg-slate-900/60 text-amber-300'
 															: 'bg-black/60 text-amber-300'}"
 													>
-														<Check class="w-3.5 h-3.5" />
+														<UiIcon name="check" class="w-3.5 h-3.5" />
 													</span>
 												{/if}
 											</div>
@@ -591,10 +576,10 @@
 										data-testid="settings-fullscreen-btn"
 									>
 										{#if fullscreen.active}
-											<Minimize2 class="w-4 h-4 text-amber-400" />
+											<UiIcon name="minimize2" class="w-4 h-4 text-amber-400" />
 											<span>{t('settings.disabled')}</span>
 										{:else}
-											<Maximize2 class="w-4 h-4 text-sky-400" />
+											<UiIcon name="maximize2" class="w-4 h-4 text-sky-400" />
 											<span>{t('settings.enabled')}</span>
 										{/if}
 									</button>

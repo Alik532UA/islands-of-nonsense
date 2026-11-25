@@ -1,16 +1,17 @@
 <script lang="ts">
 	import Avatar from '$lib/components/ui/Avatar.svelte';
 	import type { LobbyRoom } from '$lib/net/roomTypes';
-	import { Users, LogIn, Heart } from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { t } from '$lib/i18n';
 
 	interface Props {
 		rooms: LobbyRoom[];
 		friendUids?: string[];
 		onJoin: (code: string) => void;
+		onSpectate?: (code: string) => void;
 	}
 
-	let { rooms = [], friendUids = [], onJoin }: Props = $props();
+	let { rooms = [], friendUids = [], onJoin, onSpectate }: Props = $props();
 
 	const friendSet = $derived(new Set(friendUids));
 	const orderedRooms = $derived(
@@ -26,7 +27,7 @@
 	<h3
 		class="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2"
 	>
-		<Users class="w-4 h-4 text-sky-400" />
+		<UiIcon name="users" class="w-4 h-4 text-sky-400" />
 		<span>{t('online.openRooms')}</span>
 		{#if orderedRooms.length > 0}
 			<span
@@ -61,7 +62,7 @@
 									<span
 										class="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/50 text-amber-300 font-bold"
 									>
-										<Heart class="w-2.5 h-2.5" />
+										<UiIcon name="heart" class="w-2.5 h-2.5" />
 										{t('social.friendBadge')}
 									</span>
 								{/if}
@@ -80,14 +81,28 @@
 						</div>
 					</div>
 
-					<button
-						type="button"
-						onclick={() => onJoin(room.code)}
-						class="min-h-[44px] py-2 px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg shadow transition-transform active:scale-95 flex items-center gap-1.5 cursor-pointer"
-					>
-						<LogIn class="w-3.5 h-3.5" />
-						<span>{t('online.join')}</span>
-					</button>
+					<div class="flex items-center gap-1.5 shrink-0">
+						{#if onSpectate}
+							<button
+								type="button"
+								onclick={() => onSpectate(room.code)}
+								class="min-h-[44px] py-2 px-3 bg-slate-900 hover:bg-slate-700 text-sky-300 border border-slate-700 font-bold text-xs rounded-lg transition-transform active:scale-95 flex items-center gap-1 cursor-pointer"
+								title={t('online.spectate')}
+								data-testid="room-spectate-btn-{room.code}"
+							>
+								<UiIcon name="eye" class="w-3.5 h-3.5" />
+								<span class="hidden sm:inline">{t('online.spectate')}</span>
+							</button>
+						{/if}
+						<button
+							type="button"
+							onclick={() => onJoin(room.code)}
+							class="min-h-[44px] py-2 px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg shadow transition-transform active:scale-95 flex items-center gap-1.5 cursor-pointer"
+						>
+							<UiIcon name="logIn" class="w-3.5 h-3.5" />
+							<span>{t('online.join')}</span>
+						</button>
+					</div>
 				</div>
 			{/each}
 		</div>

@@ -2,10 +2,12 @@
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
-	import { Bot, Sparkles, Eye, Sliders, ChevronLeft, ChevronRight, Play } from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { t } from '$lib/i18n';
 	import { settings } from '$lib/services/settings.svelte';
 	import { storage } from '$lib/services/storage';
+	import { getDailyChallengeSpec } from '$lib/config/dailyChallenge';
+	import { fetchDailyBoard, getLocalDailyBest, type DailyEntry } from '$lib/net/dailyChallenge';
 	import { type SimulationConfig } from '$lib/engine/simulation';
 	import {
 		QUICK_DIFFICULTIES as DIFFICULTIES,
@@ -51,6 +53,20 @@
 	// State for MatchConfigModal
 	let isConfigOpen = $state(false);
 	let configInitialParams = $state<Partial<SimulationConfig>>({});
+	const dailySpec = getDailyChallengeSpec();
+	let dailyBest = $state(getLocalDailyBest(dailySpec.dateKey));
+	let dailyBoardOpen = $state(false);
+	let dailyBoardRows = $state<DailyEntry[]>([]);
+	let dailyBoardLoading = $state(false);
+
+	async function toggleDailyBoard() {
+		dailyBoardOpen = !dailyBoardOpen;
+		if (dailyBoardOpen && dailyBoardRows.length === 0) {
+			dailyBoardLoading = true;
+			dailyBoardRows = await fetchDailyBoard(dailySpec.dateKey);
+			dailyBoardLoading = false;
+		}
+	}
 
 	$effect(() => {
 		const release = settings.claimHeader(
@@ -280,7 +296,7 @@
 						style="box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);"
 						data-testid="customize-btn-vsBot"
 					>
-						<Sliders class="w-3.5 h-3.5 text-amber-300" />
+						<UiIcon name="sliders" class="w-3.5 h-3.5 text-amber-300" />
 						<span>Налаштувати</span>
 					</button>
 				</div>
@@ -303,7 +319,10 @@
 						<div
 							class="absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out transform group-hover:rotate-90 group-hover:scale-50 group-hover:opacity-0"
 						>
-							<Bot class="w-20 h-20 text-amber-400 drop-shadow-[0_4px_16px_rgba(245,158,11,0.4)]" />
+							<UiIcon
+								name="bot"
+								class="w-20 h-20 text-amber-400 drop-shadow-[0_4px_16px_rgba(245,158,11,0.4)]"
+							/>
 						</div>
 
 						<!-- Hover state: Big Play Button (rotates from -90deg to 0deg and fades in) -->
@@ -313,7 +332,10 @@
 							<div
 								class="w-20 h-20 rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center shadow-[0_0_24px_rgba(245,158,11,0.6)] group-hover:scale-105 transition-transform"
 							>
-								<Play class="w-10 h-10 text-amber-300 fill-amber-300 ml-1.5 drop-shadow" />
+								<UiIcon
+									name="play"
+									class="w-10 h-10 text-amber-300 fill-amber-300 ml-1.5 drop-shadow"
+								/>
 							</div>
 						</div>
 					</div>
@@ -349,7 +371,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronLeft class="w-3.5 h-3.5" />
+									<UiIcon name="chevronLeft" class="w-3.5 h-3.5" />
 								</button>
 								<span
 									class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center truncate"
@@ -364,7 +386,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronRight class="w-3.5 h-3.5" />
+									<UiIcon name="chevronRight" class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -383,7 +405,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronLeft class="w-3.5 h-3.5" />
+									<UiIcon name="chevronLeft" class="w-3.5 h-3.5" />
 								</button>
 								<span class="font-mono font-bold text-amber-300 text-[10px] w-24 text-center">
 									{GOLDS[vsBotGoldIndex]}g
@@ -396,7 +418,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronRight class="w-3.5 h-3.5" />
+									<UiIcon name="chevronRight" class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -415,7 +437,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronLeft class="w-3.5 h-3.5" />
+									<UiIcon name="chevronLeft" class="w-3.5 h-3.5" />
 								</button>
 								<span class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center">
 									{TEAM_SIZES[vsBotTeamIndex]} на {TEAM_SIZES[vsBotTeamIndex]}
@@ -428,7 +450,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronRight class="w-3.5 h-3.5" />
+									<UiIcon name="chevronRight" class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -447,7 +469,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronLeft class="w-3.5 h-3.5" />
+									<UiIcon name="chevronLeft" class="w-3.5 h-3.5" />
 								</button>
 								<span class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center">
 									До {TARGET_WINS[vsBotWinsIndex]}
@@ -461,7 +483,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronRight class="w-3.5 h-3.5" />
+									<UiIcon name="chevronRight" class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -480,7 +502,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronLeft class="w-3.5 h-3.5" />
+									<UiIcon name="chevronLeft" class="w-3.5 h-3.5" />
 								</button>
 								<span
 									class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center truncate"
@@ -495,7 +517,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronRight class="w-3.5 h-3.5" />
+									<UiIcon name="chevronRight" class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -514,7 +536,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronLeft class="w-3.5 h-3.5" />
+									<UiIcon name="chevronLeft" class="w-3.5 h-3.5" />
 								</button>
 								<span
 									class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center truncate"
@@ -529,7 +551,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronRight class="w-3.5 h-3.5" />
+									<UiIcon name="chevronRight" class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -548,7 +570,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronLeft class="w-3.5 h-3.5" />
+									<UiIcon name="chevronLeft" class="w-3.5 h-3.5" />
 								</button>
 								<span
 									class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center truncate"
@@ -563,7 +585,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronRight class="w-3.5 h-3.5" />
+									<UiIcon name="chevronRight" class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -582,7 +604,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronLeft class="w-3.5 h-3.5" />
+									<UiIcon name="chevronLeft" class="w-3.5 h-3.5" />
 								</button>
 								<span class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center">
 									{FOG_OPTIONS[vsBotFogIndex] ? 'Увімкнено' : 'Вимкнено'}
@@ -595,7 +617,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronRight class="w-3.5 h-3.5" />
+									<UiIcon name="chevronRight" class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -623,7 +645,7 @@
 						style="box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);"
 						data-testid="customize-btn-sandbox"
 					>
-						<Sliders class="w-3.5 h-3.5 text-cyan-300" />
+						<UiIcon name="sliders" class="w-3.5 h-3.5 text-cyan-300" />
 						<span>Налаштувати</span>
 					</button>
 				</div>
@@ -646,7 +668,8 @@
 						<div
 							class="absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out transform group-hover:rotate-90 group-hover:scale-50 group-hover:opacity-0"
 						>
-							<Sparkles
+							<UiIcon
+								name="sparkles"
 								class="w-20 h-20 text-cyan-400 drop-shadow-[0_4px_16px_rgba(6,182,212,0.4)]"
 							/>
 						</div>
@@ -658,7 +681,10 @@
 							<div
 								class="w-20 h-20 rounded-full bg-cyan-500/20 border-2 border-cyan-400 flex items-center justify-center shadow-[0_0_24px_rgba(6,182,212,0.6)] group-hover:scale-105 transition-transform"
 							>
-								<Play class="w-10 h-10 text-cyan-300 fill-cyan-300 ml-1.5 drop-shadow" />
+								<UiIcon
+									name="play"
+									class="w-10 h-10 text-cyan-300 fill-cyan-300 ml-1.5 drop-shadow"
+								/>
 							</div>
 						</div>
 					</div>
@@ -694,7 +720,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronLeft class="w-3.5 h-3.5" />
+									<UiIcon name="chevronLeft" class="w-3.5 h-3.5" />
 								</button>
 								<span class="font-mono font-bold text-cyan-300 text-[10px] w-24 text-center">
 									{SANDBOX_GOLDS[sandboxGoldIndex] > 90000
@@ -709,7 +735,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronRight class="w-3.5 h-3.5" />
+									<UiIcon name="chevronRight" class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -728,7 +754,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronLeft class="w-3.5 h-3.5" />
+									<UiIcon name="chevronLeft" class="w-3.5 h-3.5" />
 								</button>
 								<span
 									class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center truncate"
@@ -743,7 +769,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronRight class="w-3.5 h-3.5" />
+									<UiIcon name="chevronRight" class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -762,7 +788,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronLeft class="w-3.5 h-3.5" />
+									<UiIcon name="chevronLeft" class="w-3.5 h-3.5" />
 								</button>
 								<span class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center">
 									{FOG_OPTIONS[sandboxFogIndex] ? 'Увімкнено' : 'Вимкнено'}
@@ -775,7 +801,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronRight class="w-3.5 h-3.5" />
+									<UiIcon name="chevronRight" class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -794,7 +820,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronLeft class="w-3.5 h-3.5" />
+									<UiIcon name="chevronLeft" class="w-3.5 h-3.5" />
 								</button>
 								<span
 									class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center truncate"
@@ -809,7 +835,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronRight class="w-3.5 h-3.5" />
+									<UiIcon name="chevronRight" class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -828,7 +854,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronLeft class="w-3.5 h-3.5" />
+									<UiIcon name="chevronLeft" class="w-3.5 h-3.5" />
 								</button>
 								<span class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center">
 									{TEAM_SIZES[sandboxTeamIndex]} на {TEAM_SIZES[sandboxTeamIndex]}
@@ -841,7 +867,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronRight class="w-3.5 h-3.5" />
+									<UiIcon name="chevronRight" class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -860,7 +886,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronLeft class="w-3.5 h-3.5" />
+									<UiIcon name="chevronLeft" class="w-3.5 h-3.5" />
 								</button>
 								<span class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center">
 									До {TARGET_WINS[sandboxWinsIndex]}
@@ -873,7 +899,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronRight class="w-3.5 h-3.5" />
+									<UiIcon name="chevronRight" class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -892,7 +918,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronLeft class="w-3.5 h-3.5" />
+									<UiIcon name="chevronLeft" class="w-3.5 h-3.5" />
 								</button>
 								<span
 									class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center truncate"
@@ -907,7 +933,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronRight class="w-3.5 h-3.5" />
+									<UiIcon name="chevronRight" class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -926,7 +952,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronLeft class="w-3.5 h-3.5" />
+									<UiIcon name="chevronLeft" class="w-3.5 h-3.5" />
 								</button>
 								<span
 									class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center truncate"
@@ -941,7 +967,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronRight class="w-3.5 h-3.5" />
+									<UiIcon name="chevronRight" class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -969,7 +995,7 @@
 						style="box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);"
 						data-testid="customize-btn-botVsBot"
 					>
-						<Sliders class="w-3.5 h-3.5 text-emerald-300" />
+						<UiIcon name="sliders" class="w-3.5 h-3.5 text-emerald-300" />
 						<span>Налаштувати</span>
 					</button>
 				</div>
@@ -992,7 +1018,8 @@
 						<div
 							class="absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out transform group-hover:rotate-90 group-hover:scale-50 group-hover:opacity-0"
 						>
-							<Eye
+							<UiIcon
+								name="eye"
 								class="w-20 h-20 text-emerald-400 drop-shadow-[0_4px_16px_rgba(16,185,129,0.4)]"
 							/>
 						</div>
@@ -1004,7 +1031,10 @@
 							<div
 								class="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center shadow-[0_0_24px_rgba(16,185,129,0.6)] group-hover:scale-105 transition-transform"
 							>
-								<Play class="w-10 h-10 text-emerald-300 fill-emerald-300 ml-1.5 drop-shadow" />
+								<UiIcon
+									name="play"
+									class="w-10 h-10 text-emerald-300 fill-emerald-300 ml-1.5 drop-shadow"
+								/>
 							</div>
 						</div>
 					</div>
@@ -1040,7 +1070,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronLeft class="w-3.5 h-3.5" />
+									<UiIcon name="chevronLeft" class="w-3.5 h-3.5" />
 								</button>
 								<span class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center">
 									{TEAM_SIZES[botVsBotTeamIndex]} на {TEAM_SIZES[botVsBotTeamIndex]}
@@ -1053,7 +1083,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronRight class="w-3.5 h-3.5" />
+									<UiIcon name="chevronRight" class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -1072,7 +1102,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronLeft class="w-3.5 h-3.5" />
+									<UiIcon name="chevronLeft" class="w-3.5 h-3.5" />
 								</button>
 								<span
 									class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center truncate"
@@ -1087,7 +1117,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronRight class="w-3.5 h-3.5" />
+									<UiIcon name="chevronRight" class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -1106,7 +1136,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronLeft class="w-3.5 h-3.5" />
+									<UiIcon name="chevronLeft" class="w-3.5 h-3.5" />
 								</button>
 								<span class="font-mono font-bold text-emerald-300 text-[10px] w-24 text-center">
 									{GOLDS[botVsBotGoldIndex]}g
@@ -1119,7 +1149,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronRight class="w-3.5 h-3.5" />
+									<UiIcon name="chevronRight" class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -1138,7 +1168,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronLeft class="w-3.5 h-3.5" />
+									<UiIcon name="chevronLeft" class="w-3.5 h-3.5" />
 								</button>
 								<span class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center">
 									До {TARGET_WINS[botVsBotWinsIndex]}
@@ -1151,7 +1181,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronRight class="w-3.5 h-3.5" />
+									<UiIcon name="chevronRight" class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -1170,7 +1200,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronLeft class="w-3.5 h-3.5" />
+									<UiIcon name="chevronLeft" class="w-3.5 h-3.5" />
 								</button>
 								<span
 									class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center truncate"
@@ -1185,7 +1215,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronRight class="w-3.5 h-3.5" />
+									<UiIcon name="chevronRight" class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -1204,7 +1234,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronLeft class="w-3.5 h-3.5" />
+									<UiIcon name="chevronLeft" class="w-3.5 h-3.5" />
 								</button>
 								<span
 									class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center truncate"
@@ -1219,7 +1249,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronRight class="w-3.5 h-3.5" />
+									<UiIcon name="chevronRight" class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -1238,7 +1268,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronLeft class="w-3.5 h-3.5" />
+									<UiIcon name="chevronLeft" class="w-3.5 h-3.5" />
 								</button>
 								<span
 									class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center truncate"
@@ -1253,7 +1283,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronRight class="w-3.5 h-3.5" />
+									<UiIcon name="chevronRight" class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -1272,7 +1302,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronLeft class="w-3.5 h-3.5" />
+									<UiIcon name="chevronLeft" class="w-3.5 h-3.5" />
 								</button>
 								<span class="font-bold text-[var(--color-text)] text-[10px] w-24 text-center">
 									{FOG_OPTIONS[botVsBotFogIndex] ? 'Увімкнено' : 'Вимкнено'}
@@ -1285,7 +1315,7 @@
 									}}
 									class="text-[var(--color-text-muted)] hover:text-[var(--color-heading)] p-0.5 cursor-pointer"
 								>
-									<ChevronRight class="w-3.5 h-3.5" />
+									<UiIcon name="chevronRight" class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -1312,7 +1342,7 @@
 						class="w-full py-1.5 px-3 rounded-xl bg-[var(--color-bg-card,#131826)]/95 hover:bg-purple-500/20 backdrop-blur-md border border-purple-400/70 text-[var(--color-heading,#fef08a)] text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg transition-colors"
 						style="box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);"
 					>
-						<Sliders class="w-3.5 h-3.5 text-purple-300" />
+						<UiIcon name="sliders" class="w-3.5 h-3.5 text-purple-300" />
 						<span>Всі параметри</span>
 					</button>
 				</div>
@@ -1335,7 +1365,8 @@
 						<div
 							class="absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out transform group-hover:rotate-90 group-hover:scale-50 group-hover:opacity-0"
 						>
-							<Sliders
+							<UiIcon
+								name="sliders"
 								class="w-20 h-20 text-purple-400 drop-shadow-[0_4px_16px_rgba(168,85,247,0.4)]"
 							/>
 						</div>
@@ -1347,7 +1378,10 @@
 							<div
 								class="w-20 h-20 rounded-full bg-purple-500/20 border-2 border-purple-400 flex items-center justify-center shadow-[0_0_24px_rgba(168,85,247,0.6)] group-hover:scale-105 transition-transform"
 							>
-								<Play class="w-10 h-10 text-purple-300 fill-purple-300 ml-1.5 drop-shadow" />
+								<UiIcon
+									name="play"
+									class="w-10 h-10 text-purple-300 fill-purple-300 ml-1.5 drop-shadow"
+								/>
 							</div>
 						</div>
 					</div>
@@ -1379,12 +1413,98 @@
 							onclick={() => openConfigFor('custom')}
 							class="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-purple-700 to-purple-600 hover:from-purple-600 hover:to-purple-500 text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-purple-900/40"
 						>
-							<Sliders class="w-3.5 h-3.5" />
+							<UiIcon name="sliders" class="w-3.5 h-3.5" />
 							<span>Відкрити конфігурацію</span>
 						</button>
 					</div>
 				</div>
 			</div>
+		</div>
+
+		<!-- Daily Challenge Banner -->
+		<div class="w-full max-w-7xl px-2 mt-4 shrink-0" data-testid="daily-challenge-banner">
+			<div
+				class="bg-[var(--color-bg-card,#131826)]/95 border border-amber-500/40 rounded-2xl px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-lg"
+			>
+				<div class="flex items-center gap-3 min-w-0">
+					<div
+						class="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-400/50 flex items-center justify-center shrink-0"
+					>
+						<UiIcon name="calendar" class="w-5 h-5 text-amber-300" />
+					</div>
+					<div class="min-w-0">
+						<div class="flex items-center gap-2 flex-wrap">
+							<span class="text-xs font-black uppercase tracking-wider text-amber-300">
+								{t('daily.badge')} · {dailySpec.dateKey}
+							</span>
+							<span
+								class="text-[11px] px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-300 font-semibold"
+							>
+								{t('daily.diff', { diff: dailySpec.botDifficulty })}
+							</span>
+							{#if dailyBest}
+								<span
+									class="text-[11px] px-2 py-0.5 rounded bg-emerald-950 border border-emerald-500/40 text-emerald-300 font-bold"
+								>
+									{t('daily.bestScore', { score: dailyBest.bestScore })}
+								</span>
+							{/if}
+						</div>
+						<div class="text-xs text-slate-300 truncate mt-0.5">
+							<span class="font-bold text-sky-300">{dailySpec.westRace}</span>
+							<span class="text-slate-500 mx-1">vs</span>
+							<span class="font-bold text-rose-300">{dailySpec.eastRace}</span>
+						</div>
+					</div>
+				</div>
+
+				<div class="flex items-center gap-2 shrink-0">
+					<button
+						type="button"
+						onclick={toggleDailyBoard}
+						class="min-h-[40px] px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-amber-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+						data-testid="daily-board-toggle-btn"
+					>
+						<UiIcon name="trophy" class="w-3.5 h-3.5 text-amber-400" />
+						<span>{t('daily.boardBtn')}</span>
+					</button>
+					<button
+						type="button"
+						onclick={() => launchMatch(dailySpec.config, 'daily')}
+						class="min-h-[40px] px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black flex items-center gap-1.5 cursor-pointer shadow"
+						data-testid="play-daily-btn"
+					>
+						<UiIcon name="play" class="w-3.5 h-3.5 fill-current" />
+						<span>{t('daily.playBtn')}</span>
+					</button>
+				</div>
+			</div>
+
+			{#if dailyBoardOpen}
+				<div
+					class="mt-2 bg-[var(--color-bg-card,#131826)]/95 border border-slate-700 rounded-2xl p-3 text-xs space-y-1.5"
+					data-testid="daily-board-panel"
+				>
+					{#if dailyBoardLoading}
+						<div class="text-slate-400 text-center py-2">Завантаження...</div>
+					{:else if dailyBoardRows.length === 0}
+						<div class="text-slate-400 text-center py-2">{t('daily.empty')}</div>
+					{:else}
+						{#each dailyBoardRows.slice(0, 10) as row, idx (row.uid)}
+							<div class="flex items-center justify-between px-2 py-1 rounded bg-slate-900/70">
+								<div class="flex items-center gap-2 min-w-0">
+									<span class="font-mono font-bold text-amber-400 w-5">#{idx + 1}</span>
+									<span class="font-bold text-slate-200 truncate">{row.name}</span>
+									{#if row.race}
+										<span class="text-[10px] text-slate-400">({row.race})</span>
+									{/if}
+								</div>
+								<span class="font-mono font-black text-emerald-300">{row.score}</span>
+							</div>
+						{/each}
+					{/if}
+				</div>
+			{/if}
 		</div>
 
 		<!-- Bottom Spacer: 2.5 parts so drawer fits below without screen overflow -->

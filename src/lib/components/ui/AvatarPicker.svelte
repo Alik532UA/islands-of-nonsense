@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Dices, ImagePlus, Lock, Trash2 } from 'lucide-svelte';
+	import UiIcon from './UiIcon.svelte';
 	import {
 		AVATAR_COLORS,
 		AVATAR_FRAMES,
@@ -152,7 +152,7 @@
 				class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-sky-300 flex items-center gap-1.5 cursor-pointer"
 				data-testid="avatar-upload-btn"
 			>
-				<ImagePlus class="w-3.5 h-3.5" />
+				<UiIcon name="imagePlus" class="w-3.5 h-3.5" />
 				<span>{t('account.avatar.upload')}</span>
 			</button>
 			{#if parsed?.kind === 'image'}
@@ -161,7 +161,7 @@
 					onclick={clearPhoto}
 					class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-rose-900/50 border border-slate-700 text-xs font-semibold text-rose-300 flex items-center gap-1 cursor-pointer"
 				>
-					<Trash2 class="w-3.5 h-3.5" />
+					<UiIcon name="trash2" class="w-3.5 h-3.5" />
 				</button>
 			{/if}
 			<button
@@ -170,7 +170,7 @@
 				class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-amber-300 flex items-center gap-1 cursor-pointer"
 				data-testid="avatar-random-btn"
 			>
-				<Dices class="w-3.5 h-3.5" />
+				<UiIcon name="dices" class="w-3.5 h-3.5" />
 				<span>{t('account.avatar.random')}</span>
 			</button>
 		</div>
@@ -243,7 +243,7 @@
 					data-testid="avatar-frame-{frame}"
 				>
 					{#if !unlocked}
-						<Lock class="w-3 h-3" />
+						<UiIcon name="lock" class="w-3 h-3" />
 					{/if}
 					<span>{t(`account.avatar.frame.${frame}`)}</span>
 				</button>

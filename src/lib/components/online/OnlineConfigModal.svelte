@@ -3,8 +3,7 @@
 	import { RACES_LIST, PLAYABLE_RACES, formatRaceName } from '$lib/engine/gameData';
 	import type { RoomConfig } from '$lib/net/roomTypes';
 	import { t } from '$lib/i18n';
-	import { Sliders, X, Trophy, Coins, Settings2, Swords, Ban, Check, Eye } from 'lucide-svelte';
-
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	interface Props {
 		isOpen: boolean;
 		canEdit: boolean;
@@ -140,7 +139,7 @@
 			>
 				<div class="flex items-center gap-3">
 					<div class="p-2 bg-amber-500/20 text-amber-400 rounded-[10px] border border-amber-500/30">
-						<Sliders class="w-5 h-5" />
+						<UiIcon name="sliders" class="w-5 h-5" />
 					</div>
 					<div>
 						<h2 class="text-base font-black tracking-wide text-amber-300 uppercase">
@@ -158,7 +157,7 @@
 					aria-label={t('common.close')}
 					data-testid="online-config-close-btn"
 				>
-					<X class="w-4 h-4" />
+					<UiIcon name="x" class="w-4 h-4" />
 				</button>
 			</div>
 
@@ -171,7 +170,7 @@
 						<!-- Target Wins -->
 						<div class="space-y-1.5" data-testid="online-cfg-target-wins">
 							<span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-								<Trophy class="w-3.5 h-3.5 text-emerald-400" />
+								<UiIcon name="trophy" class="w-3.5 h-3.5 text-emerald-400" />
 								<span>Перемог у матчі:</span>
 							</span>
 							<div class="grid grid-cols-3 gap-1.5">
@@ -197,7 +196,7 @@
 						<div class="space-y-1.5 pt-2 border-t border-slate-800" data-testid="online-cfg-gold">
 							<div class="flex items-center justify-between">
 								<span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-									<Coins class="w-3.5 h-3.5 text-amber-400" />
+									<UiIcon name="coins" class="w-3.5 h-3.5 text-amber-400" />
 									<span>Стартове золото:</span>
 								</span>
 								<span
@@ -253,7 +252,7 @@
 						<!-- Fog of War -->
 						<div class="space-y-1.5" data-testid="online-cfg-fog">
 							<span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-								<Eye class="w-3.5 h-3.5 text-sky-400" />
+								<UiIcon name="eye" class="w-3.5 h-3.5 text-sky-400" />
 								<span>{t('online.mapVisibility')}:</span>
 							</span>
 							<div class="grid grid-cols-2 gap-1.5">
@@ -286,7 +285,7 @@
 						<div class="space-y-1.5 pt-2 border-t border-slate-800" data-testid="online-cfg-coins">
 							<div class="flex items-center justify-between">
 								<span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-									<Coins class="w-3.5 h-3.5 text-amber-400" />
+									<UiIcon name="coins" class="w-3.5 h-3.5 text-amber-400" />
 									<span>Монети на арені:</span>
 								</span>
 								<button
@@ -297,7 +296,7 @@
 										? 'bg-amber-500/20 border-amber-400 text-amber-300'
 										: 'bg-[#181d28] border-slate-800 text-slate-400 hover:text-slate-200'}"
 								>
-									<Settings2 class="w-3 h-3" />
+									<UiIcon name="settings2" class="w-3 h-3" />
 									<span>{showCoinCustom ? 'Сховати' : 'Повзунки'}</span>
 								</button>
 							</div>
@@ -397,7 +396,7 @@
 				<div class="bg-[#121622]/95 border border-slate-800 rounded-2xl p-3.5 space-y-2">
 					<div class="flex items-center justify-between">
 						<span class="font-bold text-slate-300 flex items-center gap-1.5 text-xs">
-							<Swords class="w-4 h-4 text-amber-400" />
+							<UiIcon name="swords" class="w-4 h-4 text-amber-400" />
 							<span>Режим гри:</span>
 						</span>
 						<span class="text-[10px] text-slate-400 font-mono">
@@ -440,7 +439,7 @@
 				<div class="bg-[#121622]/95 border border-slate-800 rounded-2xl p-3.5 space-y-2">
 					<div class="flex items-center justify-between">
 						<span class="font-bold text-slate-300 flex items-center gap-1.5 text-xs">
-							<Ban class="w-4 h-4 text-rose-400" />
+							<UiIcon name="ban" class="w-4 h-4 text-rose-400" />
 							<span>Бани рас (-ban) · Забанено: {bannedRaces.length}</span>
 						</span>
 						{#if canEdit && bannedRaces.length > 0}
@@ -470,9 +469,9 @@
 									{formatRaceName(r.race)}
 								</span>
 								{#if isBanned}
-									<Ban class="w-3.5 h-3.5 text-red-400 shrink-0 ml-1" />
+									<UiIcon name="ban" class="w-3.5 h-3.5 text-red-400 shrink-0 ml-1" />
 								{:else}
-									<Check class="w-3 h-3 text-slate-600 shrink-0 ml-1" />
+									<UiIcon name="check" class="w-3 h-3 text-slate-600 shrink-0 ml-1" />
 								{/if}
 							</button>
 						{/each}

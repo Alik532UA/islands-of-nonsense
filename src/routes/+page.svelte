@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { Gamepad2, CodeXml } from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import UserRoundGroupIcon from '$lib/components/ui/UserRoundGroupIcon.svelte';
 	import { t } from '$lib/i18n';
 	import { settings } from '$lib/services/settings.svelte';
@@ -28,7 +28,7 @@
 			class="menu-btn menu-btn--game menu-tile anim-stagger-1"
 			data-testid="menu-play-link"
 		>
-			<Gamepad2 class="menu-tile__icon text-amber-400" />
+			<UiIcon name="gamepad2" class="menu-tile__icon text-amber-400" />
 			<span class="font-bold">{t('menu.play')}</span>
 		</a>
 
@@ -51,7 +51,7 @@
 			rel="noopener noreferrer"
 			data-testid="menu-order-link"
 		>
-			<CodeXml class="menu-link__icon text-amber-400" />
+			<UiIcon name="codeXml" class="menu-link__icon text-amber-400" />
 			<span>{t('menu.order')}</span>
 		</a>
 	</div>

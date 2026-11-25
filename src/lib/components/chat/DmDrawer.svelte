@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Send, X, MessageCircle } from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { sendDmMessage, subscribeDmThread, type ChatEntry } from '$lib/net/chat';
 	import { chatModeration } from '$lib/services/chatModeration.svelte';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
@@ -66,7 +66,7 @@
 			<div class="min-w-0">
 				<div class="text-xs font-bold text-slate-100 truncate">{peerName}</div>
 				<div class="text-[10px] text-sky-400 flex items-center gap-1">
-					<MessageCircle class="w-2.5 h-2.5" />
+					<UiIcon name="messageCircle" class="w-2.5 h-2.5" />
 					<span>{t('chat.dmSubtitle')}</span>
 				</div>
 			</div>
@@ -77,7 +77,7 @@
 			class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
 			aria-label={t('common.close')}
 		>
-			<X class="w-4 h-4" />
+			<UiIcon name="x" class="w-4 h-4" />
 		</button>
 	</div>
 
@@ -115,7 +115,7 @@
 			aria-label={t('online.hud.sendChat')}
 			data-testid="dm-send"
 		>
-			<Send class="w-3.5 h-3.5" />
+			<UiIcon name="send" class="w-3.5 h-3.5" />
 		</button>
 	</form>
 </div>

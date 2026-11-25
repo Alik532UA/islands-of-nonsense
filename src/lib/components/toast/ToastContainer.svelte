@@ -1,27 +1,27 @@
 <script lang="ts">
 	import { toast, type ToastItem } from '$lib/controllers/toast.svelte';
-	import { CheckCircle2, AlertTriangle, AlertCircle, Info, X } from 'lucide-svelte';
+	import UiIcon, { type UiIconName } from '$lib/components/ui/UiIcon.svelte';
 
 	function getBorderAndIcon(type: ToastItem['type']) {
 		switch (type) {
 			case 'success':
 				return {
 					border: 'border-emerald-500/50 bg-slate-900/95 text-emerald-300',
-					icon: CheckCircle2,
+					icon: 'checkCircle2' as UiIconName,
 					iconClass: 'text-emerald-400',
 					progressClass: 'bg-emerald-400'
 				};
 			case 'error':
 				return {
 					border: 'border-red-500/50 bg-slate-900/95 text-red-300',
-					icon: AlertCircle,
+					icon: 'alertCircle' as UiIconName,
 					iconClass: 'text-red-400',
 					progressClass: 'bg-red-400'
 				};
 			case 'warn':
 				return {
 					border: 'border-amber-500/50 bg-slate-900/95 text-amber-300',
-					icon: AlertTriangle,
+					icon: 'alertTriangle' as UiIconName,
 					iconClass: 'text-amber-400',
 					progressClass: 'bg-amber-400'
 				};
@@ -29,7 +29,7 @@
 			default:
 				return {
 					border: 'border-cyan-500/50 bg-slate-900/95 text-cyan-300',
-					icon: Info,
+					icon: 'info' as UiIconName,
 					iconClass: 'text-cyan-400',
 					progressClass: 'bg-cyan-400'
 				};
@@ -71,7 +71,6 @@
 	>
 		{#each toast.items as item (item.id)}
 			{@const styling = getBorderAndIcon(item.type)}
-			{@const Icon = styling.icon}
 			<div
 				class="pointer-events-auto rounded-xl border p-4 shadow-xl backdrop-blur-md transition-all flex items-start gap-3 relative overflow-hidden {styling.border}"
 				role={item.urgent ? 'alert' : 'status'}
@@ -80,7 +79,7 @@
 				onfocusin={() => toast.pause(item.id)}
 				onfocusout={() => toast.resume(item.id)}
 			>
-				<Icon class="w-5 h-5 shrink-0 mt-0.5 {styling.iconClass}" />
+				<UiIcon name={styling.icon} class="w-5 h-5 shrink-0 mt-0.5 {styling.iconClass}" />
 				<div class="flex-1 min-w-0 pr-2">
 					<p class="text-sm font-medium text-slate-100 leading-snug break-words">
 						{item.message}
@@ -104,7 +103,7 @@
 					aria-label="Закрити сповіщення"
 					onclick={() => toast.dismiss(item.id)}
 				>
-					<X class="w-4 h-4" />
+					<UiIcon name="x" class="w-4 h-4" />
 				</button>
 
 				{#if item.duration > 0}

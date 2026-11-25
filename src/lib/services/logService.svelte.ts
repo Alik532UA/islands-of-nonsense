@@ -201,6 +201,31 @@ class LogService {
 		}
 	}
 
+	#formatEntry(e: Entry): string {
+		return (
+			`[${e.time}] [${e.level.toUpperCase()}] [${e.category.toUpperCase()}] ${e.message}` +
+			(e.data.length ? ` ${safeJson(e.data)}` : '')
+		);
+	}
+
+	#reportHeader(title: string, extra: string[] = []): string[] {
+		const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.1';
+		return [
+			`=== ${title} ===`,
+			`DATE: ${new Date().toISOString()}`,
+			`VERSION: ${appVersion}`,
+			...extra
+		];
+	}
+
+	#logSection(label: string, lines: string[], emptyMsg: string): string[] {
+		return [
+			`--- ${label} (${lines.length} entries) ---`,
+			...(lines.length ? lines : [emptyMsg]),
+			'=== END OF REPORT ==='
+		];
+	}
+
 	getReport(): string {
 		const served = this.servedVersion ? ` (served: ${this.servedVersion})` : '';
 		const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.1';
@@ -213,12 +238,7 @@ class LogService {
 			`ONLINE: ${browser ? String(navigator.onLine) : '-'}`,
 			'---'
 		];
-		const lines = this.#entries.map(
-			(e) =>
-				`[${e.time}] [${e.level.toUpperCase()}] [${e.category.toUpperCase()}] ${e.message}` +
-				(e.data.length ? ` ${safeJson(e.data)}` : '')
-		);
-		return [...header, ...lines].join('\n');
+		return [...header, ...this.#entries.map((e) => this.#formatEntry(e))].join('\n');
 	}
 
 	getLogReport(): string {
@@ -226,11 +246,7 @@ class LogService {
 	}
 
 	getUnitReport(u: Unit, sim: Simulation): string {
-		const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.1';
-		const header = [
-			'=== UNIT DIAGNOSTIC REPORT ===',
-			`DATE: ${new Date().toISOString()}`,
-			`VERSION: ${appVersion}`,
+		const header = this.#reportHeader('UNIT DIAGNOSTIC REPORT', [
 			`UNIT: ${u.name} [${u.defId}] (ID: ${u.instanceId})`,
 			`TEAM: ${u.team.toUpperCase()} | LANE: ${u.lane.toUpperCase()} | FLYING: ${!!u.flying}`,
 			`HP: ${Math.round(u.hp)}/${u.maxHp} | STATE: ${u.state} | SPEED: ${u.speed}`,
@@ -238,7 +254,7 @@ class LogService {
 			`STUCK TIMER: ${(u.stuckTimer || 0).toFixed(2)}s | SIZE: ${u.size}`,
 			`TARGET: X=${u.targetX ?? 'N/A'}, Y=${u.targetY ?? 'N/A'} | CURRENT_TARGET_ID: ${u.currentTargetId ?? 'none'} | TARGET_BLD_ID: ${u.targetBuildingId ?? 'none'}`,
 			''
-		];
+		]);
 
 		const waypoints = [
 			'--- PATHFINDING & WAYPOINTS ---',
@@ -317,28 +333,27 @@ class LogService {
 			''
 		];
 
-		const unitEntries = this.#entries.filter((e) => {
-			const text = `${e.message} ${safeJson(e.data)}`;
-			return text.includes(u.instanceId) || text.includes(u.name);
-		});
+		const unitLines = this.#entries
+			.filter((e) => {
+				const text = `${e.message} ${safeJson(e.data)}`;
+				return text.includes(u.instanceId) || text.includes(u.name);
+			})
+			.map((e) => this.#formatEntry(e));
 
-		const logs = [
-			`--- LOG HISTORY FOR THIS UNIT (${unitEntries.length} entries) ---`,
-			...(unitEntries.length
-				? unitEntries.map(
-						(e) =>
-							`[${e.time}] [${e.level.toUpperCase()}] [${e.category.toUpperCase()}] ${e.message}` +
-							(e.data.length ? ` ${safeJson(e.data)}` : '')
-					)
-				: ['No specific log entries captured for this unit']),
-			'=== END OF REPORT ==='
-		];
-
-		return [...header, ...combatStatus, ...waypoints, ...obstacles, ...logs].join('\n');
+		return [
+			...header,
+			...combatStatus,
+			...waypoints,
+			...obstacles,
+			...this.#logSection(
+				'LOG HISTORY FOR THIS UNIT',
+				unitLines,
+				'No specific log entries captured for this unit'
+			)
+		].join('\n');
 	}
 
 	getBuildingReport(b: Building, sim: Simulation): string {
-		const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.1';
 		const westCastleDist = Math.hypot(
 			sim.castles.west.x - (b.x + 32),
 			sim.castles.west.y - (b.y + 32)
@@ -356,10 +371,7 @@ class LogService {
 		const resolvedRace = resolveBuildingDisplayRace(b, sim.allPlayers, sim.players);
 		const ownerRace = owner?.race ? toPlayableRace(owner.race) : resolvedRace;
 
-		const header = [
-			'=== BUILDING DIAGNOSTIC REPORT ===',
-			`DATE: ${new Date().toISOString()}`,
-			`VERSION: ${appVersion}`,
+		const header = this.#reportHeader('BUILDING DIAGNOSTIC REPORT', [
 			`BUILDING: ${b.name} [${b.defId}] (ID: ${b.instanceId})`,
 			`TEAM: ${b.team.toUpperCase()} | RACE: ${resolvedRace} | LANE: ${b.lane.toUpperCase()}`,
 			`OWNER: ${owner ? `${owner.name} (${owner.id}, slot=${owner.slot ?? '?'}, race=${ownerRace}, isBot=${owner.isBot}, gold=${Math.floor(owner.gold)}, lumber=${Math.floor(owner.lumber ?? 0)})` : `${b.playerId ?? 'Unknown'} (slot=${b.playerSlot ?? '?'})`}`,
@@ -371,7 +383,7 @@ class LogService {
 			`SPECIAL TYPE: ${b.specialType || 'None'} | UPGRADE FROM: ${b.upgradeFrom || 'Base'}`,
 			`COST: Gold=${b.goldCost}, Lumber=${b.lumberCost || 0}`,
 			''
-		];
+		]);
 
 		const w = owner?.worker;
 		const workerLines: string[] = ['--- OWNER WORKER STATE ---'];
@@ -478,35 +490,24 @@ class LogService {
 
 		const bldHistory = this.#buildingHistories.get(b.instanceId) ?? [];
 		const bldEntries = this.#entries
-			.filter((e) => {
-				const text = `${e.message} ${safeJson(e.data)}`;
-				return text.includes(b.instanceId);
-			})
-			.map(
-				(e) =>
-					`[${e.time}] [${e.level.toUpperCase()}] [${e.category.toUpperCase()}] ${e.message}` +
-					(e.data.length ? ` ${safeJson(e.data)}` : '')
-			);
+			.filter((e) => `${e.message} ${safeJson(e.data)}`.includes(b.instanceId))
+			.map((e) => this.#formatEntry(e));
 
-		const combinedLogs = Array.from(new Set([...bldHistory, ...bldEntries]));
-
-		const logs = [
-			`--- LOG HISTORY FOR THIS BUILDING (${combinedLogs.length} entries) ---`,
-			...(combinedLogs.length
-				? combinedLogs
-				: ['No specific log entries captured for this building']),
-			'=== END OF REPORT ==='
-		];
-
-		return [...header, ...workerLines, ...reachLines, ...context, ...logs].join('\n');
+		return [
+			...header,
+			...workerLines,
+			...reachLines,
+			...context,
+			...this.#logSection(
+				'LOG HISTORY FOR THIS BUILDING',
+				Array.from(new Set([...bldHistory, ...bldEntries])),
+				'No specific log entries captured for this building'
+			)
+		].join('\n');
 	}
 
 	getWorkerReport(w: WorkerState, team: MatchTeam, sim: Simulation): string {
-		const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.1';
-		const header = [
-			'=== WORKER DIAGNOSTIC REPORT ===',
-			`DATE: ${new Date().toISOString()}`,
-			`VERSION: ${appVersion}`,
+		const header = this.#reportHeader('WORKER DIAGNOSTIC REPORT', [
 			`WORKER: ${w.name} [TEAM: ${team.toUpperCase()}]`,
 			`POSITION: (X: ${w.x.toFixed(1)}, Y: ${w.y.toFixed(1)}) | TARGET: (X: ${w.targetX.toFixed(1)}, Y: ${w.targetY.toFixed(1)})`,
 			`HP: ${Math.round(w.hp)}/${w.maxHp} | ARMOR: ${w.armor} | SPEED: ${w.speed}`,
@@ -514,7 +515,7 @@ class LogService {
 			`STUCK TIMER: ${(w.stuckTimer || 0).toFixed(2)}s | AVOIDANCE BIAS: ${w.avoidanceBias ?? 0}`,
 			`BUILD QUEUE: ${w.buildQueue?.length ? w.buildQueue.join(', ') : 'Empty'}`,
 			''
-		];
+		]);
 
 		const waypoints = [
 			'--- PATHFINDING & WAYPOINTS ---',
@@ -537,42 +538,36 @@ class LogService {
 			''
 		];
 
-		const workerEntries = this.#entries.filter((e) => {
-			const text = `${e.message} ${safeJson(e.data)}`.toLowerCase();
-			return (
-				text.includes('worker') ||
-				text.includes(w.name.toLowerCase()) ||
-				e.category === 'navigation'
-			);
-		});
+		const workerLines = this.#entries
+			.filter((e) => {
+				const text = `${e.message} ${safeJson(e.data)}`.toLowerCase();
+				return (
+					text.includes('worker') ||
+					text.includes(w.name.toLowerCase()) ||
+					e.category === 'navigation'
+				);
+			})
+			.slice(-15)
+			.map((e) => this.#formatEntry(e));
 
-		const logs = [
-			`--- LOG HISTORY FOR WORKER (${workerEntries.length} entries) ---`,
-			...(workerEntries.length
-				? workerEntries
-						.slice(-15)
-						.map(
-							(e) =>
-								`[${e.time}] [${e.level.toUpperCase()}] [${e.category.toUpperCase()}] ${e.message}` +
-								(e.data.length ? ` ${safeJson(e.data)}` : '')
-						)
-				: ['No specific log entries captured for worker']),
-			'=== END OF REPORT ==='
-		];
-
-		return [...header, ...waypoints, ...context, ...logs].join('\n');
+		return [
+			...header,
+			...waypoints,
+			...context,
+			...this.#logSection(
+				'LOG HISTORY FOR WORKER',
+				workerLines,
+				'No specific log entries captured for worker'
+			)
+		].join('\n');
 	}
 
 	getCastleReport(c: Castle, sim: Simulation): string {
-		const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.1';
 		const player = sim.players[c.team];
 		const hpPct = ((c.hp / c.maxHp) * 100).toFixed(1);
 		const stage = getCastleStageIndex(c.hp, c.maxHp);
 
-		const header = [
-			'=== CASTLE DIAGNOSTIC REPORT ===',
-			`DATE: ${new Date().toISOString()}`,
-			`VERSION: ${appVersion}`,
+		const header = this.#reportHeader('CASTLE DIAGNOSTIC REPORT', [
 			`CASTLE: ${c.team === 'west' ? 'West Castle (Alliance)' : 'East Castle (Chaos)'}`,
 			`TEAM: ${c.team.toUpperCase()} | POSITION: (X: ${c.x}, Y: ${c.y})`,
 			`HP: ${Math.round(c.hp)}/${c.maxHp} (${hpPct}%) | DESTRUCTION STAGE: Stage ${stage} (of 0..7)`,
@@ -580,21 +575,20 @@ class LogService {
 			`FOOD: ${player?.food ?? 0}/${player?.maxFood ?? 0} | COMMANDER: #${player?.commander ?? 'N/A'}`,
 			`FORGE LEVELS: Attack=+${player?.forge?.attack ?? 0}, Armor=+${player?.forge?.armor ?? 0}, Econ=+${player?.forge?.econ ?? 0}`,
 			''
-		];
+		]);
 
-		const attackingUnits = sim.units
-			.filter((u) => u.hp > 0 && u.team !== c.team && Math.hypot(u.x - c.x, u.y - c.y) <= 600)
-			.map(
-				(u) =>
-					`  - [ENEMY] ${u.name} (${u.instanceId}): at (${u.x.toFixed(1)}, ${u.y.toFixed(1)}), dist: ${Math.hypot(u.x - c.x, u.y - c.y).toFixed(1)}px, hp: ${Math.round(u.hp)}/${u.maxHp}`
-			);
+		const nearUnits = (ally: boolean) =>
+			sim.units
+				.filter(
+					(u) => u.hp > 0 && (u.team === c.team) === ally && Math.hypot(u.x - c.x, u.y - c.y) <= 600
+				)
+				.map(
+					(u) =>
+						`  - [${ally ? 'ALLY' : 'ENEMY'}] ${u.name} (${u.instanceId}): at (${u.x.toFixed(1)}, ${u.y.toFixed(1)}), dist: ${Math.hypot(u.x - c.x, u.y - c.y).toFixed(1)}px, hp: ${Math.round(u.hp)}/${u.maxHp}`
+				);
 
-		const defendingUnits = sim.units
-			.filter((u) => u.hp > 0 && u.team === c.team && Math.hypot(u.x - c.x, u.y - c.y) <= 600)
-			.map(
-				(u) =>
-					`  - [ALLY] ${u.name} (${u.instanceId}): at (${u.x.toFixed(1)}, ${u.y.toFixed(1)}), dist: ${Math.hypot(u.x - c.x, u.y - c.y).toFixed(1)}px, hp: ${Math.round(u.hp)}/${u.maxHp}`
-			);
+		const attackingUnits = nearUnits(false);
+		const defendingUnits = nearUnits(true);
 
 		const combat = [
 			'--- SURROUNDING UNITS (WITHIN 600px) ---',
@@ -605,30 +599,26 @@ class LogService {
 			''
 		];
 
-		const castleEntries = this.#entries.filter((e) => {
-			const text = `${e.message} ${safeJson(e.data)}`.toLowerCase();
-			return text.includes('castle') || text.includes(c.team);
-		});
+		const castleLines = this.#entries
+			.filter((e) => {
+				const text = `${e.message} ${safeJson(e.data)}`.toLowerCase();
+				return text.includes('castle') || text.includes(c.team);
+			})
+			.slice(-15)
+			.map((e) => this.#formatEntry(e));
 
-		const logs = [
-			`--- LOG HISTORY FOR CASTLE (${castleEntries.length} entries) ---`,
-			...(castleEntries.length
-				? castleEntries
-						.slice(-15)
-						.map(
-							(e) =>
-								`[${e.time}] [${e.level.toUpperCase()}] [${e.category.toUpperCase()}] ${e.message}` +
-								(e.data.length ? ` ${safeJson(e.data)}` : '')
-						)
-				: ['No specific log entries captured for castle']),
-			'=== END OF REPORT ==='
-		];
-
-		return [...header, ...combat, ...logs].join('\n');
+		return [
+			...header,
+			...combat,
+			...this.#logSection(
+				'LOG HISTORY FOR CASTLE',
+				castleLines,
+				'No specific log entries captured for castle'
+			)
+		].join('\n');
 	}
 
 	getGroupReport(units: Unit[]): string {
-		const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.1';
 		const unitBreakdown = new Map<string, number>();
 		for (const u of units) {
 			unitBreakdown.set(u.name, (unitBreakdown.get(u.name) || 0) + 1);
@@ -637,15 +627,12 @@ class LogService {
 			.map(([name, count]) => `  - ${name}: ${count}`)
 			.join('\n');
 
-		const header = [
-			'=== UNIT GROUP DIAGNOSTIC REPORT ===',
-			`DATE: ${new Date().toISOString()}`,
-			`VERSION: ${appVersion}`,
+		const header = this.#reportHeader('UNIT GROUP DIAGNOSTIC REPORT', [
 			`TOTAL UNITS SELECTED: ${units.length}`,
 			'COMPOSITION:',
 			summary,
 			''
-		];
+		]);
 
 		const unitDetails = units.slice(0, 20).map((u, i) => {
 			return `#${i + 1} [${u.team.toUpperCase()}] ${u.name} (${u.instanceId}): hp=${Math.round(u.hp)}/${u.maxHp}, pos=(${u.x.toFixed(1)}, ${u.y.toFixed(1)}), state=${u.state}, lane=${u.lane}`;

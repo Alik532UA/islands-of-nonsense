@@ -21,6 +21,8 @@ export interface MatchReplayData {
 	randomSeed: number;
 	westCommander: string;
 	eastCommander: string;
+	westRace?: string;
+	eastRace?: string;
 	actions: ReplayAction[];
 	result?: {
 		winner: 'west' | 'east' | 'draw';

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { ChevronUp } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import type { Simulation } from '../engine/simulation';
 	import {
@@ -23,7 +24,7 @@
 		WEST_ROAD_MERGE_X,
 		EAST_ROAD_MERGE_X
 	} from '../engine/constants';
-	import { Map as MapIcon, Users, Move, ChevronDown, ChevronUp } from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { sound } from '../services/audio';
 
 	import type { Snippet } from 'svelte';
@@ -686,7 +687,7 @@
 			aria-label="Показати мінікарту"
 			data-testid="minimap-expand-btn"
 		>
-			<MapIcon class="w-3.5 h-3.5 text-amber-400" />
+			<UiIcon name="map" class="w-3.5 h-3.5 text-amber-400" />
 			<ChevronUp class="w-4 h-4 text-amber-300" />
 			<span class="text-[9.5px] font-bold uppercase tracking-wider">Карта</span>
 		</button>
@@ -727,7 +728,7 @@
 			aria-label="Перемкнути детальність рельєфу"
 			data-testid="minimap-terrain-btn"
 		>
-			<MapIcon class="w-3.5 h-3.5" />
+			<UiIcon name="map" class="w-3.5 h-3.5" />
 		</button>
 
 		<!-- 2. Bottom-Left: Кольори союзників (Зелений / Ворожий) (в самому кутку) -->
@@ -742,7 +743,7 @@
 			aria-label="Кольори союзників"
 			data-testid="minimap-ally-colors-btn"
 		>
-			<Users class="w-3.5 h-3.5" />
+			<UiIcon name="users" class="w-3.5 h-3.5" />
 		</button>
 
 		<!-- 3. Top-Right: drag and drop (Move) (в самому кутку) -->
@@ -756,7 +757,7 @@
 			aria-label="Перемістити мінікарту"
 			data-testid="minimap-drag-btn"
 		>
-			<Move class="w-3.5 h-3.5" />
+			<UiIcon name="move" class="w-3.5 h-3.5" />
 		</button>
 
 		<!-- 4. Bottom-Right: сховати карту (ChevronDown) (в самому кутку) -->
@@ -769,7 +770,7 @@
 			aria-label="Приховати мінікарту"
 			data-testid="minimap-collapse-btn"
 		>
-			<ChevronDown class="w-3.5 h-3.5" />
+			<UiIcon name="chevronDown" class="w-3.5 h-3.5" />
 		</button>
 	</div>
 </div>

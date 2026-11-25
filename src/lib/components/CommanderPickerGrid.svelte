@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { COMMANDERS, getCommanderDescription } from '../engine/commanders';
-	import { Coins, Hammer, Sword, Zap, Target, Shield, Check, Dices } from 'lucide-svelte';
+	import UiIcon, { type UiIconName } from '$lib/components/ui/UiIcon.svelte';
 
 	let {
 		selectedCommanderId = null,
@@ -16,21 +16,21 @@
 		onSelect: (choice: number | 'random') => void;
 	} = $props();
 
-	function getLucideIcon(name: string) {
+	function getLucideIcon(name: string): UiIconName {
 		switch (name) {
 			case 'Coins':
-				return Coins;
+				return 'coins';
 			case 'Hammer':
-				return Hammer;
+				return 'hammer';
 			case 'Sword':
-				return Sword;
+				return 'sword';
 			case 'Zap':
-				return Zap;
+				return 'zap';
 			case 'Target':
-				return Target;
+				return 'target';
 			case 'Shield':
 			default:
-				return Shield;
+				return 'shield';
 		}
 	}
 </script>
@@ -47,7 +47,7 @@
 			: 'cursor-pointer bg-gradient-to-r from-indigo-950/80 via-purple-900/50 to-[#181e2b] border-purple-500/60 hover:border-purple-400 hover:bg-purple-900/60 text-purple-100 active:scale-[0.99]'}"
 	>
 		<div class="flex items-center gap-2.5 min-w-0">
-			<Dices class="w-6 h-6 text-purple-300 shrink-0" />
+			<UiIcon name="dices" class="w-6 h-6 text-purple-300 shrink-0" />
 			<div class="text-left min-w-0">
 				<span class="text-sm font-bold tracking-wide block">Випадковий командир</span>
 				<span class="text-[11px] text-purple-200/80 block truncate">
@@ -80,7 +80,6 @@
 		{#each COMMANDERS as cmd (cmd.id)}
 			{@const isSelected = selectedCommanderId === cmd.id}
 			{@const isBoosted = isSelected && Boolean(isRandomBoostActive)}
-			{@const IconComponent = getLucideIcon(cmd.icon)}
 
 			<button
 				type="button"
@@ -98,7 +97,7 @@
 						? 'bg-indigo-600/20 border-indigo-400 text-indigo-300'
 						: 'bg-slate-900 border-slate-700 text-slate-400'}"
 				>
-					<IconComponent class="w-5 h-5" />
+					<UiIcon name={getLucideIcon(cmd.icon)} class="w-5 h-5" />
 				</div>
 
 				<div class="flex-1 min-w-0">
@@ -130,7 +129,7 @@
 
 				{#if isSelected}
 					<div class="text-emerald-400 shrink-0">
-						<Check class="w-5 h-5" />
+						<UiIcon name="check" class="w-5 h-5" />
 					</div>
 				{/if}
 			</button>

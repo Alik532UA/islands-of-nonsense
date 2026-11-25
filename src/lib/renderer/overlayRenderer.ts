@@ -20,6 +20,7 @@ import {
 	ISLAND_RADIUS_X,
 	ISLAND_RADIUS_Y
 } from '../engine/constants';
+import { rc, rr, ci, el } from './gfx';
 
 export class OverlayRenderer {
 	private sim: Simulation;
@@ -60,31 +61,36 @@ export class OverlayRenderer {
 					const py = startY + y * GRID_STEP;
 					const canBuild = this.sim.canBuild(activeTeam, x, y);
 					if (canBuild) {
-						g.rect(px + 1, py + 1, GRID_STEP - 2, GRID_STEP - 2);
-						g.fill({ color: 0x1e293b, alpha: 0.08 });
-						g.stroke({ color: 0x64748b, width: 0.5, alpha: 0.18 });
+						rc(
+							g,
+							px + 1,
+							py + 1,
+							GRID_STEP - 2,
+							GRID_STEP - 2,
+							{ color: 0x1e293b, alpha: 0.08 },
+							{ color: 0x64748b, width: 0.5, alpha: 0.18 }
+						);
 					}
 				}
 			}
 		}
 
-		// Hover Highlight: Authentic 1x1 placement bounding box
 		if (selectedDefId && hoveredTile) {
 			const px = startX + hoveredTile.x * GRID_STEP;
 			const py = startY + hoveredTile.y * GRID_STEP;
 			const canBuild = this.sim.canBuild(activeTeam, hoveredTile.x, hoveredTile.y);
 			const color = canBuild ? 0x22c55e : 0xef4444;
-
-			// Clean 1x1 building placement indicator (not 2x2 split quadrants)
-			g.rect(px + 1, py + 1, CELL_SIZE - 2, CELL_SIZE - 2);
-			g.fill({ color, alpha: 0.32 });
-			g.stroke({ color, width: 2.0, alpha: 0.95 });
-
-			// Ghost building preview if buildable
-			if (canBuild) {
-				g.roundRect(px + 4, py + 4, CELL_SIZE - 8, CELL_SIZE - 8, 4);
-				g.fill({ color: 0x38bdf8, alpha: 0.25 });
-			}
+			rc(
+				g,
+				px + 1,
+				py + 1,
+				CELL_SIZE - 2,
+				CELL_SIZE - 2,
+				{ color, alpha: 0.32 },
+				{ color, width: 2.0, alpha: 0.95 }
+			);
+			if (canBuild)
+				rr(g, px + 4, py + 4, CELL_SIZE - 8, CELL_SIZE - 8, 4, { color: 0x38bdf8, alpha: 0.25 });
 		}
 	}
 
@@ -100,23 +106,17 @@ export class OverlayRenderer {
 				moveMarkers.splice(i, 1);
 				continue;
 			}
-
 			const progress = 1 - m.timer / m.maxTimer;
 			const radius = 22 * (1 - progress * 0.4);
 			const alpha = Math.max(0, m.timer / m.maxTimer);
-
-			// Authentic 4-prong Warcraft III Order Chevrons (contracting green brackets)
 			for (let a = 0; a < 4; a++) {
 				const ang = (a * Math.PI) / 2 + Math.PI / 4;
-				const cx = m.x + Math.cos(ang) * radius;
-				const cy = m.y + Math.sin(ang) * radius;
-				g.beginPath();
-				g.circle(cx, cy, 3);
-				g.fill({ color: 0x22c55e, alpha });
+				ci(g, m.x + Math.cos(ang) * radius, m.y + Math.sin(ang) * radius, 3, {
+					color: 0x22c55e,
+					alpha
+				});
 			}
-			g.beginPath();
-			g.ellipse(m.x, m.y, radius * 0.8, radius * 0.4);
-			g.stroke({ color: 0x4ade80, width: 2, alpha });
+			el(g, m.x, m.y, radius * 0.8, radius * 0.4, undefined, { color: 0x4ade80, width: 2, alpha });
 		}
 	}
 
@@ -287,18 +287,16 @@ export class OverlayRenderer {
 		boxCurrentWorld: { x: number; y: number } | null
 	): void {
 		g.clear();
-
-		// Drag Selection Box
 		if (isBoxSelecting && boxStartWorld && boxCurrentWorld) {
-			const x = Math.min(boxStartWorld.x, boxCurrentWorld.x);
-			const y = Math.min(boxStartWorld.y, boxCurrentWorld.y);
-			const w = Math.abs(boxStartWorld.x - boxCurrentWorld.x);
-			const h = Math.abs(boxStartWorld.y - boxCurrentWorld.y);
-
-			g.beginPath();
-			g.rect(x, y, w, h);
-			g.fill({ color: 0x22c55e, alpha: 0.15 });
-			g.stroke({ color: 0x4ade80, width: 1.5 });
+			rc(
+				g,
+				Math.min(boxStartWorld.x, boxCurrentWorld.x),
+				Math.min(boxStartWorld.y, boxCurrentWorld.y),
+				Math.abs(boxStartWorld.x - boxCurrentWorld.x),
+				Math.abs(boxStartWorld.y - boxCurrentWorld.y),
+				{ color: 0x22c55e, alpha: 0.15 },
+				{ color: 0x4ade80, width: 1.5 }
+			);
 		}
 	}
 
@@ -322,7 +320,6 @@ export class OverlayRenderer {
 				this.textPool.push(pixiText);
 				container.addChild(pixiText);
 			}
-
 			pixiText.text = ft.text;
 			pixiText.style.fill = ft.color;
 			pixiText.x = ft.x;
@@ -330,9 +327,20 @@ export class OverlayRenderer {
 			pixiText.alpha = Math.max(0, Math.min(1, ft.life / ft.maxLife));
 			pixiText.visible = true;
 		}
-
 		for (; i < this.textPool.length; i++) {
 			this.textPool[i].visible = false;
+		}
+	}
+
+	private drawCastleGlows(
+		g: Graphics,
+		maxIntensity: number,
+		bounds?: { minX: number; minY: number; maxX: number; maxY: number }
+	): void {
+		for (const castle of [this.sim.castles.west, this.sim.castles.east]) {
+			if (!bounds || (castle.x >= bounds.minX - 650 && castle.x <= bounds.maxX + 650)) {
+				this.drawSoftRadialLight(g, castle.x, castle.y, 600, 0xfbbf24, maxIntensity);
+			}
 		}
 	}
 
@@ -343,38 +351,7 @@ export class OverlayRenderer {
 		g.clear();
 		const alpha = this.sim.dayNightAmbientAlpha;
 		if (alpha <= 0.005) return;
-
-		// Peak intensity scales with nighttime darkness
-		const maxIntensity = Math.min(0.24, alpha * 0.7);
-
-		// A. Castles: Grand Warm Hearth Light (R = 600, ultra-soft feathering)
-		// Rendered under castlesLayer to illuminate surrounding terrain without casting a veil over the castle image
-		if (
-			!bounds ||
-			(this.sim.castles.west.x >= bounds.minX - 650 && this.sim.castles.west.x <= bounds.maxX + 650)
-		) {
-			this.drawSoftRadialLight(
-				g,
-				this.sim.castles.west.x,
-				this.sim.castles.west.y,
-				600,
-				0xfbbf24,
-				maxIntensity
-			);
-		}
-		if (
-			!bounds ||
-			(this.sim.castles.east.x >= bounds.minX - 650 && this.sim.castles.east.x <= bounds.maxX + 650)
-		) {
-			this.drawSoftRadialLight(
-				g,
-				this.sim.castles.east.x,
-				this.sim.castles.east.y,
-				600,
-				0xfbbf24,
-				maxIntensity
-			);
-		}
+		this.drawCastleGlows(g, Math.min(0.24, alpha * 0.7), bounds);
 	}
 
 	public drawDayNight(
@@ -386,134 +363,72 @@ export class OverlayRenderer {
 		viewerTeam: MatchTeam = 'west'
 	): void {
 		g.clear();
-		if (castleLightLayer) {
-			this.drawCastleLighting(castleLightLayer, bounds);
-		}
-
+		if (castleLightLayer) this.drawCastleLighting(castleLightLayer, bounds);
 		const alpha = this.sim.dayNightAmbientAlpha;
 		if (alpha <= 0.005) return;
 
 		const phase = this.sim.dayNightPhase;
-		// Atmospheric ambient darkness overlay:
-		// During dusk/dawn: rich twilight tone (indigo-violet)
-		// During night: deep midnight slate (0x0f172a)
 		const ambientColor = phase === 'dusk' ? 0x1e1b4b : phase === 'dawn' ? 0x2e1065 : 0x0f172a;
+		rc(g, -3000, -2000, ARENA_WIDTH + 6000, ARENA_HEIGHT + 4000, { color: ambientColor, alpha });
 
-		// 1. Full arena ambient darkness blanket covering full ocean canvas
-		const padX = 3000;
-		const padY = 2000;
-		g.rect(-padX, -padY, ARENA_WIDTH + padX * 2, ARENA_HEIGHT + padY * 2);
-		g.fill({ color: ambientColor, alpha });
-
-		// 2. Continuous feathered radial light dissipation (4x smoother than fog-of-war)
-		// Peak intensity scales with nighttime darkness
 		const maxIntensity = Math.min(0.24, alpha * 0.7);
+		if (!castleLightLayer) this.drawCastleGlows(g, maxIntensity, bounds);
 
-		// If no separate castleLightLayer is provided (e.g. standalone tests), draw to g as fallback
-		if (!castleLightLayer) {
-			if (
-				!bounds ||
-				(this.sim.castles.west.x >= bounds.minX - 650 &&
-					this.sim.castles.west.x <= bounds.maxX + 650)
-			) {
-				this.drawSoftRadialLight(
-					g,
-					this.sim.castles.west.x,
-					this.sim.castles.west.y,
-					600,
-					0xfbbf24,
-					maxIntensity
-				);
-			}
-			if (
-				!bounds ||
-				(this.sim.castles.east.x >= bounds.minX - 650 &&
-					this.sim.castles.east.x <= bounds.maxX + 650)
-			) {
-				this.drawSoftRadialLight(
-					g,
-					this.sim.castles.east.x,
-					this.sim.castles.east.y,
-					600,
-					0xfbbf24,
-					maxIntensity
-				);
-			}
-		}
-
-		// B. Roadside Stone Braziers (Warm firelight) & Crystals (Ethereal luminescence) with Viewport Culling
 		if (this.sim.decorations) {
 			for (const d of this.sim.decorations) {
-				if (bounds) {
-					if (
-						d.x < bounds.minX - 250 ||
+				if (
+					bounds &&
+					(d.x < bounds.minX - 250 ||
 						d.x > bounds.maxX + 250 ||
 						d.y < bounds.minY - 250 ||
-						d.y > bounds.maxY + 250
-					) {
-						continue;
-					}
+						d.y > bounds.maxY + 250)
+				) {
+					continue;
 				}
-				if (d.type === 'brazier') {
+				if (d.type === 'brazier')
 					this.drawSoftRadialLight(g, d.x, d.y, 220, 0xf59e0b, maxIntensity * 0.9);
-				} else if (d.type === 'crystal') {
+				else if (d.type === 'crystal')
 					this.drawSoftRadialLight(g, d.x, d.y, 190, 0x38bdf8, maxIntensity * 0.8);
-				}
 			}
 		}
 
-		// C. Bridge Magical Stone Lanterns with Viewport Culling
-		const bridgeLanes: { name: 'top' | 'mid' | 'bottom'; y: number }[] = [
-			{ name: 'top', y: TOP_LANE_Y },
-			{ name: 'mid', y: MID_LANE_Y },
-			{ name: 'bottom', y: BOTTOM_LANE_Y }
-		];
 		const lanternXs = [3070, 3270, 3460, 3740, 3930, 4130];
-		for (const lane of bridgeLanes) {
-			if (bounds && (lane.y < bounds.minY - 150 || lane.y > bounds.maxY + 150)) continue;
-			const laneBroken = this.sim.brokenBridge === lane.name;
+		for (const [name, ly] of [
+			['top', TOP_LANE_Y],
+			['mid', MID_LANE_Y],
+			['bottom', BOTTOM_LANE_Y]
+		] as const) {
+			if (bounds && (ly < bounds.minY - 150 || ly > bounds.maxY + 150)) continue;
+			const broken = this.sim.brokenBridge === name;
 			for (let i = 0; i < lanternXs.length; i++) {
-				// Center pair collapsed with the bridge span when broken
-				if (laneBroken && (i === 2 || i === 3)) continue;
+				if (broken && (i === 2 || i === 3)) continue;
 				const lx = lanternXs[i];
 				if (bounds && (lx < bounds.minX - 120 || lx > bounds.maxX + 120)) continue;
-				this.drawSoftRadialLight(g, lx, lane.y - 101, 95, 0xfbbf24, maxIntensity * 0.65);
-				this.drawSoftRadialLight(g, lx, lane.y + 101, 95, 0xfbbf24, maxIntensity * 0.65);
+				this.drawSoftRadialLight(g, lx, ly - 101, 95, 0xfbbf24, maxIntensity * 0.65);
+				this.drawSoftRadialLight(g, lx, ly + 101, 95, 0xfbbf24, maxIntensity * 0.65);
 			}
 		}
 
-		// D. Workers carrying lanterns (respecting fog of war so hidden enemy lanterns don't glow through fog)
 		const workerPlayers = this.sim.allPlayers?.length
 			? this.sim.allPlayers
 			: [this.sim.players.west, this.sim.players.east];
 		for (const p of workerPlayers) {
-			if (p?.worker) {
-				if (
-					enableFog &&
-					p.team !== viewerTeam &&
-					!this.sim.isPointRevealed(viewerTeam, p.worker.x, p.worker.y)
-				) {
-					continue;
-				}
-				if (
-					bounds &&
-					(p.worker.x < bounds.minX - 200 ||
-						p.worker.x > bounds.maxX + 200 ||
-						p.worker.y < bounds.minY - 200 ||
-						p.worker.y > bounds.maxY + 200)
-				) {
-					continue;
-				}
-				this.drawSoftRadialLight(g, p.worker.x, p.worker.y, 170, 0xfef08a, maxIntensity * 0.75);
-			}
+			const w = p?.worker;
+			if (!w) continue;
+			if (enableFog && p.team !== viewerTeam && !this.sim.isPointRevealed(viewerTeam, w.x, w.y))
+				continue;
+			if (
+				bounds &&
+				(w.x < bounds.minX - 200 ||
+					w.x > bounds.maxX + 200 ||
+					w.y < bounds.minY - 200 ||
+					w.y > bounds.maxY + 200)
+			)
+				continue;
+			this.drawSoftRadialLight(g, w.x, w.y, 170, 0xfef08a, maxIntensity * 0.75);
 		}
 	}
 
-	/**
-	 * Renders continuous, feathered radial light dissipation spanning the full 100% of radius.
-	 * Uses adaptive concentric steps (24 for castles, 10 for braziers, 6 for lanterns/crystals)
-	 * slashing geometry by 70% while preserving ultra-soft dissipation.
-	 */
 	public drawSoftRadialLight(
 		g: Graphics,
 		cx: number,
@@ -524,26 +439,12 @@ export class OverlayRenderer {
 		customSteps?: number
 	): void {
 		if (peakAlpha <= 0.002 || radius <= 0) return;
-
-		// 24 concentric steps for large light sources (castles R >= 500)
-		// 10 for braziers, 6 for small lanterns and crystals
 		const steps = customSteps ?? (radius >= 500 ? 24 : radius >= 180 ? 10 : 6);
 		const dr = radius / steps;
-
 		for (let s = steps; s >= 1; s--) {
-			const r = s * dr;
-			const t = (s - 0.5) / steps;
-			const ringIntensity = Math.pow(1 - t, 2.6);
-			const stepAlpha = Math.max(0.0005, peakAlpha * ringIntensity * 0.25);
-
-			g.beginPath();
-			g.circle(cx, cy, r);
-			g.fill({ color, alpha: stepAlpha });
+			const stepAlpha = Math.max(0.0005, peakAlpha * Math.pow(1 - (s - 0.5) / steps, 2.6) * 0.25);
+			ci(g, cx, cy, s * dr, { color, alpha: stepAlpha });
 		}
-
-		// Radiant warm inner core
-		g.beginPath();
-		g.circle(cx, cy, radius * 0.12);
-		g.fill({ color: 0xffffff, alpha: peakAlpha * 0.35 });
+		ci(g, cx, cy, radius * 0.12, { color: 0xffffff, alpha: peakAlpha * 0.35 });
 	}
 }

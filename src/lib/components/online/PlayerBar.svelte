@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Dices, Palette } from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
 	import AvatarPicker from '$lib/components/ui/AvatarPicker.svelte';
 	import { t } from '$lib/i18n';
@@ -33,7 +33,7 @@
 				<span
 					class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-slate-900 border border-amber-400/70 flex items-center justify-center"
 				>
-					<Palette class="w-2.5 h-2.5 text-amber-300" />
+					<UiIcon name="palette" class="w-2.5 h-2.5 text-amber-300" />
 				</span>
 			</button>
 			<div class="flex flex-col">
@@ -62,7 +62,7 @@
 				title={t('online.rerollName')}
 				aria-label={t('online.rerollName')}
 			>
-				<Dices class="w-5 h-5 text-amber-400" />
+				<UiIcon name="dices" class="w-5 h-5 text-amber-400" />
 			</button>
 			{#if country}
 				<span

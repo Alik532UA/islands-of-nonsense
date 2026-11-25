@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { MessageSquare, Send, ShieldBan, VolumeX, Volume2, X } from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import {
 		QUICK_EMOTES,
 		sendGlobalChatMessage,
@@ -86,7 +86,7 @@
 				: 'bg-slate-800/80 border-slate-700 text-slate-200 hover:border-sky-500/60'}"
 			data-testid="global-chat-toggle"
 		>
-			<MessageSquare class="w-4 h-4 text-sky-400" />
+			<UiIcon name="messageSquare" class="w-4 h-4 text-sky-400" />
 			<span>{t('chat.globalTitle')}</span>
 			{#if unreadCount > 0}
 				<span
@@ -105,7 +105,7 @@
 					? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
 					: 'bg-slate-900 border-slate-700 text-slate-400'}"
 			>
-				<ShieldBan class="w-3.5 h-3.5" />
+				<UiIcon name="shieldBan" class="w-3.5 h-3.5" />
 				<span>{t('chat.filterLabel')}</span>
 			</button>
 		{/if}
@@ -158,7 +158,7 @@
 											title={t('chat.openDm')}
 											aria-label={t('chat.openDm')}
 										>
-											<MessageSquare class="w-3.5 h-3.5" />
+											<UiIcon name="messageSquare" class="w-3.5 h-3.5" />
 										</button>
 									{/if}
 									<button
@@ -168,7 +168,7 @@
 										title={t('chat.muteUser')}
 										aria-label={t('chat.muteUser')}
 									>
-										<VolumeX class="w-3.5 h-3.5" />
+										<UiIcon name="volumeX" class="w-3.5 h-3.5" />
 									</button>
 								</div>
 							{/if}
@@ -191,7 +191,7 @@
 						}}
 						class="text-sky-300 hover:underline flex items-center gap-1 cursor-pointer"
 					>
-						<Volume2 class="w-3 h-3" />
+						<UiIcon name="volume2" class="w-3 h-3" />
 						<span>{t('chat.unmuteAll')}</span>
 					</button>
 				</div>
@@ -225,7 +225,7 @@
 					aria-label={t('online.hud.sendChat')}
 					data-testid="global-chat-send"
 				>
-					<Send class="w-4 h-4" />
+					<UiIcon name="send" class="w-4 h-4" />
 				</button>
 			</form>
 		</div>

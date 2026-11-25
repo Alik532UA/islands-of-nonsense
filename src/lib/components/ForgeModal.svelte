@@ -1,21 +1,11 @@
 <script lang="ts">
+	import { Coins, TreePine } from 'lucide-svelte';
 	import type { Simulation } from '../engine/simulation';
 	import type { PlayerState } from '../engine/types';
 	import { BUILDINGS_MAP } from '../engine/gameData';
 	import { getCommanderForgeDiscount, applyCommanderForgeCostDiscount } from '../engine/commanders';
 	import { sound } from '../services/audio';
-	import {
-		Hammer,
-		Sword,
-		Shield,
-		TrendingUp,
-		X,
-		Coins,
-		TreePine,
-		CheckCircle2,
-		Check
-	} from 'lucide-svelte';
-
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	type ForgeUpgradeType = 'attack' | 'armor' | 'econ';
 
 	let {
@@ -77,7 +67,7 @@
 			{
 				type: 'attack' as const,
 				title: 'Гострота Зброї',
-				icon: Sword,
+				icon: 'sword' as const,
 				level: atkLvl,
 				maxLevel: 5,
 				currentText: `+${atkLvl * 8}% до шкоди`,
@@ -89,7 +79,7 @@
 			{
 				type: 'armor' as const,
 				title: 'Ковані Лати',
-				icon: Shield,
+				icon: 'shield' as const,
 				level: armLvl,
 				maxLevel: 5,
 				currentText: `+${armLvl} до броні`,
@@ -101,7 +91,7 @@
 			{
 				type: 'econ' as const,
 				title: 'Гільдія Торговців',
-				icon: TrendingUp,
+				icon: 'trendingUp' as const,
 				level: ecoLvl,
 				maxLevel: 3,
 				currentText: `+${ecoLvl * 10}% до доходу`,
@@ -183,7 +173,7 @@
 					<div
 						class="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-950/40 border-2 border-[#8c7456] flex items-center justify-center shadow-inner shrink-0"
 					>
-						<Hammer class="w-5 h-5 text-amber-400" />
+						<UiIcon name="hammer" class="w-5 h-5 text-amber-400" />
 					</div>
 					<div class="min-w-0">
 						<div class="flex items-center gap-2 flex-wrap">
@@ -222,7 +212,8 @@
 								: 'text-slate-500'}"
 							title="Доступна деревина"
 						>
-							<TreePine
+							<UiIcon
+								name="treePine"
 								class="w-3.5 h-3.5 {playerLumber > 0 ? 'text-emerald-400' : 'text-slate-500'}"
 							/>
 							{playerLumber}
@@ -236,7 +227,7 @@
 						class="w-9 h-9 rounded-lg bg-[#181d28] hover:bg-[#242c3d] border border-[#3b3226] hover:border-amber-500/70 text-slate-300 hover:text-amber-300 flex items-center justify-center transition cursor-pointer active:scale-95"
 						aria-label="Закрити Кузню"
 					>
-						<X class="w-4 h-4" />
+						<UiIcon name="x" class="w-4 h-4" />
 					</button>
 				</div>
 			</div>
@@ -254,7 +245,7 @@
 						data-testid="forge-building-progress"
 					>
 						<div class="flex items-center gap-2.5 min-w-0">
-							<Hammer class="w-4 h-4 text-amber-400 animate-pulse shrink-0" />
+							<UiIcon name="hammer" class="w-4 h-4 text-amber-400 animate-pulse shrink-0" />
 							<div class="text-xs font-bold text-amber-200">
 								Кузня зводиться робітником ({pct}%)
 							</div>
@@ -275,7 +266,7 @@
 							<div
 								class="p-2 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-400 shrink-0"
 							>
-								<Hammer class="w-4 h-4" />
+								<UiIcon name="hammer" class="w-4 h-4" />
 							</div>
 							<div class="min-w-0">
 								<div class="text-xs font-bold text-amber-200">Кузня ще не збудована</div>
@@ -298,7 +289,7 @@
 									? 'Вибрати місце на мапі для будівництва Кузні'
 									: `Потрібно ${forgeGoldCost} золота та ${forgeLumberCost} деревини`}
 							>
-								<Hammer class="w-3.5 h-3.5 shrink-0" />
+								<UiIcon name="hammer" class="w-3.5 h-3.5 shrink-0" />
 								<span>Будувати</span>
 								<span
 									class="flex items-center gap-1.5 font-mono text-[11px] pl-1.5 border-l {canAffordBuildForge
@@ -330,7 +321,7 @@
 						class="px-3 py-1.5 bg-emerald-950/35 border border-emerald-600/40 rounded-lg text-emerald-300 text-[11px] font-semibold flex items-center gap-2 shrink-0"
 						data-testid="forge-active-banner"
 					>
-						<CheckCircle2 class="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+						<UiIcon name="checkCircle2" class="w-3.5 h-3.5 text-emerald-400 shrink-0" />
 						<span>Кузня активна — покращення застосовуються миттєво до всієї армії</span>
 					</div>
 				{/if}
@@ -338,7 +329,6 @@
 				<!-- Upgrade Slots -->
 				<div class="flex flex-col gap-2.5">
 					{#each upgrades as up}
-						{@const Icon = up.icon}
 						{@const style = accentStyles[up.accent]}
 						{@const isMax = up.level >= up.maxLevel}
 						{@const canAfford = playerGold >= up.goldPrice && playerLumber >= up.lumberPrice}
@@ -353,7 +343,7 @@
 								<div
 									class="relative w-12 h-12 rounded-xl border-2 flex items-center justify-center shrink-0 shadow-inner {style.iconBox}"
 								>
-									<Icon class="w-5 h-5" />
+									<UiIcon name={up.icon} class="w-5 h-5" />
 									<span
 										class="absolute -bottom-1.5 -right-1.5 px-1.5 py-0.5 rounded-md bg-[#0a0d14] border border-[#544738] text-[9px] font-mono font-black {style.levelText} leading-none shadow"
 									>
@@ -435,7 +425,7 @@
 								<span
 									class="px-3.5 py-2 rounded-xl border border-emerald-500/60 bg-emerald-950/60 text-emerald-300 text-xs font-extrabold tracking-wider flex items-center justify-center gap-1.5 shrink-0 min-w-[144px]"
 								>
-									<Check class="w-3.5 h-3.5 text-emerald-400" />
+									<UiIcon name="check" class="w-3.5 h-3.5 text-emerald-400" />
 									МАКСИМУМ
 								</span>
 							{/if}

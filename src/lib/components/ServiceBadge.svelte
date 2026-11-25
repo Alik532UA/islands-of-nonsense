@@ -2,7 +2,7 @@
 <script lang="ts">
 	import { browser } from '$app/env';
 	import { page } from '$app/state';
-	import { Activity, Bug, Check, Copy, EyeOff, Trash2 } from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { debugMode } from '$lib/debug/debugMode.svelte';
 	import { perfMonitor } from '$lib/debug/perfMonitor.svelte';
 	import { t } from '$lib/i18n';
@@ -93,7 +93,7 @@
 					onclick={() => handleAction('copy')}
 					data-testid="service-badge-copy-report-btn"
 				>
-					<Copy size={14} aria-hidden="true" />
+					<UiIcon name="copy" size={14} />
 					<span>{t('debug.copyReport')}</span>
 				</button>
 				<button
@@ -103,7 +103,7 @@
 					onclick={() => handleAction('toggleFps')}
 					data-testid="service-badge-toggle-fps-btn"
 				>
-					<Activity size={14} aria-hidden="true" />
+					<UiIcon name="activity" size={14} />
 					<span>{perfMonitor.enabled ? t('debug.hideFps') : t('debug.showFps')}</span>
 					<span class="count">{perfMonitor.fps} FPS</span>
 				</button>
@@ -114,7 +114,7 @@
 					onclick={() => handleAction('modal')}
 					data-testid="service-badge-view-errors-btn"
 				>
-					<Bug size={14} aria-hidden="true" />
+					<UiIcon name="bug" size={14} />
 					<span>{t('debug.viewErrors')}</span>
 					<span class="count" class:has-errors={errors > 0}>{errors}</span>
 				</button>
@@ -125,7 +125,7 @@
 					onclick={() => handleAction('clear')}
 					data-testid="service-badge-clear-btn"
 				>
-					<Trash2 size={14} aria-hidden="true" />
+					<UiIcon name="trash2" size={14} />
 					<span>{t('debug.clearLogs')}</span>
 				</button>
 				<div class="service-menu-separator" role="separator"></div>
@@ -136,7 +136,7 @@
 					onclick={() => handleAction('hide')}
 					data-testid="service-badge-hide-btn"
 				>
-					<EyeOff size={14} aria-hidden="true" />
+					<UiIcon name="eyeOff" size={14} />
 					<span>{t('debug.hideBadge')}</span>
 				</button>
 			</div>
@@ -158,11 +158,11 @@
 			data-testid="service-badge-btn"
 		>
 			{#if copied}
-				<Check size={14} aria-hidden="true" />
+				<UiIcon name="check" size={14} />
 			{:else if errors > 0}
 				<span class="count">{errors > 99 ? '99+' : errors}</span>
 			{:else}
-				<Copy size={12} aria-hidden="true" />
+				<UiIcon name="copy" size={12} />
 			{/if}
 			<span data-testid="service-badge-version-text">v{version}</span>
 		</button>

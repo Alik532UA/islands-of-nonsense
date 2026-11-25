@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { AlertTriangle } from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { t } from '$lib/i18n';
 
 	interface Props {
@@ -20,7 +20,7 @@
 		<div
 			class="w-14 h-14 mx-auto mb-4 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-bold"
 		>
-			<AlertTriangle class="w-7 h-7" />
+			<UiIcon name="alertTriangle" class="w-7 h-7" />
 		</div>
 		<h2 class="text-xl font-bold mb-2">{t('errorFallback.title')}</h2>
 		<p class="text-sm text-slate-300 mb-6">

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ArrowLeft, Play } from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { t } from '$lib/i18n';
 
 	interface Props {
@@ -35,7 +35,7 @@
 			aria-label={t('online.back')}
 			data-testid="window-back-btn"
 		>
-			<ArrowLeft class="w-5 h-5" />
+			<UiIcon name="arrowLeft" class="w-5 h-5" />
 		</button>
 	</div>
 
@@ -76,7 +76,7 @@
 		data-testid="create-room-submit-btn"
 		class="w-full min-h-[46px] py-3 bg-gradient-to-b from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:via-amber-400 hover:to-amber-500 disabled:opacity-50 border-2 border-amber-200/80 text-slate-950 font-black uppercase tracking-wider rounded-[10px] shadow-[0_0_24px_rgba(245,158,11,0.35)] transition-transform active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
 	>
-		<Play class="w-5 h-5 fill-current" />
+		<UiIcon name="play" class="w-5 h-5 fill-current" />
 		<span>{t('online.createRoom')}</span>
 	</button>
 </div>

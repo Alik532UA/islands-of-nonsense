@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { ArrowLeft, Castle } from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { settings } from '$lib/services/settings.svelte';
 	import { t } from '$lib/i18n';
 	import HeaderControls from './HeaderControls.svelte';
@@ -34,7 +34,7 @@
 					data-testid="header-back-link"
 					onclick={handleBack}
 				>
-					<ArrowLeft class="w-4 h-4" />
+					<UiIcon name="arrowLeft" class="w-4 h-4" />
 				</a>
 			{/if}
 
@@ -45,7 +45,8 @@
 				aria-label="Головне меню"
 				data-testid="header-home-link"
 			>
-				<Castle
+				<UiIcon
+					name="castle"
 					class="lucide-icon lucide lucide-castle w-6 h-6 text-amber-400 group-hover:scale-110 transition-transform"
 				/>
 			</a>

@@ -1,9 +1,19 @@
 <script lang="ts">
+	import { Dices } from 'lucide-svelte';
 	import { onMount, onDestroy, setContext } from 'svelte';
 	import { goto, beforeNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { Simulation, type SimulationConfig } from '$lib/engine/simulation';
+	import {
+		ReplaySerializer,
+		type MatchReplayData,
+		type ReplayAction
+	} from '$lib/engine/replaySerializer';
 	import { resolveBattleLaunchConfig } from '$lib/engine/matchConfig';
+	import { calculateDailyScore, getDailyChallengeSpec } from '$lib/config/dailyChallenge';
+	import { submitDailyResult } from '$lib/net/dailyChallenge';
+	import { consumePendingReplay, saveMatchReplay } from '$lib/services/replayStore.svelte';
+	import { t } from '$lib/i18n';
 	import type { PlayerState } from '$lib/engine/types';
 	import { BotAI } from '$lib/engine/botAI';
 	import { ArenaRenderer, type SelectedEntity } from '$lib/renderer/ArenaRenderer';
@@ -29,7 +39,7 @@
 	import HotkeysHelpModal from '$lib/components/HotkeysHelpModal.svelte';
 	import A11yAnnouncer from '$lib/components/ui/A11yAnnouncer.svelte';
 	import { battleAnnouncer } from '$lib/services/battleAnnouncer.svelte';
-	import { ZoomIn, ZoomOut, Compass, HelpCircle, Dices, CircleSlash } from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { storage } from '$lib/services/storage';
 	import { createKeySequence, listenForSequences } from '$lib/debug/keySequence';
 	import { shortcutLetter, isEditableTarget } from '$lib/hotkeys/hotkeys';
@@ -52,6 +62,91 @@
 	let lastEarnedScore = $state<number | null>(null);
 	let lastEarnedXp = $state<number | null>(null);
 	let matchInstanceSeq = 0;
+	let isOnlineSpectator = $state(false);
+	let isReplayMode = $state(false);
+	let isDailyMode = $state(false);
+	let replayData = $state<MatchReplayData | null>(null);
+	let savedSerializedReplay = $state<string | null>(null);
+	let recordedReplayActions: ReplayAction[] = [];
+	let replayActionCursor = 0;
+	let isSpectatorView = $derived(isOnlineSpectator || isReplayMode);
+
+	function attachReplayRecorder(targetSim: Simulation) {
+		recordedReplayActions = [];
+		savedSerializedReplay = null;
+		targetSim.onReplayAction = (action) => {
+			if (recordedReplayActions.length < 500) {
+				recordedReplayActions.push(action);
+			}
+		};
+	}
+
+	function applyReplayActionToSim(targetSim: Simulation, action: ReplayAction) {
+		const { team, actionType, payload } = action;
+		if (
+			actionType === 'BUILD' &&
+			payload.buildingType &&
+			payload.x !== undefined &&
+			payload.y !== undefined
+		) {
+			targetSim.build(team, payload.buildingType, payload.x, payload.y);
+		} else if (actionType === 'UPGRADE' && payload.targetId && payload.buildingType) {
+			targetSim.upgradeBuilding(team, payload.targetId, payload.buildingType);
+		} else if (actionType === 'SELL' && payload.targetId) {
+			targetSim.sellBuilding(team, payload.targetId);
+		} else if (actionType === 'REPAIR' && payload.targetId) {
+			targetSim.repairBuilding(team, payload.targetId);
+		} else if (actionType === 'USE_ABILITY') {
+			targetSim.useRaceSkill(team);
+		}
+	}
+
+	function startReplayPlayback(data: MatchReplayData) {
+		if (countdownTimer) {
+			clearInterval(countdownTimer);
+			countdownTimer = null;
+		}
+		onlineSession?.dispose();
+		onlineSession = null;
+		matchSync = null;
+		isOnlineSpectator = false;
+		isDailyMode = false;
+		isReplayMode = true;
+		replayData = data;
+		replayActionCursor = 0;
+		savedSerializedReplay = null;
+		selectedBuildingId = null;
+		selectedPlacedBuildingId = null;
+		selectedUnitId = null;
+		selectedEntity = null;
+		isSettingsOpen = false;
+		isPauseMenuOpen = false;
+		matchPhase = 'BATTLE';
+
+		const replaySim = new Simulation({
+			botDifficulty: 0,
+			startGold: data.gameMode === 'sandbox' ? 99999 : 500,
+			modeId: data.gameMode,
+			teamSize: 1,
+			targetWins: 1,
+			westRace: data.westRace || data.westCommander,
+			eastRace: data.eastRace || data.eastCommander,
+			seed: data.randomSeed || 1,
+			autoStepBots: false,
+			botVsBot: false,
+			isRunning: true
+		});
+		replaySim.bots = [];
+		botAI = null;
+		sim = replaySim;
+		controlledPlayerSlot = sim.players.west?.slot ?? 1;
+		perfMonitor.attachSim(sim);
+		if (unlistenAudio) unlistenAudio();
+		unlistenAudio = attachAudioBridge(sim, sound);
+		renderer?.setSimulation(sim);
+		renderer?.resetCastleVisuals();
+		uiTick = sim.stateVersion;
+	}
 
 	$effect(() => {
 		const style = settings.graphicsStyle;
@@ -63,10 +158,33 @@
 		if (!sim.matchWinner) {
 			lastEarnedScore = null;
 			lastEarnedXp = null;
+			savedSerializedReplay = null;
 			return;
 		}
-		if (isBotVsBot) return;
-		const matchKey = `${matchSync ? 'online' : 'solo'}_${matchInstanceSeq}_${sim.config.seed ?? 0}_${sim.score.west}_${sim.score.east}`;
+		if (!isReplayMode && !isBotVsBot && !savedSerializedReplay) {
+			const replayObj: MatchReplayData = {
+				version: ReplaySerializer.CURRENT_REPLAY_VERSION,
+				mapId: 'classic_bridges',
+				gameMode: isDailyMode ? 'daily' : matchSync ? 'online' : (sim.config.modeId ?? 'standard'),
+				timestamp: Date.now(),
+				randomSeed: sim.config.seed ?? sim.decorationSeed ?? 1,
+				westCommander: String(sim.players.west.commander ?? 'none'),
+				eastCommander: String(sim.players.east.commander ?? 'none'),
+				westRace: formatRaceName(sim.players.west.race),
+				eastRace: formatRaceName(sim.players.east.race),
+				actions: recordedReplayActions,
+				result: {
+					winner: sim.matchWinner,
+					totalTicks: sim.tick,
+					westCastleHp: Math.max(0, Math.round(sim.castles.west.hp)),
+					eastCastleHp: Math.max(0, Math.round(sim.castles.east.hp))
+				}
+			};
+			const saved = saveMatchReplay(replayObj);
+			savedSerializedReplay = saved.serialized;
+		}
+		if (isBotVsBot || isSpectatorView) return;
+		const matchKey = `${matchSync ? 'online' : isDailyMode ? 'daily' : 'solo'}_${matchInstanceSeq}_${sim.config.seed ?? 0}_${sim.score.west}_${sim.score.east}`;
 		if (matchKey === lastRecordedMatchKey) return;
 		lastRecordedMatchKey = matchKey;
 		const myTeam = matchSync?.localTeam ?? 'west';
@@ -75,10 +193,11 @@
 		const enemyPlayer = sim.players[enemyTeam];
 		const mvp = sim.getMvpBuilding(myTeam);
 		const durationSec = Math.max(1, Math.round((Date.now() - matchStartedAtMs) / 1000));
+		const won = sim.matchWinner === myTeam;
 		void recordFinishedMatch({
 			matchKey,
 			mode: matchSync ? 'online' : 'solo',
-			won: sim.matchWinner === myTeam,
+			won,
 			unitsKilled: sim.players[myTeam].stats.unitsKilled,
 			damageToCastle: sim.players[myTeam].stats.damageToCastle,
 			botDifficulty: sim.config.botDifficulty,
@@ -94,6 +213,22 @@
 				lastEarnedXp = outcome.rewardSummary?.xpEarned ?? null;
 			}
 		});
+		if (isDailyMode && won) {
+			const spec = getDailyChallengeSpec();
+			const hpRatio = (sim.castles.west.hp ?? 0) / Math.max(1, sim.castles.west.maxHp ?? 14000);
+			const dailyScore = calculateDailyScore({
+				won: true,
+				durationSec,
+				castleHpRatio: hpRatio,
+				botDifficulty: spec.botDifficulty,
+				income: sim.economySystem.calculateIncome('west', sim.players.west)
+			});
+			void submitDailyResult(spec, {
+				score: dailyScore,
+				durationSec,
+				race: formatRaceName(myPlayer?.race ?? spec.westRace)
+			});
+		}
 	});
 
 	let uiTick = $state(0);
@@ -116,13 +251,13 @@
 		const list = sim.allPlayers?.length ? sim.allPlayers : [sim.players.west, sim.players.east];
 		const found = list.find((p) => p.slot === slot);
 		if (!found) return null;
-		if (isBotVsBot || found.team === localTeam) return found;
+		if (isBotVsBot || isSpectatorView || found.team === localTeam) return found;
 		return null;
 	}
 
 	let controlledPlayer = $derived.by(() => {
 		const _tick = uiTick;
-		if (matchSync) {
+		if (matchSync && !isOnlineSpectator) {
 			return (
 				sim.allPlayers?.find((p) => p.slot === matchSync?.localSlot) ??
 				(localTeam === 'east' ? sim.players.east : sim.players.west)
@@ -138,7 +273,7 @@
 	});
 
 	const routeOnlineCommand: BattleCommandRouter = (type, payload = {}) => {
-		if (!matchSync) return false;
+		if (!matchSync || isOnlineSpectator) return false;
 		void matchSync.dispatch(type, {
 			team: controlledPlayer.team,
 			playerSlot: controlledPlayer.slot,
@@ -155,6 +290,7 @@
 		offlineAction: () => boolean,
 		onSuccess?: () => void
 	): boolean {
+		if (isSpectatorView) return false;
 		if (matchSync) {
 			routeOnlineCommand(type, payload);
 			onSuccess?.();
@@ -450,6 +586,7 @@
 				lastSpaceTime = now;
 				uiTick = sim.stateVersion;
 			} else if (letter === 'p' && !e.repeat && !hasBlockingModal) {
+				if (isOnlineSpectator) return;
 				e.preventDefault();
 				if (matchSync) {
 					void matchSync.dispatch(sim.isRunning ? 'PAUSE' : 'RESUME');
@@ -462,6 +599,11 @@
 					battleAnnouncer.announce(sim.isRunning ? 'Гру відновлено' : 'Гру призупинено', 'polite');
 				}
 				uiTick = sim.stateVersion;
+			} else if (isSpectatorView) {
+				if ((letter === 'h' || e.key === '?') && !e.repeat && (!isWorkerGridActive || e.altKey)) {
+					openExclusiveModal('help', true);
+				}
+				return;
 			} else if (letter === 'f' && !e.repeat && (!isWorkerGridActive || e.altKey)) {
 				openExclusiveModal('forge', true);
 			} else if (letter === 'c' && !e.repeat && (!isWorkerGridActive || e.altKey)) {
@@ -605,8 +747,18 @@
 			typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
 		const urlMode = searchParams?.get('mode');
 		const urlRoom = searchParams?.get('room');
+		const isReplayParam = searchParams?.get('replay') === '1';
+		isDailyMode = urlMode === 'daily';
 
-		if (urlRoom) {
+		if (isReplayParam) {
+			const consumed = consumePendingReplay();
+			if (consumed.data) {
+				startReplayPlayback(consumed.data);
+			} else {
+				const saved = storage.getJSON<Partial<SimulationConfig>>('match_settings', {});
+				handleStartNewMatch(resolveBattleLaunchConfig(urlMode, saved));
+			}
+		} else if (urlRoom) {
 			isSettingsOpen = false;
 			matchPhase = 'BATTLE';
 			const { startOnlineBattleSession } = await import('$lib/net/onlineBattleSession');
@@ -614,9 +766,11 @@
 				sim,
 				onSimInitialized: (nextSim, init) => {
 					sim = nextSim;
+					isOnlineSpectator = init.isSpectator;
 					controlledPlayerSlot = init.localSlot;
 					cameraX = init.cameraX;
 					cameraY = init.cameraY;
+					if (!init.isSpectator) attachReplayRecorder(sim);
 					perfMonitor.attachSim(sim);
 					if (unlistenAudio) unlistenAudio();
 					unlistenAudio = attachAudioBridge(sim, sound);
@@ -672,6 +826,8 @@
 						if (move.type === 'RESTART_MATCH') {
 							matchInstanceSeq++;
 							matchStartedAtMs = Date.now();
+							recordedReplayActions = [];
+							savedSerializedReplay = null;
 						}
 						selectedBuildingId = null;
 						selectedPlacedBuildingId = null;
@@ -684,9 +840,11 @@
 					}
 					uiTick = sim.stateVersion;
 				},
-				onMatchStarted: (nextSim, localSlot) => {
+				onMatchStarted: (nextSim, localSlot, isSpectator) => {
 					sim = nextSim;
+					isOnlineSpectator = isSpectator;
 					controlledPlayerSlot = localSlot;
+					if (!isSpectator) attachReplayRecorder(sim);
 					perfMonitor.attachSim(sim);
 					if (unlistenAudio) unlistenAudio();
 					unlistenAudio = attachAudioBridge(sim, sound);
@@ -727,7 +885,7 @@
 				zoom = cz;
 			},
 			onWorkerCommand: (cmd) => {
-				if (!matchSync) return false;
+				if (!matchSync || isOnlineSpectator) return false;
 				if (cmd.type === 'MOVE_WORKER' || cmd.type === 'ORDER_WORKER_MOVE') {
 					return routeOnlineCommand(cmd.type, {
 						worldX: Math.round(cmd.worldX),
@@ -737,7 +895,7 @@
 				return routeOnlineCommand(cmd.type, { targetId: cmd.targetId });
 			},
 			onTileClick: (tileX: number, tileY: number, shiftKey = false) => {
-				if (selectedBuildingId) {
+				if (selectedBuildingId && !isSpectatorView) {
 					const shouldQueue = settings.buildQueueMode === 'convenient' ? !shiftKey : shiftKey;
 
 					if (matchSync) {
@@ -780,7 +938,7 @@
 					const existing = sim.buildings.find((b) => b.tileX === tileX && b.tileY === tileY);
 					selectedPlacedBuildingId = existing ? existing.instanceId : null;
 					selectedEntity = existing ? { type: 'building', instanceId: existing.instanceId } : null;
-					if (existing && isBotVsBot) {
+					if (existing && (isBotVsBot || isSpectatorView)) {
 						controlledPlayerSlot =
 							existing.playerSlot ??
 							sim.players[existing.team].slot ??
@@ -795,7 +953,7 @@
 					selectedPlacedBuildingId = entity.instanceId;
 					selectedUnitId = null;
 					selectedBuildingId = null;
-					if (isBotVsBot) {
+					if (isBotVsBot || isSpectatorView) {
 						const b = sim.buildings.find((bld) => bld.instanceId === entity.instanceId);
 						if (b) {
 							controlledPlayerSlot =
@@ -815,7 +973,7 @@
 				} else if (entity?.type === 'castle') {
 					selectedPlacedBuildingId = null;
 					selectedUnitId = null;
-					if (isBotVsBot) {
+					if (isBotVsBot || isSpectatorView) {
 						controlledPlayerSlot =
 							sim.players[entity.team].slot ?? (entity.team === 'east' ? 2 : 1);
 					}
@@ -891,6 +1049,13 @@
 					while (accumulator >= subDt && stepsCount < maxStepsPerFrame) {
 						if (matchSync) {
 							matchSync.flushTick(sim.tick);
+						} else if (isReplayMode && replayData) {
+							while (
+								replayActionCursor < replayData.actions.length &&
+								replayData.actions[replayActionCursor].tick <= sim.tick
+							) {
+								applyReplayActionToSim(sim, replayData.actions[replayActionCursor++]);
+							}
 						}
 						sim.step(subDt);
 						maybeSyncChecksum(null);
@@ -904,7 +1069,7 @@
 
 				if (stepsCount > 0 && !sim.winner) {
 					const botDt = stepsCount * subDt;
-					if (!matchSync) {
+					if (!matchSync && !isReplayMode) {
 						if (sim.bots && sim.bots.length > 0) {
 							sim.updateBots(botDt);
 						} else {
@@ -1035,6 +1200,7 @@
 	}
 
 	function handleNextRound() {
+		if (isSpectatorView) return;
 		if (matchSync) {
 			if (sim.matchWinner) {
 				void matchSync.dispatch('RESTART_MATCH');
@@ -1046,6 +1212,8 @@
 		if (sim.matchWinner) {
 			matchInstanceSeq++;
 			matchStartedAtMs = Date.now();
+			recordedReplayActions = [];
+			savedSerializedReplay = null;
 			sim.startNewMatch();
 		} else {
 			sim.round++;
@@ -1080,6 +1248,9 @@
 		isShopOpen = false;
 
 		sim = new Simulation(newConfig);
+		isReplayMode = false;
+		replayData = null;
+		attachReplayRecorder(sim);
 		matchInstanceSeq++;
 		matchStartedAtMs = Date.now();
 		controlledPlayerSlot = sim.players.west?.slot ?? 1;
@@ -1272,6 +1443,7 @@
 			{sim}
 			{uiTick}
 			isOnline={Boolean(matchSync)}
+			isSpectator={isSpectatorView}
 			activePlayer={controlledPlayer}
 			onOpenForge={() => openExclusiveModal('forge')}
 			onOpenCommander={() => openExclusiveModal('commander')}
@@ -1281,41 +1453,106 @@
 			onBeforeLeave={handleRequestLeave}
 		/>
 
-		{#if isBotVsBot && matchPhase === 'BATTLE' && sim.allPlayers?.length > 0}
+		{#snippet playerSwitcherButtons()}
+			{#each sim.allPlayers as botPlayer (botPlayer.slot ?? botPlayer.team)}
+				{@const botSlot = botPlayer.slot ?? (botPlayer.team === 'east' ? 2 : 1)}
+				{@const isActiveBot = controlledPlayer.slot === botSlot}
+				<button
+					type="button"
+					onclick={() => selectBotControl(botSlot, isOnlineSpectator)}
+					data-testid="bot-switch-btn-{botSlot}"
+					class="flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[11px] font-bold transition cursor-pointer touch-manipulation {isActiveBot
+						? 'bg-amber-950/80 border-amber-400 text-amber-200 shadow-[0_0_8px_rgba(251,191,36,0.35)]'
+						: 'bg-[#181e2c] hover:bg-[#232b3e] border-[#3b3226] text-slate-300 hover:text-white'}"
+					title="{botPlayer.name} ({formatRaceName(botPlayer.race)})"
+				>
+					<span
+						class="w-2 h-2 rounded-full shrink-0"
+						style="background-color: {botPlayer.color?.lightHex ??
+							(botPlayer.team === 'west' ? '#3b82f6' : '#ef4444')};"
+					></span>
+					<span>{isOnlineSpectator ? botPlayer.name : `Бот ${botSlot}`}</span>
+					<span class="text-[9px] text-slate-400 font-normal">
+						({formatRaceName(botPlayer.race)})
+					</span>
+				</button>
+			{/each}
+		{/snippet}
+
+		{#if isOnlineSpectator && matchPhase === 'BATTLE' && sim.allPlayers?.length > 0}
+			<!-- Online Spectator Switcher Pill Dock -->
+			<div
+				data-testid="online-spectator-switcher"
+				class="absolute top-14 left-1/2 -translate-x-1/2 z-20 flex flex-wrap items-center justify-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#111520]/90 border border-[#544738] shadow-xl backdrop-blur-md"
+			>
+				{@render playerSwitcherButtons()}
+			</div>
+		{:else if isBotVsBot && matchPhase === 'BATTLE' && sim.allPlayers?.length > 0}
 			<!-- Bot Switcher Pill Dock for Controlling Any Bot in Bot vs Bot Matches -->
 			<div
 				data-testid="spectator-bot-switcher"
 				class="absolute top-14 left-1/2 -translate-x-1/2 z-20 flex flex-wrap items-center justify-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#111520]/90 border border-[#544738] shadow-xl backdrop-blur-md"
 			>
-				{#each sim.allPlayers as botPlayer (botPlayer.slot ?? botPlayer.team)}
-					{@const botSlot = botPlayer.slot ?? (botPlayer.team === 'east' ? 2 : 1)}
-					{@const isActiveBot = controlledPlayer.slot === botSlot}
+				{@render playerSwitcherButtons()}
+			</div>
+		{/if}
+
+		{#if isReplayMode && replayData}
+			{@const totalTicks = replayData.result?.totalTicks ?? sim.tick}
+			<div
+				data-testid="replay-player-bar"
+				class="absolute top-14 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#111520]/95 border border-emerald-500/50 text-xs text-slate-100 shadow-xl backdrop-blur-md"
+			>
+				<span
+					class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-black uppercase text-[10px]"
+				>
+					{t('replay.playerBadge')}
+				</span>
+				<span class="font-mono text-amber-300 tabular-nums">
+					{sim.tick} / {Math.max(sim.tick, totalTicks)}
+				</span>
+				<button
+					type="button"
+					onclick={() => {
+						sim.isRunning = !sim.isRunning;
+						sim.notifyStateChanged();
+					}}
+					class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 font-bold cursor-pointer"
+				>
+					{sim.isRunning ? 'Пауза' : 'Пуск'}
+				</button>
+				{#each [1, 2, 4] as sp (sp)}
 					<button
 						type="button"
-						onclick={() => selectBotControl(botSlot)}
-						data-testid="bot-switch-btn-{botSlot}"
-						class="flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[11px] font-bold transition cursor-pointer touch-manipulation {isActiveBot
-							? 'bg-amber-950/80 border-amber-400 text-amber-200 shadow-[0_0_8px_rgba(251,191,36,0.35)]'
-							: 'bg-[#181e2c] hover:bg-[#232b3e] border-[#3b3226] text-slate-300 hover:text-white'}"
-						title="Вибрати Бота #{botSlot} ({formatRaceName(botPlayer.race)})"
+						onclick={() => {
+							sim.speed = sp;
+							sim.notifyStateChanged();
+						}}
+						class="px-1.5 py-1 rounded font-mono font-bold cursor-pointer {sim.speed === sp
+							? 'bg-amber-500 text-slate-950'
+							: 'bg-slate-800 text-slate-300 hover:bg-slate-700'}"
 					>
-						<span
-							class="w-2 h-2 rounded-full shrink-0"
-							style="background-color: {botPlayer.color?.lightHex ??
-								(botPlayer.team === 'west' ? '#3b82f6' : '#ef4444')};"
-						></span>
-						<span>Бот {botSlot}</span>
-						<span class="text-[9px] text-slate-400 font-normal">
-							({formatRaceName(botPlayer.race)})
-						</span>
+						{sp}x
 					</button>
 				{/each}
+				<button
+					type="button"
+					onclick={() => {
+						allowNavigation = true;
+						void goto(resolve('/account'));
+					}}
+					class="px-2.5 py-1 rounded bg-rose-950/80 hover:bg-rose-900 text-rose-200 font-bold cursor-pointer"
+				>
+					{t('replay.exit')}
+				</button>
 			</div>
 		{/if}
 
 		{#if matchSync}
 			<div
-				class="absolute top-16 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-md shadow-md border pointer-events-none {peerOnline
+				class="absolute {isOnlineSpectator
+					? 'top-24'
+					: 'top-16'} left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-md shadow-md border pointer-events-none {peerOnline
 					? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-300'
 					: 'bg-amber-950/80 border-amber-500/40 text-amber-300'}"
 			>
@@ -1327,6 +1564,8 @@
 				<span>
 					{#if networkNotice?.includes('розсинхронізація')}
 						{networkNotice}
+					{:else if isOnlineSpectator}
+						{t('online.spectator.badge')}{peerPingMs !== null ? ` · ${peerPingMs} мс` : ''}
 					{:else if peerOnline}
 						Онлайн PvP: {matchSync.localTeam === 'west' ? 'Захід (Ви)' : 'Схід (Ви)'} vs Суперник{peerPingMs !==
 						null
@@ -1344,7 +1583,8 @@
 			{@const humanPlayersList = sim.allPlayers.filter((p) => !p.isBot)}
 			{@const pickedHumansCount = humanPlayersList.filter((p) => !p.pendingRacePick).length}
 			{@const waitingForOthersOnline =
-				Boolean(matchSync) && (!controlledPlayer.pendingRacePick || onlinePickedRace !== null)}
+				Boolean(matchSync) &&
+				(isOnlineSpectator || !controlledPlayer.pendingRacePick || onlinePickedRace !== null)}
 			<div
 				class="absolute inset-0 bg-black/75 backdrop-blur-sm flex flex-col items-center justify-center z-30 p-4 select-none"
 			>
@@ -1454,7 +1694,7 @@
 										<span
 											class="text-[9px] text-red-400 font-bold flex items-center justify-center gap-1"
 										>
-											<CircleSlash class="w-3 h-3 text-red-400 shrink-0" />
+											<UiIcon name="circleSlash" class="w-3 h-3 text-red-400 shrink-0" />
 											<span>Бан (-ban)</span>
 										</span>
 									{:else if isOpponentOccupied}
@@ -1479,7 +1719,8 @@
 			{touchControls}
 			localTeam={controlledPlayer.team}
 			activePlayer={controlledPlayer}
-			allowAllTeamsControl={isBotVsBot}
+			allowAllTeamsControl={isBotVsBot || isSpectatorView}
+			isSpectator={isSpectatorView}
 			selectedGroup={selectedEntity?.type === 'group' ? selectedEntity.unitIds : null}
 			bind:selectedBuildingId
 			bind:selectedPlacedBuildingId
@@ -1524,7 +1765,7 @@
 				aria-label="Наблизити"
 				data-testid="arena-zoom-in"
 			>
-				<ZoomIn class="w-3.5 h-3.5" />
+				<UiIcon name="zoomIn" class="w-3.5 h-3.5" />
 			</button>
 			<button
 				type="button"
@@ -1537,7 +1778,7 @@
 				aria-label="Віддалити"
 				data-testid="arena-zoom-out"
 			>
-				<ZoomOut class="w-3.5 h-3.5" />
+				<UiIcon name="zoomOut" class="w-3.5 h-3.5" />
 			</button>
 			<button
 				type="button"
@@ -1550,7 +1791,7 @@
 				aria-label="Центрувати на замку"
 				data-testid="arena-center-base"
 			>
-				<Compass class="w-3.5 h-3.5" />
+				<UiIcon name="compass" class="w-3.5 h-3.5" />
 			</button>
 			<button
 				type="button"
@@ -1560,7 +1801,7 @@
 				aria-label="Гарячі клавіші"
 				data-testid="arena-help-btn"
 			>
-				<HelpCircle class="w-3.5 h-3.5" />
+				<UiIcon name="helpCircle" class="w-3.5 h-3.5" />
 			</button>
 		</div>
 	{/snippet}
@@ -1686,9 +1927,17 @@
 		{isOnlineHost}
 		earnedScore={lastEarnedScore}
 		earnedXp={lastEarnedXp}
+		serializedReplay={savedSerializedReplay}
 		onNextRound={handleNextRound}
 		onReselectCommander={() => {
 			isCommanderOpen = true;
+		}}
+		onWatchReplay={() => {
+			if (!savedSerializedReplay) return;
+			const decoded = ReplaySerializer.deserialize(savedSerializedReplay);
+			if (decoded.success && decoded.data) {
+				startReplayPlayback(decoded.data);
+			}
 		}}
 	/>
 	<MatchConfigModal

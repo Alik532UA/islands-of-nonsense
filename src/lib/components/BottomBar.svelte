@@ -9,7 +9,7 @@
 		getUnit,
 		resolveBuildingDisplayRace
 	} from '../engine/gameData';
-	import { Shield, Swords, Hammer, Users } from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import Minimap from './Minimap.svelte';
 	import CommandCard from './CommandCard.svelte';
 	import EntityInspectDetails from './EntityInspectDetails.svelte';
@@ -36,6 +36,7 @@
 		localTeam = 'west',
 		activePlayer = null,
 		allowAllTeamsControl = false,
+		isSpectator = false,
 		onSelectBuilding,
 		onUpgradeBuilding,
 		onSellBuilding,
@@ -58,6 +59,7 @@
 		localTeam?: 'west' | 'east';
 		activePlayer?: PlayerState | null;
 		allowAllTeamsControl?: boolean;
+		isSpectator?: boolean;
 		onSelectBuilding: (id: string | null) => void;
 		onUpgradeBuilding?: (instanceId: string, targetDefId: string) => void;
 		onSellBuilding?: (instanceId: string) => void;
@@ -182,6 +184,8 @@
 			return;
 		}
 
+		if (isSpectator) return;
+
 		// Upgrades 1..9 for selected placed building
 		if (placedBuilding && availableUpgrades.length > 0 && digit !== null) {
 			if (digit >= 1 && digit <= availableUpgrades.length) {
@@ -280,7 +284,7 @@
 			{:else if activeEntityType === 'group'}
 				<!-- Group / Squad Portrait -->
 				<div class="flex flex-col items-center justify-center text-amber-300">
-					<Users class="w-9 h-9 text-amber-400" />
+					<UiIcon name="users" class="w-9 h-9 text-amber-400" />
 					<span class="text-[9px] font-bold uppercase truncate max-w-[70px]"> Загін </span>
 				</div>
 			{:else if activeEntityType === 'building' && placedBuilding}
@@ -297,7 +301,7 @@
 						: 'text-amber-300'}"
 					title="{placedBuilding.name} ({buildingRace})"
 				>
-					<Hammer class="w-9 h-9 {isEnemyBld ? 'text-rose-400' : 'text-amber-400'}" />
+					<UiIcon name="hammer" class="w-9 h-9 {isEnemyBld ? 'text-rose-400' : 'text-amber-400'}" />
 					<span class="text-[9px] font-bold uppercase truncate max-w-[70px]">
 						{buildingRace}
 					</span>
@@ -312,7 +316,8 @@
 							? 'text-purple-300'
 							: 'text-blue-300'}"
 				>
-					<Swords
+					<UiIcon
+						name="swords"
 						class="w-9 h-9 {isEnemy
 							? 'text-rose-400'
 							: selectedUnit.team === 'neutral'
@@ -326,7 +331,7 @@
 			{:else if activeEntityType === 'none'}
 				<!-- Neutral Unselected Portrait -->
 				<div class="flex flex-col items-center justify-center text-slate-500 py-1">
-					<Shield class="w-8 h-8 opacity-40 text-amber-500" />
+					<UiIcon name="shield" class="w-8 h-8 opacity-40 text-amber-500" />
 					<span class="text-[9px] uppercase tracking-wide opacity-60">Вибір</span>
 				</div>
 			{:else}
@@ -586,7 +591,7 @@
 				{#if activeEntityType === 'worker'}
 					{@render inventorySnippet()}
 				{/if}
-				{#if activeEntityType !== 'unit'}
+				{#if activeEntityType !== 'unit' && !isSpectator}
 					{@render commandCardSnippet()}
 				{/if}
 			</div>
@@ -602,7 +607,9 @@
 			>
 				{#if showOnLeft}
 					{#if activeEntityType === 'worker'}
-						{@render commandCardSnippet()}
+						{#if !isSpectator}
+							{@render commandCardSnippet()}
+						{/if}
 						{@render inventorySnippet()}
 						{@render statsSnippet()}
 						{@render portraitSnippet()}
@@ -612,7 +619,9 @@
 					{:else}
 						{@render statsSnippet()}
 						{@render portraitSnippet()}
-						{@render commandCardSnippet()}
+						{#if !isSpectator}
+							{@render commandCardSnippet()}
+						{/if}
 					{/if}
 				{/if}
 			</div>
@@ -642,14 +651,18 @@
 						{@render portraitSnippet()}
 						{@render statsSnippet()}
 						{@render inventorySnippet()}
-						{@render commandCardSnippet()}
+						{#if !isSpectator}
+							{@render commandCardSnippet()}
+						{/if}
 					{:else if activeEntityType === 'unit'}
 						{@render portraitSnippet()}
 						{@render statsSnippet()}
 					{:else}
 						{@render portraitSnippet()}
 						{@render statsSnippet()}
-						{@render commandCardSnippet()}
+						{#if !isSpectator}
+							{@render commandCardSnippet()}
+						{/if}
 					{/if}
 				{/if}
 			</div>

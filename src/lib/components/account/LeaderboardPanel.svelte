@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Trophy, Globe, MapPin, RefreshCw, EyeOff, Upload, Users } from 'lucide-svelte';
+	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { t } from '$lib/i18n';
 	import {
 		filterLeadersByCountry,
@@ -112,7 +112,7 @@
 					onclick={() => void runAction(onPublish)}
 					class="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
 				>
-					<Upload class="w-3.5 h-3.5" />
+					<UiIcon name="upload" class="w-3.5 h-3.5" />
 					<span>{isListed ? t('account.leaders.syncMine') : t('account.leaders.publishMine')}</span>
 				</button>
 				{#if isListed}
@@ -122,7 +122,7 @@
 						onclick={() => void runAction(onWithdraw)}
 						class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
 					>
-						<EyeOff class="w-3.5 h-3.5" />
+						<UiIcon name="eyeOff" class="w-3.5 h-3.5" />
 						<span>{t('account.leaders.hideMine')}</span>
 					</button>
 				{/if}
@@ -135,7 +135,7 @@
 				title={t('account.leaders.refresh')}
 				aria-label={t('account.leaders.refresh')}
 			>
-				<RefreshCw class="w-3.5 h-3.5" />
+				<UiIcon name="refresh" class="w-3.5 h-3.5" />
 			</button>
 		</div>
 	</div>
@@ -151,7 +151,7 @@
 					? 'bg-sky-500/20 text-sky-200 border border-sky-500/40'
 					: 'bg-slate-900 text-slate-400 hover:text-slate-200'}"
 			>
-				<Globe class="w-3.5 h-3.5" />
+				<UiIcon name="globe" class="w-3.5 h-3.5" />
 				<span>{t('account.leaders.scopeGlobal')}</span>
 			</button>
 			{#if accountState === 'linked'}
@@ -163,7 +163,7 @@
 						? 'bg-sky-500/20 text-sky-200 border border-sky-500/40'
 						: 'bg-slate-900 text-slate-400 hover:text-slate-200'}"
 				>
-					<Users class="w-3.5 h-3.5" />
+					<UiIcon name="users" class="w-3.5 h-3.5" />
 					<span>{t('account.leaders.scopeFriends')}</span>
 				</button>
 			{/if}
@@ -176,7 +176,7 @@
 						? 'bg-sky-500/20 text-sky-200 border border-sky-500/40'
 						: 'bg-slate-900 text-slate-400 hover:text-slate-200'}"
 				>
-					<MapPin class="w-3.5 h-3.5" />
+					<UiIcon name="mappin" class="w-3.5 h-3.5" />
 					<span>{myCountry.toUpperCase()}</span>
 				</button>
 			{/if}
@@ -224,11 +224,11 @@
 						class="w-7 text-center font-black text-xs text-slate-400 flex items-center justify-center"
 					>
 						{#if i === 0}
-							<Trophy class="w-4 h-4 text-amber-400 mx-auto" />
+							<UiIcon name="trophy" class="w-4 h-4 text-amber-400 mx-auto" />
 						{:else if i === 1}
-							<Trophy class="w-4 h-4 text-slate-300 mx-auto" />
+							<UiIcon name="trophy" class="w-4 h-4 text-slate-300 mx-auto" />
 						{:else if i === 2}
-							<Trophy class="w-4 h-4 text-amber-700 mx-auto" />
+							<UiIcon name="trophy" class="w-4 h-4 text-amber-700 mx-auto" />
 						{:else}
 							#{i + 1}
 						{/if}

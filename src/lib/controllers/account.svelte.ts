@@ -4,6 +4,7 @@ import {
 	readProfile,
 	saveProfile,
 	signInEmail,
+	signInGoogle,
 	signOut as authSignOut,
 	type AccountState,
 	type Profile
@@ -116,6 +117,21 @@ export class AccountController {
 		this.error = null;
 		try {
 			await signInEmail(email, pass);
+			await this.load();
+			return true;
+		} catch (err) {
+			this.error = (err as Error).message;
+			return false;
+		} finally {
+			this.busy = false;
+		}
+	}
+
+	async signInWithGoogle(): Promise<boolean> {
+		this.busy = true;
+		this.error = null;
+		try {
+			await signInGoogle();
 			await this.load();
 			return true;
 		} catch (err) {
