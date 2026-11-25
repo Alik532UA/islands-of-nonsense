@@ -50,15 +50,17 @@ describe('RadialMenu & UnitSilhouette Visual Architecture', () => {
 		expect(radialMenuSrc).toContain('<Crown');
 	});
 
-	it('uses RADIUS >= 180 and non-overlapping 8-node geometry', () => {
+	it('uses RADIUS >= 230, polar percentage centering, and non-overlapping 8-node geometry', () => {
 		const match = radialMenuSrc.match(/const RADIUS = (\d+);/);
 		expect(match).not.toBeNull();
 		const radius = Number(match![1]);
-		expect(radius).toBeGreaterThanOrEqual(180);
+		expect(radius).toBeGreaterThanOrEqual(230);
 
-		expect(radialMenuSrc).toContain('w-[132px] min-h-[62px]');
-		const cardWidth = 132;
-		const cardHeight = 62;
+		expect(radialMenuSrc).toContain('w-[168px] min-h-[78px]');
+		expect(radialMenuSrc).toContain('-translate-x-1/2 -translate-y-1/2');
+		expect(radialMenuSrc).not.toContain('-ml-[66px]');
+		const cardWidth = 168;
+		const cardHeight = 78;
 		const count = 8;
 		const coords = Array.from({ length: count }, (_, idx) => {
 			const angle = (idx / count) * 2 * Math.PI - Math.PI / 2;
