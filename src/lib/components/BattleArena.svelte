@@ -39,6 +39,7 @@
 	import type { OnlineBattleSession } from '$lib/net/onlineBattleSession';
 	import { BATTLE_COMMAND_ROUTER_KEY, type BattleCommandRouter } from '$lib/net/onlineMatchSetup';
 	import { settings } from '$lib/services/settings.svelte';
+	import { recordFinishedMatch } from '$lib/services/matchProgress.svelte';
 
 	let canvasEl: HTMLCanvasElement;
 	let sim = $state(new Simulation({ botDifficulty: 15, startGold: 500, isRunning: false }));
@@ -46,10 +47,50 @@
 	let renderer: ArenaRenderer | null = null;
 	let onlineSession: OnlineBattleSession | null = null;
 	let matchSync = $state<MatchSync | null>(null);
+	let matchStartedAtMs = Date.now();
+	let lastRecordedMatchKey = '';
+	let lastEarnedScore = $state<number | null>(null);
+	let matchInstanceSeq = 0;
 
 	$effect(() => {
 		const style = settings.graphicsStyle;
 		renderer?.setGraphicsStyle(style);
+	});
+
+	$effect(() => {
+		const _tick = uiTick;
+		if (!sim.matchWinner) {
+			lastEarnedScore = null;
+			return;
+		}
+		if (isBotVsBot) return;
+		const matchKey = `${matchSync ? 'online' : 'solo'}_${matchInstanceSeq}_${sim.config.seed ?? 0}_${sim.score.west}_${sim.score.east}`;
+		if (matchKey === lastRecordedMatchKey) return;
+		lastRecordedMatchKey = matchKey;
+		const myTeam = matchSync?.localTeam ?? 'west';
+		const enemyTeam = myTeam === 'west' ? 'east' : 'west';
+		const myPlayer = controlledPlayer;
+		const enemyPlayer = sim.players[enemyTeam];
+		const mvp = sim.getMvpBuilding(myTeam);
+		const durationSec = Math.max(1, Math.round((Date.now() - matchStartedAtMs) / 1000));
+		void recordFinishedMatch({
+			matchKey,
+			mode: matchSync ? 'online' : 'solo',
+			won: sim.matchWinner === myTeam,
+			unitsKilled: sim.players[myTeam].stats.unitsKilled,
+			damageToCastle: sim.players[myTeam].stats.damageToCastle,
+			botDifficulty: sim.config.botDifficulty,
+			durationSec,
+			race: myPlayer?.race,
+			enemyRace: enemyPlayer?.race,
+			westScore: sim.score.west,
+			eastScore: sim.score.east,
+			mvpBuilding: mvp?.name
+		}).then((outcome) => {
+			if (outcome) {
+				lastEarnedScore = outcome.scoreDelta;
+			}
+		});
 	});
 
 	let uiTick = $state(0);
@@ -625,6 +666,10 @@
 						sound.playHorn();
 						renderer?.resetCastleVisuals();
 					} else if (move.type === 'NEXT_ROUND' || move.type === 'RESTART_MATCH') {
+						if (move.type === 'RESTART_MATCH') {
+							matchInstanceSeq++;
+							matchStartedAtMs = Date.now();
+						}
 						selectedBuildingId = null;
 						selectedPlacedBuildingId = null;
 						selectedUnitId = null;
@@ -996,6 +1041,8 @@
 			return;
 		}
 		if (sim.matchWinner) {
+			matchInstanceSeq++;
+			matchStartedAtMs = Date.now();
 			sim.startNewMatch();
 		} else {
 			sim.round++;
@@ -1030,6 +1077,8 @@
 		isShopOpen = false;
 
 		sim = new Simulation(newConfig);
+		matchInstanceSeq++;
+		matchStartedAtMs = Date.now();
 		controlledPlayerSlot = sim.players.west?.slot ?? 1;
 		sim.isRunning = false;
 		perfMonitor.attachSim(sim);
@@ -1632,6 +1681,7 @@
 		{uiTick}
 		isOnline={Boolean(matchSync)}
 		{isOnlineHost}
+		earnedScore={lastEarnedScore}
 		onNextRound={handleNextRound}
 		onReselectCommander={() => {
 			isCommanderOpen = true;

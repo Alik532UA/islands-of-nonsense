@@ -20,7 +20,8 @@
 	import { FLAG_COUNTRIES, countryName } from '$lib/config/countries';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
-	import { ReplaySerializer, type MatchReplayData } from '$lib/engine/replaySerializer';
+	import StatsPanel from '$lib/components/account/StatsPanel.svelte';
+	import LeaderboardPanel from '$lib/components/account/LeaderboardPanel.svelte';
 
 	const controller = new AccountController();
 
@@ -38,20 +39,6 @@
 	let authErrorMessage = $state('');
 	let authInfoMessage = $state('');
 	let savedSuccess = $state(false);
-	let replayJsonInput = $state('');
-	let replayStatus = $state<'idle' | 'valid' | 'invalid'>('idle');
-	let parsedReplay = $state<MatchReplayData | null>(null);
-
-	function handleVerifyReplay() {
-		const decoded = ReplaySerializer.deserialize(replayJsonInput.trim());
-		if (decoded.success && decoded.data) {
-			parsedReplay = decoded.data;
-			replayStatus = 'valid';
-		} else {
-			parsedReplay = null;
-			replayStatus = 'invalid';
-		}
-	}
 
 	$effect(() => {
 		return settings.claimHeader(t('account.title'), () => goto(resolve('/')));
@@ -126,13 +113,6 @@
 	async function handleSignOut() {
 		await controller.signOut();
 	}
-
-	const gameRecord = $derived(
-		controller.playData.games.castlefight ?? { best: 0, plays: 0, wins: 0 }
-	);
-	const winRate = $derived(
-		gameRecord.plays > 0 ? Math.round((gameRecord.wins / gameRecord.plays) * 100) : 0
-	);
 </script>
 
 <svelte:head>
@@ -563,135 +543,22 @@
 
 		<!-- TAB 2: STATS -->
 		{#if activeTab === 'stats'}
-			<div class="space-y-6">
-				<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-					<div class="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl text-center">
-						<div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
-							{t('account.stats.score')}
-						</div>
-						<div class="text-2xl font-black text-amber-400">{controller.playData.score}</div>
-					</div>
-
-					<div class="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl text-center">
-						<div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
-							{t('account.stats.plays')}
-						</div>
-						<div class="text-2xl font-black text-slate-200">{gameRecord.plays}</div>
-					</div>
-
-					<div class="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl text-center">
-						<div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
-							{t('account.stats.wins')}
-						</div>
-						<div class="text-2xl font-black text-emerald-400">{gameRecord.wins}</div>
-					</div>
-
-					<div class="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl text-center">
-						<div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
-							{t('account.stats.winRate')}
-						</div>
-						<div class="text-2xl font-black text-cyan-400">{winRate}%</div>
-					</div>
-
-					<div class="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl text-center">
-						<div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
-							{t('account.stats.best')}
-						</div>
-						<div class="text-2xl font-black text-amber-300">{gameRecord.best}</div>
-					</div>
-				</div>
-
-				<div class="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-3">
-					<h3 class="text-xs uppercase tracking-wider text-slate-300 font-bold">
-						{t('account.replay.title')}
-					</h3>
-					<textarea
-						bind:value={replayJsonInput}
-						data-testid="replay-json-input"
-						rows="3"
-						placeholder={t('account.replay.placeholder')}
-						class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-slate-100 focus:outline-none focus:border-amber-500"
-					></textarea>
-					<div class="flex flex-wrap items-center justify-between gap-3">
-						<button
-							type="button"
-							data-testid="replay-verify-btn"
-							onclick={handleVerifyReplay}
-							class="min-h-[44px] px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 font-bold rounded-xl text-xs transition cursor-pointer"
-						>
-							{t('account.replay.verify')}
-						</button>
-						{#if replayStatus === 'valid' && parsedReplay}
-							<span
-								class="text-xs text-emerald-400 font-semibold"
-								data-testid="replay-verify-status"
-							>
-								{t('account.replay.valid')} · {t('account.replay.summary', {
-									mode: parsedReplay.gameMode,
-									winner: parsedReplay.result?.winner ?? '—',
-									actions: parsedReplay.actions.length
-								})}
-							</span>
-						{:else if replayStatus === 'invalid'}
-							<span class="text-xs text-rose-400 font-semibold" data-testid="replay-verify-status">
-								{t('account.replay.invalid')}
-							</span>
-						{/if}
-					</div>
-				</div>
-			</div>
+			<StatsPanel playData={controller.playData} />
 		{/if}
 
 		<!-- TAB 3: LEADERS -->
 		{#if activeTab === 'leaders'}
-			<div class="space-y-4">
-				{#if controller.leaders.length === 0}
-					<div class="py-12 text-center text-xs text-slate-500">
-						{t('account.leaders.empty')}
-					</div>
-				{:else}
-					<div
-						class="divide-y divide-slate-800/60 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/40"
-					>
-						{#each controller.leaders as leader, i}
-							<div class="flex items-center gap-3 p-3.5 hover:bg-slate-900/40 transition">
-								<div
-									class="w-7 text-center font-black text-xs text-slate-400 flex items-center justify-center"
-								>
-									{#if i === 0}
-										<Trophy class="w-4 h-4 text-amber-400 mx-auto" />
-									{:else if i === 1}
-										<Trophy class="w-4 h-4 text-slate-300 mx-auto" />
-									{:else if i === 2}
-										<Trophy class="w-4 h-4 text-amber-700 mx-auto" />
-									{:else}
-										#{i + 1}
-									{/if}
-								</div>
-
-								<Avatar avatar={leader.avatar ?? 'castle:amber'} size={24} />
-
-								<div class="flex-1 min-w-0">
-									<div class="flex items-center gap-2">
-										<span class="font-bold text-xs text-slate-100 truncate">{leader.name}</span>
-										{#if leader.country}
-											<span class="text-[9px] px-1 bg-slate-800 rounded text-slate-300 uppercase">
-												{leader.country}
-											</span>
-										{/if}
-									</div>
-									<div class="text-[10px] text-slate-500 truncate">@{leader.handle}</div>
-								</div>
-
-								<div class="text-right">
-									<span class="font-black text-xs text-amber-400">{leader.score}</span>
-									<span class="text-[9px] text-slate-500 block">очок</span>
-								</div>
-							</div>
-						{/each}
-					</div>
-				{/if}
-			</div>
+			<LeaderboardPanel
+				leaders={controller.leaders}
+				myUid={controller.uid}
+				accountState={controller.state}
+				profile={controller.profile}
+				myScore={controller.playData.score}
+				myCountry={formCountry || controller.profile?.country || ''}
+				onRefresh={() => controller.loadLeaders()}
+				onPublish={() => controller.publishToLeaderboard()}
+				onWithdraw={() => controller.withdrawFromLeaderboard()}
+			/>
 		{/if}
 	</div>
 </div>

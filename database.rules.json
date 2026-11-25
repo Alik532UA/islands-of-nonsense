@@ -2,7 +2,7 @@
 	"rules": {
 		"__rulesVersion": {
 			"$v": {
-				".read": "auth != null && $v === '312112a03af8'"
+				".read": "auth != null && $v === 'eee3340857cd'"
 			}
 		},
 		"rooms": {
@@ -444,6 +444,12 @@
 					"score": {
 						".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000"
 					},
+					"winStreak": {
+						".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+					},
+					"bestWinStreak": {
+						".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+					},
 					"games": {
 						"$gameId": {
 							"wins": {
@@ -452,8 +458,61 @@
 							"losses": {
 								".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
 							},
+							"plays": {
+								".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+							},
+							"best": {
+								".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000"
+							},
 							"score": {
 								".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000"
+							},
+							"$other": {
+								".validate": false
+							}
+						}
+					},
+					"history": {
+						"$entryId": {
+							".validate": "$entryId.matches(/^[a-zA-Z0-9_-]{1,48}$/) && newData.hasChildren(['id', 'at', 'mode', 'result', 'scoreDelta'])",
+							"id": {
+								".validate": "newData.isString() && newData.val().length <= 48"
+							},
+							"at": {
+								".validate": "newData.isNumber() && newData.val() >= 0"
+							},
+							"mode": {
+								".validate": "newData.val() === 'solo' || newData.val() === 'online' || newData.val() === 'daily'"
+							},
+							"result": {
+								".validate": "newData.val() === 'win' || newData.val() === 'loss'"
+							},
+							"scoreDelta": {
+								".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+							},
+							"race": {
+								".validate": "newData.isString() && newData.val().length <= 32"
+							},
+							"enemyRace": {
+								".validate": "newData.isString() && newData.val().length <= 32"
+							},
+							"westScore": {
+								".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 20"
+							},
+							"eastScore": {
+								".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 20"
+							},
+							"durationSec": {
+								".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 86400"
+							},
+							"unitsKilled": {
+								".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+							},
+							"damageToCastle": {
+								".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000"
+							},
+							"mvpBuilding": {
+								".validate": "newData.isString() && newData.val().length <= 48"
 							},
 							"$other": {
 								".validate": false
@@ -481,7 +540,7 @@
 		},
 		"leaders": {
 			".read": "auth != null && query.orderByChild === 'score' && query.limitToLast <= 50",
-			".indexOn": ["score"],
+			".indexOn": ["score", "wins"],
 			"$uid": {
 				".read": "auth != null",
 				".write": "auth != null && $uid === auth.uid",
@@ -494,6 +553,21 @@
 				},
 				"score": {
 					".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 100000000 && newData.val() <= root.child('users').child(auth.uid).child('play/score').val()"
+				},
+				"wins": {
+					".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+				},
+				"losses": {
+					".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+				},
+				"plays": {
+					".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+				},
+				"winRate": {
+					".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+				},
+				"best": {
+					".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000"
 				},
 				"country": {
 					".validate": "newData.isString() && newData.val().length === 2"

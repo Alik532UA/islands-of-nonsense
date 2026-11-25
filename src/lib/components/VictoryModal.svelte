@@ -20,6 +20,7 @@
 		uiTick = 0,
 		isOnline = false,
 		isOnlineHost = true,
+		earnedScore = null,
 		onNextRound,
 		onReselectCommander
 	}: {
@@ -27,6 +28,7 @@
 		uiTick?: number;
 		isOnline?: boolean;
 		isOnlineHost?: boolean;
+		earnedScore?: number | null;
 		onNextRound: () => void;
 		onReselectCommander?: () => void;
 	} = $props();
@@ -128,6 +130,16 @@
 					({isMatchOver ? `Серія до ${sim.targetWins}` : `гра до ${sim.targetWins} перемог`})
 				</span>
 			</p>
+
+			{#if isMatchOver && earnedScore !== null && earnedScore > 0}
+				<div
+					class="mb-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold"
+					data-testid="victory-earned-score"
+				>
+					<Trophy class="w-3.5 h-3.5" />
+					<span>+{earnedScore} рейтингових очок</span>
+				</div>
+			{/if}
 
 			<!-- MVP Building Banner -->
 			{#if westMvp}

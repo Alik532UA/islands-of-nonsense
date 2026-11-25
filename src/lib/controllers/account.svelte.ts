@@ -8,14 +8,17 @@ import {
 	type AccountState,
 	type Profile
 } from '$lib/net/account';
-import { readPlay, mergePlay, EMPTY_PLAY, type PlayData } from '$lib/net/play';
-import { publishLeader, topLeaders, type Leader } from '$lib/net/leaders';
+import { readPlay, mergePlay, writePlay, EMPTY_PLAY, type PlayData } from '$lib/net/play';
+import { publishLeader, topLeaders, withdrawLeader, type Leader } from '$lib/net/leaders';
+import {
+	buildLeaderStats,
+	getLocalPlayData,
+	saveLocalPlayData
+} from '$lib/services/matchProgress.svelte';
 import { logService } from '$lib/services/logService.svelte';
-import { storage } from '$lib/services/storage';
-
-const LOCAL_PLAY_KEY = 'play_data';
 
 export class AccountController {
+	public uid = $state<string | null>(null);
 	public state = $state<AccountState>('anonymous');
 	public email = $state<string | null>(null);
 	public profile = $state<Profile | null>(null);
@@ -29,6 +32,7 @@ export class AccountController {
 		this.error = null;
 		try {
 			const info = await currentUserInfo();
+			this.uid = info.uid;
 			this.state = info.isAnonymous ? 'anonymous' : 'linked';
 			this.email = info.email ?? null;
 
@@ -37,9 +41,21 @@ export class AccountController {
 				this.profile = prof;
 			}
 
-			const local = storage.getJSON<PlayData>(LOCAL_PLAY_KEY, EMPTY_PLAY);
-			const cloud = await readPlay();
-			this.playData = mergePlay(local, cloud);
+			const local = getLocalPlayData();
+			const cloud = this.state === 'linked' ? await readPlay() : null;
+			const merged = mergePlay(local, cloud);
+			this.playData = merged;
+			saveLocalPlayData(merged);
+
+			if (
+				this.state === 'linked' &&
+				merged.score > 0 &&
+				(!cloud ||
+					merged.score > cloud.score ||
+					(merged.games.castlefight?.plays ?? 0) > (cloud.games.castlefight?.plays ?? 0))
+			) {
+				void writePlay(merged);
+			}
 		} catch (err) {
 			logService.warn('account', 'Account controller load failed', { err: String(err) });
 			this.error = String(err);
@@ -56,6 +72,24 @@ export class AccountController {
 		}
 	}
 
+	async publishToLeaderboard(): Promise<boolean> {
+		if (this.state !== 'linked' || !this.profile || this.playData.score <= 0) return false;
+		const ok = await publishLeader(
+			this.profile,
+			this.playData.score,
+			buildLeaderStats(this.playData)
+		);
+		if (ok) {
+			await this.loadLeaders();
+		}
+		return ok;
+	}
+
+	async withdrawFromLeaderboard(): Promise<void> {
+		await withdrawLeader();
+		await this.loadLeaders();
+	}
+
 	async link(email: string, pass: string): Promise<boolean> {
 		this.busy = true;
 		this.error = null;
@@ -63,6 +97,9 @@ export class AccountController {
 			await linkEmail(email, pass);
 			this.state = 'linked';
 			this.email = email;
+			if (this.playData.score > 0) {
+				void writePlay(this.playData);
+			}
 			return true;
 		} catch (err) {
 			this.error = (err as Error).message;
@@ -108,7 +145,8 @@ export class AccountController {
 			if (ok) {
 				this.profile = profile;
 				if (this.playData.score > 0) {
-					void publishLeader(profile, this.playData.score);
+					void writePlay(this.playData);
+					void publishLeader(profile, this.playData.score, buildLeaderStats(this.playData));
 				}
 			}
 			return ok;
