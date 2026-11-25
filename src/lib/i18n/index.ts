@@ -3,7 +3,9 @@
  * Підтримуються українська (uk) та англійська (en).
  */
 
-export type Locale = 'uk' | 'en';
+import { localeState, type Locale } from './localeState.svelte';
+
+export type { Locale };
 
 export const translations = {
 	uk: {
@@ -628,14 +630,15 @@ export const translations = {
 
 export type TranslationKey = keyof (typeof translations)['uk'];
 
-let currentLocale: Locale = 'uk';
-
 export function setLocale(loc: Locale): void {
-	currentLocale = loc;
+	localeState.current = loc;
+	if (typeof document !== 'undefined') {
+		document.documentElement.lang = loc;
+	}
 }
 
 export function getLocale(): Locale {
-	return currentLocale;
+	return localeState.current;
 }
 
 export function t(
@@ -644,7 +647,7 @@ export function t(
 	localeOverride?: Locale
 ): string {
 	const locale: Locale =
-		typeof paramsOrLocale === 'string' ? paramsOrLocale : (localeOverride ?? currentLocale);
+		typeof paramsOrLocale === 'string' ? paramsOrLocale : (localeOverride ?? localeState.current);
 	const params =
 		typeof paramsOrLocale === 'object' && paramsOrLocale !== null ? paramsOrLocale : undefined;
 

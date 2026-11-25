@@ -533,10 +533,6 @@ export class TerrainRenderer {
 	}
 
 	private drawCastlePlaza(g: Graphics, cx: number, cy: number): void {
-		// Plaza drop shadow
-		g.circle(cx + 10, cy + 16, 234);
-		g.fill({ color: 0x000000, alpha: 0.44 });
-
 		// Outer carved sandstone curb blocks
 		g.circle(cx, cy, 230);
 		g.fill({ color: 0x7a6348 });

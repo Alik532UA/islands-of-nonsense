@@ -53,8 +53,11 @@
 		}
 	}
 
+	$effect(() => {
+		return settings.claimHeader(t('account.title'), () => goto(resolve('/')));
+	});
+
 	onMount(() => {
-		const release = settings.claimHeader(t('account.title'), () => goto(resolve('/')));
 		void controller.load().then(() => {
 			if (controller.profile) {
 				formName = controller.profile.name;
@@ -64,7 +67,6 @@
 			}
 		});
 		void controller.loadLeaders();
-		return release;
 	});
 
 	async function handleSaveProfile() {

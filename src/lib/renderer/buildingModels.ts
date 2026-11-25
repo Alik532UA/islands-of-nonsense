@@ -36,6 +36,46 @@ export interface BuildingModelContext {
 	time: number;
 	pal: RacePalette;
 	seed: number;
+	sunShadow: SunShadowOffset;
+}
+
+export interface SunShadowOffset {
+	dx: number;
+	dy: number;
+	alpha: number;
+}
+
+const DEFAULT_SUN_SHADOW: SunShadowOffset = { dx: 3, dy: 7, alpha: 0.42 };
+
+const SUN_KEYFRAMES: ReadonlyArray<{ p: number; dx: number; dy: number; alpha: number }> = [
+	{ p: 0.0, dx: -11, dy: 9, alpha: 0.44 },
+	{ p: 0.1875, dx: 0, dy: 5, alpha: 0.38 },
+	{ p: 0.44, dx: 13, dy: 10, alpha: 0.46 },
+	{ p: 0.72, dx: 2, dy: 7, alpha: 0.22 },
+	{ p: 1.0, dx: -11, dy: 9, alpha: 0.44 }
+];
+
+/**
+ * Computes an ultra-lightweight sun-driven shadow offset and opacity from the 120s day/night cycle
+ * using continuous periodic cosine easing (zero allocations/redraw overhead).
+ */
+export function computeSunShadow(dayNightProgress: number): SunShadowOffset {
+	const p = ((dayNightProgress % 1) + 1) % 1;
+	for (let i = 0; i < SUN_KEYFRAMES.length - 1; i++) {
+		const a = SUN_KEYFRAMES[i];
+		const b = SUN_KEYFRAMES[i + 1];
+		if (p >= a.p && p <= b.p) {
+			const span = b.p - a.p || 1;
+			const t = (p - a.p) / span;
+			const ease = 0.5 - 0.5 * Math.cos(Math.PI * t);
+			return {
+				dx: a.dx + (b.dx - a.dx) * ease,
+				dy: a.dy + (b.dy - a.dy) * ease,
+				alpha: a.alpha + (b.alpha - a.alpha) * ease
+			};
+		}
+	}
+	return DEFAULT_SUN_SHADOW;
 }
 
 export function shadeHexColor(hex: number, factor: number): number {
@@ -223,7 +263,8 @@ export function drawIndividualBuildingModel(
 	isUpgraded: boolean,
 	isLegendary: boolean,
 	isSelected: boolean,
-	time: number
+	time: number,
+	sunShadow: SunShadowOffset = DEFAULT_SUN_SHADOW
 ): void {
 	const px = b.x;
 	const py = b.y;
@@ -250,7 +291,8 @@ export function drawIndividualBuildingModel(
 		isSelected,
 		time,
 		pal,
-		seed: hashId(b.defId || b.name)
+		seed: hashId(b.defId || b.name),
+		sunShadow
 	};
 
 	drawSelectionAndShadow(ctx);
@@ -429,12 +471,14 @@ export function drawIndividualBuildingModel(
 // =========================================================================
 
 function drawSelectionAndShadow(ctx: BuildingModelContext): void {
-	const { g, px, py, cx, cy, isSelected, isLegendary, time } = ctx;
+	const { g, px, py, cx, cy, isSelected, isLegendary, time, sunShadow } = ctx;
 
-	// Soft 2.5D contact shadow matching typical irregular silhouette
+	// Soft 2.5D solar contact shadow gliding smoothly across the day/night cycle
+	const shadowRx = 28 + Math.abs(sunShadow.dx) * 0.35;
+	const shadowRy = 22 + Math.max(0, sunShadow.dy - 5) * 0.25;
 	g.beginPath();
-	g.ellipse(cx + 3, cy + 7, 29, 24);
-	g.fill({ color: 0x000000, alpha: 0.42 });
+	g.ellipse(cx + sunShadow.dx, cy + sunShadow.dy, shadowRx, shadowRy);
+	g.fill({ color: 0x000000, alpha: sunShadow.alpha });
 
 	if (isSelected) {
 		const pulse = 0.72 + Math.sin(time * 5.5) * 0.22;

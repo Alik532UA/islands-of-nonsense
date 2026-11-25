@@ -10,7 +10,12 @@ import {
 	resolveBuildingDisplayRace
 } from '../engine/gameData';
 import type { SelectedEntity } from './entityRenderer';
-import { drawIndividualBuildingModel, shadeHexColor } from './buildingModels';
+import {
+	computeSunShadow,
+	drawIndividualBuildingModel,
+	shadeHexColor,
+	type SunShadowOffset
+} from './buildingModels';
 
 /**
  * BuildingRenderer handles rendering of placed buildings via individual 2.5D Warcraft III-style
@@ -40,6 +45,7 @@ export class BuildingRenderer {
 	): void {
 		g.clear();
 		const time = this.sim.gameTime;
+		const sunShadow = computeSunShadow(this.sim.dayNightProgress);
 
 		for (const b of this.sim.buildings) {
 			if (
@@ -86,7 +92,8 @@ export class BuildingRenderer {
 				isUpgraded,
 				isLegendary,
 				isSelected,
-				time
+				time,
+				sunShadow
 			);
 
 			// Under-Construction Blueprint / Scaffolding Overlay
@@ -193,11 +200,12 @@ export class BuildingRenderer {
 		radius: number,
 		roofDark: number,
 		roofMid: number,
-		roofLight: number
+		roofLight: number,
+		sunShadow: SunShadowOffset
 	): void {
-		// 2.5D Cast Shadow
-		g.circle(tx + 5, ty + 8, radius + 2);
-		g.fill({ color: 0x000000, alpha: 0.42 });
+		// 2.5D Solar Cast Shadow
+		g.circle(tx + sunShadow.dx * 0.7, ty + sunShadow.dy * 0.85, radius + 2);
+		g.fill({ color: 0x000000, alpha: sunShadow.alpha });
 
 		// Base Stone Turret Drum & Beveled South Face
 		g.circle(tx, ty + 4, radius + 2);
@@ -270,6 +278,7 @@ export class BuildingRenderer {
 		const cx = castle.x;
 		const cy = castle.y;
 		const time = this.sim.gameTime;
+		const sunShadow = computeSunShadow(this.sim.dayNightProgress);
 		const teamColor =
 			castle.color?.num ||
 			this.sim.players[castle.team]?.color?.num ||
@@ -293,9 +302,9 @@ export class BuildingRenderer {
 			g.stroke({ color: isWest ? 0xfbbf24 : 0xf43f5e, width: 3.5, alpha: pulseAlpha });
 		}
 
-		// 2. Deep 2.5D Citadel Drop Shadow on Stone Plaza
-		g.roundRect(left + 12, top + 16, wallW, wallH, 16);
-		g.fill({ color: 0x000000, alpha: 0.48 });
+		// 2. Active 2.5D Citadel Solar Shadow on Stone Plaza (glides smoothly through day/night)
+		g.roundRect(left + sunShadow.dx * 1.65, top + sunShadow.dy * 1.75, wallW, wallH, 16);
+		g.fill({ color: 0x000000, alpha: Math.min(0.52, sunShadow.alpha + 0.05) });
 
 		// 3. Stepped Stone Foundation Skirt & Beveled Outer Curtain Wall
 		g.roundRect(left - 4, top + 6, wallW + 8, wallH + 4, 16);
@@ -487,7 +496,7 @@ export class BuildingRenderer {
 		g.stroke({ color: 0xf59e0b, width: 3.5 });
 
 		// 8. Central Crown Spire Turret
-		this.drawTowerTurret(g, cx, cy - 4, 24, roofDark, roofMid, roofLight);
+		this.drawTowerTurret(g, cx, cy - 4, 24, roofDark, roofMid, roofLight, sunShadow);
 
 		// 9. Four Layered Corner Watchtowers
 		const towerCoords = [
@@ -497,7 +506,7 @@ export class BuildingRenderer {
 			{ x: left + wallW - 12, y: top + wallH - 12 }
 		];
 		for (const t of towerCoords) {
-			this.drawTowerTurret(g, t.x, t.y, 19, roofDark, roofMid, roofLight);
+			this.drawTowerTurret(g, t.x, t.y, 19, roofDark, roofMid, roofLight, sunShadow);
 		}
 
 		// 10. Animated Royal Heraldic War Banner on High Spire

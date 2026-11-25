@@ -34,8 +34,11 @@
 	let rooms = $state<LobbyRoom[]>([]);
 	let searchController: AbortController | null = null;
 
+	$effect(() => {
+		return settings.claimHeader(t('online.title'), () => goto(resolve('/')));
+	});
+
 	onMount(() => {
-		const release = settings.claimHeader(t('online.title'), () => goto(resolve('/')));
 		void player.load(settings.locale);
 		void player.loadCountry();
 
@@ -54,7 +57,6 @@
 		return () => {
 			unsubscribeLobby();
 			if (searchController) searchController.abort();
-			release();
 		};
 	});
 

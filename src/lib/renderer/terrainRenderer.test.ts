@@ -72,4 +72,30 @@ describe('TerrainRenderer meadow clearings & stylized decorations', () => {
 		expect(spy.fill.mock.calls.length).toBeGreaterThanOrEqual(45);
 		expect(spy.stroke.mock.calls.length).toBeGreaterThanOrEqual(25);
 	});
+
+	it('does not draw a dark drop-shadow circle beneath the flat castle stone plaza foundation', () => {
+		const renderer = new TerrainRenderer();
+		const circles: Array<{ x: number; y: number; r: number }> = [];
+		const g = {
+			clear: vi.fn(),
+			beginPath: vi.fn(),
+			closePath: vi.fn(),
+			moveTo: vi.fn(),
+			lineTo: vi.fn(),
+			rect: vi.fn(),
+			roundRect: vi.fn(),
+			circle: vi.fn((x: number, y: number, r: number) => {
+				circles.push({ x, y, r });
+			}),
+			arc: vi.fn(),
+			poly: vi.fn(),
+			ellipse: vi.fn(),
+			fill: vi.fn(),
+			stroke: vi.fn()
+		};
+
+		renderer.drawStaticTerrain(g as unknown as Graphics, null, 1337, []);
+
+		expect(circles.some((c) => c.r === 234)).toBe(false);
+	});
 });

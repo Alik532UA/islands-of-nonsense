@@ -23,6 +23,7 @@ import {
 import { TerrainRenderer } from './terrainRenderer';
 import { EntityRenderer, type SelectedEntity } from './entityRenderer';
 import { OverlayRenderer } from './overlayRenderer';
+import { computeSunShadow } from './buildingModels';
 import {
 	WEST_CASTLE_STAGE_URLS,
 	EAST_CASTLE_STAGE_URLS,
@@ -1184,11 +1185,22 @@ export class ArenaRenderer {
 			);
 		} else {
 			// HD WebP Mode (Beta):
-			// 2. Render 2.5D ambient drop shadows beneath the castle bases
-			this.castleShadowGraphics.ellipse(WEST_CASTLE_X + 8, WEST_CASTLE_Y + 75, 175, 68);
-			this.castleShadowGraphics.fill({ color: 0x000000, alpha: 0.42 });
-			this.castleShadowGraphics.ellipse(EAST_CASTLE_X + 6, EAST_CASTLE_Y + 68, 180, 64);
-			this.castleShadowGraphics.fill({ color: 0x000000, alpha: 0.45 });
+			// 2. Render 2.5D active solar drop shadows beneath the castle bases
+			const sunShadow = computeSunShadow(this.sim.dayNightProgress);
+			this.castleShadowGraphics.ellipse(
+				WEST_CASTLE_X + sunShadow.dx * 1.5,
+				WEST_CASTLE_Y + 66 + sunShadow.dy * 1.2,
+				175 + Math.abs(sunShadow.dx),
+				68
+			);
+			this.castleShadowGraphics.fill({ color: 0x000000, alpha: sunShadow.alpha });
+			this.castleShadowGraphics.ellipse(
+				EAST_CASTLE_X + sunShadow.dx * 1.5,
+				EAST_CASTLE_Y + 60 + sunShadow.dy * 1.2,
+				180 + Math.abs(sunShadow.dx),
+				64
+			);
+			this.castleShadowGraphics.fill({ color: 0x000000, alpha: sunShadow.alpha });
 
 			// 3. Update West Castle (Human) Sprite stage based on HP with 400ms smooth fade
 			const westSuccess = this.updateCastleCrossfade(

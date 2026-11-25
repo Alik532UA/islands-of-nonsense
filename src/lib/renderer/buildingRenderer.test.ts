@@ -3,6 +3,7 @@ import type { ArmorType } from '../engine/types';
 import { Simulation } from '../engine/simulation';
 import { BUILDINGS_MAP } from '../engine/gameData';
 import { BuildingRenderer } from './buildingRenderer';
+import { computeSunShadow } from './buildingModels';
 import type { Graphics } from 'pixi.js';
 
 describe('BuildingRenderer 2.5D Stylized Architectural Models', () => {
@@ -327,5 +328,75 @@ describe('BuildingRenderer 2.5D Stylized Architectural Models', () => {
 		expect(emptyAtStart).toBe(0);
 		expect(halfWay).toBeGreaterThan(emptyAtStart);
 		expect(fullAtSpawn).toBeGreaterThan(halfWay);
+	});
+
+	it('moves active building sun shadows smoothly across the 120s day/night cycle without extra draw calls', () => {
+		const morning = computeSunShadow(0.0);
+		const noon = computeSunShadow(0.1875);
+		const dusk = computeSunShadow(0.44);
+		const midnight = computeSunShadow(0.72);
+		const wrap = computeSunShadow(1.0);
+
+		expect(morning.dx).toBeLessThan(0);
+		expect(noon.dx).toBeCloseTo(0, 5);
+		expect(dusk.dx).toBeGreaterThan(0);
+		expect(midnight.alpha).toBeLessThan(noon.alpha);
+		expect(wrap.dx).toBeCloseTo(morning.dx, 5);
+		expect(wrap.dy).toBeCloseTo(morning.dy, 5);
+
+		const sim = new Simulation({ botDifficulty: 0, startGold: 1000 });
+		const renderer = new BuildingRenderer(sim);
+		sim.buildings.push({
+			instanceId: 'sun_b_1',
+			defId: 'h000',
+			name: 'Барак',
+			team: 'west',
+			tileX: 14,
+			tileY: 20,
+			x: 448,
+			y: 640,
+			hp: 500,
+			maxHp: 500,
+			armor: 2,
+			armorType: 'fort',
+			goldCost: 100,
+			spawnUnitId: 'h001',
+			spawnCooldown: 10,
+			spawnTimer: 0,
+			lane: 'mid',
+			upgradeFrom: null,
+			race: 'Альянс'
+		});
+
+		const measureShadowX = (gameTime: number) => {
+			sim.gameTime = gameTime;
+			let firstEllipseX: number | null = null;
+			const noop = () => {};
+			const mockG = {
+				clear: noop,
+				beginPath: noop,
+				circle: noop,
+				ellipse: (x: number) => {
+					if (firstEllipseX === null) firstEllipseX = x;
+				},
+				poly: noop,
+				stroke: noop,
+				rect: noop,
+				roundRect: noop,
+				moveTo: noop,
+				lineTo: noop,
+				arc: noop,
+				fill: noop
+			} as unknown as Graphics;
+			renderer.drawBuildingsLayer(mockG, null, false);
+			return firstEllipseX!;
+		};
+
+		const morningShadowX = measureShadowX(0);
+		const noonShadowX = measureShadowX(22.5);
+		const duskShadowX = measureShadowX(52.8);
+
+		expect(morningShadowX).toBeLessThan(noonShadowX);
+		expect(noonShadowX).toBeLessThan(duskShadowX);
 	});
 });

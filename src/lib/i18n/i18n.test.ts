@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { translations, t, setLocale, getLocale, type Locale } from './index';
+import { localeState } from './localeState.svelte';
 
 describe('i18n parity and translation coverage (I18N-v10)', () => {
 	const locales = Object.keys(translations) as Locale[];
@@ -40,10 +41,12 @@ describe('i18n parity and translation coverage (I18N-v10)', () => {
 	it('повертає коректний переклад для поточної мови та підставляє параметри', () => {
 		setLocale('uk');
 		expect(getLocale()).toBe('uk');
+		expect(localeState.current).toBe('uk');
 		expect(t('gold')).toBe('Золото');
 
 		setLocale('en');
 		expect(getLocale()).toBe('en');
+		expect(localeState.current).toBe('en');
 		expect(t('gold')).toBe('Gold');
 
 		// Explicit locale override
