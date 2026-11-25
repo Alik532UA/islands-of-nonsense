@@ -14,10 +14,9 @@
 	import {
 		followUser,
 		loadSocialLists,
-		readPrivacy,
 		sendRoomInvite,
 		sortFriendsForInvite,
-		trackGlobalPresence,
+		startPrivacyPresence,
 		unfollowUser,
 		watchGlobalPresence,
 		type SocialUser
@@ -205,21 +204,19 @@
 				if (!active) return;
 				localUid = uid;
 				if (!auth.currentUser?.isAnonymous) {
-					void Promise.all([readProfile(), readPrivacy()]).then(([p, priv]) => {
+					void readProfile().then((p) => {
 						if (!active) return;
 						myProfile = p;
-						if (priv.onlineStatus) {
-							void trackGlobalPresence({
-								name: p?.name || identity.value || t('online.defaultPlayerName'),
-								handle: p?.handle,
-								country: p?.country || identity.country,
-								avatar: p?.avatar || identity.avatar,
-								roomCode
-							}).then((fn) => {
-								if (active) stopGlobalPresence = fn;
-								else fn();
-							});
-						}
+						void startPrivacyPresence({
+							name: p?.name || identity.value || t('online.defaultPlayerName'),
+							handle: p?.handle,
+							country: p?.country || identity.country,
+							avatar: p?.avatar || identity.avatar,
+							roomCode
+						}).then((fn) => {
+							if (active) stopGlobalPresence = fn;
+							else fn();
+						});
 					});
 					void loadSocialLists().then((lists) => {
 						myFriends = lists.following;
@@ -532,15 +529,10 @@
 		const text = chatInput.trim().slice(0, 200);
 		if (!text || !localUid) return;
 		try {
-			const ok = await liveNet.sendChatMessage(
-				roomCode,
-				identity.forEntry(settings.locale),
-				text,
-				{
-					avatar: identity.avatar,
-					kind: 'text'
-				}
-			);
+			const ok = await liveNet.sendChatMessage(roomCode, identity.forEntry(settings.locale), text, {
+				avatar: identity.avatar,
+				kind: 'text'
+			});
 			if (ok) {
 				chatInput = '';
 			} else {
@@ -603,6 +595,115 @@
 		}
 	}
 </script>
+
+{#snippet roomChatBody(maxH: string, inputCls: string)}
+	<div class="{maxH} overflow-y-auto space-y-1 text-xs">
+		{#if visibleMessages.length === 0}
+			<div class="text-slate-500 italic">{t('online.hud.noMessages')}</div>
+		{:else}
+			{#each visibleMessages as msg (msg.id)}
+				{#if msg.kind === 'system'}
+					<div class="text-[11px] italic text-sky-300/90">{msg.text}</div>
+				{:else}
+					{@const canAct = Boolean(localUid && msg.senderUid !== localUid)}
+					<div class="flex items-start justify-between gap-1 break-words group">
+						<div class="min-w-0">
+							{#if canAct}
+								<button
+									type="button"
+									onclick={() => (inspectMemberUid = msg.senderUid)}
+									class="font-bold text-amber-300 hover:underline cursor-pointer text-left"
+								>
+									{msg.senderName}:
+								</button>
+							{:else}
+								<span class="font-bold text-amber-300">{msg.senderName}:</span>
+							{/if}
+							{#if msg.kind === 'emote'}
+								<span class="text-sm ml-1">{msg.emote ?? msg.text}</span>
+							{:else}
+								<span class="text-slate-200">{chatModeration.sanitizeText(msg.text)}</span>
+							{/if}
+						</div>
+						{#if canAct}
+							<div
+								class="opacity-90 sm:opacity-0 sm:group-hover:opacity-100 flex items-center gap-0.5 shrink-0"
+							>
+								<button
+									type="button"
+									onclick={() =>
+										(dmPeer = {
+											uid: msg.senderUid,
+											name: msg.senderName,
+											avatar: msg.senderAvatar
+										})}
+									class="p-0.5 rounded hover:bg-slate-800 text-slate-400 hover:text-sky-300 cursor-pointer"
+									title={t('chat.openDm')}
+									aria-label={t('chat.openDm')}
+								>
+									<UiIcon name="messageSquare" class="w-3 h-3" />
+								</button>
+								<button
+									type="button"
+									onclick={() => chatModeration.toggleMute(msg.senderUid)}
+									class="p-0.5 rounded hover:bg-slate-800 text-slate-400 hover:text-rose-300 cursor-pointer"
+									title={t('chat.muteUser')}
+									aria-label={t('chat.muteUser')}
+								>
+									<UiIcon name="volumeX" class="w-3 h-3" />
+								</button>
+							</div>
+						{/if}
+					</div>
+				{/if}
+			{/each}
+		{/if}
+	</div>
+	{#if chatModeration.mutedUids.length > 0}
+		<div
+			class="flex items-center justify-between px-2 py-1 rounded bg-slate-950/70 text-[10px] text-slate-400"
+		>
+			<span>{t('chat.mutedCount', { count: chatModeration.mutedUids.length })}</span>
+			<button
+				type="button"
+				onclick={() => {
+					for (const id of [...chatModeration.mutedUids]) chatModeration.toggleMute(id);
+				}}
+				class="text-sky-300 hover:underline flex items-center gap-1 cursor-pointer"
+			>
+				<UiIcon name="volume2" class="w-3 h-3" />
+				<span>{t('chat.unmuteAll')}</span>
+			</button>
+		</div>
+	{/if}
+	<div class="flex flex-wrap gap-1">
+		{#each QUICK_EMOTES as em (em)}
+			<button
+				type="button"
+				onclick={() => void sendRoomEmote(em)}
+				class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] cursor-pointer"
+			>
+				{em}
+			</button>
+		{/each}
+	</div>
+	<form onsubmit={sendChat} class="flex gap-1.5">
+		<input
+			type="text"
+			bind:value={chatInput}
+			maxlength="200"
+			placeholder={t('online.hud.chatPlaceholder')}
+			class="flex-1 px-2.5 py-1.5 rounded-lg border text-xs text-white focus:outline-none focus:border-sky-500 {inputCls}"
+		/>
+		<button
+			type="submit"
+			class="min-h-[34px] px-2.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold cursor-pointer flex items-center justify-center"
+			aria-label={t('online.hud.sendChat')}
+		>
+			<UiIcon name="send" class="w-3.5 h-3.5" />
+		</button>
+	</form>
+{/snippet}
 
 {#if isLobby && !roomError}
 	<div
@@ -788,86 +889,7 @@
 				<div
 					class="mb-3 rounded-[10px] bg-[#0b0f18] border border-sky-500/40 p-2.5 space-y-2 shadow-inner"
 				>
-					<div class="max-h-32 overflow-y-auto space-y-1 text-xs pr-1">
-						{#if visibleMessages.length === 0}
-							<div class="text-slate-500 italic">{t('online.hud.noMessages')}</div>
-						{:else}
-							{#each visibleMessages as msg (msg.id)}
-								{#if msg.kind === 'system'}
-									<div class="text-[11px] italic text-sky-300/90 py-0.5">{msg.text}</div>
-								{:else}
-									<div class="flex items-start justify-between gap-1.5 break-words group">
-										<div class="min-w-0">
-											<span class="font-bold text-amber-300">{msg.senderName}:</span>
-											{#if msg.kind === 'emote'}
-												<span class="text-sm ml-1">{msg.emote ?? msg.text}</span>
-											{:else}
-												<span class="text-slate-200">
-													{chatModeration.sanitizeText(msg.text)}
-												</span>
-											{/if}
-										</div>
-										{#if localUid && msg.senderUid !== localUid}
-											<div
-												class="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shrink-0"
-											>
-												<button
-													type="button"
-													onclick={() =>
-														(dmPeer = {
-															uid: msg.senderUid,
-															name: msg.senderName,
-															avatar: msg.senderAvatar
-														})}
-													class="p-0.5 rounded hover:bg-slate-800 text-slate-400 hover:text-sky-300 cursor-pointer"
-													title={t('chat.openDm')}
-													aria-label={t('chat.openDm')}
-												>
-													<UiIcon name="messageSquare" class="w-3 h-3" />
-												</button>
-												<button
-													type="button"
-													onclick={() => chatModeration.toggleMute(msg.senderUid)}
-													class="p-0.5 rounded hover:bg-slate-800 text-slate-400 hover:text-rose-300 cursor-pointer"
-													title={t('chat.muteUser')}
-													aria-label={t('chat.muteUser')}
-												>
-													<UiIcon name="volumeX" class="w-3 h-3" />
-												</button>
-											</div>
-										{/if}
-									</div>
-								{/if}
-							{/each}
-						{/if}
-					</div>
-					<div class="flex flex-wrap gap-1">
-						{#each QUICK_EMOTES as em (em)}
-							<button
-								type="button"
-								onclick={() => void sendRoomEmote(em)}
-								class="px-1.5 py-0.5 rounded bg-[#141a26] hover:bg-slate-800 border border-slate-700 text-[11px] cursor-pointer"
-							>
-								{em}
-							</button>
-						{/each}
-					</div>
-					<form onsubmit={sendChat} class="flex gap-1.5">
-						<input
-							type="text"
-							bind:value={chatInput}
-							maxlength="200"
-							placeholder={t('online.hud.chatPlaceholder')}
-							class="flex-1 px-2.5 py-1.5 rounded-[6px] bg-[#141a26] border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-500"
-						/>
-						<button
-							type="submit"
-							class="min-h-[34px] px-3 rounded-[6px] bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold cursor-pointer flex items-center justify-center"
-							aria-label={t('online.hud.sendChat')}
-						>
-							<UiIcon name="send" class="w-3.5 h-3.5" />
-						</button>
-					</form>
+					{@render roomChatBody('max-h-32 pr-1', 'bg-[#141a26] border-slate-700')}
 				</div>
 			{/if}
 
@@ -1491,116 +1513,7 @@
 		<div
 			class="w-72 rounded-xl bg-slate-900/95 border border-slate-700 shadow-2xl p-3 flex flex-col gap-2"
 		>
-			<div class="max-h-40 overflow-y-auto space-y-1 text-xs">
-				{#if visibleMessages.length === 0}
-					<div class="text-slate-500 italic">{t('online.hud.noMessages')}</div>
-				{:else}
-					{#each visibleMessages as msg (msg.id)}
-						{#if msg.kind === 'system'}
-							<div class="text-[11px] italic text-sky-300/90">{msg.text}</div>
-						{:else}
-							{@const canAct = Boolean(localUid && msg.senderUid !== localUid)}
-							<div class="flex items-start justify-between gap-1 break-words group">
-								<div class="min-w-0">
-									{#if canAct}
-										<button
-											type="button"
-											onclick={() => (inspectMemberUid = msg.senderUid)}
-											class="font-bold text-amber-300 hover:underline cursor-pointer text-left"
-										>
-											{msg.senderName}:
-										</button>
-									{:else}
-										<span class="font-bold text-amber-300">{msg.senderName}:</span>
-									{/if}
-									{#if msg.kind === 'emote'}
-										<span class="text-sm ml-1">{msg.emote ?? msg.text}</span>
-									{:else}
-										<span class="text-slate-200">
-											{chatModeration.sanitizeText(msg.text)}
-										</span>
-									{/if}
-								</div>
-								{#if canAct}
-									<div
-										class="opacity-90 sm:opacity-0 sm:group-hover:opacity-100 flex items-center gap-0.5 shrink-0"
-									>
-										<button
-											type="button"
-											onclick={() =>
-												(dmPeer = {
-													uid: msg.senderUid,
-													name: msg.senderName,
-													avatar: msg.senderAvatar
-												})}
-											class="p-0.5 rounded hover:bg-slate-800 text-slate-400 hover:text-sky-300 cursor-pointer"
-											title={t('chat.openDm')}
-											aria-label={t('chat.openDm')}
-										>
-											<UiIcon name="messageSquare" class="w-3 h-3" />
-										</button>
-										<button
-											type="button"
-											onclick={() => chatModeration.toggleMute(msg.senderUid)}
-											class="p-0.5 rounded hover:bg-slate-800 text-slate-400 hover:text-rose-300 cursor-pointer"
-											title={t('chat.muteUser')}
-											aria-label={t('chat.muteUser')}
-										>
-											<UiIcon name="volumeX" class="w-3 h-3" />
-										</button>
-									</div>
-								{/if}
-							</div>
-						{/if}
-					{/each}
-				{/if}
-			</div>
-			{#if chatModeration.mutedUids.length > 0}
-				<div
-					class="flex items-center justify-between px-2 py-1 rounded bg-slate-950/70 text-[10px] text-slate-400"
-				>
-					<span>{t('chat.mutedCount', { count: chatModeration.mutedUids.length })}</span>
-					<button
-						type="button"
-						onclick={() => {
-							for (const id of [...chatModeration.mutedUids]) {
-								chatModeration.toggleMute(id);
-							}
-						}}
-						class="text-sky-300 hover:underline flex items-center gap-1 cursor-pointer"
-					>
-						<UiIcon name="volume2" class="w-3 h-3" />
-						<span>{t('chat.unmuteAll')}</span>
-					</button>
-				</div>
-			{/if}
-			<div class="flex flex-wrap gap-1">
-				{#each QUICK_EMOTES as em (em)}
-					<button
-						type="button"
-						onclick={() => void sendRoomEmote(em)}
-						class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] cursor-pointer"
-					>
-						{em}
-					</button>
-				{/each}
-			</div>
-			<form onsubmit={sendChat} class="flex gap-1.5">
-				<input
-					type="text"
-					bind:value={chatInput}
-					maxlength="200"
-					placeholder={t('online.hud.chatPlaceholder')}
-					class="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-600 text-xs text-white focus:outline-none focus:border-sky-500"
-				/>
-				<button
-					type="submit"
-					class="min-h-[36px] px-2.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold cursor-pointer flex items-center justify-center"
-					aria-label={t('online.hud.sendChat')}
-				>
-					<UiIcon name="send" class="w-3.5 h-3.5" />
-				</button>
-			</form>
+			{@render roomChatBody('max-h-40', 'bg-slate-800 border-slate-600')}
 		</div>
 	{/if}
 </div>

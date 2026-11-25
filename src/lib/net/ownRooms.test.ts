@@ -6,18 +6,10 @@ describe('ownRooms active resume helpers', () => {
 	it('recognises active lobby/playing rooms within sweep TTL', () => {
 		const now = 1_000_000_000;
 		expect(
-			isActiveOwnRoomInfo(
-				{ hostUid: 'u1', status: 'lobby', aliveAt: now - 5_000 },
-				'u1',
-				now
-			)
+			isActiveOwnRoomInfo({ hostUid: 'u1', status: 'lobby', aliveAt: now - 5_000 }, 'u1', now)
 		).toBe(true);
 		expect(
-			isActiveOwnRoomInfo(
-				{ hostUid: 'u1', status: 'playing', aliveAt: now - 10_000 },
-				'u1',
-				now
-			)
+			isActiveOwnRoomInfo({ hostUid: 'u1', status: 'playing', aliveAt: now - 10_000 }, 'u1', now)
 		).toBe(true);
 		expect(
 			isActiveOwnRoomInfo({ hostUid: 'u1', status: 'over', aliveAt: now - 5_000 }, 'u1', now)

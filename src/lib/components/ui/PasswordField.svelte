@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { Eye, EyeOff } from 'lucide-svelte';
 	import type { HTMLInputAttributes } from 'svelte/elements';
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	interface Props {
@@ -78,9 +77,9 @@
 			onclick={() => (visible = !visible)}
 		>
 			{#if visible}
-				<EyeOff class="w-4 h-4" />
+				<UiIcon name="eyeOff" class="w-4 h-4" />
 			{:else}
-				<Eye class="w-4 h-4" />
+				<UiIcon name="eye" class="w-4 h-4" />
 			{/if}
 		</button>
 	</div>

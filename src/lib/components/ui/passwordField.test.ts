@@ -15,8 +15,8 @@ describe('PasswordField (FORM-INPUTS.md & AUTH-FORM.md)', () => {
 	});
 
 	it('містить кнопку показу/приховування пароля з іконками Eye/EyeOff', () => {
-		expect(componentSource).toContain('EyeOff');
-		expect(componentSource).toContain('Eye');
+		expect(componentSource).toContain('eyeOff');
+		expect(componentSource).toContain('name="eye"');
 		expect(componentSource).toContain('-reveal-btn');
 		expect(componentSource).toContain("type={visible ? 'text' : 'password'}");
 	});

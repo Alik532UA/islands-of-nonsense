@@ -44,10 +44,10 @@ describe('RadialMenu & UnitSilhouette Visual Architecture', () => {
 	it('renders UnitSilhouette previews and Coins/TreePine resource badges inside RadialMenu', () => {
 		expect(radialMenuSrc).toContain("import UnitSilhouette from './ui/UnitSilhouette.svelte';");
 		expect(radialMenuSrc).toContain('<UnitSilhouette');
-		expect(radialMenuSrc).toContain('<Coins');
-		expect(radialMenuSrc).toContain('<TreePine');
+		expect(radialMenuSrc).toContain('name="coins"');
+		expect(radialMenuSrc).toContain('name="treePine"');
 		expect(radialMenuSrc).toContain('isLegendaryBuilding(b)');
-		expect(radialMenuSrc).toContain('<Crown');
+		expect(radialMenuSrc).toContain('name="crown"');
 	});
 
 	it('uses RADIUS >= 230, polar percentage centering, and non-overlapping 8-node geometry', () => {

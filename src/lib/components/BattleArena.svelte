@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { Dices } from 'lucide-svelte';
 	import { onMount, onDestroy, setContext } from 'svelte';
 	import { goto, beforeNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -1629,7 +1628,7 @@
 							class="w-full py-2.5 px-4 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 shadow-lg bg-gradient-to-r from-purple-950/70 via-purple-900/50 to-[#181e2b] border-purple-500/60 hover:border-purple-400 hover:bg-purple-900/60 text-purple-200 active:scale-[0.99]"
 						>
 							<div class="flex items-center gap-2.5">
-								<Dices class="w-6 h-6 text-purple-300 shrink-0" />
+								<UiIcon name="dices" class="w-6 h-6 text-purple-300 shrink-0" />
 								<span class="text-sm font-bold tracking-wide">Випадкова раса</span>
 							</div>
 							<div class="flex items-center gap-2">

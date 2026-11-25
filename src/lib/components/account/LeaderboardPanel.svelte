@@ -149,43 +149,19 @@
 	<!-- Scope & Sort Filters -->
 	<div class="flex flex-wrap items-center justify-between gap-2">
 		<div class="flex items-center gap-1.5">
-			<button
-				type="button"
-				onclick={() => (scope = 'global')}
-				class="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer {scope ===
-				'global'
-					? 'bg-sky-500/20 text-sky-200 border border-sky-500/40'
-					: 'bg-slate-900 text-slate-400 hover:text-slate-200'}"
-			>
-				<UiIcon name="globe" class="w-3.5 h-3.5" />
-				<span>{t('account.leaders.scopeGlobal')}</span>
-			</button>
-			{#if accountState === 'linked'}
+			{#each [{ id: 'global', icon: 'globe', label: t('account.leaders.scopeGlobal'), show: true }, { id: 'friends', icon: 'users', label: t('account.leaders.scopeFriends'), show: accountState === 'linked' }, { id: 'country', icon: 'mappin', label: myCountry?.toUpperCase() ?? '', show: Boolean(myCountry) }].filter((s) => s.show) as item (item.id)}
 				<button
 					type="button"
-					onclick={() => (scope = 'friends')}
+					onclick={() => (scope = item.id as typeof scope)}
 					class="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer {scope ===
-					'friends'
+					item.id
 						? 'bg-sky-500/20 text-sky-200 border border-sky-500/40'
 						: 'bg-slate-900 text-slate-400 hover:text-slate-200'}"
 				>
-					<UiIcon name="users" class="w-3.5 h-3.5" />
-					<span>{t('account.leaders.scopeFriends')}</span>
+					<UiIcon name={item.icon as 'globe' | 'users' | 'mappin'} class="w-3.5 h-3.5" />
+					<span>{item.label}</span>
 				</button>
-			{/if}
-			{#if myCountry}
-				<button
-					type="button"
-					onclick={() => (scope = 'country')}
-					class="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer {scope ===
-					'country'
-						? 'bg-sky-500/20 text-sky-200 border border-sky-500/40'
-						: 'bg-slate-900 text-slate-400 hover:text-slate-200'}"
-				>
-					<UiIcon name="mappin" class="w-3.5 h-3.5" />
-					<span>{myCountry.toUpperCase()}</span>
-				</button>
-			{/if}
+			{/each}
 		</div>
 
 		<div class="flex items-center gap-1.5">
@@ -229,12 +205,15 @@
 					<div
 						class="w-7 text-center font-black text-xs text-slate-400 flex items-center justify-center"
 					>
-						{#if i === 0}
-							<UiIcon name="trophy" class="w-4 h-4 text-amber-400 mx-auto" />
-						{:else if i === 1}
-							<UiIcon name="trophy" class="w-4 h-4 text-slate-300 mx-auto" />
-						{:else if i === 2}
-							<UiIcon name="trophy" class="w-4 h-4 text-amber-700 mx-auto" />
+						{#if i < 3}
+							<UiIcon
+								name="trophy"
+								class="w-4 h-4 mx-auto {i === 0
+									? 'text-amber-400'
+									: i === 1
+										? 'text-slate-300'
+										: 'text-amber-700'}"
+							/>
 						{:else}
 							#{i + 1}
 						{/if}

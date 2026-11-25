@@ -21,6 +21,10 @@ export function dmThreadId(uidA: string, uidB: string): string {
 	return uidA < uidB ? `${uidA}__${uidB}` : `${uidB}__${uidA}`;
 }
 
+export function formatChatTime(at?: number): string {
+	return at ? new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+}
+
 export async function sendGlobalChatMessage(
 	senderName: string,
 	text: string,

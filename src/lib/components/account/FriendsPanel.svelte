@@ -2,7 +2,6 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { Eye, MessageSquare, Shield, UserPlus, Users, X } from 'lucide-svelte';
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import type { AccountState, Profile } from '$lib/net/account';
 	import {
@@ -14,7 +13,7 @@
 		removeFollowerUser,
 		savePrivacy,
 		searchHandles,
-		trackGlobalPresence,
+		startPrivacyPresence,
 		unfollowUser,
 		watchGlobalPresence,
 		watchInbox,
@@ -68,17 +67,17 @@
 			void refreshLists();
 			void readPrivacy().then((p) => {
 				privacy = p;
-				if (p.onlineStatus && profile) {
-					void trackGlobalPresence({
-						name: profile.name,
-						handle: profile.handle,
-						country: profile.country,
-						avatar: profile.avatar
-					}).then((fn) => {
-						stopPresence = fn;
-					});
-				}
 			});
+			if (profile) {
+				void startPrivacyPresence({
+					name: profile.name,
+					handle: profile.handle,
+					country: profile.country,
+					avatar: profile.avatar
+				}).then((fn) => {
+					stopPresence = fn;
+				});
+			}
 			void watchGlobalPresence((users) => {
 				onlineUsers = users;
 			}).then((fn) => {
@@ -162,7 +161,7 @@
 <div class="space-y-5" data-testid="friends-panel">
 	{#if accountState !== 'linked'}
 		<div class="p-6 bg-slate-950/60 border border-slate-800 rounded-2xl text-center space-y-2">
-			<Users class="w-8 h-8 text-amber-400 mx-auto" />
+			<UiIcon name="users" class="w-8 h-8 text-amber-400 mx-auto" />
 			<div class="text-sm font-bold text-slate-200">{t('social.linkTitle')}</div>
 			<div class="text-xs text-slate-400">{t('social.linkDesc')}</div>
 		</div>
@@ -221,7 +220,7 @@
 								class="p-1 rounded hover:bg-slate-800 text-slate-400 cursor-pointer"
 								aria-label={t('common.close')}
 							>
-								<X class="w-3.5 h-3.5" />
+								<UiIcon name="x" class="w-3.5 h-3.5" />
 							</button>
 						</div>
 					</div>
@@ -254,6 +253,22 @@
 			</button>
 		</form>
 
+		{#snippet followToggle(uid: string, showIcon = false)}
+			{@const isFollowing = followingSet.has(uid)}
+			<button
+				type="button"
+				onclick={() => void handleToggleFollow(uid)}
+				class="px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer {isFollowing
+					? 'bg-slate-800 text-slate-300 hover:bg-rose-900/40'
+					: 'bg-amber-500 text-slate-950'}"
+			>
+				{#if showIcon}
+					<UiIcon name={isFollowing ? 'userMinus' : 'userPlus'} class="w-3 h-3" />
+				{/if}
+				<span>{isFollowing ? t('social.unfollow') : t('social.follow')}</span>
+			</button>
+		{/snippet}
+
 		{#if searchResults.length > 0}
 			<div class="p-3 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-2">
 				<div class="text-[11px] font-bold uppercase text-slate-400">
@@ -274,23 +289,7 @@
 								<div class="text-[10px] text-amber-400">@{user.handle}</div>
 							</div>
 						</button>
-						<button
-							type="button"
-							onclick={() => void handleToggleFollow(user.uid)}
-							class="px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer {followingSet.has(
-								user.uid
-							)
-								? 'bg-slate-800 text-slate-300'
-								: 'bg-amber-500 text-slate-950'}"
-						>
-							{#if followingSet.has(user.uid)}
-								<UiIcon name="userMinus" class="w-3 h-3" />
-								<span>{t('social.unfollow')}</span>
-							{:else}
-								<UserPlus class="w-3 h-3" />
-								<span>{t('social.follow')}</span>
-							{/if}
-						</button>
+						{@render followToggle(user.uid, true)}
 					</div>
 				{/each}
 			</div>
@@ -384,7 +383,7 @@
 								title={t('social.viewProfile')}
 								aria-label={t('social.viewProfile')}
 							>
-								<Eye class="w-3.5 h-3.5" />
+								<UiIcon name="eye" class="w-3.5 h-3.5" />
 							</button>
 							<button
 								type="button"
@@ -393,7 +392,7 @@
 								title={t('chat.openDm')}
 								aria-label={t('chat.openDm')}
 							>
-								<MessageSquare class="w-3.5 h-3.5" />
+								<UiIcon name="messageSquare" class="w-3.5 h-3.5" />
 							</button>
 							{#if listTab === 'followers'}
 								{#if !followingSet.has(user.uid)}
@@ -412,20 +411,10 @@
 									title={t('social.removeFollower')}
 									aria-label={t('social.removeFollower')}
 								>
-									<X class="w-3.5 h-3.5" />
+									<UiIcon name="x" class="w-3.5 h-3.5" />
 								</button>
 							{:else}
-								<button
-									type="button"
-									onclick={() => void handleToggleFollow(user.uid)}
-									class="px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer {followingSet.has(
-										user.uid
-									)
-										? 'bg-slate-800 text-slate-300 hover:bg-rose-900/40'
-										: 'bg-amber-500 text-slate-950'}"
-								>
-									{followingSet.has(user.uid) ? t('social.unfollow') : t('social.follow')}
-								</button>
+								{@render followToggle(user.uid)}
 							{/if}
 						</div>
 					</div>
@@ -438,7 +427,7 @@
 			<div
 				class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5"
 			>
-				<Shield class="w-4 h-4 text-sky-400" />
+				<UiIcon name="shield" class="w-4 h-4 text-sky-400" />
 				<span>{t('social.privacy.title')}</span>
 			</div>
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">

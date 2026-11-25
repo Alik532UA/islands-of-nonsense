@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { ChevronUp } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import type { Simulation } from '../engine/simulation';
 	import {
@@ -688,7 +687,7 @@
 			data-testid="minimap-expand-btn"
 		>
 			<UiIcon name="map" class="w-3.5 h-3.5 text-amber-400" />
-			<ChevronUp class="w-4 h-4 text-amber-300" />
+			<UiIcon name="chevronUp" class="w-4 h-4 text-amber-300" />
 			<span class="text-[9.5px] font-bold uppercase tracking-wider">Карта</span>
 		</button>
 	</div>

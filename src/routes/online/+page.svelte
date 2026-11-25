@@ -11,8 +11,7 @@
 		dismissInboxItem,
 		followUser,
 		loadSocialLists,
-		readPrivacy,
-		trackGlobalPresence,
+		startPrivacyPresence,
 		unfollowUser,
 		watchInbox,
 		type InboxItem
@@ -29,6 +28,7 @@
 	import { liveNet } from '$lib/net/roomNet';
 	import { listOwnRooms, type OwnActiveRoom } from '$lib/net/ownRooms';
 	import { checkLiveRules } from '$lib/net/rulesLive';
+	import { rewardsStore } from '$lib/services/rewardsService.svelte';
 	import { seekMatch, type SeekFormat } from '$lib/net/seek';
 	import { buildRoomSlots, countOpenHumanCapacity } from '$lib/net/onlineMatchSetup';
 	import type { LobbyRoom } from '$lib/net/roomTypes';
@@ -65,6 +65,7 @@
 		maxPlayers: number;
 	} | null>(null);
 	let roomInvites = $state<InboxItem[]>([]);
+	let inboxCount = $state(0);
 	let lastNotifiedInviteId = '';
 
 	$effect(() => {
@@ -90,26 +91,25 @@
 				if (!active) return;
 				myUid = uid;
 				if (!auth.currentUser?.isAnonymous) {
-					void Promise.all([readProfile(), readPrivacy()]).then(([p, priv]) => {
+					void readProfile().then((p) => {
 						if (!active) return;
 						myProfile = p;
-						if (priv.onlineStatus) {
-							void trackGlobalPresence({
-								name: p?.name || player.value || t('online.defaultPlayerName'),
-								handle: p?.handle,
-								country: p?.country || player.country,
-								avatar: p?.avatar || player.avatar
-							}).then((fn) => {
-								if (active) stopGlobalPresence = fn;
-								else fn();
-							});
-						}
+						void startPrivacyPresence({
+							name: p?.name || player.value || t('online.defaultPlayerName'),
+							handle: p?.handle,
+							country: p?.country || player.country,
+							avatar: p?.avatar || player.avatar
+						}).then((fn) => {
+							if (active) stopGlobalPresence = fn;
+							else fn();
+						});
 					});
 					void loadSocialLists().then((res) => {
 						friendUids = res.mutual.map((u) => u.uid);
 						followingUids = res.following.map((u) => u.uid);
 					});
 					void watchInbox((items) => {
+						inboxCount = items.length;
 						const invites = items.filter((i) => i.type === 'room_invite' && i.roomCode);
 						roomInvites = invites;
 						if (invites.length > 0 && invites[0].id !== lastNotifiedInviteId) {
@@ -456,6 +456,29 @@
 			onSelectAvatar={(next) => player.chooseAvatar(next)}
 		/>
 
+		<!-- Quick Social / Progression Hub Bar -->
+		<div
+			class="w-full max-w-xl mx-auto mt-3 flex flex-wrap items-center justify-center gap-1.5"
+			data-testid="online-social-hub-links"
+		>
+			{#each [{ tab: 'profile', icon: 'circleUser', key: 'account.tab.profile', badge: 0 }, { tab: 'stats', icon: 'barChart', key: 'account.tab.stats', badge: 0 }, { tab: 'rewards', icon: 'award', key: 'account.tab.rewards', badge: rewardsStore.unseenCount }, { tab: 'friends', icon: 'users', key: 'account.tab.friends', badge: inboxCount }, { tab: 'leaders', icon: 'trophy', key: 'account.tab.leaders', badge: 0 }] as const as link (link.tab)}
+				<a
+					href={`${resolve('/account')}?tab=${link.tab}`}
+					class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 hover:border-amber-500/50 text-xs font-bold text-slate-200 transition"
+				>
+					<UiIcon name={link.icon} class="w-3.5 h-3.5 text-amber-400" />
+					<span>{t(link.key)}</span>
+					{#if link.badge > 0}
+						<span
+							class="px-1.5 py-0.5 rounded-full bg-amber-500 text-slate-950 text-[10px] font-black leading-none"
+						>
+							{link.badge}
+						</span>
+					{/if}
+				</a>
+			{/each}
+		</div>
+
 		<!-- Action Tiles -->
 		<nav class="menu-tiles mt-6">
 			<!-- Quick Match -->
@@ -498,7 +521,9 @@
 		<!-- Active Own Rooms (Resume / Close) -->
 		{#if ownRooms.length > 0}
 			<div class="w-full max-w-xl mx-auto mt-6" data-testid="own-active-rooms">
-				<h3 class="text-sm font-bold text-amber-300 uppercase tracking-wider mb-2.5 flex items-center gap-2">
+				<h3
+					class="text-sm font-bold text-amber-300 uppercase tracking-wider mb-2.5 flex items-center gap-2"
+				>
 					<UiIcon name="play" class="w-4 h-4" />
 					<span>{t('online.myRooms.title')}</span>
 				</h3>
@@ -517,16 +542,14 @@
 									</span>
 								</div>
 								<div class="text-[11px] text-slate-400">
-									{myRoom.players}/{myRoom.maxPlayers} {t('online.playersCount')}
+									{myRoom.players}/{myRoom.maxPlayers}
+									{t('online.playersCount')}
 								</div>
 							</div>
 							<div class="flex items-center gap-1.5 shrink-0">
 								<button
 									type="button"
-									onclick={() =>
-										void goto(
-											`${resolve('/play/battle')}?room=${myRoom.code}&host=1`
-										)}
+									onclick={() => void goto(`${resolve('/play/battle')}?room=${myRoom.code}&host=1`)}
 									class="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold cursor-pointer"
 								>
 									{t('online.myRooms.resume')}

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { Coins, Crown, TreePine } from 'lucide-svelte';
 	import { getContext } from 'svelte';
 	import type { Simulation } from '../engine/simulation';
 	import type { BuildingDefinition, PlayerState, UnitDefinition } from '../engine/types';
@@ -543,11 +542,11 @@
 						class="flex items-center gap-2.5 px-2.5 py-1 rounded-[6px] bg-[#080b12]/80 border border-[#544738]/70 text-[10.5px] font-mono font-bold mt-1"
 					>
 						<span class="flex items-center gap-1 text-amber-300">
-							<Coins class="w-3 h-3 text-amber-400" />
+							<UiIcon name="coins" class="w-3 h-3 text-amber-400" />
 							{Math.floor(gold)}
 						</span>
 						<span class="flex items-center gap-1 text-emerald-300">
-							<TreePine class="w-3 h-3 text-emerald-400" />
+							<UiIcon name="treePine" class="w-3 h-3 text-emerald-400" />
 							{Math.floor(lumber)}
 						</span>
 					</div>
@@ -625,7 +624,10 @@
 								size={40}
 							/>
 							{#if item.isLegendary}
-								<Crown class="w-3 h-3 text-amber-300 absolute top-0.5 left-0.5 drop-shadow" />
+								<UiIcon
+									name="crown"
+									class="w-3 h-3 text-amber-300 absolute top-0.5 left-0.5 drop-shadow"
+								/>
 							{/if}
 						{:else}
 							{@render abilityIcon(item.iconType, 'w-6 h-6')}
@@ -648,7 +650,7 @@
 											? 'text-amber-300'
 											: 'text-rose-400'}"
 									>
-										<Coins class="w-3 h-3 shrink-0" />
+										<UiIcon name="coins" class="w-3 h-3 shrink-0" />
 										<span>{item.goldCost}</span>
 									</span>
 									{#if item.lumberCost > 0}
@@ -657,7 +659,7 @@
 												? 'text-emerald-300'
 												: 'text-rose-400'}"
 										>
-											<TreePine class="w-3 h-3 shrink-0" />
+											<UiIcon name="treePine" class="w-3 h-3 shrink-0" />
 											<span>{item.lumberCost}</span>
 										</span>
 									{/if}

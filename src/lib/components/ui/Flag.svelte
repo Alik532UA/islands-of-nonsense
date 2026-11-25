@@ -12,170 +12,16 @@
 
 	const norm = $derived(isCountry(code) ? String(code).toLowerCase() : null);
 	const label = $derived(norm ? countryName(norm, settings.locale) : '');
-
-	// CSS stripe specs: "angle,stops" (90 = vertical, 180 = horizontal)
-	const STRIPES: Record<string, string> = {
-		ua: '180,#0057b7 50%,#ffd700 50%',
-		pl: '180,#ffffff 50%,#dc143c 50%',
-		de: '180,#111111 33%,#dd0000 33% 66%,#ffce00 66%',
-		fr: '90,#0055a4 33%,#ffffff 33% 66%,#ef4135 66%',
-		it: '90,#009246 33%,#ffffff 33% 66%,#ce2b37 66%',
-		nl: '180,#ae1c28 33%,#ffffff 33% 66%,#21468b 66%',
-		be: '90,#111111 33%,#fdda24 33% 66%,#ef3340 66%',
-		ro: '90,#002b7f 33%,#fcd116 33% 66%,#ce1126 66%',
-		ie: '90,#169b62 33%,#ffffff 33% 66%,#ff883e 66%',
-		bg: '180,#ffffff 33%,#00966e 33% 66%,#d62612 66%',
-		hu: '180,#cd2a3e 33%,#ffffff 33% 66%,#436f4d 66%',
-		at: '180,#ed2939 33%,#ffffff 33% 66%,#ed2939 66%',
-		ee: '180,#0072ce 33%,#111111 33% 66%,#ffffff 66%',
-		lv: '180,#9e3039 40%,#ffffff 40% 60%,#9e3039 60%',
-		lt: '180,#fdb913 33%,#006a44 33% 66%,#c1272d 66%',
-		es: '180,#aa151b 25%,#f1bf00 25% 75%,#aa151b 75%',
-		pt: '90,#006600 40%,#ff0000 40%',
-		ar: '180,#74acdf 33%,#ffffff 33% 66%,#74acdf 66%',
-		mx: '90,#006847 33%,#ffffff 33% 66%,#ce1126 66%',
-		hr: '180,#ff0000 33%,#ffffff 33% 66%,#171796 66%',
-		sk: '180,#ffffff 33%,#0b4ea2 33% 66%,#ee1c25 66%'
-	};
-
-	const CROSSES: Record<string, [string, string, string?]> = {
-		se: ['#006aa7', '#fecc00'],
-		fi: ['#ffffff', '#003580'],
-		dk: ['#c60c30', '#ffffff'],
-		no: ['#ba0c2f', '#ffffff', '#00205b']
-	};
 </script>
 
 {#if norm}
-	{@const stripe = STRIPES[norm]}
-	{@const cross = CROSSES[norm]}
 	<span
 		class="inline-flex items-center gap-1 shrink-0 align-middle"
 		title={label}
 		aria-label={label}
 		role="img"
 	>
-		{#if stripe}
-			<span
-				class="inline-block rounded-[2px] border border-white/25 shrink-0 {size === 'md'
-					? 'w-[21px] h-[14px]'
-					: 'w-[18px] h-3'}"
-				style="background: linear-gradient({stripe.replace(',', 'deg, ')});"
-			></span>
-		{:else if cross}
-			<svg
-				viewBox="0 0 18 12"
-				class="rounded-[2px] border border-white/25 shrink-0 {size === 'md'
-					? 'w-[21px] h-[14px]'
-					: 'w-[18px] h-3'}"
-				aria-hidden="true"
-			>
-				<rect width="18" height="12" fill={cross[0]} />
-				<rect x="5" width="3" height="12" fill={cross[1]} />
-				<rect y="4.5" width="18" height="3" fill={cross[1]} />
-				{#if cross[2]}
-					<rect x="5.7" width="1.6" height="12" fill={cross[2]} />
-					<rect y="5.2" width="18" height="1.6" fill={cross[2]} />
-				{/if}
-			</svg>
-		{:else if norm === 'us'}
-			<svg
-				viewBox="0 0 18 12"
-				class="rounded-[2px] border border-white/25 shrink-0 {size === 'md'
-					? 'w-[21px] h-[14px]'
-					: 'w-[18px] h-3'}"
-				aria-hidden="true"
-			>
-				<rect width="18" height="12" fill="#ffffff" />
-				<path d="M0 0h18v2H0zm0 4h18v2H0zm0 4h18v2H0zm0 4h18v1H0z" fill="#b22234" />
-				<rect width="8" height="6" fill="#3c3b6e" />
-			</svg>
-		{:else if norm === 'gb' || norm === 'au' || norm === 'nz'}
-			<svg
-				viewBox="0 0 18 12"
-				class="rounded-[2px] border border-white/25 shrink-0 {size === 'md'
-					? 'w-[21px] h-[14px]'
-					: 'w-[18px] h-3'}"
-				aria-hidden="true"
-			>
-				<rect width="18" height="12" fill="#012169" />
-				<path d="M0 0l18 12M18 0L0 12" stroke="#ffffff" stroke-width="2" />
-				<path d="M9 0v12M0 6h18" stroke="#ffffff" stroke-width="3.2" />
-				<path d="M9 0v12M0 6h18" stroke="#c8102e" stroke-width="1.8" />
-			</svg>
-		{:else if norm === 'jp' || norm === 'kr'}
-			<svg
-				viewBox="0 0 18 12"
-				class="rounded-[2px] border border-white/25 shrink-0 {size === 'md'
-					? 'w-[21px] h-[14px]'
-					: 'w-[18px] h-3'}"
-				aria-hidden="true"
-			>
-				<rect width="18" height="12" fill="#ffffff" />
-				<circle cx="9" cy="6" r="3" fill={norm === 'jp' ? '#bc002d' : '#cd2e3a'} />
-			</svg>
-		{:else if norm === 'ch'}
-			<svg
-				viewBox="0 0 18 12"
-				class="rounded-[2px] border border-white/25 shrink-0 {size === 'md'
-					? 'w-[21px] h-[14px]'
-					: 'w-[18px] h-3'}"
-				aria-hidden="true"
-			>
-				<rect width="18" height="12" fill="#d52b1e" />
-				<path d="M7.8 2.5h2.4v7H7.8zM5.5 4.8h7v2.4h-7z" fill="#ffffff" />
-			</svg>
-		{:else if norm === 'ca'}
-			<svg
-				viewBox="0 0 18 12"
-				class="rounded-[2px] border border-white/25 shrink-0 {size === 'md'
-					? 'w-[21px] h-[14px]'
-					: 'w-[18px] h-3'}"
-				aria-hidden="true"
-			>
-				<rect width="18" height="12" fill="#ffffff" />
-				<rect width="4.5" height="12" fill="#d80621" />
-				<rect x="13.5" width="4.5" height="12" fill="#d80621" />
-				<circle cx="9" cy="6" r="2.2" fill="#d80621" />
-			</svg>
-		{:else if norm === 'cz'}
-			<svg
-				viewBox="0 0 18 12"
-				class="rounded-[2px] border border-white/25 shrink-0 {size === 'md'
-					? 'w-[21px] h-[14px]'
-					: 'w-[18px] h-3'}"
-				aria-hidden="true"
-			>
-				<rect width="18" height="6" fill="#ffffff" />
-				<rect y="6" width="18" height="6" fill="#d7141a" />
-				<polygon points="0,0 8.5,6 0,12" fill="#11457e" />
-			</svg>
-		{:else if norm === 'tr' || norm === 'br' || norm === 'il' || norm === 'gr' || norm === 'sg' || norm === 'cl'}
-			{@const bg =
-				norm === 'tr' || norm === 'sg'
-					? '#e30a17'
-					: norm === 'br'
-						? '#009c3b'
-						: norm === 'gr'
-							? '#0d5eaf'
-							: '#0038b8'}
-			<svg
-				viewBox="0 0 18 12"
-				class="rounded-[2px] border border-white/25 shrink-0 {size === 'md'
-					? 'w-[21px] h-[14px]'
-					: 'w-[18px] h-3'}"
-				aria-hidden="true"
-			>
-				<rect width="18" height="12" fill={bg} />
-				<circle
-					cx="9"
-					cy="6"
-					r="2.6"
-					fill={norm === 'br' ? '#ffdf00' : '#ffffff'}
-					opacity="0.9"
-				/>
-			</svg>
-		{/if}
+		<span class="flg f-{norm} {size === 'md' ? 'w-[21px] h-[14px]' : 'w-[18px] h-3'}"></span>
 		{#if showCode}
 			<span
 				class="text-[10px] px-1 py-0.5 rounded bg-slate-900/90 border border-slate-700 text-slate-300 font-mono uppercase leading-none"
@@ -185,3 +31,153 @@
 		{/if}
 	</span>
 {/if}
+
+<style>
+	.flg {
+		display: inline-block;
+		border-radius: 2px;
+		border: 1px solid rgba(255, 255, 255, 0.25);
+		flex-shrink: 0;
+		background: #334155;
+	}
+	.f-ua {
+		background: linear-gradient(180deg, #0057b7 50%, #ffd700 50%);
+	}
+	.f-pl {
+		background: linear-gradient(180deg, #fff 50%, #dc143c 50%);
+	}
+	.f-cl {
+		background: linear-gradient(180deg, #fff 50%, #d52b1e 50%);
+	}
+	.f-de {
+		background: linear-gradient(180deg, #111 33%, #d00 33% 66%, #fc0 66%);
+	}
+	.f-nl {
+		background: linear-gradient(180deg, #ae1c28 33%, #fff 33% 66%, #21468b 66%);
+	}
+	.f-bg {
+		background: linear-gradient(180deg, #fff 33%, #00966e 33% 66%, #d62612 66%);
+	}
+	.f-hu {
+		background: linear-gradient(180deg, #cd2a3e 33%, #fff 33% 66%, #436f4d 66%);
+	}
+	.f-at {
+		background: linear-gradient(180deg, #ed2939 33%, #fff 33% 66%, #ed2939 66%);
+	}
+	.f-ee {
+		background: linear-gradient(180deg, #0072ce 33%, #111 33% 66%, #fff 66%);
+	}
+	.f-lt {
+		background: linear-gradient(180deg, #fdb913 33%, #006a44 33% 66%, #c1272d 66%);
+	}
+	.f-ar {
+		background: linear-gradient(180deg, #74acdf 33%, #fff 33% 66%, #74acdf 66%);
+	}
+	.f-hr {
+		background: linear-gradient(180deg, #f00 33%, #fff 33% 66%, #171796 66%);
+	}
+	.f-sk {
+		background: linear-gradient(180deg, #fff 33%, #0b4ea2 33% 66%, #ee1c25 66%);
+	}
+	.f-fr {
+		background: linear-gradient(90deg, #0055a4 33%, #fff 33% 66%, #ef4135 66%);
+	}
+	.f-it {
+		background: linear-gradient(90deg, #009246 33%, #fff 33% 66%, #ce2b37 66%);
+	}
+	.f-be {
+		background: linear-gradient(90deg, #111 33%, #fdda24 33% 66%, #ef3340 66%);
+	}
+	.f-ro {
+		background: linear-gradient(90deg, #002b7f 33%, #fcd116 33% 66%, #ce1126 66%);
+	}
+	.f-ie {
+		background: linear-gradient(90deg, #169b62 33%, #fff 33% 66%, #ff883e 66%);
+	}
+	.f-mx {
+		background: linear-gradient(90deg, #006847 33%, #fff 33% 66%, #ce1126 66%);
+	}
+	.f-pt {
+		background: linear-gradient(90deg, #060 40%, #f00 40%);
+	}
+	.f-lv {
+		background: linear-gradient(180deg, #9e3039 40%, #fff 40% 60%, #9e3039 60%);
+	}
+	.f-es {
+		background: linear-gradient(180deg, #aa151b 25%, #f1bf00 25% 75%, #aa151b 75%);
+	}
+	.f-il {
+		background: linear-gradient(180deg, #0038b8 18%, #fff 18% 82%, #0038b8 82%);
+	}
+	.f-gr {
+		background: repeating-linear-gradient(180deg, #0d5eaf 0 18%, #fff 18% 36%);
+	}
+	.f-jp {
+		background: radial-gradient(circle, #bc002d 30%, #fff 32%);
+	}
+	.f-kr {
+		background: radial-gradient(circle, #cd2e3a 30%, #fff 32%);
+	}
+	.f-tr,
+	.f-sg {
+		background: radial-gradient(circle, #fff 24%, #e30a17 26%);
+	}
+	.f-br {
+		background: radial-gradient(circle, #ffdf00 32%, #009c3b 34%);
+	}
+	.f-se {
+		background:
+			linear-gradient(180deg, transparent 38%, #fecc00 38% 62%, transparent 62%),
+			linear-gradient(90deg, #006aa7 28%, #fecc00 28% 44%, #006aa7 44%);
+	}
+	.f-fi {
+		background:
+			linear-gradient(180deg, transparent 38%, #003580 38% 62%, transparent 62%),
+			linear-gradient(90deg, #fff 28%, #003580 28% 44%, #fff 44%);
+	}
+	.f-dk {
+		background:
+			linear-gradient(180deg, transparent 38%, #fff 38% 62%, transparent 62%),
+			linear-gradient(90deg, #c60c30 28%, #fff 28% 44%, #c60c30 44%);
+	}
+	.f-no {
+		background:
+			linear-gradient(180deg, transparent 42%, #00205b 42% 58%, transparent 58%),
+			linear-gradient(90deg, transparent 31%, #00205b 31% 41%, transparent 41%),
+			linear-gradient(180deg, transparent 38%, #fff 38% 62%, transparent 62%),
+			linear-gradient(90deg, #ba0c2f 28%, #fff 28% 44%, #ba0c2f 44%);
+	}
+	.f-ch {
+		background:
+			linear-gradient(180deg, #d52b1e 20%, transparent 20% 80%, #d52b1e 80%),
+			linear-gradient(90deg, #d52b1e 39%, #fff 39% 61%, #d52b1e 61%),
+			linear-gradient(180deg, #d52b1e 36%, #fff 36% 64%, #d52b1e 64%);
+	}
+	.f-ca {
+		background:
+			radial-gradient(circle, #d80621 24%, transparent 26%),
+			linear-gradient(90deg, #d80621 25%, #fff 25% 75%, #d80621 75%);
+	}
+	.f-cz {
+		background:
+			linear-gradient(135deg, #11457e 38%, transparent 38%),
+			linear-gradient(45deg, #11457e 38%, transparent 38%),
+			linear-gradient(180deg, #fff 50%, #d7141a 50%);
+	}
+	.f-us {
+		background:
+			linear-gradient(135deg, #3c3b6e 42%, transparent 42%),
+			repeating-linear-gradient(180deg, #b22234 0 16%, #fff 16% 32%);
+	}
+	.f-gb {
+		background:
+			linear-gradient(180deg, transparent 38%, #c8102e 38% 62%, transparent 62%),
+			linear-gradient(90deg, transparent 41%, #c8102e 41% 59%, transparent 59%),
+			linear-gradient(180deg, transparent 32%, #fff 32% 68%, transparent 68%),
+			linear-gradient(90deg, transparent 36%, #fff 36% 64%, transparent 64%), #012169;
+	}
+	.f-au,
+	.f-nz {
+		background: linear-gradient(135deg, #c8102e 26%, #012169 27%);
+	}
+</style>

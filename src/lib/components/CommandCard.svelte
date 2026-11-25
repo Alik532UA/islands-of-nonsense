@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { Coins, TreePine } from 'lucide-svelte';
 	import { getContext } from 'svelte';
 	import type { Simulation } from '../engine/simulation';
 	import { BATTLE_COMMAND_ROUTER_KEY, type BattleCommandRouter } from '$lib/net/onlineMatchSetup';
@@ -272,7 +271,7 @@
 									<span
 										class="text-[8px] text-amber-300 font-mono font-bold flex items-center gap-0.5"
 									>
-										<Coins class="w-2.5 h-2.5 text-amber-400 shrink-0" />
+										<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
 										<span>{item.cost}</span>
 									</span>
 								</button>
@@ -285,7 +284,7 @@
 								<div class="flex items-center justify-between font-bold text-amber-300">
 									<span>{hoveredItem.nameUk}</span>
 									<span class="font-mono flex items-center gap-1">
-										<Coins class="w-3 h-3 text-amber-400 shrink-0" />
+										<UiIcon name="coins" class="w-3 h-3 text-amber-400 shrink-0" />
 										<span>{hoveredItem.cost}</span>
 										<span class="text-slate-400">|</span>
 										<span>КД: {hoveredItem.cooldown}с</span>
@@ -364,12 +363,12 @@
 										<span>МАКС</span>
 									{:else}
 										<span class="flex items-center gap-0.5">
-											<Coins class="w-2.5 h-2.5 text-amber-400 shrink-0" />
+											<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
 											<span>{atkCost}</span>
 										</span>
 										{#if atkLum > 0}
 											<span class="flex items-center gap-0.5 text-emerald-400">
-												<TreePine class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+												<UiIcon name="treePine" class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
 												<span>{atkLum}</span>
 											</span>
 										{/if}
@@ -397,12 +396,12 @@
 										<span>МАКС</span>
 									{:else}
 										<span class="flex items-center gap-0.5">
-											<Coins class="w-2.5 h-2.5 text-amber-400 shrink-0" />
+											<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
 											<span>{armCost}</span>
 										</span>
 										{#if armLum > 0}
 											<span class="flex items-center gap-0.5 text-emerald-400">
-												<TreePine class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+												<UiIcon name="treePine" class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
 												<span>{armLum}</span>
 											</span>
 										{/if}
@@ -419,7 +418,7 @@
 								title="Економіка: +10% до доходу золота"
 							>
 								<span class="text-[9.5px] font-bold text-emerald-300 flex items-center gap-1">
-									<Coins class="w-3 h-3 text-emerald-400 shrink-0" />
+									<UiIcon name="coins" class="w-3 h-3 text-emerald-400 shrink-0" />
 									<span>Дохід {ecoLvl}/3</span>
 								</span>
 								<span class="text-[8px] text-slate-400">+10% доходу</span>
@@ -430,12 +429,12 @@
 										<span>МАКС</span>
 									{:else}
 										<span class="flex items-center gap-0.5">
-											<Coins class="w-2.5 h-2.5 text-amber-400 shrink-0" />
+											<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
 											<span>{ecoCost}</span>
 										</span>
 										{#if ecoLum > 0}
 											<span class="flex items-center gap-0.5 text-emerald-400">
-												<TreePine class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+												<UiIcon name="treePine" class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
 												<span>{ecoLum}</span>
 											</span>
 										{/if}
@@ -543,12 +542,12 @@
 							<span class="text-[10px] font-bold truncate max-w-[50px]">{up.name}</span>
 							<div class="flex items-center gap-1.5 text-[8px] font-mono font-bold mt-0.5">
 								<span class="text-amber-300 flex items-center gap-0.5">
-									<Coins class="w-2.5 h-2.5 text-amber-400 shrink-0" />
+									<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
 									<span>{upCost}</span>
 								</span>
 								{#if upLumber > 0}
 									<span class="text-emerald-400 flex items-center gap-0.5">
-										<TreePine class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+										<UiIcon name="treePine" class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
 										<span>{upLumber}</span>
 									</span>
 								{/if}
@@ -705,7 +704,7 @@
 								Міст
 							</span>
 							<span class="text-[8px] font-mono text-amber-300 font-bold flex items-center gap-0.5">
-								<TreePine class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+								<UiIcon name="treePine" class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
 								<span>50</span>
 							</span>
 						</button>
@@ -872,7 +871,7 @@
 								? 'bg-black/70 text-amber-300 border-t border-r border-[#544738]/60'
 								: 'bg-red-950/90 text-red-400 border-t border-r border-red-800/60'}"
 					>
-						<Coins class="w-2.5 h-2.5 text-amber-400 shrink-0" />
+						<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
 						<span>{effectiveGoldCost}</span>
 					</div>
 
@@ -886,7 +885,7 @@
 									: 'bg-red-950/90 text-red-400 border-t border-l border-red-800/60'}"
 						>
 							<span>{bldLumber}</span>
-							<TreePine class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+							<UiIcon name="treePine" class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
 						</div>
 					{/if}
 
@@ -926,7 +925,7 @@
 						class="absolute bottom-0 right-0 flex items-center gap-0.5 px-0.5 py-0.2 rounded-tl-[3px] text-[7.5px] font-mono font-bold leading-none bg-black/70 text-amber-300 border-t border-l border-amber-700/60"
 					>
 						<span>50</span>
-						<TreePine class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+						<UiIcon name="treePine" class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
 					</div>
 					<span
 						class="text-[8px] font-bold text-amber-200 leading-tight select-none pointer-events-none"
@@ -958,7 +957,7 @@
 			<!-- Resource Cost Line -->
 			<div class="flex items-center gap-3 font-mono font-bold text-xs mt-1">
 				<span class="text-amber-300 flex items-center gap-1">
-					<Coins class="w-3.5 h-3.5 text-amber-400" />
+					<UiIcon name="coins" class="w-3.5 h-3.5 text-amber-400" />
 					<span>
 						{applyCommanderForgeCostDiscount(
 							hoveredBuilding.gold_cost || 200,
@@ -969,7 +968,7 @@
 				</span>
 				{#if hoveredBuilding.lumber_cost}
 					<span class="text-emerald-400 flex items-center gap-1">
-						<TreePine class="w-3.5 h-3.5 text-emerald-400" />
+						<UiIcon name="treePine" class="w-3.5 h-3.5 text-emerald-400" />
 						<span>{hoveredBuilding.lumber_cost}</span>
 					</span>
 				{/if}

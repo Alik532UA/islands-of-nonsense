@@ -141,13 +141,15 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 
 		// Bottom-left corner gold cost: Coins SVG icon then amount
 		expect(commandCardSrc).toContain('absolute bottom-0 left-0');
-		expect(commandCardSrc).toContain('<Coins');
+		expect(commandCardSrc).toContain('name="coins"');
 		expect(commandCardSrc).toContain('{effectiveGoldCost}');
 
 		// Bottom-right corner lumber cost: amount then TreePine SVG icon
 		expect(commandCardSrc).toContain('absolute bottom-0 right-0');
-		expect(commandCardSrc).toContain('<TreePine');
-		expect(commandCardSrc).toContain('<span>{bldLumber}</span>\n\t\t\t\t\t\t\t<TreePine');
+		expect(commandCardSrc).toContain('name="treePine"');
+		expect(commandCardSrc).toContain(
+			'<span>{bldLumber}</span>\n\t\t\t\t\t\t\t<UiIcon name="treePine"'
+		);
 
 		// Dead-center building name without overlapping badges
 		expect(commandCardSrc).toContain('shortenName(bld.name)');
@@ -190,7 +192,7 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 
 		// Collapsed state: expand button with arrow up
 		expect(minimapSrc).toContain('data-testid="minimap-expand-btn"');
-		expect(minimapSrc).toContain('ChevronUp');
+		expect(minimapSrc).toContain('chevronUp');
 
 		// Adheres flush to the bottom edge without bottom border gap
 		expect(minimapSrc).toContain('rounded-t-xl rounded-b-none');

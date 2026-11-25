@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { Coins, TreePine } from 'lucide-svelte';
 	import type { Simulation } from '../engine/simulation';
 	import type { PlayerState } from '../engine/types';
 	import { BUILDINGS_MAP } from '../engine/gameData';
@@ -202,7 +201,7 @@
 						class="hidden sm:flex items-center gap-2.5 bg-[#0a0d14] border border-[#3b3226] rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold shadow-inner"
 					>
 						<span class="flex items-center gap-1 text-amber-400" title="Доступне золото">
-							<Coins class="w-3.5 h-3.5 text-amber-400" />
+							<UiIcon name="coins" class="w-3.5 h-3.5 text-amber-400" />
 							{playerGold}
 						</span>
 						<span class="h-3 w-px bg-[#3b3226]"></span>
@@ -301,7 +300,7 @@
 											? ''
 											: 'text-rose-400'}"
 									>
-										<Coins class="w-3 h-3" />
+										<UiIcon name="coins" class="w-3 h-3" />
 										{forgeGoldCost}
 									</span>
 									<span
@@ -309,7 +308,7 @@
 											? ''
 											: 'text-rose-400'}"
 									>
-										<TreePine class="w-3 h-3" />
+										<UiIcon name="treePine" class="w-3 h-3" />
 										{forgeLumberCost}
 									</span>
 								</span>
@@ -404,7 +403,7 @@
 													: 'text-amber-400/70'
 												: 'text-rose-400'}"
 										>
-											<Coins class="w-3 h-3" />
+											<UiIcon name="coins" class="w-3 h-3" />
 											{up.goldPrice}
 										</span>
 										{#if up.lumberPrice > 0}
@@ -415,7 +414,7 @@
 														: 'text-emerald-400/70'
 													: 'text-rose-400'}"
 											>
-												<TreePine class="w-3 h-3" />
+												<UiIcon name="treePine" class="w-3 h-3" />
 												{up.lumberPrice}
 											</span>
 										{/if}

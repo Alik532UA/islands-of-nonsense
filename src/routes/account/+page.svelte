@@ -50,6 +50,9 @@
 	let savedSuccess = $state(false);
 	let handleStatus = $state<'idle' | 'invalid' | 'checking' | 'available' | 'taken'>('idle');
 	let handleClean = $derived(formHandle.trim().replace(/^@/, '').toLowerCase());
+	const INP_CLS =
+		'bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500';
+	const CARD_CLS = 'p-4 bg-slate-950/40 border border-slate-800 rounded-2xl';
 	const rewardLevel = $derived(computeLevelProgress(rewardsStore.data.xp));
 	const equippedTitleText = $derived(
 		titleLabel(rewardsStore.data.equippedTitle, settings.locale === 'en' ? 'en' : 'uk')
@@ -116,6 +119,19 @@
 
 	onMount(() => {
 		let unsubInbox = () => {};
+		if (typeof window !== 'undefined') {
+			const tabParam = new URLSearchParams(window.location.search).get('tab');
+			if (
+				tabParam === 'profile' ||
+				tabParam === 'stats' ||
+				tabParam === 'rewards' ||
+				tabParam === 'friends' ||
+				tabParam === 'leaders'
+			) {
+				activeTab = tabParam;
+				if (tabParam === 'rewards') rewardsStore.markSeen();
+			}
+		}
 		void controller.load().then(() => {
 			if (controller.profile) {
 				formName = controller.profile.name;
@@ -226,6 +242,21 @@
 		}
 	}
 
+	function selectTab(tab: TabType) {
+		activeTab = tab;
+		if (tab === 'rewards') rewardsStore.markSeen();
+		if (tab === 'leaders') {
+			void controller.loadLeaders(friendUids);
+			if (controller.state === 'linked') {
+				void loadSocialLists().then((res) => {
+					friendUids = res.mutual.map((u) => u.uid);
+					followingUids = res.following.map((u) => u.uid);
+					void controller.loadLeaders(friendUids);
+				});
+			}
+		}
+	}
+
 	async function handleDeleteAccount() {
 		const ok = await controller.deleteAccount(deletePassword || undefined);
 		if (ok) {
@@ -261,98 +292,28 @@
 
 		<!-- Tabs -->
 		<div class="flex items-center gap-2 border-b border-slate-800 pb-3 mb-6">
-			<button
-				type="button"
-				data-testid="tab-profile"
-				onclick={() => (activeTab = 'profile')}
-				class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition {activeTab ===
-				'profile'
-					? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-					: 'text-slate-400 hover:text-slate-200'}"
-			>
-				<UiIcon name="circleUser" class="w-4 h-4" />
-				<span>{t('account.tab.profile')}</span>
-			</button>
-
-			<button
-				type="button"
-				data-testid="tab-stats"
-				onclick={() => (activeTab = 'stats')}
-				class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition {activeTab ===
-				'stats'
-					? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-					: 'text-slate-400 hover:text-slate-200'}"
-			>
-				<UiIcon name="barChart" class="w-4 h-4" />
-				<span>{t('account.tab.stats')}</span>
-			</button>
-
-			<button
-				type="button"
-				data-testid="tab-rewards"
-				onclick={() => {
-					activeTab = 'rewards';
-					rewardsStore.markSeen();
-				}}
-				class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition {activeTab ===
-				'rewards'
-					? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-					: 'text-slate-400 hover:text-slate-200'}"
-			>
-				<UiIcon name="award" class="w-4 h-4" />
-				<span>{t('account.tab.rewards')}</span>
-				{#if rewardsStore.unseenCount > 0}
-					<span
-						class="px-1.5 py-0.5 rounded-full bg-emerald-500 text-slate-950 text-[10px] font-black leading-none"
-					>
-						{rewardsStore.unseenCount}
-					</span>
-				{/if}
-			</button>
-
-			<button
-				type="button"
-				data-testid="tab-friends"
-				onclick={() => (activeTab = 'friends')}
-				class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition {activeTab ===
-				'friends'
-					? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-					: 'text-slate-400 hover:text-slate-200'}"
-			>
-				<UiIcon name="users" class="w-4 h-4" />
-				<span>{t('account.tab.friends')}</span>
-				{#if inboxCount > 0}
-					<span
-						class="px-1.5 py-0.5 rounded-full bg-amber-500 text-slate-950 text-[10px] font-black leading-none"
-						data-testid="friends-inbox-badge"
-					>
-						{inboxCount}
-					</span>
-				{/if}
-			</button>
-
-			<button
-				type="button"
-				data-testid="tab-leaders"
-				onclick={() => {
-					activeTab = 'leaders';
-					void controller.loadLeaders(friendUids);
-					if (controller.state === 'linked') {
-						void loadSocialLists().then((res) => {
-							friendUids = res.mutual.map((u) => u.uid);
-							followingUids = res.following.map((u) => u.uid);
-							void controller.loadLeaders(friendUids);
-						});
-					}
-				}}
-				class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition {activeTab ===
-				'leaders'
-					? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-					: 'text-slate-400 hover:text-slate-200'}"
-			>
-				<UiIcon name="trophy" class="w-4 h-4" />
-				<span>{t('account.tab.leaders')}</span>
-			</button>
+			{#each [{ id: 'profile', icon: 'circleUser', badge: 0, badgeCls: '', badgeTestId: '' }, { id: 'stats', icon: 'barChart', badge: 0, badgeCls: '', badgeTestId: '' }, { id: 'rewards', icon: 'award', badge: rewardsStore.unseenCount, badgeCls: 'bg-emerald-500 text-slate-950', badgeTestId: '' }, { id: 'friends', icon: 'users', badge: inboxCount, badgeCls: 'bg-amber-500 text-slate-950', badgeTestId: 'friends-inbox-badge' }, { id: 'leaders', icon: 'trophy', badge: 0, badgeCls: '', badgeTestId: '' }] as const as item (item.id)}
+				<button
+					type="button"
+					data-testid="tab-{item.id}"
+					onclick={() => selectTab(item.id)}
+					class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition {activeTab ===
+					item.id
+						? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+						: 'text-slate-400 hover:text-slate-200'}"
+				>
+					<UiIcon name={item.icon} class="w-4 h-4" />
+					<span>{t(`account.tab.${item.id}`)}</span>
+					{#if item.badge > 0}
+						<span
+							class="px-1.5 py-0.5 rounded-full text-[10px] font-black leading-none {item.badgeCls}"
+							data-testid={item.badgeTestId || undefined}
+						>
+							{item.badge}
+						</span>
+					{/if}
+				</button>
+			{/each}
 		</div>
 
 		{#if controller.error}
@@ -517,9 +478,7 @@
 				<!-- Auth / Cloud Linking Section -->
 				<div class="mt-8 pt-6 border-t border-slate-800 space-y-4">
 					{#if controller.state === 'linked'}
-						<div
-							class="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl flex items-center justify-between"
-						>
+						<div class="{CARD_CLS} flex items-center justify-between">
 							<div>
 								<div class="text-xs text-slate-400 font-medium">{t('account.auth.linked')}</div>
 								<div class="text-sm font-bold text-slate-200">{controller.email}</div>
@@ -542,7 +501,7 @@
 									e.preventDefault();
 									void handleChangePassword();
 								}}
-								class="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl space-y-3"
+								class="{CARD_CLS} space-y-3"
 							>
 								<div class="text-xs font-bold text-slate-300">
 									{t('account.auth.changePassTitle')}
@@ -553,7 +512,7 @@
 										autocomplete="current-password"
 										bind:value={currentPassword}
 										placeholder={t('account.auth.currentPass')}
-										class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500"
+										class={INP_CLS}
 									/>
 									<input
 										type="password"
@@ -561,7 +520,7 @@
 										minlength="6"
 										bind:value={newPassword}
 										placeholder={t('account.auth.newPass')}
-										class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500"
+										class={INP_CLS}
 									/>
 								</div>
 								<div class="flex justify-end">
@@ -678,7 +637,7 @@
 												data-testid="login-email-input"
 												bind:value={authEmail}
 												placeholder={t('account.auth.email')}
-												class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500"
+												class="w-full {INP_CLS}"
 											/>
 										</div>
 
@@ -786,7 +745,7 @@
 												data-testid="register-email-input"
 												bind:value={authEmail}
 												placeholder={t('account.auth.email')}
-												class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500"
+												class="w-full {INP_CLS}"
 											/>
 										</div>
 

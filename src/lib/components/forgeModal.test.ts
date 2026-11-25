@@ -11,8 +11,8 @@ describe('ForgeModal Game-Style UI/UX & Direct Build Flow', () => {
 	it('uses game HUD palette (#121622, #8c7456) and SVG resource icons without plain g/w text suffixes', () => {
 		expect(forgeContent).toContain('bg-[#121622]');
 		expect(forgeContent).toContain('border-[#8c7456]');
-		expect(forgeContent).toContain('<Coins');
-		expect(forgeContent).toContain('<TreePine');
+		expect(forgeContent).toContain('name="coins"');
+		expect(forgeContent).toContain('name="treePine"');
 		expect(forgeContent).not.toContain('{attackPrice}g');
 		expect(forgeContent).not.toContain('{armorPrice}g');
 		expect(forgeContent).not.toContain('{econPrice}g');

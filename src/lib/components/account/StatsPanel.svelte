@@ -88,98 +88,46 @@
 <div class="space-y-6">
 	<!-- Primary KPI Grid -->
 	<div class="grid grid-cols-2 sm:grid-cols-4 gap-3" data-testid="stats-kpi-grid">
-		<div class="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl text-center">
-			<div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
-				{t('account.stats.score')}
+		{#each [{ key: 'score', val: playData.score, cls: 'text-amber-400', tid: 'stats-total-score', sub: '' }, { key: 'plays', val: overall.plays, cls: 'text-slate-200', tid: '', sub: `${overall.wins}W / ${overall.losses}L` }, { key: 'winRate', val: `${overall.winRate}%`, cls: 'text-cyan-400', tid: '', sub: `${t('account.stats.best')}: ${overall.best}` }, { key: 'streak', val: winStreak, cls: 'text-emerald-400', tid: '', sub: `${t('account.stats.bestStreak')}: ${bestWinStreak}` }] as kpi (kpi.key)}
+			<div class="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl text-center">
+				<div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
+					{t(`account.stats.${kpi.key}`)}
+				</div>
+				<div
+					class="text-2xl font-black {kpi.cls} flex items-center justify-center gap-1"
+					data-testid={kpi.tid || undefined}
+				>
+					{#if kpi.key === 'streak'}<UiIcon name="flame" class="w-5 h-5 text-amber-400" />{/if}
+					<span>{kpi.val}</span>
+				</div>
+				{#if kpi.sub}
+					<div class="text-[10px] text-slate-400 mt-0.5">{kpi.sub}</div>
+				{/if}
 			</div>
-			<div class="text-2xl font-black text-amber-400" data-testid="stats-total-score">
-				{playData.score}
-			</div>
-		</div>
-
-		<div class="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl text-center">
-			<div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
-				{t('account.stats.plays')}
-			</div>
-			<div class="text-2xl font-black text-slate-200">{overall.plays}</div>
-			<div class="text-[10px] text-slate-400 mt-0.5">
-				{overall.wins}W / {overall.losses}L
-			</div>
-		</div>
-
-		<div class="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl text-center">
-			<div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
-				{t('account.stats.winRate')}
-			</div>
-			<div class="text-2xl font-black text-cyan-400">{overall.winRate}%</div>
-			<div class="text-[10px] text-slate-400 mt-0.5">
-				{t('account.stats.best')}: {overall.best}
-			</div>
-		</div>
-
-		<div class="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl text-center">
-			<div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
-				{t('account.stats.streak')}
-			</div>
-			<div class="text-2xl font-black text-emerald-400 flex items-center justify-center gap-1">
-				<UiIcon name="flame" class="w-5 h-5 text-amber-400" />
-				<span>{winStreak}</span>
-			</div>
-			<div class="text-[10px] text-slate-400 mt-0.5">
-				{t('account.stats.bestStreak')}: {bestWinStreak}
-			</div>
-		</div>
+		{/each}
 	</div>
 
 	<!-- Mode Breakdown -->
 	<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-		<div class="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-2">
-			<div class="flex items-center justify-between">
-				<span class="text-xs font-bold text-sky-300 flex items-center gap-1.5">
-					<UiIcon name="swords" class="w-4 h-4" />
-					{t('account.stats.onlineMode')}
-				</span>
-				<span class="text-xs font-mono font-bold text-amber-300">{onlineStats.score} pts</span>
-			</div>
-			<div class="grid grid-cols-3 gap-2 text-center pt-1 text-xs">
-				<div class="p-2 rounded-xl bg-slate-900/70">
-					<div class="text-[10px] text-slate-400">{t('account.stats.plays')}</div>
-					<div class="font-bold text-slate-100">{onlineStats.plays}</div>
+		{#each [{ icon: 'swords', cls: 'text-sky-300', label: 'account.stats.onlineMode', s: onlineStats }, { icon: 'trophy', cls: 'text-emerald-300', label: 'account.stats.soloMode', s: soloStats }] as const as card (card.label)}
+			<div class="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-2">
+				<div class="flex items-center justify-between">
+					<span class="text-xs font-bold {card.cls} flex items-center gap-1.5">
+						<UiIcon name={card.icon} class="w-4 h-4" />
+						{t(card.label)}
+					</span>
+					<span class="text-xs font-mono font-bold text-amber-300">{card.s.score} pts</span>
 				</div>
-				<div class="p-2 rounded-xl bg-slate-900/70">
-					<div class="text-[10px] text-slate-400">{t('account.stats.wins')}</div>
-					<div class="font-bold text-emerald-400">{onlineStats.wins}</div>
-				</div>
-				<div class="p-2 rounded-xl bg-slate-900/70">
-					<div class="text-[10px] text-slate-400">{t('account.stats.winRate')}</div>
-					<div class="font-bold text-cyan-300">{onlineStats.winRate}%</div>
+				<div class="grid grid-cols-3 gap-2 text-center pt-1 text-xs">
+					{#each [{ k: 'plays', v: card.s.plays, cls: 'text-slate-100' }, { k: 'wins', v: card.s.wins, cls: 'text-emerald-400' }, { k: 'winRate', v: `${card.s.winRate}%`, cls: 'text-cyan-300' }] as stat (stat.k)}
+						<div class="p-2 rounded-xl bg-slate-900/70">
+							<div class="text-[10px] text-slate-400">{t(`account.stats.${stat.k}`)}</div>
+							<div class="font-bold {stat.cls}">{stat.v}</div>
+						</div>
+					{/each}
 				</div>
 			</div>
-		</div>
-
-		<div class="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-2">
-			<div class="flex items-center justify-between">
-				<span class="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
-					<UiIcon name="trophy" class="w-4 h-4" />
-					{t('account.stats.soloMode')}
-				</span>
-				<span class="text-xs font-mono font-bold text-amber-300">{soloStats.score} pts</span>
-			</div>
-			<div class="grid grid-cols-3 gap-2 text-center pt-1 text-xs">
-				<div class="p-2 rounded-xl bg-slate-900/70">
-					<div class="text-[10px] text-slate-400">{t('account.stats.plays')}</div>
-					<div class="font-bold text-slate-100">{soloStats.plays}</div>
-				</div>
-				<div class="p-2 rounded-xl bg-slate-900/70">
-					<div class="text-[10px] text-slate-400">{t('account.stats.wins')}</div>
-					<div class="font-bold text-emerald-400">{soloStats.wins}</div>
-				</div>
-				<div class="p-2 rounded-xl bg-slate-900/70">
-					<div class="text-[10px] text-slate-400">{t('account.stats.winRate')}</div>
-					<div class="font-bold text-cyan-300">{soloStats.winRate}%</div>
-				</div>
-			</div>
-		</div>
+		{/each}
 	</div>
 
 	<!-- Match History -->
@@ -205,34 +153,17 @@
 					</button>
 				{/each}
 				{#if (playData.history?.length ?? 0) > 0}
-					<button
-						type="button"
-						onclick={() =>
-							downloadFile(
-								exportHistoryJSON(playData.history ?? []),
-								'islands-match-history.json',
-								'application/json'
-							)}
-						class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 font-semibold flex items-center gap-1 cursor-pointer"
-						title={t('account.history.exportJson')}
-					>
-						<UiIcon name="download" class="w-3 h-3" />
-						<span>JSON</span>
-					</button>
-					<button
-						type="button"
-						onclick={() =>
-							downloadFile(
-								exportHistoryCSV(playData.history ?? []),
-								'islands-match-history.csv',
-								'text/csv'
-							)}
-						class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 font-semibold flex items-center gap-1 cursor-pointer"
-						title={t('account.history.exportCsv')}
-					>
-						<UiIcon name="download" class="w-3 h-3" />
-						<span>CSV</span>
-					</button>
+					{#each [{ fn: () => exportHistoryJSON(playData.history ?? []), file: 'islands-match-history.json', mime: 'application/json', tip: 'exportJson', label: 'JSON' }, { fn: () => exportHistoryCSV(playData.history ?? []), file: 'islands-match-history.csv', mime: 'text/csv', tip: 'exportCsv', label: 'CSV' }] as exp (exp.label)}
+						<button
+							type="button"
+							onclick={() => downloadFile(exp.fn(), exp.file, exp.mime)}
+							class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 font-semibold flex items-center gap-1 cursor-pointer"
+							title={t(`account.history.${exp.tip}`)}
+						>
+							<UiIcon name="download" class="w-3 h-3" />
+							<span>{exp.label}</span>
+						</button>
+					{/each}
 				{/if}
 			</div>
 		</div>

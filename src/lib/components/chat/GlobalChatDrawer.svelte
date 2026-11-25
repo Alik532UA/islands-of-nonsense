@@ -3,6 +3,7 @@
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import {
 		QUICK_EMOTES,
+		formatChatTime,
 		sendGlobalChatMessage,
 		subscribeGlobalChat,
 		type ChatEntry
@@ -20,13 +21,7 @@
 		onInspectProfile?: (uid: string) => void;
 	}
 
-	let {
-		senderName,
-		senderAvatar,
-		myUid = null,
-		onOpenDm,
-		onInspectProfile
-	}: Props = $props();
+	let { senderName, senderAvatar, myUid = null, onOpenDm, onInspectProfile }: Props = $props();
 
 	let isOpen = $state(false);
 	let input = $state('');
@@ -160,14 +155,7 @@
 									{:else}
 										<span class="font-bold text-amber-300 truncate">{msg.senderName}</span>
 									{/if}
-									<span class="text-[10px] text-slate-500">
-										{msg.at
-											? new Date(msg.at).toLocaleTimeString([], {
-													hour: '2-digit',
-													minute: '2-digit'
-												})
-											: ''}
-									</span>
+									<span class="text-[10px] text-slate-500">{formatChatTime(msg.at)}</span>
 								</div>
 								{#if msg.kind === 'emote'}
 									<div class="text-base leading-tight">{msg.emote ?? msg.text}</div>
@@ -221,9 +209,7 @@
 					<button
 						type="button"
 						onclick={() => {
-							for (const id of [...chatModeration.mutedUids]) {
-								chatModeration.toggleMute(id);
-							}
+							for (const id of [...chatModeration.mutedUids]) chatModeration.toggleMute(id);
 						}}
 						class="text-sky-300 hover:underline flex items-center gap-1 cursor-pointer"
 					>

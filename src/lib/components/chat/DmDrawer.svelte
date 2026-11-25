@@ -1,6 +1,12 @@
 <script lang="ts">
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
-	import { QUICK_EMOTES, sendDmMessage, subscribeDmThread, type ChatEntry } from '$lib/net/chat';
+	import {
+		QUICK_EMOTES,
+		formatChatTime,
+		sendDmMessage,
+		subscribeDmThread,
+		type ChatEntry
+	} from '$lib/net/chat';
 	import { chatModeration } from '$lib/services/chatModeration.svelte';
 	import { toast } from '$lib/controllers/toast.svelte';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
@@ -121,9 +127,7 @@
 						{chatModeration.sanitizeText(msg.text)}
 					</div>
 					{#if msg.at}
-						<span class="text-[9px] text-slate-500 mt-0.5 px-1">
-							{new Date(msg.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-						</span>
+						<span class="text-[9px] text-slate-500 mt-0.5 px-1">{formatChatTime(msg.at)}</span>
 					{/if}
 				</div>
 			{/each}
