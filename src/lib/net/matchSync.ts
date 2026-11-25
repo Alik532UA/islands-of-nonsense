@@ -24,6 +24,8 @@ export interface MatchSyncOptions {
 const MAX_CHECKPOINT_HISTORY = 40;
 const MAX_CATCHUP_TICKS = 216_000;
 const FIXED_STEP = 1 / 60;
+const DESYNC_RESYNC_COOLDOWN_TICKS = 300;
+const TELEMETRY_SEQ_SOFT_LIMIT = 9000;
 
 const IMMEDIATE_MOVE_TYPES = new Set([
 	'HEARTBEAT',
@@ -104,6 +106,7 @@ export class MatchSync {
 	private pendingMoves: Move[] = [];
 	private appliedHistory: Move[] = [];
 	private lastDispatchMs = 0;
+	private lastDesyncResyncTick = -1;
 
 	constructor(options: MatchSyncOptions) {
 		this.sim = options.sim;
@@ -133,6 +136,7 @@ export class MatchSync {
 					this.appliedHistory = [];
 					this.checksumHistory.clear();
 					this.pendingRemoteChecksums.clear();
+					this.lastDesyncResyncTick = -1;
 				}
 				this.processMoves(snapshot.moves);
 				this.checkMembers(snapshot.members);
@@ -152,6 +156,7 @@ export class MatchSync {
 		this.appliedHistory = [];
 		this.checksumHistory.clear();
 		this.pendingRemoteChecksums.clear();
+		this.lastDesyncResyncTick = -1;
 	}
 
 	setRosterSlots(mapping: Record<string, number>) {
@@ -232,11 +237,7 @@ export class MatchSync {
 			this.pendingRemoteChecksums.delete(tick);
 			for (const entry of waiting) {
 				if (entry.checksum !== sum) {
-					this.onDesync?.({
-						tick,
-						localChecksum: sum,
-						remoteChecksum: entry.checksum
-					});
+					this.handleChecksumMismatch(tick, sum, entry.checksum);
 				}
 			}
 		}
@@ -244,6 +245,7 @@ export class MatchSync {
 	}
 
 	async sendHeartbeat(): Promise<boolean> {
+		if (this.nextSeq > TELEMETRY_SEQ_SOFT_LIMIT) return false;
 		if (Date.now() - this.lastDispatchMs < 150) return false;
 		return this.dispatch('HEARTBEAT', {
 			clientTime: Math.floor(this.transport.now()),
@@ -253,6 +255,7 @@ export class MatchSync {
 
 	async broadcastChecksum(): Promise<boolean> {
 		const checksum = this.recordCheckpointChecksum();
+		if (this.nextSeq > TELEMETRY_SEQ_SOFT_LIMIT) return false;
 		return this.dispatch('CHECKSUM', {
 			checksum,
 			tick: this.sim.tick
@@ -402,7 +405,48 @@ export class MatchSync {
 		this.replayMovesThroughCurrentSim(validMoves, 0, true);
 	}
 
-	private resyncSimulationToTick(targetTick: number): boolean {
+	private handleChecksumMismatch(tick: number, localChecksum: string, remoteChecksum: string) {
+		const canAttemptRecovery =
+			Boolean(this.createResyncSimulation) &&
+			!this.resyncInProgress &&
+			(this.lastDesyncResyncTick < 0 ||
+				this.sim.tick - this.lastDesyncResyncTick >= DESYNC_RESYNC_COOLDOWN_TICKS);
+
+		if (!canAttemptRecovery) {
+			this.onDesync?.({ tick, localChecksum, remoteChecksum });
+			return;
+		}
+
+		const targetTick = this.sim.tick;
+		this.lastDesyncResyncTick = targetTick;
+		let verifiedChecksumAtTick: string | null = null;
+
+		const resynced = this.resyncSimulationToTick(targetTick, {
+			tick,
+			onTickReached: (checksum) => {
+				verifiedChecksumAtTick = checksum;
+			}
+		});
+
+		if (!resynced) {
+			this.onDesync?.({ tick, localChecksum, remoteChecksum });
+			return;
+		}
+
+		const postResyncChecksum = verifiedChecksumAtTick ?? this.getSimChecksum();
+		if (verifiedChecksumAtTick !== null && verifiedChecksumAtTick !== remoteChecksum) {
+			this.onDesync?.({
+				tick,
+				localChecksum: postResyncChecksum,
+				remoteChecksum
+			});
+		}
+	}
+
+	private resyncSimulationToTick(
+		targetTick: number,
+		verifyCheckpoint?: { tick: number; onTickReached: (checksum: string) => void }
+	): boolean {
 		if (this.resyncInProgress || !this.createResyncSimulation) return false;
 		const freshSim = this.createResyncSimulation();
 		if (!freshSim) return false;
@@ -413,7 +457,7 @@ export class MatchSync {
 			this.pendingMoves = [];
 			this.checksumHistory.clear();
 			this.pendingRemoteChecksums.clear();
-			this.replayMovesThroughCurrentSim(this.appliedHistory, targetTick, false);
+			this.replayMovesThroughCurrentSim(this.appliedHistory, targetTick, false, verifyCheckpoint);
 			this.onSimResynced?.(this.sim);
 			return true;
 		} finally {
@@ -424,7 +468,8 @@ export class MatchSync {
 	private replayMovesThroughCurrentSim(
 		moves: Move[],
 		minFinalTargetTick: number,
-		emitCallbacks: boolean
+		emitCallbacks: boolean,
+		verifyCheckpoint?: { tick: number; onTickReached: (checksum: string) => void }
 	) {
 		// Split history cleanly on round/match boundaries so each epoch steps from tick 0
 		const segments: { moves: Move[]; resetMove: Move | null; targetTick: number }[] = [];
@@ -464,12 +509,21 @@ export class MatchSync {
 
 			// Flush initial tick-0 commands (e.g. RESUME) before checking `this.sim.isRunning`
 			this.flushTick(this.sim.tick, emitCallbacks);
+			if (isLastSeg && verifyCheckpoint && this.sim.tick === verifyCheckpoint.tick) {
+				verifyCheckpoint.onTickReached(this.getSimChecksum());
+			}
 
 			while (this.sim.tick < clampedTarget && this.sim.isRunning && !this.sim.winner) {
 				this.flushTick(this.sim.tick, emitCallbacks);
 				this.sim.step(FIXED_STEP);
+				if (isLastSeg && verifyCheckpoint && this.sim.tick === verifyCheckpoint.tick) {
+					verifyCheckpoint.onTickReached(this.getSimChecksum());
+				}
 			}
 			this.flushTick(this.sim.tick, emitCallbacks);
+			if (isLastSeg && verifyCheckpoint && this.sim.tick === verifyCheckpoint.tick) {
+				verifyCheckpoint.onTickReached(this.getSimChecksum());
+			}
 
 			for (const cMove of checksums) {
 				this.applyMoveToSimulation(cMove);
@@ -634,6 +688,7 @@ export class MatchSync {
 					this.pendingMoves = [];
 					this.checksumHistory.clear();
 					this.pendingRemoteChecksums.clear();
+					this.lastDesyncResyncTick = -1;
 					if (this.sim.matchWinner) {
 						this.sim.startNewMatch();
 					} else {
@@ -648,6 +703,7 @@ export class MatchSync {
 				this.pendingMoves = [];
 				this.checksumHistory.clear();
 				this.pendingRemoteChecksums.clear();
+				this.lastDesyncResyncTick = -1;
 				this.sim.startNewMatch();
 				this.sim.isRunning = true;
 				break;
@@ -669,20 +725,12 @@ export class MatchSync {
 					if (p.tick === this.sim.tick) {
 						const localChecksum = this.recordCheckpointChecksum();
 						if (localChecksum !== p.checksum) {
-							this.onDesync?.({
-								tick: p.tick,
-								localChecksum,
-								remoteChecksum: p.checksum
-							});
+							this.handleChecksumMismatch(p.tick, localChecksum, p.checksum);
 						}
 					} else if (p.tick < this.sim.tick) {
 						const historical = this.checksumHistory.get(p.tick);
 						if (historical && historical !== p.checksum) {
-							this.onDesync?.({
-								tick: p.tick,
-								localChecksum: historical,
-								remoteChecksum: p.checksum
-							});
+							this.handleChecksumMismatch(p.tick, historical, p.checksum);
 						}
 					} else {
 						// Remote peer is slightly ahead; verify when local sim reaches `p.tick`

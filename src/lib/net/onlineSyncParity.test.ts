@@ -615,4 +615,224 @@ describe('Online Deterministic Parity & Team Slot Sync', () => {
 		syncA.dispose();
 		syncB.dispose();
 	});
+
+	it('automatically recovers from transient state divergence on CHECKSUM mismatch via resyncSimulationToTick', async () => {
+		const initA = createOnlineSimulation(baseInfo, members, 'u_west_1');
+		const initB = createOnlineSimulation(baseInfo, members, 'u_east_1');
+		let currentSimB = initB.sim;
+		const room = new LocalRoom(baseInfo, members);
+		const desyncsB: number[] = [];
+		let resyncCount = 0;
+
+		const syncA = new MatchSync({
+			sim: initA.sim,
+			transport: room.transport({ as: 'u_west_1' }),
+			localUid: 'u_west_1',
+			localTeam: 'west',
+			localSlot: 1,
+			uidToSlot: initA.uidToSlot
+		});
+		const syncB = new MatchSync({
+			sim: currentSimB,
+			transport: room.transport({ as: 'u_east_1' }),
+			localUid: 'u_east_1',
+			localTeam: 'east',
+			localSlot: 2,
+			uidToSlot: initB.uidToSlot,
+			createResyncSimulation: () => createOnlineSimulation(baseInfo, members, 'u_east_1').sim,
+			onSimResynced: (nextSim) => {
+				currentSimB = nextSim;
+				resyncCount++;
+			},
+			onDesync: (info) => desyncsB.push(info.tick)
+		});
+
+		await syncA.dispatch('BUILD', { buildingType: 'cg11_forge', x: 25, y: 20 });
+		for (let t = 0; t < 120; t++) {
+			initA.sim.step(1 / 60);
+			currentSimB.step(1 / 60);
+		}
+
+		// Inject transient state corruption on Peer B
+		currentSimB.players.west.gold = 999999;
+		currentSimB.castles.east.hp = 1234;
+		expect(computeSimStateChecksum(initA.sim)).not.toBe(computeSimStateChecksum(currentSimB));
+
+		// Peer A broadcasts authoritative checksum -> Peer B detects mismatch, resyncs from history, and heals
+		await syncA.broadcastChecksum();
+
+		expect(resyncCount).toBe(1);
+		expect(desyncsB).toEqual([]);
+		expect(computeSimStateChecksum(currentSimB)).toBe(computeSimStateChecksum(initA.sim));
+
+		syncA.dispose();
+		syncB.dispose();
+	});
+
+	it('fires onDesync and respects cooldown when checksum divergence cannot be healed by replay', async () => {
+		const initA = createOnlineSimulation(baseInfo, members, 'u_west_1');
+		const initB = createOnlineSimulation(baseInfo, members, 'u_east_1');
+		const room = new LocalRoom(baseInfo, members);
+		const desyncsB: number[] = [];
+		let resyncCount = 0;
+
+		const syncB = new MatchSync({
+			sim: initB.sim,
+			transport: room.transport({ as: 'u_east_1' }),
+			localUid: 'u_east_1',
+			localTeam: 'east',
+			localSlot: 2,
+			uidToSlot: initB.uidToSlot,
+			createResyncSimulation: () => createOnlineSimulation(baseInfo, members, 'u_east_1').sim,
+			onSimResynced: () => {
+				resyncCount++;
+			},
+			onDesync: (info) => desyncsB.push(info.tick)
+		});
+
+		for (let t = 0; t < 60; t++) {
+			initA.sim.step(1 / 60);
+			initB.sim.step(1 / 60);
+		}
+
+		const transportA = room.transport({ as: 'u_west_1' });
+		await transportA.append({
+			seq: 1,
+			by: 'u_west_1',
+			type: 'CHECKSUM',
+			payload: { tick: 60, checksum: 'deadbeef' }
+		});
+		// Second mismatch within cooldown window should fire onDesync directly without re-running resync
+		await transportA.append({
+			seq: 2,
+			by: 'u_west_1',
+			type: 'CHECKSUM',
+			payload: { tick: 60, checksum: 'cafebabe' }
+		});
+
+		expect(resyncCount).toBe(1);
+		expect(desyncsB).toEqual([60, 60]);
+
+		syncB.dispose();
+	});
+
+	it('preserves remaining seq budget for gameplay commands when approaching MOVE_SEQ_MAX', async () => {
+		const initA = createOnlineSimulation(baseInfo, members, 'u_west_1');
+		const room = new LocalRoom(baseInfo, members);
+		const syncA = new MatchSync({
+			sim: initA.sim,
+			transport: room.transport({ as: 'u_west_1' }),
+			localUid: 'u_west_1',
+			localTeam: 'west',
+			localSlot: 1,
+			uidToSlot: initA.uidToSlot
+		});
+
+		// Simulate high-water seq near 9999 cap
+		await room.transport({ as: 'u_west_1' }).append({
+			seq: 9001,
+			by: 'u_west_1',
+			type: 'CHAT',
+			payload: { tick: 0 }
+		});
+
+		const beatOk = await syncA.sendHeartbeat();
+		const sumOk = await syncA.broadcastChecksum();
+		expect(beatOk).toBe(false);
+		expect(sumOk).toBe(false);
+
+		// Gameplay command still succeeds
+		const buildOk = await syncA.dispatch('BUILD', { buildingType: 'cg11_forge', x: 25, y: 20 });
+		expect(buildOk).toBe(true);
+		expect(initA.sim.buildings.length).toBe(1);
+
+		syncA.dispose();
+	});
+
+	it('keeps full parity across extended command matrix (UPGRADE_FORGE, REPAIR, SELL, CASTLE_SHOT, RESTART_MATCH) and late joiner hydration', async () => {
+		const initA = createOnlineSimulation(baseInfo, members, 'u_west_1');
+		const initB = createOnlineSimulation(baseInfo, members, 'u_east_1');
+		const room = new LocalRoom(baseInfo, members);
+		const desyncs: number[] = [];
+
+		for (const p of [...initA.sim.allPlayers, ...initB.sim.allPlayers]) {
+			p.gold = 5000;
+			p.lumber = 5000;
+		}
+
+		const syncA = new MatchSync({
+			sim: initA.sim,
+			transport: room.transport({ as: 'u_west_1' }),
+			localUid: 'u_west_1',
+			localTeam: 'west',
+			localSlot: 1,
+			uidToSlot: initA.uidToSlot,
+			onDesync: (info) => desyncs.push(info.tick)
+		});
+		const syncB = new MatchSync({
+			sim: initB.sim,
+			transport: room.transport({ as: 'u_east_1' }),
+			localUid: 'u_east_1',
+			localTeam: 'east',
+			localSlot: 2,
+			uidToSlot: initB.uidToSlot,
+			onDesync: (info) => desyncs.push(info.tick)
+		});
+
+		await syncA.dispatch('BUILD', { buildingType: 'cg11_forge', x: 25, y: 20 });
+		for (let t = 0; t < 180; t++) {
+			initA.sim.step(1 / 60);
+			initB.sim.step(1 / 60);
+		}
+
+		const targetBuilding = initA.sim.buildings[0];
+		expect(targetBuilding).toBeDefined();
+
+		await syncA.dispatch('UPGRADE_FORGE', { forgeType: 'attack' });
+		await syncA.dispatch('REPAIR', { targetId: targetBuilding.instanceId });
+		await syncB.dispatch('UPGRADE_CASTLE_CANNON');
+		await syncB.dispatch('CASTLE_SHOT', { targetId: 'short' });
+		await syncA.dispatch('BRIDGE_REPAIR');
+
+		for (let t = 0; t < 120; t++) {
+			initA.sim.step(1 / 60);
+			initB.sim.step(1 / 60);
+		}
+
+		await syncA.dispatch('SELL', { targetId: targetBuilding.instanceId });
+		expect(initA.sim.buildings.length).toBe(0);
+		expect(initB.sim.buildings.length).toBe(0);
+		await syncA.broadcastChecksum();
+		await syncB.broadcastChecksum();
+
+		expect(desyncs).toEqual([]);
+		expect(computeSimStateChecksum(initA.sim)).toBe(computeSimStateChecksum(initB.sim));
+
+		// Late-joining spectator / reconnecting player hydrates from tick 0 and reaches identical state
+		const initC = createOnlineSimulation(baseInfo, members, 'u_west_1');
+		for (const p of initC.sim.allPlayers) {
+			p.gold = 5000;
+			p.lumber = 5000;
+		}
+		const syncC = new MatchSync({
+			sim: initC.sim,
+			transport: room.transport({ as: 'u_west_1' }),
+			localUid: 'u_west_1',
+			localTeam: 'west',
+			localSlot: 1,
+			uidToSlot: initC.uidToSlot
+		});
+		expect(initC.sim.tick).toBeGreaterThanOrEqual(300);
+		expect(computeSimStateChecksum(initC.sim)).toBe(computeSimStateChecksum(initA.sim));
+
+		// RESTART_MATCH resets both peers cleanly
+		await syncA.dispatch('RESTART_MATCH');
+		expect(initA.sim.tick).toBe(0);
+		expect(initB.sim.tick).toBe(0);
+		expect(computeSimStateChecksum(initA.sim)).toBe(computeSimStateChecksum(initB.sim));
+
+		syncA.dispose();
+		syncB.dispose();
+		syncC.dispose();
+	});
 });

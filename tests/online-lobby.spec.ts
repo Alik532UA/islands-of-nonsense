@@ -30,4 +30,18 @@ test.describe('Online Lobby & Quick Match E2E Flow', () => {
 		await page.getByTestId('tab-stats').click();
 		await expect(page.getByTestId('replay-verify-btn')).toBeVisible();
 	});
+
+	test('mounts online battle arena and room HUD cleanly without uncaught errors', async ({
+		page
+	}) => {
+		const pageErrors: string[] = [];
+		page.on('pageerror', (err) => pageErrors.push(err.message));
+
+		await page.goto(`${BASE}/play/battle?room=ABCD&host=1`);
+		await page.waitForLoadState('domcontentloaded');
+
+		await expect(page.locator('main')).toBeVisible();
+		await expect(page.getByTestId('bottom-bar')).toBeVisible();
+		expect(pageErrors).toEqual([]);
+	});
 });
