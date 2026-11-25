@@ -847,7 +847,7 @@
 						</div>
 						<div class="text-xs text-slate-300 truncate mt-0.5">
 							<span class="font-bold text-sky-300">{dailySpec.westRace}</span>
-							<span class="text-slate-500 mx-1">vs</span>
+							<span class="text-slate-400 mx-1">vs</span>
 							<span class="font-bold text-rose-300">{dailySpec.eastRace}</span>
 						</div>
 					</div>
