@@ -264,6 +264,7 @@
 			avatar={player.avatar}
 			country={player.country}
 			onReroll={() => player.reroll(settings.locale)}
+			onSelectAvatar={(next) => player.chooseAvatar(next)}
 		/>
 
 		<!-- Action Tiles -->

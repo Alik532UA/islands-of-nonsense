@@ -10,6 +10,8 @@
 	import { settings } from '$lib/services/settings.svelte';
 	import { fullscreen, canFullscreen } from '$lib/services/fullscreen.svelte';
 	import { createHoverMenu, hoverMenuContainer } from '$lib/ui/hoverMenu.svelte';
+	import { playerAvatar } from '$lib/services/playerAvatar.svelte';
+	import Avatar from '$lib/components/ui/Avatar.svelte';
 	import {
 		ArrowLeft,
 		House,
@@ -759,6 +761,7 @@
 			data-testid="resource-boxes"
 		>
 			<div class="flex items-center gap-2.5 h-9">
+				<Avatar avatar={playerAvatar.value} size={22} showDefault />
 				<!-- Gold -->
 				<div
 					class="flex items-center gap-1.5 font-bold text-amber-400 shrink-0"

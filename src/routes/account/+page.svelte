@@ -17,9 +17,11 @@
 	import { settings } from '$lib/services/settings.svelte';
 	import { AccountController } from '$lib/controllers/account.svelte';
 	import { playerAvatar } from '$lib/services/playerAvatar.svelte';
+	import { saveAvatar } from '$lib/net/account';
 	import { toast } from '$lib/controllers/toast.svelte';
 	import { FLAG_COUNTRIES, countryName } from '$lib/config/countries';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
+	import AvatarPicker from '$lib/components/ui/AvatarPicker.svelte';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
 	import StatsPanel from '$lib/components/account/StatsPanel.svelte';
 	import LeaderboardPanel from '$lib/components/account/LeaderboardPanel.svelte';
@@ -253,6 +255,18 @@
 						</span>
 					</div>
 				</div>
+
+				<!-- Avatar Customizer -->
+				<AvatarPicker
+					value={formAvatar}
+					onSelect={(next) => {
+						formAvatar = next;
+						playerAvatar.set(next);
+						if (controller.state === 'linked' && controller.profile) {
+							void saveAvatar(next).catch(() => {});
+						}
+					}}
+				/>
 
 				<!-- Edit Profile Form -->
 				<form

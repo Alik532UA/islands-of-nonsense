@@ -29,6 +29,7 @@
 		ArrowLeftRight
 	} from 'lucide-svelte';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
+	import { resolveRoomMemberAvatars } from '$lib/utils/roomAvatars';
 	import { connect } from '$lib/net/firebase';
 	import { liveNet } from '$lib/net/roomNet';
 	import { probeNetProblem } from '$lib/utils/netProblem';
@@ -159,6 +160,7 @@
 		)
 	);
 	let humanClaimedColorIds = $derived(getHumanClaimedColorIds(members));
+	let resolvedAvatars = $derived(resolveRoomMemberAvatars(members));
 
 	onMount(() => {
 		let stopPresence = () => {};
@@ -814,7 +816,11 @@
 											{/if}
 										</button>
 
-										<Avatar avatar={occupant.avatar} size={26} showDefault />
+										<Avatar
+											avatar={resolvedAvatars.get(occupant.uid) ?? occupant.avatar}
+											size={26}
+											showDefault
+										/>
 
 										<div class="flex items-center gap-1.5 min-w-0 flex-1">
 											<span class="font-bold text-slate-100 truncate">{occupant.name}</span>
@@ -1172,6 +1178,15 @@
 	<div
 		class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-700/80 shadow-lg text-xs text-slate-200"
 	>
+		{#if isPlaying && members.length > 0}
+			<div class="hidden sm:flex items-center -space-x-1 mr-1" data-testid="battle-member-avatars">
+				{#each members.filter((m) => m.role === 'player').slice(0, 6) as m (m.uid)}
+					<span title="{m.name} ({m.team ?? 'west'})" class="rounded-md ring-1 ring-slate-900">
+						<Avatar avatar={resolvedAvatars.get(m.uid) ?? m.avatar} size={20} showDefault />
+					</span>
+				{/each}
+			</div>
+		{/if}
 		<span class="font-mono font-bold text-amber-300">{roomCode}</span>
 		{#if peerOnlineCount > 0}
 			<Wifi class="w-3.5 h-3.5 text-emerald-400" />
