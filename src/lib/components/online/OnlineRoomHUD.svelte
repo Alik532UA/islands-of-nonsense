@@ -26,7 +26,7 @@
 	import { connect } from '$lib/net/firebase';
 	import { liveNet } from '$lib/net/roomNet';
 	import { probeNetProblem } from '$lib/utils/netProblem';
-	import { removeFromLobby, updateLobbyPlayers } from '$lib/net/lobby';
+	import { removeFromLobby, updateLobbyMatchState, updateLobbyPlayers } from '$lib/net/lobby';
 	import { getHumanClaimedColorIds, getMemberContentionInfo } from '$lib/net/colorLottery';
 	import {
 		countOpenHumanCapacity,
@@ -35,14 +35,17 @@
 		normalizeRoomSlots,
 		pickFirstAvailableSeat
 	} from '$lib/net/onlineMatchSetup';
-	import type {
-		Member,
-		RoomConfig,
-		RoomInfo,
-		RoomSlotKey,
-		RoomSlotKind,
-		RoomSlotSetting,
-		RoomTransport
+	import {
+		MAX_ROOM_SPECTATORS,
+		canJoinAsSpectator,
+		normalizeSpectatorMode,
+		type Member,
+		type RoomConfig,
+		type RoomInfo,
+		type RoomSlotKey,
+		type RoomSlotKind,
+		type RoomSlotSetting,
+		type RoomTransport
 	} from '$lib/net/roomTypes';
 	import { ALL_PLAYER_COLORS } from '$lib/engine/types';
 	import { GAME_MODES } from '$lib/engine/gameModes';
@@ -63,6 +66,7 @@
 		senderName: string;
 		senderAvatar?: string;
 		kind?: ChatKind;
+		channel?: 'all' | 'spectator';
 		emote?: string;
 		text: string;
 		at: number;
@@ -120,10 +124,32 @@
 		!isEffectiveHost &&
 			Boolean(roomInfo) &&
 			!hostOnline &&
-			members.some((m) => m.uid === localUid && (isPlaying || m.role === 'player'))
+			members.some((m) => m.uid === localUid && m.role === 'player')
 	);
 	let peerOnlineCount = $derived(onlineUids.filter((id) => id !== localUid).length);
 	let localMember = $derived(members.find((m) => m.uid === localUid) ?? null);
+	let isLocalSpectator = $derived(localMember?.role === 'spectator');
+	let spectatorMode = $derived(normalizeSpectatorMode(roomInfo?.config?.spectatorMode));
+	let spectatorsList = $derived(
+		members.filter((m) => m.role === 'spectator').sort((a, b) => a.order - b.order)
+	);
+	let openHumanCapacity = $derived(countOpenHumanCapacity(roomInfo?.config));
+	let canSwitchToSpectator = $derived(
+		Boolean(
+			isLobby &&
+			localMember &&
+			localMember.role === 'player' &&
+			spectatorMode !== 'none' &&
+			spectatorsList.length < MAX_ROOM_SPECTATORS
+		)
+	);
+	let canSwitchToPlayer = $derived(
+		Boolean(
+			isLobby &&
+			isLocalSpectator &&
+			members.filter((m) => m.role === 'player').length < openHumanCapacity
+		)
+	);
 	let roomSlots = $derived(normalizeRoomSlots(roomInfo?.config));
 	let slotOccupants = $derived.by(() => {
 		const map = new Map<number, Member>();
@@ -175,7 +201,13 @@
 	);
 	let humanClaimedColorIds = $derived(getHumanClaimedColorIds(members));
 	let resolvedAvatars = $derived(resolveRoomMemberAvatars(members));
-	let visibleMessages = $derived(messages.filter((m) => !chatModeration.isMuted(m.senderUid)));
+	let visibleMessages = $derived(
+		messages.filter((m) => {
+			if (chatModeration.isMuted(m.senderUid)) return false;
+			if (isPlaying && !isLocalSpectator && m.channel === 'spectator') return false;
+			return true;
+		})
+	);
 	let unreadChatCount = $derived(
 		chatOpen ? 0 : Math.max(0, visibleMessages.length - seenChatCount)
 	);
@@ -238,10 +270,31 @@
 
 				const currentMembers = (await liveNet.peekMembers(roomCode)) ?? [];
 				if (!currentMembers.some((m) => m.uid === uid)) {
+					const playerCount = currentMembers.filter((m) => m.role === 'player').length;
+					const specCount = currentMembers.filter((m) => m.role === 'spectator').length;
+					const maxOpen = countOpenHumanCapacity(currentInfo.config);
+					let joinRole: 'player' | 'spectator' = 'player';
+					if (currentInfo.status === 'playing' || playerCount >= maxOpen) {
+						const specCheck = canJoinAsSpectator({
+							status: currentInfo.status,
+							spectatorMode: currentInfo.config?.spectatorMode,
+							spectatorCount: specCount
+						});
+						if (!specCheck.allowed) {
+							roomError =
+								specCheck.reason === 'disabled'
+									? t('online.spectator.deniedDisabled')
+									: specCheck.reason === 'lobbyOnly'
+										? t('online.spectator.deniedLobbyOnly')
+										: t('online.spectator.deniedFull');
+							return;
+						}
+						joinRole = 'spectator';
+					}
 					const joinName = identity.forEntry(settings.locale);
 					await liveNet.joinRoom(roomCode, {
 						name: joinName,
-						role: currentInfo.status === 'playing' ? 'spectator' : 'player',
+						role: joinRole,
 						country: identity.country,
 						avatar: identity.avatar
 					});
@@ -299,7 +352,12 @@
 					if (chatOpen) {
 						seenChatCount = messages.filter((m) => !chatModeration.isMuted(m.senderUid)).length;
 					}
-					if (initialChatLoaded && val.kind === 'emote' && !chatModeration.isMuted(val.senderUid)) {
+					if (
+						initialChatLoaded &&
+						val.kind === 'emote' &&
+						!chatModeration.isMuted(val.senderUid) &&
+						(!isPlaying || isLocalSpectator || val.channel !== 'spectator')
+					) {
 						floatingEmote = {
 							senderName: val.senderName,
 							emote: val.emote ?? val.text
@@ -346,21 +404,74 @@
 		if (!roomInfo || roomInfo.config?.isPrivate) return;
 		const { db } = await connect();
 		const playerCount = Math.max(1, members.filter((m) => m.role === 'player').length);
+		const specCount = members.filter((m) => m.role === 'spectator').length;
 		const maxOpen = countOpenHumanCapacity({ ...roomInfo.config, slots: nextSlots });
-		await import('firebase/database')
-			.then(({ ref, update }) =>
-				update(ref(db, `lobby/castlefight/${roomCode}`), {
-					players: Math.min(playerCount, maxOpen),
-					maxPlayers: maxOpen
+		await updateLobbyMatchState(db, roomCode, {
+			players: Math.min(playerCount, maxOpen),
+			maxPlayers: Math.max(2, maxOpen),
+			spectators: specCount
+		}).catch(() => {});
+	}
+
+	async function handleToggleSpectatorRole() {
+		if (!isLobby || !localUid || !localMember || !roomInfo) return;
+		if (isLocalSpectator) {
+			if (!canSwitchToPlayer) return;
+			const seat = pickFirstAvailableSeat(members, 'west', roomInfo.config);
+			await liveNet
+				.updateMe(roomCode, {
+					role: 'player',
+					team: seat.team,
+					slot: seat.slot,
+					race: 'in_game',
+					ready: false
 				})
-			)
-			.catch(() => {});
+				.catch(() => {});
+			if (!roomInfo.config?.isPrivate) {
+				const { db } = await connect();
+				const nextPlayers = members.filter((m) => m.role === 'player').length + 1;
+				const nextSpecs = Math.max(0, spectatorsList.length - 1);
+				await updateLobbyMatchState(db, roomCode, {
+					players: nextPlayers,
+					spectators: nextSpecs
+				}).catch(() => {});
+			}
+		} else {
+			if (!canSwitchToSpectator) return;
+			await liveNet.updateMe(roomCode, { role: 'spectator', ready: false }).catch(() => {});
+			if (!roomInfo.config?.isPrivate) {
+				const { db } = await connect();
+				const nextPlayers = Math.max(1, members.filter((m) => m.role === 'player').length - 1);
+				const nextSpecs = spectatorsList.length + 1;
+				await updateLobbyMatchState(db, roomCode, {
+					players: nextPlayers,
+					spectators: nextSpecs
+				}).catch(() => {});
+			}
+		}
 	}
 
 	async function handleMoveToSlot(team: 'west' | 'east', slotNum: number) {
 		if (!isLobby || !localUid) return;
 		if (slotOccupants.has(slotNum)) return;
-		await liveNet.updateMe(roomCode, { team, slot: slotNum }).catch(() => {});
+		const wasSpectator = isLocalSpectator;
+		if (wasSpectator && members.filter((m) => m.role === 'player').length >= openHumanCapacity) {
+			return;
+		}
+		await liveNet
+			.updateMe(roomCode, {
+				team,
+				slot: slotNum,
+				...(wasSpectator ? { role: 'player', race: 'in_game', ready: false } : {})
+			})
+			.catch(() => {});
+		if (wasSpectator && roomInfo && !roomInfo.config?.isPrivate) {
+			const { db } = await connect();
+			await updateLobbyMatchState(db, roomCode, {
+				players: members.filter((m) => m.role === 'player').length + 1,
+				spectators: Math.max(0, spectatorsList.length - 1)
+			}).catch(() => {});
+		}
 	}
 
 	async function handleToggleReady() {
@@ -461,13 +572,20 @@
 			slots: nextSlots
 		};
 		await transport.setConfig(nextConfig).catch(() => {});
-		if (!nextConfig.isPrivate && typeof patch.modeId === 'string') {
+		if (nextConfig.spectatorMode === 'none') {
+			for (const spec of spectatorsList) {
+				if (spec.uid !== localUid) {
+					await liveNet.kickMember(roomCode, spec.uid).catch(() => {});
+				}
+			}
+		}
+		if (!nextConfig.isPrivate) {
 			const { db } = await connect();
-			await import('firebase/database')
-				.then(({ ref, update }) =>
-					update(ref(db, `lobby/castlefight/${roomCode}`), { modeId: patch.modeId })
-				)
-				.catch(() => {});
+			await updateLobbyMatchState(db, roomCode, {
+				...(typeof patch.modeId === 'string' ? { modeId: patch.modeId } : {}),
+				spectatorMode: normalizeSpectatorMode(nextConfig.spectatorMode),
+				spectators: nextConfig.spectatorMode === 'none' ? 0 : spectatorsList.length
+			}).catch(() => {});
 		}
 	}
 
@@ -518,7 +636,17 @@
 				});
 			}
 			const { db } = await connect();
-			await removeFromLobby(db, roomCode).catch(() => {});
+			if (!roomInfo?.config?.isPrivate && spectatorMode === 'anytime') {
+				await updateLobbyMatchState(db, roomCode, {
+					status: 'playing',
+					spectatorMode: 'anytime',
+					players: Math.max(1, roster.length),
+					maxPlayers: Math.max(2, roster.length),
+					spectators: spectatorsList.length
+				}).catch(() => {});
+			} else {
+				await removeFromLobby(db, roomCode).catch(() => {});
+			}
 		} finally {
 			starting = false;
 		}
@@ -528,10 +656,12 @@
 		e.preventDefault();
 		const text = chatInput.trim().slice(0, 200);
 		if (!text || !localUid) return;
+		const channel = isPlaying && isLocalSpectator ? ('spectator' as const) : undefined;
 		try {
 			const ok = await liveNet.sendChatMessage(roomCode, identity.forEntry(settings.locale), text, {
 				avatar: identity.avatar,
-				kind: 'text'
+				kind: 'text',
+				...(channel ? { channel } : {})
 			});
 			if (ok) {
 				chatInput = '';
@@ -545,6 +675,7 @@
 
 	async function sendRoomEmote(emote: string) {
 		if (!localUid) return;
+		const channel = isPlaying && isLocalSpectator ? ('spectator' as const) : undefined;
 		try {
 			const ok = await liveNet.sendChatMessage(
 				roomCode,
@@ -553,7 +684,8 @@
 				{
 					avatar: identity.avatar,
 					kind: 'emote',
-					emote
+					emote,
+					...(channel ? { channel } : {})
 				}
 			);
 			if (!ok) {
@@ -597,6 +729,14 @@
 </script>
 
 {#snippet roomChatBody(maxH: string, inputCls: string)}
+	{#if isPlaying && isLocalSpectator}
+		<div
+			class="px-2 py-1 rounded bg-sky-950/60 border border-sky-500/35 text-[10px] text-sky-200 font-semibold"
+			data-testid="spectator-chat-notice"
+		>
+			{t('online.spectator.chatOnlyNotice')}
+		</div>
+	{/if}
 	<div class="{maxH} overflow-y-auto space-y-1 text-xs">
 		{#if visibleMessages.length === 0}
 			<div class="text-slate-500 italic">{t('online.hud.noMessages')}</div>
@@ -864,7 +1004,23 @@
 						{/if}
 					</button>
 
-					{#if localMember}
+					{#if canSwitchToSpectator || canSwitchToPlayer}
+						<button
+							type="button"
+							data-testid="lobby-toggle-spectator-btn"
+							onclick={handleToggleSpectatorRole}
+							class="min-h-[38px] px-3 py-1.5 rounded-[8px] border text-xs font-bold cursor-pointer transition flex items-center gap-1.5 {isLocalSpectator
+								? 'bg-amber-500/20 border-amber-400/70 text-amber-200 hover:bg-amber-500/30'
+								: 'bg-[#161d2b] hover:bg-[#1e273a] border-sky-500/45 text-sky-200'}"
+						>
+							<UiIcon name={isLocalSpectator ? 'logIn' : 'eye'} class="w-3.5 h-3.5" />
+							<span>
+								{isLocalSpectator ? t('online.hud.becomePlayer') : t('online.hud.becomeSpectator')}
+							</span>
+						</button>
+					{/if}
+
+					{#if localMember && localMember.role === 'player'}
 						<button
 							type="button"
 							data-testid="lobby-ready-btn"
@@ -931,6 +1087,22 @@
 						>
 							<UiIcon name="eye" class="w-3 h-3" />
 							{roomFogEnabled ? t('online.fogEnabled') : t('online.fogDisabled')}
+						</span>
+						<span
+							data-testid="lobby-spectator-policy-status"
+							class="inline-flex items-center gap-1 px-2 py-1 rounded-[6px] border font-semibold {spectatorMode ===
+							'none'
+								? 'bg-rose-950/50 border-rose-500/40 text-rose-200'
+								: spectatorMode === 'lobby'
+									? 'bg-amber-950/50 border-amber-500/40 text-amber-200'
+									: 'bg-sky-950/50 border-sky-500/40 text-sky-200'}"
+						>
+							<UiIcon name="users" class="w-3 h-3" />
+							{spectatorMode === 'none'
+								? t('online.spectatorsNone')
+								: spectatorMode === 'lobby'
+									? t('online.spectatorsLobby')
+									: t('online.spectatorsAnytime')}
 						</span>
 						{#if coinModeVal === 'none' || roomInfo.config?.coinCount === 0}
 							<span
@@ -1277,6 +1449,56 @@
 					</div>
 				{/each}
 			</div>
+
+			<!-- Lobby Spectators Strip -->
+			{#if spectatorMode !== 'none' || spectatorsList.length > 0}
+				<div
+					data-testid="lobby-spectators-panel"
+					class="mb-4 px-3 py-2.5 rounded-[10px] border border-sky-500/25 bg-[#0b101b]/90 flex flex-wrap items-center justify-between gap-2 text-xs"
+				>
+					<div class="flex flex-wrap items-center gap-2 min-w-0">
+						<span class="font-bold text-sky-300 flex items-center gap-1.5 shrink-0">
+							<UiIcon name="eye" class="w-3.5 h-3.5" />
+							<span>
+								{t('online.hud.spectatorsTitle', {
+									count: spectatorsList.length,
+									max: MAX_ROOM_SPECTATORS
+								})}
+							</span>
+						</span>
+						{#if spectatorsList.length === 0}
+							<span class="text-slate-500 italic">{t('online.hud.noSpectators')}</span>
+						{:else}
+							{#each spectatorsList as spec (spec.uid)}
+								<div
+									class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#151c2c] border border-slate-700 text-slate-200"
+								>
+									<Avatar
+										avatar={resolvedAvatars.get(spec.uid) ?? spec.avatar}
+										size={18}
+										showDefault
+									/>
+									<span class="font-semibold truncate max-w-[120px]">{spec.name}</span>
+									{#if spec.country}
+										<Flag code={spec.country} />
+									{/if}
+									{#if isEffectiveHost && spec.uid !== localUid}
+										<button
+											type="button"
+											onclick={() => void handleHostKickPlayer(spec.uid)}
+											class="text-rose-400 hover:text-rose-200 ml-0.5 cursor-pointer"
+											title={t('online.hud.kickPlayer')}
+											aria-label={t('online.hud.kickPlayer')}
+										>
+											✕
+										</button>
+									{/if}
+								</div>
+							{/each}
+						{/if}
+					</div>
+				</div>
+			{/if}
 
 			{#if !canStartMatch && isEffectiveHost}
 				<div

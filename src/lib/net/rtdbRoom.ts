@@ -457,7 +457,12 @@ export async function sendChatMessage(
 	code: string,
 	senderName: string,
 	text: string,
-	options: { avatar?: string; kind?: 'text' | 'emote' | 'system'; emote?: string } = {}
+	options: {
+		avatar?: string;
+		kind?: 'text' | 'emote' | 'system';
+		emote?: string;
+		channel?: 'all' | 'spectator';
+	} = {}
 ): Promise<boolean> {
 	const cleanText = text.trim().slice(0, 200);
 	if (!cleanText) return false;
@@ -475,6 +480,7 @@ export async function sendChatMessage(
 				senderName: senderName.slice(0, 48),
 				...(options.avatar ? { senderAvatar: options.avatar } : {}),
 				...(options.kind ? { kind: options.kind } : {}),
+				...(options.channel ? { channel: options.channel } : {}),
 				...(options.emote ? { emote: options.emote.slice(0, 16) } : {}),
 				text: cleanText,
 				at: stamp

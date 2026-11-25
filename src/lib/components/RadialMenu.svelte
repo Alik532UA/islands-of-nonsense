@@ -32,6 +32,7 @@
 		onSelectBuilding,
 		onOpenShop,
 		onOpenForge,
+		onStartRescueTargeting,
 		onClose
 	}: {
 		isOpen: boolean;
@@ -44,6 +45,7 @@
 		onSelectBuilding: (defId: string) => void;
 		onOpenShop?: () => void;
 		onOpenForge?: () => void;
+		onStartRescueTargeting?: () => void;
 		onClose: () => void;
 	} = $props();
 
@@ -81,19 +83,30 @@
 		{
 			id: 'rescue_strike',
 			name: 'Рятівний удар',
-			costText: rescueCd > 0 ? `КД ${Math.ceil(rescueCd)}с` : '950 AoE (Готовий)',
-			description: 'Потужний удар блискавкою по ворогах біля замку (950 AoE).',
+			costText: rescueCd > 0 ? `КД ${Math.ceil(rescueCd)}с` : '950 AoE (Приціл)',
+			description:
+				'Оберіть зону ураження (750px) на своєму острові; робітник застосує в радіусі 500px.',
 			hotkey: '1',
 			icon: 'rescue',
 			enabled: sim.canUseRescueStrike(activeTeam, player),
-			action: () =>
+			action: () => {
+				if (!sim.canUseRescueStrike(activeTeam, player)) {
+					sound.playErrorResource();
+					return;
+				}
+				if (onStartRescueTargeting) {
+					onStartRescueTargeting();
+					onClose();
+					return;
+				}
 				execBattleAbility(
 					sim.canUseRescueStrike(activeTeam, player),
 					'RESCUE_STRIKE',
 					{ team: activeTeam, playerSlot: player.slot },
 					() => sim.triggerRescueStrike(activeTeam, player),
 					() => sound.playRescueStrike()
-				)
+				);
+			}
 		},
 		{
 			id: 'repair_castle',

@@ -25,6 +25,8 @@ describe('CSP inline script hashes (SECURITY-v10 § 6.3.1)', () => {
 		expect(viteConfig).toContain('wss://*.firebasedatabase.app');
 		expect(viteConfig).toContain('https://identitytoolkit.googleapis.com');
 		expect(viteConfig).toContain('https://api.country.is');
+		expect(viteConfig).toMatch(/'script-src'[\s\S]*?https:\/\/\*\.firebasedatabase\.app/);
+		expect(viteConfig).toMatch(/'frame-src'[\s\S]*?https:\/\/\*\.firebasedatabase\.app/);
 		expect(viteConfig).not.toMatch(/'script-src'[^;\n]*'unsafe-inline'/);
 		expect(viteConfig).not.toMatch(/'script-src'[^;\n]*'unsafe-eval'/);
 	});

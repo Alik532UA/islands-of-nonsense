@@ -94,6 +94,10 @@ export interface RendererOptions {
 	getSelectedBuildingDefId: () => string | null;
 	getSelectedPlacedBuildingId?: () => string | null;
 	getActiveControlPlayer?: () => PlayerState | null;
+	getIsRescueTargeting?: () => boolean;
+	getSpectatorVision?: () => 'all' | 'west' | 'east' | null;
+	onRescueTargetClick?: (worldX: number, worldY: number) => void;
+	onCancelRescueTargeting?: () => void;
 	onCameraChange?: (camX: number, camY: number, zoom: number) => void;
 }
 
@@ -108,6 +112,10 @@ export class ArenaRenderer {
 	private getSelectedBuildingDefId: () => string | null;
 	private getSelectedPlacedBuildingId?: () => string | null;
 	private getActiveControlPlayer?: () => PlayerState | null;
+	private getIsRescueTargeting?: () => boolean;
+	private getSpectatorVision?: () => 'all' | 'west' | 'east' | null;
+	private onRescueTargetClick?: (worldX: number, worldY: number) => void;
+	private onCancelRescueTargeting?: () => void;
 	public onCameraChange?: (camX: number, camY: number, zoom: number) => void;
 
 	// Viewport & RTS Camera Navigation
@@ -184,6 +192,7 @@ export class ArenaRenderer {
 	}
 
 	private hoveredTile: { x: number; y: number } | null = null;
+	private hoveredWorld: { x: number; y: number } | null = null;
 	private isDestroyed = false;
 	private tickerFn: (() => void) | null = null;
 	private windowMouseUpHandler: ((e: MouseEvent) => void) | null = null;
@@ -207,6 +216,10 @@ export class ArenaRenderer {
 		this.getSelectedBuildingDefId = options.getSelectedBuildingDefId;
 		this.getSelectedPlacedBuildingId = options.getSelectedPlacedBuildingId;
 		this.getActiveControlPlayer = options.getActiveControlPlayer;
+		this.getIsRescueTargeting = options.getIsRescueTargeting;
+		this.getSpectatorVision = options.getSpectatorVision;
+		this.onRescueTargetClick = options.onRescueTargetClick;
+		this.onCancelRescueTargeting = options.onCancelRescueTargeting;
 		this.onCameraChange = options.onCameraChange;
 		this.graphicsStyle = options.graphicsStyle ?? '2.5d';
 
@@ -618,9 +631,13 @@ export class ArenaRenderer {
 				return;
 			}
 
-			// RIGHT CLICK: Cancel Building Placement OR Move Worker / Order Action / Repair
+			// RIGHT CLICK: Cancel Rescue Targeting / Building Placement OR Move Worker / Order Action / Repair
 			if (e.button === 2) {
 				e.preventDefault();
+				if (this.getIsRescueTargeting?.()) {
+					this.onCancelRescueTargeting?.();
+					return;
+				}
 				const activePlayer = this.getActiveControlPlayer?.() ?? this.sim.players.west;
 				const activeTeam: MatchTeam = activePlayer.team;
 
@@ -716,7 +733,7 @@ export class ArenaRenderer {
 
 			// LEFT CLICK: Start box selection or click
 			if (e.button === 0) {
-				if (!this.getSelectedBuildingDefId()) {
+				if (!this.getSelectedBuildingDefId() && !this.getIsRescueTargeting?.()) {
 					this.boxStartWorld = { x: world.x, y: world.y };
 					this.boxCurrentWorld = { x: world.x, y: world.y };
 				}
@@ -736,6 +753,7 @@ export class ArenaRenderer {
 			this.mouseScreenY = mouseScreenY;
 			this.isMouseOverCanvas = true;
 			const world = this.screenToWorld(mouseScreenX, mouseScreenY);
+			this.hoveredWorld = { x: world.x, y: world.y };
 
 			// Panning
 			if (this.isPanning) {
@@ -832,18 +850,24 @@ export class ArenaRenderer {
 		canvas.addEventListener('mouseleave', () => {
 			this.isMouseOverCanvas = false;
 			this.hoveredTile = null;
+			this.hoveredWorld = null;
 			this.isPanning = false;
 			this.isBoxSelecting = false;
 			this.boxStartWorld = null;
 		});
 
-		// 5. Left Click: Select Entity OR Place Building
+		// 5. Left Click: Select Entity OR Place Building OR Fire Rescue Strike
 		canvas.addEventListener('click', (e: MouseEvent) => {
 			if (e.button !== 0) return;
 			const rect = canvas.getBoundingClientRect();
 			const mouseScreenX = e.clientX - rect.left;
 			const mouseScreenY = e.clientY - rect.top;
 			const world = this.screenToWorld(mouseScreenX, mouseScreenY);
+
+			if (this.getIsRescueTargeting?.()) {
+				this.onRescueTargetClick?.(Math.round(world.x), Math.round(world.y));
+				return;
+			}
 
 			const activePlayer = this.getActiveControlPlayer?.() ?? this.sim.players.west;
 			const activeTeam: MatchTeam = activePlayer.team;
@@ -1020,35 +1044,40 @@ export class ArenaRenderer {
 				: null;
 		const bounds = this.getVisibleWorldBounds();
 
-		const viewerTeam: MatchTeam = activeControlPlayer.team;
+		const spectatorVision = this.getSpectatorVision?.() ?? null;
+		const effectiveFog = spectatorVision === 'all' ? false : this.enableFog;
+		const viewerTeam: MatchTeam =
+			spectatorVision === 'west' || spectatorVision === 'east'
+				? spectatorVision
+				: activeControlPlayer.team;
 
 		this.overlayRenderer.drawGridLayer(this.gridLayer, selectedDefId, this.hoveredTile, viewerTeam);
 		this.entityRenderer.drawBuildingsLayer(
 			this.buildingsLayer,
 			selectedPlacedId,
-			this.enableFog,
+			effectiveFog,
 			bounds,
 			viewerTeam
 		);
 		this.entityRenderer.drawWorkersLayer(
 			this.workersLayer,
 			selectedWorkerSlot,
-			this.enableFog,
+			effectiveFog,
 			bounds,
 			viewerTeam
 		);
 		this.entityRenderer.drawUnitsLayer(
 			this.unitsLayer,
 			selectedEntity,
-			this.enableFog,
+			effectiveFog,
 			bounds,
 			viewerTeam
 		);
-		this.entityRenderer.drawCoinsLayer(this.coinsLayer, this.enableFog, bounds, viewerTeam);
+		this.entityRenderer.drawCoinsLayer(this.coinsLayer, effectiveFog, bounds, viewerTeam);
 		this.renderCastles(selectedEntity);
 		this.entityRenderer.drawProjectilesLayer(
 			this.projectilesLayer,
-			this.enableFog,
+			effectiveFog,
 			bounds,
 			viewerTeam
 		);
@@ -1059,11 +1088,11 @@ export class ArenaRenderer {
 			this.sim.dayNightCycle,
 			this.castleGlowLayer,
 			bounds,
-			this.enableFog,
+			effectiveFog,
 			viewerTeam
 		);
 		this.overlayRenderer.drawOrderMarkers(this.markersLayer, this.moveMarkers);
-		this.overlayRenderer.drawFogOfWar(this.fogLayer, this.enableFog, viewerTeam);
+		this.overlayRenderer.drawFogOfWar(this.fogLayer, effectiveFog, viewerTeam);
 		this.overlayRenderer.drawFloatingTexts(this.floatingTextsLayer, this.sim.floatingTexts);
 		const castleRangeOverlay =
 			this.hoveredCastleCannonMode !== null
@@ -1071,12 +1100,25 @@ export class ArenaRenderer {
 				: selectedEntity?.type === 'castle'
 					? { team: selectedEntity.team, hoveredMode: null }
 					: null;
+		const pendingRescue = activeControlPlayer.worker?.pendingRescueStrike ?? null;
+		const rescueOverlay =
+			this.getIsRescueTargeting?.() || pendingRescue
+				? {
+						team: viewerTeam,
+						workerX: activeControlPlayer.worker?.x ?? null,
+						workerY: activeControlPlayer.worker?.y ?? null,
+						hoverX: this.getIsRescueTargeting?.() ? (this.hoveredWorld?.x ?? null) : null,
+						hoverY: this.getIsRescueTargeting?.() ? (this.hoveredWorld?.y ?? null) : null,
+						pendingTarget: pendingRescue
+					}
+				: null;
 		this.overlayRenderer.drawSelectionUI(
 			this.uiLayer,
 			this.isBoxSelecting,
 			this.boxStartWorld,
 			this.boxCurrentWorld,
-			castleRangeOverlay
+			castleRangeOverlay,
+			rescueOverlay
 		);
 	}
 

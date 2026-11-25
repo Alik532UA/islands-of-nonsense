@@ -527,6 +527,7 @@ export interface WorkerState {
 	lastMoveX?: number;
 	lastMoveY?: number;
 	buildQueue?: string[];
+	pendingRescueStrike?: { x: number; y: number } | null;
 }
 
 export interface PlayerState {

@@ -6,7 +6,8 @@ import {
 	TOP_LANE_Y,
 	MID_LANE_Y,
 	BOTTOM_LANE_Y,
-	BRIDGE_REPAIR_LUMBER_COST
+	BRIDGE_REPAIR_LUMBER_COST,
+	RESCUE_STRIKE_CAST_RANGE
 } from './constants';
 import type { MatchTeam, WorkerState, PlayerState } from './types';
 import { GroundNavigation } from './groundNavigation';
@@ -225,6 +226,7 @@ export class WorkerSystem {
 			w.targetBuildingId = null;
 			w.isRepairing = false;
 			w.targetRepairBuildingId = null;
+			w.pendingRescueStrike = null;
 			w.path = this.findWorkerPath(team, w.x, w.y, tx, ty);
 			this.sim.notifyStateChanged();
 		}
@@ -334,6 +336,7 @@ export class WorkerSystem {
 			w.targetBuildingId = buildingInstanceId;
 			w.isRepairing = false;
 			w.targetRepairBuildingId = null;
+			w.pendingRescueStrike = null;
 			w.path = this.findWorkerPath(team, w.x, w.y, spot.x, spot.y);
 			logService.recordBuildingEvent(
 				buildingInstanceId,
@@ -394,6 +397,7 @@ export class WorkerSystem {
 			w.targetBuildingId = null;
 			w.isRepairing = true;
 			w.targetRepairBuildingId = buildingInstanceId;
+			w.pendingRescueStrike = null;
 			w.path = this.findWorkerPath(team, w.x, w.y, spot.x, spot.y);
 			this.sim.notifyStateChanged();
 			return true;
@@ -423,6 +427,7 @@ export class WorkerSystem {
 		w.targetBuildingId = null;
 		w.isRepairing = true;
 		w.targetRepairBuildingId = 'bridge_' + bridgeLane;
+		w.pendingRescueStrike = null;
 		w.targetX = bx;
 		w.targetY = by;
 		w.path = this.findWorkerPath(team, w.x, w.y, bx, by);
@@ -439,6 +444,33 @@ export class WorkerSystem {
 			const w = p.worker;
 			if (!w) continue;
 			const team = p.team;
+
+			if (w.pendingRescueStrike) {
+				if (!this.sim.canUseRescueStrike(team, p)) {
+					w.pendingRescueStrike = null;
+				} else {
+					const target = w.pendingRescueStrike;
+					const dist = Math.hypot(w.x - target.x, w.y - target.y);
+					if (dist <= RESCUE_STRIKE_CAST_RANGE) {
+						w.pendingRescueStrike = null;
+						w.targetX = w.x;
+						w.targetY = w.y;
+						w.path = [];
+						this.sim.economySystem.executeRescueStrikeAt(team, target.x, target.y, p);
+					} else {
+						this.advanceWorkerAlongPath(w, team, w.targetX, w.targetY, dt, 10);
+						const afterDist = Math.hypot(w.x - target.x, w.y - target.y);
+						if (afterDist <= RESCUE_STRIKE_CAST_RANGE) {
+							w.pendingRescueStrike = null;
+							w.targetX = w.x;
+							w.targetY = w.y;
+							w.path = [];
+							this.sim.economySystem.executeRescueStrikeAt(team, target.x, target.y, p);
+						}
+					}
+					continue;
+				}
+			}
 
 			const targetBld = w.targetBuildingId
 				? this.sim.buildings.find((b) => b.instanceId === w.targetBuildingId)

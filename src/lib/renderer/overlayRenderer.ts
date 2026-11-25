@@ -20,7 +20,9 @@ import {
 	ISLAND_RADIUS_X,
 	ISLAND_RADIUS_Y,
 	CASTLE_CANNON_SHORT_RANGE,
-	CASTLE_CANNON_LONG_RANGE
+	CASTLE_CANNON_LONG_RANGE,
+	RESCUE_STRIKE_CAST_RANGE,
+	RESCUE_STRIKE_RADIUS
 } from '../engine/constants';
 import { rc, rr, ci, el } from './gfx';
 
@@ -287,9 +289,78 @@ export class OverlayRenderer {
 		isBoxSelecting: boolean,
 		boxStartWorld: { x: number; y: number } | null,
 		boxCurrentWorld: { x: number; y: number } | null,
-		castleRangeOverlay?: { team: MatchTeam; hoveredMode: 'short' | 'long' | null } | null
+		castleRangeOverlay?: { team: MatchTeam; hoveredMode: 'short' | 'long' | null } | null,
+		rescueOverlay?: {
+			team: MatchTeam;
+			workerX: number | null;
+			workerY: number | null;
+			hoverX: number | null;
+			hoverY: number | null;
+			pendingTarget: { x: number; y: number } | null;
+		} | null
 	): void {
 		g.clear();
+		if (rescueOverlay) {
+			const { team, workerX, workerY, hoverX, hoverY, pendingTarget } = rescueOverlay;
+			if (pendingTarget) {
+				ci(
+					g,
+					pendingTarget.x,
+					pendingTarget.y,
+					RESCUE_STRIKE_RADIUS,
+					{ color: 0xf97316, alpha: 0.08 },
+					{ color: 0xfbbf24, width: 2.5, alpha: 0.85 }
+				);
+				ci(
+					g,
+					pendingTarget.x,
+					pendingTarget.y,
+					18,
+					{ color: 0xfbbf24, alpha: 0.35 },
+					{ color: 0xf97316, width: 2, alpha: 0.9 }
+				);
+				if (workerX !== null && workerY !== null) {
+					g.moveTo(workerX, workerY);
+					g.lineTo(pendingTarget.x, pendingTarget.y);
+					g.stroke({ color: 0xfbbf24, width: 2, alpha: 0.65 });
+				}
+			}
+			if (hoverX !== null && hoverY !== null) {
+				const onOwnIsland = this.sim.isPointOnIsland(team, hoverX, hoverY, 0);
+				const withinWorkerRange =
+					workerX === null ||
+					workerY === null ||
+					Math.hypot(workerX - hoverX, workerY - hoverY) <= RESCUE_STRIKE_CAST_RANGE;
+				const strokeColor = !onOwnIsland ? 0xef4444 : withinWorkerRange ? 0xf97316 : 0xfbbf24;
+				const fillColor = !onOwnIsland ? 0xef4444 : 0xf97316;
+				if (workerX !== null && workerY !== null) {
+					ci(
+						g,
+						workerX,
+						workerY,
+						RESCUE_STRIKE_CAST_RANGE,
+						{ color: 0x38bdf8, alpha: 0.03 },
+						{ color: 0x38bdf8, width: 1.5, alpha: 0.45 }
+					);
+					g.moveTo(workerX, workerY);
+					g.lineTo(hoverX, hoverY);
+					g.stroke({
+						color: !onOwnIsland ? 0xef4444 : withinWorkerRange ? 0x38bdf8 : 0xfbbf24,
+						width: 1.8,
+						alpha: 0.65
+					});
+				}
+				ci(
+					g,
+					hoverX,
+					hoverY,
+					RESCUE_STRIKE_RADIUS,
+					{ color: fillColor, alpha: onOwnIsland ? 0.11 : 0.06 },
+					{ color: strokeColor, width: 2.6, alpha: onOwnIsland ? 0.9 : 0.7 }
+				);
+				ci(g, hoverX, hoverY, 12, { color: strokeColor, alpha: 0.55 });
+			}
+		}
 		if (castleRangeOverlay) {
 			const castle = this.sim.castles[castleRangeOverlay.team];
 			if (castle && castle.hp > 0) {

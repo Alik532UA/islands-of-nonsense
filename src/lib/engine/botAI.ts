@@ -14,7 +14,10 @@ import {
 	CASTLE_CANNON_SHORT_RANGE,
 	CASTLE_CANNON_LONG_RANGE,
 	CASTLE_CANNON_UPGRADE_GOLD,
-	CASTLE_CANNON_UPGRADE_LUMBER
+	CASTLE_CANNON_UPGRADE_LUMBER,
+	RESCUE_STRIKE_CAST_RANGE,
+	RESCUE_STRIKE_RADIUS,
+	RESCUE_STRIKE_DAMAGE
 } from './constants';
 import type {
 	MatchTeam,
@@ -363,12 +366,15 @@ export class BotAI {
 			}
 		}
 
-		// 0b. Emergency Rescue Strike (Per-bot strike when castle < 50% HP + threat & 10s team stagger)
-		if (this.shouldTriggerRescueStrike(player, castleHpRatio)) {
-			const res = this.sim.triggerRescueStrike(this.team, player);
-			if (res) {
-				this.sim.teamBotRescueCooldown[this.team] = 10.0;
-				return;
+		// 0b. Emergency or tactical cluster Rescue Strike on own island
+		if (!botWorker?.pendingRescueStrike) {
+			const rescueTarget = this.findBestRescueStrikeTarget(player, castleHpRatio);
+			if (rescueTarget) {
+				const res = this.sim.triggerRescueStrike(this.team, player, rescueTarget.x, rescueTarget.y);
+				if (res) {
+					this.sim.teamBotRescueCooldown[this.team] = 10.0;
+					return;
+				}
 			}
 		}
 
@@ -1071,85 +1077,107 @@ export class BotAI {
 	}
 
 	/**
-	 * Evaluates whether a bot should fire its personal Rescue Strike.
-	 * Enforces:
-	 * - Personal 180s readiness for this bot player (`canUseRescueStrike(team, player)`)
-	 * - Castle genuinely threatened (`castleHpRatio < 0.5`)
-	 * - 10-second shared team stagger cooldown so allied bots never waste strikes simultaneously
-	 * - Active enemy threat analysis: HP drop velocity (`castleHpLossRate`), enemy DPS/siege/boss weight,
-	 *   and defender balance within the 750px strike radius.
+	 * Evaluates enemy clusters on the bot's own island and returns the highest-value target point
+	 * for the manual Rescue Strike when castle is threatened or a dense enemy breach forms.
 	 */
-	public shouldTriggerRescueStrike(player: PlayerState, castleHpRatio: number): boolean {
-		if (!this.sim.canUseRescueStrike(this.team, player)) return false;
-		if (castleHpRatio >= 0.5) return false;
-		if ((this.sim.teamBotRescueCooldown?.[this.team] ?? 0) > 0) return false;
+	public findBestRescueStrikeTarget(
+		player: PlayerState,
+		castleHpRatio: number
+	): { x: number; y: number } | null {
+		if (!this.sim.canUseRescueStrike(this.team, player)) return null;
+		if ((this.sim.teamBotRescueCooldown?.[this.team] ?? 0) > 0) return null;
 
 		const myCastle = this.sim.castles[this.team];
-		if (!myCastle || myCastle.hp <= 0) return false;
+		if (!myCastle || myCastle.hp <= 0) return null;
 
 		const enemyTeam: MatchTeam = this.team === 'west' ? 'east' : 'west';
-		const radiusSq = 750 * 750;
-		const enemiesNearCastle = [];
-		let enemyTotalHp = 0;
-		let enemyDpsWeight = 0;
-		let expectedStrikeDmg = 0;
-		let allyDefendersHp = 0;
+		const radiusSq = RESCUE_STRIKE_RADIUS * RESCUE_STRIKE_RADIUS;
+		const worker = player.worker;
 
-		for (const u of this.sim.units) {
-			if (u.state === 'DEAD') continue;
-			const dx = u.x - myCastle.x;
-			const dy = u.y - myCastle.y;
-			if (dx * dx + dy * dy > radiusSq) continue;
+		const islandEnemies = this.sim.units.filter(
+			(u) =>
+				u.state !== 'DEAD' &&
+				u.team === enemyTeam &&
+				this.sim.isPointOnIsland(this.team, u.x, u.y, 0)
+		);
+		if (islandEnemies.length === 0) return null;
 
-			if (u.team === enemyTeam) {
-				enemiesNearCastle.push(u);
-				enemyTotalHp += u.hp;
-				expectedStrikeDmg += Math.min(u.hp, 950);
+		const candidates: Array<{ x: number; y: number }> = [
+			{ x: myCastle.x, y: myCastle.y },
+			...islandEnemies.map((u) => ({ x: u.x, y: u.y }))
+		];
+
+		let bestTarget: { x: number; y: number } | null = null;
+		let bestScore = -1;
+		let bestCount = 0;
+		let bestExpectedDmg = 0;
+		let bestDpsWeight = 0;
+
+		for (const center of candidates) {
+			if (!this.sim.isPointOnIsland(this.team, center.x, center.y, 0)) continue;
+			let count = 0;
+			let expectedDmg = 0;
+			let dpsWeight = 0;
+			for (const u of islandEnemies) {
+				const dx = u.x - center.x;
+				const dy = u.y - center.y;
+				if (dx * dx + dy * dy > radiusSq) continue;
+				count++;
+				expectedDmg += Math.min(u.hp, RESCUE_STRIKE_DAMAGE);
 				const avgDmg = ((u.damageMin ?? 20) + (u.damageMax ?? u.damageMin ?? 20)) / 2;
 				const cd = Math.max(0.4, u.attackCooldown || 1.2);
 				const baseDps = avgDmg / cd;
 				const siegeFactor = u.isArtillery || u.attackType === 'siege' ? 1.5 : 1.0;
 				const bossFactor = u.isBoss ? 1.5 : 1.0;
-				enemyDpsWeight += baseDps * siegeFactor * bossFactor;
-			} else if (u.team === this.team) {
-				allyDefendersHp += u.hp;
+				dpsWeight += baseDps * siegeFactor * bossFactor;
+			}
+			if (count === 0) continue;
+
+			const distFromWorker = worker ? Math.hypot(worker.x - center.x, worker.y - center.y) : 0;
+			const inCastRangeBonus = distFromWorker <= RESCUE_STRIKE_CAST_RANGE ? 220 : 0;
+			const nearCastleBonus =
+				Math.hypot(center.x - myCastle.x, center.y - myCastle.y) <= 750 ? 150 : 0;
+			const score =
+				count * 300 + expectedDmg * 0.6 + dpsWeight * 4 + inCastRangeBonus + nearCastleBonus;
+
+			if (score > bestScore) {
+				bestScore = score;
+				bestTarget = center;
+				bestCount = count;
+				bestExpectedDmg = expectedDmg;
+				bestDpsWeight = dpsWeight;
 			}
 		}
 
-		if (enemiesNearCastle.length === 0) return false;
+		if (!bestTarget) return null;
 
 		const hpLossRate = this.sim.castleHpLossRate?.[this.team] ?? 0;
 		const timeToFall = hpLossRate > 5 ? myCastle.hp / hpLossRate : Infinity;
 
-		// 1. Critical collapse: castle < 25% HP and under active assault / meaningful threat
+		// 1. Critical castle emergency or rapid HP drain when castle < 50% HP
 		if (
-			castleHpRatio < 0.25 &&
-			(hpLossRate >= 25 || enemiesNearCastle.length >= 2 || enemyDpsWeight >= 35)
+			castleHpRatio < 0.5 &&
+			(bestCount >= 2 || bestExpectedDmg >= 600 || hpLossRate >= 25 || timeToFall <= 35)
 		) {
-			return true;
+			return bestTarget;
 		}
 
-		// 2. Rapid HP drain: castle projected to fall soon or taking heavy DPS with multiple attackers
+		// 2. Massive enemy wave breach on own island (only when defending an endangered base or extreme flood)
 		if (
-			(timeToFall <= 35 || hpLossRate >= 70) &&
-			enemiesNearCastle.length >= 2 &&
-			expectedStrikeDmg >= 600
+			(castleHpRatio < 0.7 && bestCount >= 6 && bestDpsWeight >= 180) ||
+			(bestCount >= 8 && bestDpsWeight >= 250)
 		) {
-			return true;
+			return bestTarget;
 		}
 
-		// 3. Outnumbered courtyard breach: defenders overwhelmed (< 45% castle HP + siege pressure)
-		if (
-			castleHpRatio < 0.45 &&
-			enemiesNearCastle.length >= 3 &&
-			enemyTotalHp > allyDefendersHp * 1.4 &&
-			(hpLossRate >= 20 || enemyDpsWeight >= 55) &&
-			expectedStrikeDmg >= 900
-		) {
-			return true;
-		}
+		return null;
+	}
 
-		return false;
+	/**
+	 * Evaluates whether a bot should fire its personal Rescue Strike.
+	 */
+	public shouldTriggerRescueStrike(player: PlayerState, castleHpRatio: number): boolean {
+		return this.findBestRescueStrikeTarget(player, castleHpRatio) !== null;
 	}
 
 	private lastBotCannonFireTime = -10;

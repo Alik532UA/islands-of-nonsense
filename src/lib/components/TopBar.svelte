@@ -18,6 +18,7 @@
 		uiTick = 0,
 		isOnline = false,
 		isSpectator = false,
+		isRescueTargeting = false,
 		activePlayer = null,
 		onOpenForge,
 		onOpenCommander,
@@ -25,12 +26,14 @@
 		onOpenShop,
 		onOpenSettings,
 		onBeforeLeave,
-		onHoverCastleRange
+		onHoverCastleRange,
+		onStartRescueTargeting
 	}: {
 		sim: Simulation;
 		uiTick?: number;
 		isOnline?: boolean;
 		isSpectator?: boolean;
+		isRescueTargeting?: boolean;
 		activePlayer?: PlayerState | null;
 		onOpenForge: () => void;
 		onOpenCommander: () => void;
@@ -39,6 +42,7 @@
 		onOpenSettings?: () => void;
 		onBeforeLeave?: (targetUrl: string) => boolean;
 		onHoverCastleRange?: (mode: 'short' | 'long' | null) => void;
+		onStartRescueTargeting?: () => void;
 	} = $props();
 
 	const routeBattleCommand = getContext<BattleCommandRouter | undefined>(BATTLE_COMMAND_ROUTER_KEY);
@@ -729,6 +733,10 @@
 					<button
 						onclick={() => {
 							if (!canUseRescue) return;
+							if (onStartRescueTargeting) {
+								onStartRescueTargeting();
+								return;
+							}
 							if (
 								!routeBattleCommand?.('RESCUE_STRIKE', {
 									team: player.team,
@@ -740,11 +748,14 @@
 						}}
 						disabled={!canUseRescue}
 						data-testid="hud-rescue-strike-btn"
-						class="{baseBtnClass} {canUseRescue
-							? 'bg-rose-950/90 hover:bg-rose-900 border-rose-500 text-rose-100 ring-2 ring-rose-500/50'
-							: disabledBtnClass}"
-						aria-label="Рятівний Удар навколо вашого замку (-950 облогової шкоди ворогам у 750px, 2× золото за вбитих, особистий КД 180с, клавіша E)"
+						class="{baseBtnClass} {isRescueTargeting
+							? 'bg-amber-600/90 border-amber-300 text-slate-950 ring-2 ring-amber-400'
+							: canUseRescue
+								? 'bg-rose-950/90 hover:bg-rose-900 border-rose-500 text-rose-100 ring-2 ring-rose-500/50'
+								: disabledBtnClass}"
+						aria-label="Прицільний Рятівний Удар на своєму острові (-950 облогової шкоди у 750px, 500px від робітника, КД 180с, клавіша E)"
 						aria-keyshortcuts="e"
+						aria-pressed={isRescueTargeting}
 					>
 						<UiIcon
 							name="flame"
@@ -770,7 +781,8 @@
 							</span>
 						</div>
 						<span class="text-[10px] text-slate-300 font-normal">
-							950 шкоди ворогам у 750px • 2× золото за знищених • КД: 180с
+							950 шкоди у 750px на своєму острові (500px від робітника, E+E по замку) • 2× золото •
+							КД: 180с
 						</span>
 					</div>
 				</div>

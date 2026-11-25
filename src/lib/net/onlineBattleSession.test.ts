@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { selectAutoHandoverUid } from './onlineBattleSession';
+import { canJoinAsSpectator, MAX_ROOM_SPECTATORS, normalizeSpectatorMode } from './roomTypes';
+import { isCompatibleLobbyRoom } from './lobby';
 import type { Member } from './roomTypes';
 
 describe('onlineBattleSession handover selection', () => {
@@ -20,5 +22,77 @@ describe('onlineBattleSession handover selection', () => {
 		);
 		expect(selectAutoHandoverUid(members, ['spec_u2', 'peer_u4'], 'host_u1')).toBe('peer_u4');
 		expect(selectAutoHandoverUid(members, ['spec_u2'], 'host_u1')).toBeNull();
+	});
+});
+
+describe('spectator policy & lobby compatibility', () => {
+	it('defaults spectator mode to anytime and validates allowed states', () => {
+		expect(normalizeSpectatorMode(undefined)).toBe('anytime');
+		expect(normalizeSpectatorMode('invalid')).toBe('anytime');
+		expect(normalizeSpectatorMode('none')).toBe('none');
+		expect(normalizeSpectatorMode('lobby')).toBe('lobby');
+
+		expect(
+			canJoinAsSpectator({ status: 'lobby', spectatorMode: 'none', spectatorCount: 0 })
+		).toEqual({ allowed: false, reason: 'disabled' });
+		expect(
+			canJoinAsSpectator({ status: 'lobby', spectatorMode: 'lobby', spectatorCount: 0 })
+		).toEqual({ allowed: true });
+		expect(
+			canJoinAsSpectator({ status: 'playing', spectatorMode: 'lobby', spectatorCount: 0 })
+		).toEqual({ allowed: false, reason: 'lobbyOnly' });
+		expect(
+			canJoinAsSpectator({ status: 'playing', spectatorMode: 'anytime', spectatorCount: 2 })
+		).toEqual({ allowed: true });
+		expect(
+			canJoinAsSpectator({
+				status: 'playing',
+				spectatorMode: 'anytime',
+				spectatorCount: MAX_ROOM_SPECTATORS
+			})
+		).toEqual({ allowed: false, reason: 'full' });
+	});
+
+	it('keeps live anytime matches visible in lobby feed while hiding none/lobby live games', () => {
+		const now = Date.now();
+		expect(
+			isCompatibleLobbyRoom(
+				{
+					code: 'LIVE1',
+					hostUid: 'u1',
+					hostName: 'Host',
+					gameId: 'castlefight',
+					rulesVersion: 1,
+					players: 2,
+					maxPlayers: 2,
+					spectators: 1,
+					status: 'playing',
+					spectatorMode: 'anytime',
+					modeId: 'standard',
+					createdAt: now - 1000
+				},
+				now
+			)
+		).toBe(true);
+
+		expect(
+			isCompatibleLobbyRoom(
+				{
+					code: 'LIVE2',
+					hostUid: 'u1',
+					hostName: 'Host',
+					gameId: 'castlefight',
+					rulesVersion: 1,
+					players: 2,
+					maxPlayers: 2,
+					spectators: 0,
+					status: 'playing',
+					spectatorMode: 'lobby',
+					modeId: 'standard',
+					createdAt: now - 1000
+				},
+				now
+			)
+		).toBe(false);
 	});
 });

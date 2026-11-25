@@ -1,5 +1,32 @@
 export type Role = 'player' | 'spectator';
 export type RoomStatus = 'lobby' | 'playing' | 'over';
+export type SpectatorMode = 'none' | 'lobby' | 'anytime';
+export const MAX_ROOM_SPECTATORS = 8;
+
+export function normalizeSpectatorMode(mode: unknown): SpectatorMode {
+	if (mode === 'none' || mode === 'lobby' || mode === 'anytime') {
+		return mode;
+	}
+	return 'anytime';
+}
+
+export function canJoinAsSpectator(opts: {
+	status: RoomStatus | string;
+	spectatorMode?: unknown;
+	spectatorCount: number;
+}): { allowed: boolean; reason?: 'disabled' | 'lobbyOnly' | 'full' } {
+	const mode = normalizeSpectatorMode(opts.spectatorMode);
+	if (mode === 'none') {
+		return { allowed: false, reason: 'disabled' };
+	}
+	if (opts.status === 'playing' && mode === 'lobby') {
+		return { allowed: false, reason: 'lobbyOnly' };
+	}
+	if (opts.spectatorCount >= MAX_ROOM_SPECTATORS) {
+		return { allowed: false, reason: 'full' };
+	}
+	return { allowed: true };
+}
 export type MatchTeamId = 'west' | 'east';
 export type RoomSlotKind = 'open' | 'closed' | 'bot';
 export type RoomSlotKey =
@@ -93,6 +120,7 @@ export interface RoomConfig {
 	coinCount?: number;
 	fogOfWar?: boolean;
 	isPrivate?: boolean;
+	spectatorMode?: SpectatorMode;
 	[key: string]: unknown;
 }
 
@@ -178,6 +206,9 @@ export interface LobbyRoom {
 	rulesVersion: number;
 	players: number;
 	maxPlayers: number;
+	spectators?: number;
+	status?: RoomStatus;
+	spectatorMode?: SpectatorMode;
 	modeId: string;
 	createdAt: number;
 }

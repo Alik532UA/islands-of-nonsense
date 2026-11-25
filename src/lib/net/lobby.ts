@@ -1,5 +1,11 @@
 import type { Database } from 'firebase/database';
-import type { LobbyRoom } from './roomTypes';
+import {
+	MAX_ROOM_SPECTATORS,
+	normalizeSpectatorMode,
+	type LobbyRoom,
+	type RoomStatus,
+	type SpectatorMode
+} from './roomTypes';
 import { RULES_VERSION, RULES_STAMP } from './rulesVersion';
 
 export const GAME_ID = 'castlefight';
@@ -25,6 +31,9 @@ export async function publishToLobby(db: Database, room: LobbyPublishInput): Pro
 		rulesVersion: room.rulesVersion,
 		players: room.players,
 		maxPlayers: room.maxPlayers,
+		spectators: room.spectators ?? 0,
+		status: room.status === 'playing' ? 'playing' : 'lobby',
+		spectatorMode: normalizeSpectatorMode(room.spectatorMode),
 		modeId: room.modeId,
 		createdAt: serverTimestamp()
 	};
@@ -47,8 +56,26 @@ export async function updateLobbyPlayers(
 	code: string,
 	players: number
 ): Promise<void> {
+	await updateLobbyMatchState(db, code, { players });
+}
+
+/**
+ * Update lobby feed metadata (player/spectator counts, status, spectator policy).
+ */
+export async function updateLobbyMatchState(
+	db: Database,
+	code: string,
+	patch: {
+		players?: number;
+		maxPlayers?: number;
+		spectators?: number;
+		status?: Extract<RoomStatus, 'lobby' | 'playing'>;
+		spectatorMode?: SpectatorMode;
+		modeId?: string;
+	}
+): Promise<void> {
 	const { ref, update } = await import('firebase/database');
-	await update(ref(db, `lobby/${GAME_ID}/${code}`), { players });
+	await update(ref(db, `lobby/${GAME_ID}/${code}`), patch);
 }
 
 /**
@@ -67,7 +94,12 @@ export function isCompatibleLobbyRoom(room: LobbyRoom, now: number = Date.now())
 	const age = typeof room.createdAt === 'number' ? now - room.createdAt : 0;
 	if (age > LOBBY_STALE_MS) return false;
 	if (typeof room.rulesVersion === 'number' && room.rulesVersion !== RULES_VERSION) return false;
-	return room.players < room.maxPlayers;
+	const specMode = normalizeSpectatorMode(room.spectatorMode);
+	const canSpec = (room.spectators ?? 0) < MAX_ROOM_SPECTATORS;
+	if (room.status === 'playing') {
+		return specMode === 'anytime' && canSpec;
+	}
+	return room.players < room.maxPlayers || (specMode !== 'none' && canSpec);
 }
 
 /**

@@ -489,7 +489,12 @@ export class MatchSync {
 				break;
 
 			case 'RESCUE_STRIKE':
-				this.sim.triggerRescueStrike(team, player);
+				this.sim.triggerRescueStrike(
+					team,
+					player,
+					typeof p.worldX === 'number' ? p.worldX : undefined,
+					typeof p.worldY === 'number' ? p.worldY : undefined
+				);
 				break;
 
 			case 'CASTLE_SHOT':

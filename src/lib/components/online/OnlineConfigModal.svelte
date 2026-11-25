@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { GAME_MODES } from '$lib/engine/gameModes';
 	import { RACES_LIST, PLAYABLE_RACES, formatRaceName } from '$lib/engine/gameData';
-	import type { RoomConfig } from '$lib/net/roomTypes';
+	import { normalizeSpectatorMode, type RoomConfig, type SpectatorMode } from '$lib/net/roomTypes';
 	import { t } from '$lib/i18n';
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	interface Props {
@@ -19,6 +19,7 @@
 	let targetWins = $state(2);
 	let startGold = $state(500);
 	let fogOfWar = $state(true);
+	let spectatorMode = $state<SpectatorMode>('anytime');
 	let coinMode = $state<'none' | 'normal' | 'crazy'>('normal');
 	let coinSpawnInterval = $state(40);
 	let coinCount = $state(1);
@@ -31,6 +32,7 @@
 			targetWins = typeof currentConfig.targetWins === 'number' ? currentConfig.targetWins : 2;
 			startGold = typeof currentConfig.startGold === 'number' ? currentConfig.startGold : 500;
 			fogOfWar = currentConfig.fogOfWar !== false;
+			spectatorMode = normalizeSpectatorMode(currentConfig.spectatorMode);
 			coinMode =
 				currentConfig.coinMode === 'none' ||
 				currentConfig.coinMode === 'normal' ||
@@ -105,6 +107,7 @@
 			targetWins,
 			startGold,
 			fogOfWar,
+			spectatorMode,
 			coinMode,
 			coinSpawnInterval,
 			coinCount,
@@ -278,6 +281,33 @@
 								>
 									{t('online.fogDisabled')}
 								</button>
+							</div>
+						</div>
+
+						<!-- Spectator Policy -->
+						<div
+							class="space-y-1.5 pt-2 border-t border-slate-800"
+							data-testid="online-cfg-spectators"
+						>
+							<span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+								<UiIcon name="users" class="w-3.5 h-3.5 text-sky-400" />
+								<span>{t('online.spectatorsPolicy')}:</span>
+							</span>
+							<div class="grid grid-cols-3 gap-1.5">
+								{#each [{ id: 'anytime' as const, label: t('online.spectatorsAnytime') }, { id: 'lobby' as const, label: t('online.spectatorsLobby') }, { id: 'none' as const, label: t('online.spectatorsNone') }] as opt (opt.id)}
+									<button
+										type="button"
+										disabled={!canEdit}
+										onclick={() => (spectatorMode = opt.id)}
+										data-testid="online-spectator-{opt.id}-btn"
+										class="py-1.5 px-1.5 rounded-[8px] border text-[11px] font-bold cursor-pointer disabled:cursor-not-allowed {spectatorMode ===
+										opt.id
+											? 'bg-sky-500/25 border-sky-400 text-sky-200'
+											: 'bg-[#181d28] border-slate-800 text-slate-400'}"
+									>
+										{opt.label}
+									</button>
+								{/each}
 							</div>
 						</div>
 

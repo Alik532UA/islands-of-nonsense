@@ -1,5 +1,13 @@
 import type { Simulation } from './simulation';
-import { ARENA_WIDTH, TOP_LANE_Y, BOTTOM_LANE_Y } from './constants';
+import {
+	ARENA_WIDTH,
+	TOP_LANE_Y,
+	BOTTOM_LANE_Y,
+	RESCUE_STRIKE_CAST_RANGE,
+	RESCUE_STRIKE_RADIUS,
+	RESCUE_STRIKE_DAMAGE,
+	RESCUE_STRIKE_COOLDOWN
+} from './constants';
 import type { MatchTeam, Lane, GoldCoin, PlayerState, Building } from './types';
 import { getRaceAbility } from './raceAbilities';
 import { getCommanderIncomeBonus, getCommanderForgeDiscount } from './commanders';
@@ -933,26 +941,93 @@ export class EconomySystem {
 
 	public triggerRescueStrike(
 		team: MatchTeam,
+		playerInput?: PlayerState,
+		worldX?: number,
+		worldY?: number
+	): {
+		hitCount: number;
+		damageDealt: number;
+		killCount: number;
+		bountyEarned: number;
+		queued?: boolean;
+	} | null {
+		if (!this.canUseRescueStrike(team, playerInput)) return null;
+
+		const castle = this.sim.castles[team];
+		const targetPlayer = playerInput || this.sim.players?.[team];
+		const hasExplicitCoords =
+			typeof worldX === 'number' &&
+			typeof worldY === 'number' &&
+			Number.isFinite(worldX) &&
+			Number.isFinite(worldY);
+		const tx = hasExplicitCoords ? worldX : castle.x;
+		const ty = hasExplicitCoords ? worldY : castle.y;
+
+		if (hasExplicitCoords && !this.sim.isPointOnIsland(team, tx, ty, 0)) {
+			this.sim.addFloatingText('Тільки на своєму острові!', tx, ty - 25, '#ef4444');
+			this.sim.notifyStateChanged();
+			return null;
+		}
+
+		const w = targetPlayer?.worker;
+		if (hasExplicitCoords && w) {
+			const dist = Math.hypot(w.x - tx, w.y - ty);
+			if (dist > RESCUE_STRIKE_CAST_RANGE) {
+				let approachX = tx;
+				let approachY = ty;
+				if (this.sim.workerSystem.isPointBlockedForWorker(team, approachX, approachY)) {
+					const resolved = this.sim.workerSystem.resolveGroundObstacles(approachX, approachY, 20);
+					approachX = resolved.x;
+					approachY = resolved.y;
+				}
+				w.buildQueue = [];
+				w.isBuilding = false;
+				w.targetBuildingId = null;
+				w.isRepairing = false;
+				w.targetRepairBuildingId = null;
+				w.pendingRescueStrike = { x: tx, y: ty };
+				w.targetX = approachX;
+				w.targetY = approachY;
+				w.path = this.sim.workerSystem.findWorkerPath(team, w.x, w.y, approachX, approachY);
+				this.sim.addFloatingText('Робітник прямує до зони удару...', tx, ty - 25, '#fbbf24');
+				this.sim.notifyStateChanged();
+				return { hitCount: 0, damageDealt: 0, killCount: 0, bountyEarned: 0, queued: true };
+			}
+			w.pendingRescueStrike = null;
+		}
+
+		return this.executeRescueStrikeAt(team, tx, ty, targetPlayer);
+	}
+
+	/**
+	 * Executes the Rescue Strike blast centered at (targetX, targetY) once within worker cast range.
+	 */
+	public executeRescueStrikeAt(
+		team: MatchTeam,
+		targetX: number,
+		targetY: number,
 		playerInput?: PlayerState
 	): { hitCount: number; damageDealt: number; killCount: number; bountyEarned: number } | null {
 		if (!this.canUseRescueStrike(team, playerInput)) return null;
 
 		const targetPlayer = playerInput || this.sim.players?.[team];
 		if (targetPlayer) {
-			targetPlayer.rescueStrikeCooldown = 180.0;
+			targetPlayer.rescueStrikeCooldown = RESCUE_STRIKE_COOLDOWN;
+			if (targetPlayer.worker?.pendingRescueStrike) {
+				targetPlayer.worker.pendingRescueStrike = null;
+			}
 		}
 		if (!playerInput || targetPlayer === this.sim.players?.[team]) {
-			this.sim.rescueStrikeCooldown[team] = 180.0;
+			this.sim.rescueStrikeCooldown[team] = RESCUE_STRIKE_COOLDOWN;
 		}
-		const castle = this.sim.castles[team];
 		const enemyTeam: MatchTeam = team === 'west' ? 'east' : 'west';
-		const radius = 750;
+		const radius = RESCUE_STRIKE_RADIUS;
 		const radiusSq = radius * radius;
 
 		this.sim.rescueStrikeEffects.push({
 			team,
-			x: castle.x,
-			y: castle.y,
+			x: targetX,
+			y: targetY,
 			radius,
 			timer: 1.2,
 			maxTimer: 1.2,
@@ -962,13 +1037,13 @@ export class EconomySystem {
 		let hitCount = 0;
 		let killCount = 0;
 		let damageDealt = 0;
-		const strikeDamage = 950;
+		const strikeDamage = RESCUE_STRIKE_DAMAGE;
 		const goldBefore = targetPlayer?.gold ?? 0;
 
 		for (const u of this.sim.units) {
 			if (u.team === enemyTeam && u.state !== 'DEAD') {
-				const dx = u.x - castle.x;
-				const dy = u.y - castle.y;
+				const dx = u.x - targetX;
+				const dy = u.y - targetY;
 				if (dx * dx + dy * dy <= radiusSq) {
 					this.sim.combatSystem.applyUnitDamage(u, strikeDamage, 'siege', team, true, undefined, {
 						bountyMultiplier: 2,
@@ -986,25 +1061,20 @@ export class EconomySystem {
 
 		const bountyEarned = Math.max(0, (targetPlayer?.gold ?? goldBefore) - goldBefore);
 
-		this.sim.addFloatingText(
-			`РЯТІВНИЙ УДАР! (-${strikeDamage})`,
-			castle.x,
-			castle.y - 75,
-			'#f97316'
-		);
+		this.sim.addFloatingText(`РЯТІВНИЙ УДАР! (-${strikeDamage})`, targetX, targetY - 75, '#f97316');
 		if (bountyEarned > 0) {
 			this.sim.addFloatingText(
 				`+${bountyEarned}g (Рятівний удар ×2!)`,
-				castle.x,
-				castle.y - 108,
+				targetX,
+				targetY - 108,
 				'#fbbf24'
 			);
 		}
 		this.sim.onSoundEffect?.('rescueStrike');
 		this.sim.onRescueStrikeWarning?.({
 			team,
-			x: castle.x,
-			y: castle.y,
+			x: targetX,
+			y: targetY,
 			radius,
 			kind: 'rescue'
 		});

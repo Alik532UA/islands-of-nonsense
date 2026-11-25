@@ -1891,9 +1891,17 @@ export class Simulation {
 
 	public triggerRescueStrike(
 		team: MatchTeam,
-		player?: PlayerState
-	): { hitCount: number; damageDealt: number; killCount: number; bountyEarned: number } | null {
-		return this.economySystem.triggerRescueStrike(team, player);
+		player?: PlayerState,
+		worldX?: number,
+		worldY?: number
+	): {
+		hitCount: number;
+		damageDealt: number;
+		killCount: number;
+		bountyEarned: number;
+		queued?: boolean;
+	} | null {
+		return this.economySystem.triggerRescueStrike(team, player, worldX, worldY);
 	}
 
 	public getCastleCannonCooldown(team: MatchTeam): number {

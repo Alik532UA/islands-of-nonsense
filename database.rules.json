@@ -2,7 +2,7 @@
 	"rules": {
 		"__rulesVersion": {
 			"$v": {
-				".read": "auth != null && $v === '3659f6d2ffb6'"
+				".read": "auth != null && $v === '269c27232a37'"
 			}
 		},
 		"rooms": {
@@ -94,6 +94,9 @@
 						"isPrivate": {
 							".validate": "newData.isBoolean()"
 						},
+						"spectatorMode": {
+							".validate": "newData.val() === 'none' || newData.val() === 'lobby' || newData.val() === 'anytime'"
+						},
 						"fogOfWar": {
 							".validate": "newData.isBoolean()"
 						},
@@ -165,10 +168,10 @@
 							".validate": "newData.isString() && newData.val().length <= 48"
 						},
 						"role": {
-							".validate": "newData.val() === 'player' || newData.val() === 'spectator'"
+							".validate": "(newData.val() === 'player' && (root.child('rooms').child($code).child('info/status').val() === 'lobby' || root.child('rooms').child($code).child('info/roster').child($uid).exists())) || (newData.val() === 'spectator' && root.child('rooms').child($code).child('info/config/spectatorMode').val() !== 'none' && (root.child('rooms').child($code).child('info/status').val() === 'lobby' || root.child('rooms').child($code).child('info/config/spectatorMode').val() !== 'lobby' || (data.exists() && data.val() === 'spectator')))"
 						},
 						"order": {
-							".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 20 && (!data.exists() || newData.val() === data.val())"
+							".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 30 && (!data.exists() || newData.val() === data.val())"
 						},
 						"slot": {
 							".write": "auth != null && ($uid === auth.uid || (root.child('rooms').child($code).child('info/hostUid').val() === auth.uid && root.child('rooms').child($code).child('info/status').val() === 'lobby'))",
@@ -315,7 +318,7 @@
 				"chat": {
 					".read": "auth != null && root.child('rooms').child($code).child('members').child(auth.uid).exists()",
 					"$msgId": {
-						".write": "auth != null && !data.exists() && newData.exists() && root.child('rooms').child($code).child('members').child(auth.uid).exists() && newData.child('senderUid').val() === auth.uid && newData.parent().parent().child('members').child(auth.uid).child('lastChatAt').val() === newData.child('at').val() && (!data.parent().parent().child('members').child(auth.uid).child('lastChatAt').exists() || data.parent().parent().child('members').child(auth.uid).child('lastChatAt').val() <= now - 800)",
+						".write": "auth != null && !data.exists() && newData.exists() && root.child('rooms').child($code).child('members').child(auth.uid).exists() && newData.child('senderUid').val() === auth.uid && newData.parent().parent().child('members').child(auth.uid).child('lastChatAt').val() === newData.child('at').val() && (!data.parent().parent().child('members').child(auth.uid).child('lastChatAt').exists() || data.parent().parent().child('members').child(auth.uid).child('lastChatAt').val() <= now - 800) && (root.child('rooms').child($code).child('info/status').val() !== 'playing' || root.child('rooms').child($code).child('members').child(auth.uid).child('role').val() === 'player' || newData.child('channel').val() === 'spectator')",
 						".validate": "newData.hasChildren(['senderUid', 'text', 'at'])",
 						"senderUid": {
 							".validate": "newData.val() === auth.uid"
@@ -328,6 +331,9 @@
 						},
 						"kind": {
 							".validate": "newData.val() === 'text' || newData.val() === 'emote' || newData.val() === 'system'"
+						},
+						"channel": {
+							".validate": "newData.val() === 'all' || newData.val() === 'spectator'"
 						},
 						"emote": {
 							".validate": "newData.isString() && newData.val().length <= 16"
@@ -381,6 +387,15 @@
 					},
 					"maxPlayers": {
 						".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 14"
+					},
+					"spectators": {
+						".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 20"
+					},
+					"status": {
+						".validate": "newData.val() === 'lobby' || newData.val() === 'playing'"
+					},
+					"spectatorMode": {
+						".validate": "newData.val() === 'none' || newData.val() === 'lobby' || newData.val() === 'anytime'"
 					},
 					"modeId": {
 						".validate": "newData.isString() && newData.val().length <= 32"

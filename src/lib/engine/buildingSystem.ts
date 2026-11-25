@@ -543,6 +543,7 @@ export class BuildingSystem {
 				}
 				// Normal build: leave current building and immediately proceed to build new one
 				player.worker.buildQueue = [];
+				player.worker.pendingRescueStrike = null;
 				player.worker.isBuilding = false;
 				player.worker.isRepairing = false;
 				player.worker.targetRepairBuildingId = null;

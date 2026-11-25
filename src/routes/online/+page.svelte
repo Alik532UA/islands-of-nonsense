@@ -21,7 +21,7 @@
 	import {
 		subscribeLobby,
 		publishToLobby,
-		updateLobbyPlayers,
+		updateLobbyMatchState,
 		GAME_ID,
 		RULES_VERSION
 	} from '$lib/net/lobby';
@@ -31,7 +31,12 @@
 	import { rewardsStore } from '$lib/services/rewardsService.svelte';
 	import { seekMatch, type SeekFormat } from '$lib/net/seek';
 	import { buildRoomSlots, countOpenHumanCapacity } from '$lib/net/onlineMatchSetup';
-	import type { LobbyRoom } from '$lib/net/roomTypes';
+	import {
+		canJoinAsSpectator,
+		normalizeSpectatorMode,
+		type LobbyRoom,
+		type SpectatorMode
+	} from '$lib/net/roomTypes';
 
 	import PlayerBar from '$lib/components/online/PlayerBar.svelte';
 	import SearchWindow from '$lib/components/online/SearchWindow.svelte';
@@ -63,6 +68,8 @@
 		status: 'lobby' | 'playing';
 		players: number;
 		maxPlayers: number;
+		spectators: number;
+		spectatorMode: SpectatorMode;
 	} | null>(null);
 	let roomInvites = $state<InboxItem[]>([]);
 	let inboxCount = $state(0);
@@ -144,7 +151,9 @@
 								code: urlCode,
 								status: info.status === 'playing' ? 'playing' : 'lobby',
 								players: (members ?? []).filter((m) => m.role === 'player').length,
-								maxPlayers: countOpenHumanCapacity(info.config)
+								maxPlayers: countOpenHumanCapacity(info.config),
+								spectators: (members ?? []).filter((m) => m.role === 'spectator').length,
+								spectatorMode: normalizeSpectatorMode(info.config?.spectatorMode)
 							};
 						})
 						.catch(() => {});
@@ -221,7 +230,13 @@
 		busy = false;
 	}
 
-	async function handleCreate(config: { isPrivate: boolean }) {
+	function spectatorDeniedMessage(reason?: 'disabled' | 'lobbyOnly' | 'full'): string {
+		if (reason === 'disabled') return t('online.spectator.deniedDisabled');
+		if (reason === 'lobbyOnly') return t('online.spectator.deniedLobbyOnly');
+		return t('online.spectator.deniedFull');
+	}
+
+	async function handleCreate(config: { isPrivate: boolean; spectatorMode: SpectatorMode }) {
 		busy = true;
 		errorMessage = null;
 		try {
@@ -246,7 +261,8 @@
 				coinSpawnInterval: 40,
 				coinCount: 1,
 				fogOfWar: true,
-				isPrivate: config.isPrivate
+				isPrivate: config.isPrivate,
+				spectatorMode: config.spectatorMode
 			};
 			const maxPlayers = countOpenHumanCapacity(roomConfig);
 			const code = await liveNet.createRoom({
@@ -273,6 +289,9 @@
 					rulesVersion: RULES_VERSION,
 					players: 1,
 					maxPlayers,
+					spectators: 0,
+					status: 'lobby',
+					spectatorMode: config.spectatorMode,
 					modeId: roomConfig.modeId
 				});
 			}
@@ -296,16 +315,31 @@
 				return;
 			}
 			const members = (await liveNet.peekMembers(normalizedCode)) ?? [];
+			const { uid, db } = await connect();
+			const existingSelf = members.find((m) => m.uid === uid);
+			const playerMembers = members.filter((m) => m.role === 'player');
+			const specMembers = members.filter((m) => m.role === 'spectator');
 			const maxPlayers = countOpenHumanCapacity(info.config);
-			if (
-				members.filter((m) => m.role === 'player').length >= maxPlayers &&
-				info.status !== 'playing'
-			) {
+
+			if (info.status === 'playing' && existingSelf?.role !== 'player') {
+				const check = canJoinAsSpectator({
+					status: info.status,
+					spectatorMode: info.config?.spectatorMode,
+					spectatorCount: specMembers.length
+				});
+				if (!check.allowed) {
+					errorMessage = spectatorDeniedMessage(check.reason);
+					return;
+				}
+			}
+
+			if (!existingSelf && playerMembers.length >= maxPlayers && info.status !== 'playing') {
 				errorMessage = `Кімната ${normalizedCode} вже заповнена`;
 				return;
 			}
 			const entryName = player.forEntry(settings.locale);
-			const role = info.status === 'playing' ? 'spectator' : 'player';
+			const role =
+				info.status === 'playing' && existingSelf?.role !== 'player' ? 'spectator' : 'player';
 			await liveNet.joinRoom(normalizedCode, {
 				name: entryName,
 				role,
@@ -314,8 +348,12 @@
 				race: 'in_game'
 			});
 
-			const { db } = await connect();
-			await updateLobbyPlayers(db, normalizedCode, members.length + 1).catch(() => {});
+			if (!info.config?.isPrivate) {
+				await updateLobbyMatchState(db, normalizedCode, {
+					players: Math.max(1, playerMembers.length + (role === 'player' && !existingSelf ? 1 : 0)),
+					spectators: specMembers.length + (role === 'spectator' && !existingSelf ? 1 : 0)
+				}).catch(() => {});
+			}
 
 			await goto(`${resolve('/play/battle')}?room=${encodeURIComponent(normalizedCode)}`);
 		} catch (err) {
@@ -330,9 +368,23 @@
 		errorMessage = null;
 		try {
 			const normalizedCode = code.trim().toUpperCase();
-			const info = await liveNet.peekRoom(normalizedCode);
+			const [info, members] = await Promise.all([
+				liveNet.peekRoom(normalizedCode),
+				liveNet.peekMembers(normalizedCode)
+			]);
 			if (!info) {
 				errorMessage = t('online.hud.roomUnavailable', { code: normalizedCode });
+				return;
+			}
+			const memberList = members ?? [];
+			const specCount = memberList.filter((m) => m.role === 'spectator').length;
+			const specCheck = canJoinAsSpectator({
+				status: info.status,
+				spectatorMode: info.config?.spectatorMode,
+				spectatorCount: specCount
+			});
+			if (!specCheck.allowed) {
+				errorMessage = spectatorDeniedMessage(specCheck.reason);
 				return;
 			}
 			const entryName = player.forEntry(settings.locale);
@@ -342,6 +394,12 @@
 				country: player.country,
 				avatar: player.avatar
 			});
+			if (!info.config?.isPrivate) {
+				const { db } = await connect();
+				await updateLobbyMatchState(db, normalizedCode, { spectators: specCount + 1 }).catch(
+					() => {}
+				);
+			}
 			pendingInvite = null;
 			await goto(`${resolve('/play/battle')}?room=${encodeURIComponent(normalizedCode)}`);
 		} catch (err) {
@@ -593,6 +651,11 @@
 </div>
 
 {#if pendingInvite}
+	{@const inviteSpecCheck = canJoinAsSpectator({
+		status: pendingInvite.status,
+		spectatorMode: pendingInvite.spectatorMode,
+		spectatorCount: pendingInvite.spectators
+	})}
 	<div
 		class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4"
 		role="dialog"
@@ -607,7 +670,9 @@
 			</h3>
 			<p class="text-xs text-slate-300">
 				{pendingInvite.status === 'playing'
-					? t('online.preJoin.playingDesc')
+					? inviteSpecCheck.allowed
+						? t('online.preJoin.playingDesc')
+						: spectatorDeniedMessage(inviteSpecCheck.reason)
 					: t('online.preJoin.desc')}
 			</p>
 			<div class="flex flex-wrap gap-2">
@@ -626,16 +691,18 @@
 						{t('online.preJoin.asPlayer')}
 					</button>
 				{/if}
-				<button
-					type="button"
-					disabled={busy}
-					onclick={() => pendingInvite && void handleSpectate(pendingInvite.code)}
-					class="flex-1 min-h-[44px] px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-sky-500/40 text-sky-300 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
-					data-testid="prejoin-spectate-btn"
-				>
-					<UiIcon name="eye" class="w-4 h-4" />
-					<span>{t('online.preJoin.asSpectator')}</span>
-				</button>
+				{#if inviteSpecCheck.allowed}
+					<button
+						type="button"
+						disabled={busy}
+						onclick={() => pendingInvite && void handleSpectate(pendingInvite.code)}
+						class="flex-1 min-h-[44px] px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-sky-500/40 text-sky-300 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+						data-testid="prejoin-spectate-btn"
+					>
+						<UiIcon name="eye" class="w-4 h-4" />
+						<span>{t('online.preJoin.asSpectator')}</span>
+					</button>
+				{/if}
 				<button
 					type="button"
 					onclick={() => (pendingInvite = null)}

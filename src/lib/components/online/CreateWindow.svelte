@@ -1,19 +1,21 @@
 <script lang="ts">
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { t } from '$lib/i18n';
+	import type { SpectatorMode } from '$lib/net/roomTypes';
 
 	interface Props {
 		busy: boolean;
-		onCreate: (config: { isPrivate: boolean }) => void;
+		onCreate: (config: { isPrivate: boolean; spectatorMode: SpectatorMode }) => void;
 		onBack: () => void;
 	}
 
 	let { busy = false, onCreate, onBack }: Props = $props();
 
 	let isPrivate = $state(false);
+	let spectatorMode = $state<SpectatorMode>('anytime');
 
 	function submit() {
-		onCreate({ isPrivate });
+		onCreate({ isPrivate, spectatorMode });
 	}
 </script>
 
@@ -65,6 +67,28 @@
 			>
 				{t('online.private')}
 			</button>
+		</div>
+	</div>
+
+	<!-- Spectator Policy -->
+	<div class="mb-6" data-testid="create-spectator-policy">
+		<span class="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">
+			{t('online.spectatorsPolicy')}
+		</span>
+		<div class="grid grid-cols-3 gap-2">
+			{#each [{ id: 'anytime' as const, label: t('online.spectatorsAnytime') }, { id: 'lobby' as const, label: t('online.spectatorsLobby') }, { id: 'none' as const, label: t('online.spectatorsNone') }] as opt (opt.id)}
+				<button
+					type="button"
+					data-testid="create-spectator-{opt.id}-btn"
+					class="min-h-[44px] py-2 px-2 border rounded-[8px] text-[11px] font-bold text-center transition-colors cursor-pointer {spectatorMode ===
+					opt.id
+						? 'bg-sky-500/20 border-sky-400 text-sky-200'
+						: 'bg-[#121826] border-slate-700 text-slate-400 hover:border-slate-500'}"
+					onclick={() => (spectatorMode = opt.id)}
+				>
+					{opt.label}
+				</button>
+			{/each}
 		</div>
 	</div>
 

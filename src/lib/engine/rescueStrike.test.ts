@@ -230,11 +230,84 @@ describe('Point 5: Rescue Strike (Emergency Castle Defense)', () => {
 		for (const bot of botAIs) {
 			bot.update(2.0);
 		}
+		// Allow second bot's worker a brief moment to walk within 500px range if queued while building
+		for (let i = 0; i < 80; i++) {
+			sim3v3.step(0.05);
+		}
 
-		// Now a second bot may fire, while the third holds again
+		// Now a second bot fires (either immediately or upon entering 500px cast range), while the third still holds
 		const firedCountAfterStagger = westBots.filter(
 			(p) => sim3v3.getRescueStrikeCooldown('west', p) > 0
 		).length;
 		expect(firedCountAfterStagger).toBe(2);
+	});
+
+	it('rejects targeted Rescue Strike outside own island without triggering cooldown', () => {
+		const enemyIslandTarget = { x: 5600, y: 1200 };
+		const riverTarget = { x: 3600, y: 1200 };
+
+		expect(
+			sim.triggerRescueStrike('west', sim.players.west, enemyIslandTarget.x, enemyIslandTarget.y)
+		).toBeNull();
+		expect(
+			sim.triggerRescueStrike('west', sim.players.west, riverTarget.x, riverTarget.y)
+		).toBeNull();
+		expect(sim.canUseRescueStrike('west', sim.players.west)).toBe(true);
+		expect(sim.rescueStrikeEffects.length).toBe(0);
+	});
+
+	it('walks worker within 500px of selected island target before triggering strike', () => {
+		const player = sim.players.west;
+		const worker = player.worker!;
+		worker.x = 1200;
+		worker.y = 1200;
+
+		const targetX = 2400; // On west island, dist = 1200px > 500px
+		const targetY = 1200;
+		expect(sim.isPointOnIsland('west', targetX, targetY, 0)).toBe(true);
+
+		const enemy = sim.spawnUnitDirectly({
+			team: 'east',
+			lane: 'mid',
+			x: targetX + 100,
+			y: targetY,
+			hp: 1500
+		});
+
+		const orderRes = sim.triggerRescueStrike('west', player, targetX, targetY);
+		expect(orderRes?.queued).toBe(true);
+		expect(worker.pendingRescueStrike).toEqual({ x: targetX, y: targetY });
+		// Cooldown must NOT start until worker walks into 500px range
+		expect(sim.canUseRescueStrike('west', player)).toBe(true);
+		expect(sim.rescueStrikeEffects.length).toBe(0);
+
+		// Step simulation until worker arrives within 500px
+		for (let i = 0; i < 200; i++) {
+			sim.step(0.05);
+			if (!worker.pendingRescueStrike) break;
+		}
+
+		expect(worker.pendingRescueStrike).toBeNull();
+		expect(Math.hypot(worker.x - targetX, worker.y - targetY)).toBeLessThanOrEqual(505);
+		expect(sim.canUseRescueStrike('west', player)).toBe(false);
+		expect(sim.rescueStrikeEffects.length).toBe(1);
+		expect(sim.rescueStrikeEffects[0].x).toBe(targetX);
+		expect(sim.rescueStrikeEffects[0].y).toBe(targetY);
+		expect(enemy.hp).toBeLessThan(1500);
+	});
+
+	it('cancels queued Rescue Strike when a manual worker move overrides it', () => {
+		const player = sim.players.west;
+		const worker = player.worker!;
+		worker.x = 1200;
+		worker.y = 1200;
+
+		const orderRes = sim.triggerRescueStrike('west', player, 2400, 1200);
+		expect(orderRes?.queued).toBe(true);
+		expect(worker.pendingRescueStrike).not.toBeNull();
+
+		sim.moveWorker('west', 1100, 1100, player);
+		expect(worker.pendingRescueStrike).toBeNull();
+		expect(sim.canUseRescueStrike('west', player)).toBe(true);
 	});
 });

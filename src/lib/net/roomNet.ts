@@ -34,7 +34,12 @@ export interface RoomNet {
 		code: string,
 		senderName: string,
 		text: string,
-		options?: { avatar?: string; kind?: 'text' | 'emote' | 'system'; emote?: string }
+		options?: {
+			avatar?: string;
+			kind?: 'text' | 'emote' | 'system';
+			emote?: string;
+			channel?: 'all' | 'spectator';
+		}
 	): Promise<boolean>;
 	me(): Promise<string>;
 	trackPresence(code: string): Promise<() => void>;

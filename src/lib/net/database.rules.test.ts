@@ -145,7 +145,8 @@ describe('database.rules.json security invariants & Firebase architecture', () =
 		expect(movesWrite).toContain('now - 80');
 
 		const member = room.members.$uid;
-		expect(member.order['.validate']).toContain('<= 20');
+		expect(member.order['.validate']).toContain('<= 30');
+		expect(member.role['.validate']).toContain('spectatorMode');
 		expect(member.slot['.validate']).toContain('<= 14');
 		expect(member.lastMoveAt['.validate']).toContain(
 			'!data.exists() || newData.val() > data.val()'
@@ -238,6 +239,11 @@ describe('database.rules.json security invariants & Firebase architecture', () =
 
 		const movesWrite = json.rules.rooms.$code.moves.$seq['.write'];
 		expect(movesWrite).toContain("child('role').val() === 'player'");
+
+		const chatWrite = json.rules.rooms.$code.chat.$msgId['.write'];
+		expect(chatWrite).toContain("newData.child('channel').val() === 'spectator'");
+		expect(json.rules.rooms.$code.info.config.spectatorMode['.validate']).toContain("'lobby'");
+		expect(json.rules.lobby.$gameId.$code.spectatorMode['.validate']).toContain("'anytime'");
 
 		const dailyDate = json.rules.daily.$date;
 		expect(dailyDate['.indexOn']).toContain('score');

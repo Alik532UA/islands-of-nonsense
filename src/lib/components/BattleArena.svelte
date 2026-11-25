@@ -62,6 +62,9 @@
 	let lastEarnedXp = $state<number | null>(null);
 	let matchInstanceSeq = 0;
 	let isOnlineSpectator = $state(false);
+	let isRescueTargeting = $state(false);
+	let lastRescueHotkeyMs = 0;
+	let spectatorVision = $state<'all' | 'west' | 'east'>('all');
 	let isReplayMode = $state(false);
 	let isDailyMode = $state(false);
 	let replayData = $state<MatchReplayData | null>(null);
@@ -115,6 +118,7 @@
 		replayActionCursor = 0;
 		savedSerializedReplay = null;
 		selectedBuildingId = null;
+		isRescueTargeting = false;
 		selectedPlacedBuildingId = null;
 		selectedUnitId = null;
 		selectedEntity = null;
@@ -311,6 +315,7 @@
 			selectedEntity?.type === 'worker' && selectedEntity.playerSlot === targetSlot;
 		controlledPlayerSlot = targetSlot;
 		selectedBuildingId = null;
+		isRescueTargeting = false;
 		selectedPlacedBuildingId = null;
 		selectedUnitId = null;
 		selectedEntity = { type: 'worker', playerSlot: targetSlot };
@@ -523,6 +528,10 @@
 		}
 
 		if (e.key === 'Escape') {
+			if (isRescueTargeting) {
+				isRescueTargeting = false;
+				return;
+			}
 			if (isRadialOpen) {
 				isRadialOpen = false;
 				return;
@@ -698,19 +707,61 @@
 					!hasBlockingModal &&
 					(!isWorkerGridActive || e.altKey)
 				) {
-					const activePlayer = controlledPlayer;
-					const activeTeam = activePlayer.team;
-					if (sim.canUseRescueStrike(activeTeam, activePlayer)) {
-						dispatchCommand(
-							'RESCUE_STRIKE',
-							{},
-							() => Boolean(sim.triggerRescueStrike(activeTeam, activePlayer)),
-							() => sound.playRescueStrike()
-						);
-					}
+					e.preventDefault();
+					activateRescueStrikeTargeting(true);
 				}
 			}
 		}
+	}
+
+	function executeRescueStrikeAtWorld(worldX: number, worldY: number) {
+		if (isSpectatorView) return;
+		const activePlayer = controlledPlayer;
+		const activeTeam = activePlayer.team;
+		if (!sim.canUseRescueStrike(activeTeam, activePlayer)) {
+			isRescueTargeting = false;
+			sound.playErrorResource();
+			return;
+		}
+		if (!sim.isPointOnIsland(activeTeam, worldX, worldY, 0)) {
+			sim.addFloatingText('Тільки на своєму острові!', worldX, worldY - 25, '#ef4444');
+			sound.playErrorResource();
+			uiTick = sim.stateVersion;
+			return;
+		}
+		isRescueTargeting = false;
+		const wx = Math.round(worldX);
+		const wy = Math.round(worldY);
+		const workerDist = activePlayer.worker
+			? Math.hypot(activePlayer.worker.x - wx, activePlayer.worker.y - wy)
+			: 0;
+		dispatchCommand(
+			'RESCUE_STRIKE',
+			{ worldX: wx, worldY: wy },
+			() => Boolean(sim.triggerRescueStrike(activeTeam, activePlayer, wx, wy)),
+			() => (workerDist <= 500 ? sound.playRescueStrike() : sound.playWorkerAck())
+		);
+	}
+
+	function activateRescueStrikeTargeting(allowDoubleTapSelfCast = false) {
+		if (isSpectatorView) return;
+		const activePlayer = controlledPlayer;
+		const activeTeam = activePlayer.team;
+		if (!sim.canUseRescueStrike(activeTeam, activePlayer)) {
+			isRescueTargeting = false;
+			sound.playErrorResource();
+			return;
+		}
+		const now = Date.now();
+		if (allowDoubleTapSelfCast && (isRescueTargeting || now - lastRescueHotkeyMs < 400)) {
+			lastRescueHotkeyMs = 0;
+			const castle = sim.castles[activeTeam];
+			executeRescueStrikeAtWorld(castle.x, castle.y);
+			return;
+		}
+		lastRescueHotkeyMs = now;
+		selectedBuildingId = null;
+		isRescueTargeting = true;
 	}
 
 	function handleUpgradeBuilding(instanceId: string, targetDefId: string) {
@@ -1009,7 +1060,15 @@
 			getSelectedEntity: () => selectedEntity,
 			getSelectedBuildingDefId: () => selectedBuildingId,
 			getSelectedPlacedBuildingId: () => selectedPlacedBuildingId,
-			getActiveControlPlayer: () => controlledPlayer
+			getActiveControlPlayer: () => controlledPlayer,
+			getIsRescueTargeting: () => isRescueTargeting,
+			getSpectatorVision: () => (isSpectatorView ? spectatorVision : null),
+			onRescueTargetClick: (worldX: number, worldY: number) => {
+				executeRescueStrikeAtWorld(worldX, worldY);
+			},
+			onCancelRescueTargeting: () => {
+				isRescueTargeting = false;
+			}
 		});
 
 		await renderer.init(canvasEl);
@@ -1033,7 +1092,7 @@
 			// so up to 14 synchronized players never collide on RTDB move seqs
 			const slotOffset = ((Math.max(1, matchSync.localSlot) - 1) * 30) % 450;
 			const isNearLive = serverTargetTick === null || serverTargetTick - sim.tick <= 30;
-			if (sim.tick % 450 === slotOffset && isNearLive) {
+			if (!isOnlineSpectator && sim.tick % 450 === slotOffset && isNearLive) {
 				void matchSync.broadcastChecksum();
 			} else {
 				matchSync.recordCheckpointChecksum();
@@ -1244,6 +1303,7 @@
 		}
 		sim.isRunning = true;
 		selectedBuildingId = null;
+		isRescueTargeting = false;
 		selectedPlacedBuildingId = null;
 		selectedUnitId = null;
 		selectedEntity = null;
@@ -1260,6 +1320,7 @@
 			countdownTimer = null;
 		}
 		selectedBuildingId = null;
+		isRescueTargeting = false;
 		selectedPlacedBuildingId = null;
 		selectedUnitId = null;
 		selectedEntity = null;
@@ -1467,6 +1528,7 @@
 			{uiTick}
 			isOnline={Boolean(matchSync)}
 			isSpectator={isSpectatorView}
+			{isRescueTargeting}
 			activePlayer={controlledPlayer}
 			onOpenForge={() => openExclusiveModal('forge')}
 			onOpenCommander={() => openExclusiveModal('commander')}
@@ -1476,7 +1538,25 @@
 			onBeforeLeave={handleRequestLeave}
 			onHoverCastleRange={(mode: 'short' | 'long' | null) =>
 				renderer?.setHoveredCastleCannonMode(mode)}
+			onStartRescueTargeting={() => activateRescueStrikeTargeting(false)}
 		/>
+
+		{#if isRescueTargeting && !isSpectatorView}
+			<div
+				data-testid="rescue-targeting-banner"
+				class="absolute top-16 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-amber-950/90 border border-amber-400/75 text-amber-100 text-xs font-bold shadow-xl backdrop-blur-md"
+			>
+				<UiIcon name="flame" class="w-4 h-4 text-rose-400 animate-pulse shrink-0" />
+				<span>{t('battle.rescueTargetingHint')}</span>
+				<button
+					type="button"
+					onclick={() => (isRescueTargeting = false)}
+					class="px-2 py-0.5 rounded bg-slate-900/90 hover:bg-slate-800 border border-slate-600 text-[11px] text-slate-200 cursor-pointer"
+				>
+					{t('online.cancel')}
+				</button>
+			</div>
+		{/if}
 
 		{#snippet playerSwitcherButtons()}
 			{#each sim.allPlayers as botPlayer (botPlayer.slot ?? botPlayer.team)}
@@ -1505,11 +1585,29 @@
 		{/snippet}
 
 		{#if isOnlineSpectator && matchPhase === 'BATTLE' && sim.allPlayers?.length > 0}
-			<!-- Online Spectator Switcher Pill Dock -->
+			<!-- Online Spectator Switcher & Vision Mode Dock -->
 			<div
 				data-testid="online-spectator-switcher"
 				class="absolute top-14 left-1/2 -translate-x-1/2 z-20 flex flex-wrap items-center justify-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#111520]/90 border border-[#544738] shadow-xl backdrop-blur-md"
 			>
+				<div
+					class="flex items-center gap-1 pr-2 mr-1 border-r border-slate-700"
+					data-testid="spectator-vision-switcher"
+				>
+					{#each [{ id: 'all' as const, label: t('online.spectator.visionAll') }, { id: 'west' as const, label: t('online.hud.teamWest') }, { id: 'east' as const, label: t('online.hud.teamEast') }] as vOpt (vOpt.id)}
+						<button
+							type="button"
+							onclick={() => (spectatorVision = vOpt.id)}
+							data-testid="spectator-vision-{vOpt.id}-btn"
+							class="px-2 py-0.5 rounded-md border text-[11px] font-bold cursor-pointer transition {spectatorVision ===
+							vOpt.id
+								? 'bg-sky-500/25 border-sky-400 text-sky-200'
+								: 'bg-[#181e2c] hover:bg-[#232b3e] border-slate-700 text-slate-400'}"
+						>
+							{vOpt.label}
+						</button>
+					{/each}
+				</div>
 				{@render playerSwitcherButtons()}
 			</div>
 		{:else if isBotVsBot && matchPhase === 'BATTLE' && sim.allPlayers?.length > 0}
@@ -1858,6 +1956,7 @@
 		onOpenForge={() => {
 			isForgeOpen = true;
 		}}
+		onStartRescueTargeting={() => activateRescueStrikeTargeting(false)}
 		onClose={() => {
 			isRadialOpen = false;
 		}}

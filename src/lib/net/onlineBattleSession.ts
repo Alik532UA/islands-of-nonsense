@@ -230,7 +230,7 @@ export async function startOnlineBattleSession(
 		});
 
 		heartbeatTimer = setInterval(() => {
-			if (sync && activeSim.isRunning) {
+			if (sync && activeSim.isRunning && !isSpectator) {
 				void sync.sendHeartbeat();
 			}
 		}, 12_000);

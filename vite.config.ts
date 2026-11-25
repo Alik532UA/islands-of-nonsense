@@ -11,7 +11,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf8'));
 
 const BUILDING_RAW_FIELDS = new Set(['ulum', 'ufoo']);
-const UNIT_RAW_FIELDS = new Set(['umvs', 'uabi', 'uabs']);
+const UNIT_RAW_FIELDS = new Set(['umvs', 'ubba', 'uabi', 'uabs']);
 const USED_ABILITY_CODES = new Set([
 	'AOre',
 	'AOcr',
@@ -177,17 +177,7 @@ function pruneUnusedGameDataPlugin() {
 					for (const [k, v] of Object.entries(rawFields)) {
 						if (!allowed.has(k)) continue;
 						if (isBuildings && k === 'ulum') continue;
-						if (
-							isUnits &&
-							k === 'umvs' &&
-							(Number(v) < 320 ||
-								Boolean(out.flying) ||
-								Number(out.range || 0) > 180 ||
-								out.armor_type === 'none' ||
-								out.armor_type === 'small')
-						) {
-							continue;
-						}
+						if (isUnits && k === 'umvs' && Number(v) < 320) continue;
 						if (isUnits && (k === 'uabi' || k === 'uabs')) {
 							const filtered = String(v)
 								.split(',')
@@ -281,6 +271,8 @@ export default defineConfig(({ mode }) => ({
 					'script-src': [
 						'self',
 						...getInlineScriptHashes(),
+						'https://*.firebasedatabase.app',
+						'https://*.firebaseio.com',
 						...(mode === 'production'
 							? ([] as const)
 							: (['http://127.0.0.1:9012', 'http://localhost:9012'] as const))
@@ -300,17 +292,19 @@ export default defineConfig(({ mode }) => ({
 						...(mode === 'production'
 							? ([] as const)
 							: ([
-									'http://127.0.0.1:9012',
-									'ws://127.0.0.1:9012',
-									'http://127.0.0.1:9111',
-									'http://localhost:9012',
-									'ws://localhost:9012',
-									'http://localhost:9111'
-								] as const))
+								'http://127.0.0.1:9012',
+								'ws://127.0.0.1:9012',
+								'http://127.0.0.1:9111',
+								'http://localhost:9012',
+								'ws://localhost:9012',
+								'http://localhost:9111'
+							] as const))
 					],
 					'worker-src': ['self', 'blob:'],
 					'frame-src': [
 						'self',
+						'https://*.firebasedatabase.app',
+						'https://*.firebaseio.com',
 						...(mode === 'production'
 							? ([] as const)
 							: (['http://127.0.0.1:9012', 'http://localhost:9012'] as const))
