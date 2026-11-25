@@ -4,11 +4,17 @@ import { RULES_STAMP } from './rulesVersion';
 
 export type RulesState = 'fresh' | 'stale' | 'unknown';
 
-export function classifyRulesProbeResult(exists: boolean, error?: unknown): RulesState {
+/**
+ * Classifies the outcome of reading `/__rulesVersion/${RULES_STAMP}`.
+ * Because `/__rulesVersion` is an empty `.read`-gated sentinel node in RTDB,
+ * a resolved read (`allowed = true`, even when `snap.exists() === false`) means live rules match;
+ * only an explicit permission denial marks rules as `'stale'`.
+ */
+export function classifyRulesProbeResult(allowed: boolean, error?: unknown): RulesState {
 	if (error !== undefined) {
 		return isDenied(error) ? 'stale' : 'unknown';
 	}
-	return exists ? 'fresh' : 'stale';
+	return allowed ? 'fresh' : 'stale';
 }
 
 /**
@@ -22,11 +28,9 @@ export async function checkLiveRules(timeoutMs = 2500): Promise<RulesState> {
 		const timeoutPromise = new Promise<never>((_, reject) => {
 			timer = setTimeout(() => reject(new Error('rules_probe_timeout')), timeoutMs);
 		});
-		const snap = await Promise.race([
-			get(ref(db, `__rulesVersion/${RULES_STAMP}`)),
-			timeoutPromise
-		]);
-		return classifyRulesProbeResult(snap.exists());
+		await Promise.race([get(ref(db, `__rulesVersion/${RULES_STAMP}`)), timeoutPromise]);
+		// Reading `/__rulesVersion/${RULES_STAMP}` succeeds without error only when live rules allow that exact stamp.
+		return classifyRulesProbeResult(true);
 	} catch (error) {
 		return classifyRulesProbeResult(false, error);
 	} finally {

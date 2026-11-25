@@ -74,6 +74,12 @@ export function initServiceWorkerUpdate(): () => void {
 				run: () => {
 					if (!confirmReloadIfInBattle()) return;
 					worker.postMessage({ type: 'SKIP_WAITING' });
+					setTimeout(() => {
+						if (!refreshing) {
+							refreshing = true;
+							window.location.reload();
+						}
+					}, 1200);
 				}
 			}
 		});

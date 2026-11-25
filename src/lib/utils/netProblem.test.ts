@@ -1,6 +1,20 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { classifyNetProblem } from './netProblem';
-import { classifyRulesProbeResult } from '$lib/net/rulesLive';
+
+const { getMock } = vi.hoisted(() => ({
+	getMock: vi.fn()
+}));
+
+vi.mock('$lib/net/firebase', () => ({
+	connect: vi.fn().mockResolvedValue({ auth: {}, db: {}, uid: 'u1', app: {} })
+}));
+
+vi.mock('firebase/database', () => ({
+	ref: vi.fn(() => ({})),
+	get: getMock
+}));
+
+import { classifyRulesProbeResult, checkLiveRules } from '$lib/net/rulesLive';
 
 describe('netProblem & rulesLive classification', () => {
 	it('classifies offline state, emulator failure, chunk reload, rules denial, and mismatch', () => {
@@ -25,5 +39,16 @@ describe('netProblem & rulesLive classification', () => {
 		expect(classifyRulesProbeResult(false)).toBe('stale');
 		expect(classifyRulesProbeResult(false, new Error('PERMISSION_DENIED'))).toBe('stale');
 		expect(classifyRulesProbeResult(false, new Error('rules_probe_timeout'))).toBe('unknown');
+	});
+
+	it('checkLiveRules treats empty allowed __rulesVersion sentinel read as fresh and PERMISSION_DENIED as stale', async () => {
+		getMock.mockResolvedValueOnce({
+			exists: () => false,
+			val: () => null
+		});
+		await expect(checkLiveRules(500)).resolves.toBe('fresh');
+
+		getMock.mockRejectedValueOnce(new Error('PERMISSION_DENIED'));
+		await expect(checkLiveRules(500)).resolves.toBe('stale');
 	});
 });
