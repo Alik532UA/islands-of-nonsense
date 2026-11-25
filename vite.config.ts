@@ -10,6 +10,48 @@ import { readFileSync, existsSync } from 'node:fs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf8'));
 
+const USED_RAW_FIELDS = new Set([
+	'utub',
+	'ua1g',
+	'umpm',
+	'umpi',
+	'umpr',
+	'ulum',
+	'umvs',
+	'ubba',
+	'ubld',
+	'uabi',
+	'uabs',
+	'ufoo'
+]);
+
+function pruneUnusedGameDataPlugin() {
+	return {
+		name: 'prune-unused-wc3-raw-fields',
+		enforce: 'pre' as const,
+		transform(code: string, id: string) {
+			if (process.env.VITEST) return null;
+			const norm = id.replace(/\\/g, '/');
+			if (
+				!norm.endsWith('/src/lib/data/buildings.json') &&
+				!norm.endsWith('/src/lib/data/units.json')
+			) {
+				return null;
+			}
+			const parsed = JSON.parse(code) as Array<Record<string, unknown>>;
+			const slim = parsed.map((entry) => {
+				if (!entry.raw_fields || typeof entry.raw_fields !== 'object') return entry;
+				const kept: Record<string, unknown> = {};
+				for (const [k, v] of Object.entries(entry.raw_fields as Record<string, unknown>)) {
+					if (USED_RAW_FIELDS.has(k)) kept[k] = v;
+				}
+				return { ...entry, raw_fields: kept };
+			});
+			return { code: JSON.stringify(slim), map: null };
+		}
+	};
+}
+
 export function getInlineScriptHashes(): `sha256-${string}`[] {
 	const htmlPath = path.resolve(__dirname, 'src/app.html');
 	if (!existsSync(htmlPath)) return [];
@@ -43,6 +85,7 @@ export default defineConfig(({ mode }) => ({
 		}
 	},
 	plugins: [
+		pruneUnusedGameDataPlugin(),
 		tailwindcss(),
 		sveltekit({
 			compilerOptions: {

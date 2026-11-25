@@ -198,6 +198,7 @@ describe('Quick Settings, Match Config & GameMode Integration', () => {
 			gameModeConfig: { allowForge: false },
 			westRace: 'Альянс'
 		});
+		noForgeSim.decorations = [];
 		noForgeSim.players.west.lumber = 500;
 		noForgeSim.build('west', 'cg11_forge', 25, 20);
 		const forgeBld = noForgeSim.buildings.find((b) => b.specialType === 'forge');
@@ -299,6 +300,7 @@ describe('Quick Settings, Match Config & GameMode Integration', () => {
 			expect(p.worker?.speed).toBe(170);
 		}
 
+		sim.decorations = [];
 		expect(sim.build('west', 'h000', 25, 20)).toBe(true);
 		const barracks = sim.buildings.find((b) => b.defId === 'h000')!;
 		barracks.isUnderConstruction = false;

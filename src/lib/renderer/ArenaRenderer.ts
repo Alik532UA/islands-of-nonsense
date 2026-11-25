@@ -29,7 +29,6 @@ import {
 	EAST_CASTLE_STAGE_URLS,
 	getCastleStageIndex,
 	CASTLE_FADE_DURATION_MS,
-	CASTLE_STAGE_COOLDOWN_MS,
 	canTriggerCastleStageTransition
 } from './castleAssets';
 import type { GraphicsStyle } from '$lib/services/settings.svelte';

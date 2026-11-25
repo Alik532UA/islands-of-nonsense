@@ -103,6 +103,7 @@ describe('Point 10: Post-Match Detailed Combat Log & Graph Analytics Export', ()
 	});
 
 	it('exports valid JSON and CSV match analytics representations', () => {
+		sim.decorations = [];
 		sim.build('west', 'h006', 25, 24);
 		sim.recordBuildingDamage('h006', 'Вартова вежа', 'west', 200);
 
@@ -124,6 +125,7 @@ describe('Point 10: Post-Match Detailed Combat Log & Graph Analytics Export', ()
 	});
 
 	it('embeds post-match analytics in replay serializer with verified checksum integrity', () => {
+		sim.decorations = [];
 		sim.build('west', 'h006', 25, 24);
 		const report = sim.exportAnalytics();
 

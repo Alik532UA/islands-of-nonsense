@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { ArrowLeft, House, Castle } from 'lucide-svelte';
+	import { ArrowLeft, Castle } from 'lucide-svelte';
 	import { settings } from '$lib/services/settings.svelte';
 	import { t } from '$lib/i18n';
 	import HeaderControls from './HeaderControls.svelte';

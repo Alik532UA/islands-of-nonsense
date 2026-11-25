@@ -1,6 +1,6 @@
 import { untrack } from 'svelte';
 import { storage } from './storage';
-import { getLocale, setLocale, type Locale } from '$lib/i18n';
+import { bindReactiveLocale, getLocale, setLocale, type Locale } from '$lib/i18n';
 import { sound } from './audio';
 export { contrast, luminance, parseColor, AA_NORMAL, AA_LARGE } from '$lib/utils/contrast';
 
@@ -119,7 +119,7 @@ class SettingsService {
 	#headerTitle = $state<string | null>(null);
 	#headerBack = $state<(() => void) | null>(null);
 	#sound = $state(storage.getJSON<boolean>('settings_sound_fx', true));
-	#volume = $state(storage.getJSON<number>('settings_volume', 0.8));
+	#volume = $state(storage.getJSON<number>('settings_volume', 0.1));
 	#locale = $state<Locale>(detectInitialLocale());
 	#uiScale = $state<UiScale>(detectInitialUiScale());
 	#theme = $state<AppTheme>(detectInitialTheme());
@@ -130,11 +130,20 @@ class SettingsService {
 	#isSettingsOpen = $state(false);
 
 	constructor() {
-		// Synchronize procedural sound engine with saved state
+		// Synchronize procedural sound engine & reactive i18n with saved state
 		sound.setEnabled(this.#sound);
 		sound.setVolume(this.#volume);
 		applyUiScale(this.#uiScale);
 		applyTheme(this.#theme);
+		bindReactiveLocale(
+			() => this.#locale,
+			(loc) => {
+				if (this.#locale !== loc) this.#locale = loc;
+			}
+		);
+		if (typeof document !== 'undefined') {
+			document.documentElement.lang = this.#locale;
+		}
 	}
 
 	get headerTitle(): string | null {

@@ -22,7 +22,8 @@ import {
 	EAST_ROAD_MERGE_X,
 	type DecorationObstacle
 } from '../engine/constants';
-import { distToRoadNetwork } from '../engine/buildingSystem';
+
+const ROAD_STONE_COLORS = [0x92785c, 0x806950, 0x9c8366, 0x765f47, 0xa48d70];
 
 export class TerrainRenderer {
 	/**
@@ -786,9 +787,8 @@ export class TerrainRenderer {
 		halfStoneW: number,
 		seed: number
 	): void {
-		const stoneColors = [0x92785c, 0x806950, 0x9c8366, 0x765f47, 0xa48d70];
 		const pseudo = Math.sin(pcx * 11.23 + pcy * 19.45 + seed) * 1000;
-		const colIdx = Math.floor(Math.abs(pseudo)) % stoneColors.length;
+		const colIdx = Math.floor(Math.abs(pseudo)) % ROAD_STONE_COLORS.length;
 
 		const p1x = pcx + ux * halfStoneL + nx * halfStoneW;
 		const p1y = pcy + uy * halfStoneL + ny * halfStoneW;
@@ -801,7 +801,7 @@ export class TerrainRenderer {
 
 		g.beginPath();
 		g.poly([p1x, p1y, p2x, p2y, p3x, p3y, p4x, p4y]);
-		g.fill({ color: stoneColors[colIdx] });
+		g.fill({ color: ROAD_STONE_COLORS[colIdx] });
 
 		g.beginPath();
 		g.moveTo(p2x, p2y);
@@ -900,6 +900,21 @@ export class TerrainRenderer {
 		}
 	}
 
+	private miterOffsetPoint(
+		pt: { x: number; y: number },
+		n1: { nx: number; ny: number },
+		n2: { nx: number; ny: number },
+		dist: number
+	): { x: number; y: number } {
+		const mx = n1.nx + n2.nx;
+		const my = n1.ny + n2.ny;
+		const mLen = Math.hypot(mx, my) || 1;
+		const uxM = mx / mLen;
+		const uyM = my / mLen;
+		const scale = Math.min(1.5, 1 / Math.max(0.5, uxM * n2.nx + uyM * n2.ny));
+		return { x: pt.x + uxM * dist * scale, y: pt.y + uyM * dist * scale };
+	}
+
 	private drawContinuousWheelRuts(
 		g: Graphics,
 		points: ReadonlyArray<{ x: number; y: number }>,
@@ -927,44 +942,32 @@ export class TerrainRenderer {
 				const startInset = i === 0 ? 8 : 0;
 				const endInset = i === points.length - 2 ? 8 : 0;
 
-				let pAx = a.x + nCurr.ux * startInset + nCurr.nx * rutV;
-				let pAy = a.y + nCurr.uy * startInset + nCurr.ny * rutV;
-				if (i > 0) {
-					const nPrev = segNormals[i - 1];
-					const mx = nPrev.nx + nCurr.nx;
-					const my = nPrev.ny + nCurr.ny;
-					const mLen = Math.hypot(mx, my) || 1;
-					const uxM = mx / mLen;
-					const uyM = my / mLen;
-					const miterScale = Math.min(1.5, 1 / Math.max(0.5, uxM * nCurr.nx + uyM * nCurr.ny));
-					pAx = a.x + uxM * rutV * miterScale;
-					pAy = a.y + uyM * rutV * miterScale;
-				}
+				const pA =
+					i > 0
+						? this.miterOffsetPoint(a, segNormals[i - 1], nCurr, rutV)
+						: {
+								x: a.x + nCurr.ux * startInset + nCurr.nx * rutV,
+								y: a.y + nCurr.uy * startInset + nCurr.ny * rutV
+							};
 
-				let pBx = b.x - nCurr.ux * endInset + nCurr.nx * rutV;
-				let pBy = b.y - nCurr.uy * endInset + nCurr.ny * rutV;
-				if (i < points.length - 2) {
-					const nNext = segNormals[i + 1];
-					const mx = nCurr.nx + nNext.nx;
-					const my = nCurr.ny + nNext.ny;
-					const mLen = Math.hypot(mx, my) || 1;
-					const uxM = mx / mLen;
-					const uyM = my / mLen;
-					const miterScale = Math.min(1.5, 1 / Math.max(0.5, uxM * nCurr.nx + uyM * nCurr.ny));
-					pBx = b.x + uxM * rutV * miterScale;
-					pBy = b.y + uyM * rutV * miterScale;
-				}
+				const pB =
+					i < points.length - 2
+						? this.miterOffsetPoint(b, nCurr, segNormals[i + 1], rutV)
+						: {
+								x: b.x - nCurr.ux * endInset + nCurr.nx * rutV,
+								y: b.y - nCurr.uy * endInset + nCurr.ny * rutV
+							};
 
 				g.beginPath();
 				g.poly([
-					pAx + nCurr.nx * rutW,
-					pAy + nCurr.ny * rutW,
-					pBx + nCurr.nx * rutW,
-					pBy + nCurr.ny * rutW,
-					pBx - nCurr.nx * rutW,
-					pBy - nCurr.ny * rutW,
-					pAx - nCurr.nx * rutW,
-					pAy - nCurr.ny * rutW
+					pA.x + nCurr.nx * rutW,
+					pA.y + nCurr.ny * rutW,
+					pB.x + nCurr.nx * rutW,
+					pB.y + nCurr.ny * rutW,
+					pB.x - nCurr.nx * rutW,
+					pB.y - nCurr.ny * rutW,
+					pA.x - nCurr.nx * rutW,
+					pA.y - nCurr.ny * rutW
 				]);
 				g.fill({ color: 0x6e563d, alpha: 0.45 });
 			}
@@ -1005,14 +1008,9 @@ export class TerrainRenderer {
 						break;
 				}
 			}
-			this.drawRimWaterLilies(g, WEST_ISLAND_CENTER_X, WEST_ISLAND_CENTER_Y, baseSeed);
-			this.drawRimWaterLilies(g, EAST_ISLAND_CENTER_X, EAST_ISLAND_CENTER_Y, baseSeed + 8191);
-			return;
 		}
-
-		// Fallback deterministic generation
-		this.generateIslandDecor(g, WEST_ISLAND_CENTER_X, WEST_ISLAND_CENTER_Y, true, baseSeed);
-		this.generateIslandDecor(g, EAST_ISLAND_CENTER_X, EAST_ISLAND_CENTER_Y, false, baseSeed + 8191);
+		this.drawRimWaterLilies(g, WEST_ISLAND_CENTER_X, WEST_ISLAND_CENTER_Y, baseSeed);
+		this.drawRimWaterLilies(g, EAST_ISLAND_CENTER_X, EAST_ISLAND_CENTER_Y, baseSeed + 8191);
 	}
 
 	private drawRimWaterLilies(g: Graphics, cx: number, cy: number, seed: number): void {
@@ -1027,61 +1025,6 @@ export class TerrainRenderer {
 			const ly = cy + Math.sin(angle) * (ISLAND_RADIUS_Y + 25 + nextRand() * 30);
 			this.drawWaterLily(g, lx, ly);
 		}
-	}
-
-	private generateIslandDecor(
-		g: Graphics,
-		cx: number,
-		cy: number,
-		isWest: boolean,
-		seed: number
-	): void {
-		let s = seed;
-		const nextRand = () => {
-			s = (s * 1664525 + 1013904223) % 4294967296;
-			return s / 4294967296;
-		};
-
-		const numDecorations = 120;
-		for (let i = 0; i < numDecorations; i++) {
-			const angle = nextRand() * Math.PI * 2;
-			const distNorm = 0.22 + nextRand() * 0.68;
-			const rx = (ISLAND_RADIUS_X - 120) * distNorm;
-			const ry = (ISLAND_RADIUS_Y - 90) * distNorm;
-
-			const x = cx + Math.cos(angle) * rx;
-			const y = cy + Math.sin(angle) * ry;
-
-			// Skip if on roads or castle plaza
-			const distToCastle = Math.hypot(x - cx, y - cy);
-			if (distToCastle < 240) continue;
-
-			// Skip if too close to actual highway branches
-			if (distToRoadNetwork(x, y) < 120) {
-				continue;
-			}
-
-			const typeIndex = Math.floor(nextRand() * 5);
-
-			switch (typeIndex) {
-				case 0:
-					this.drawMushroomCluster(g, x, y, nextRand);
-					break;
-				case 1:
-					this.drawCrystalSpire(g, x, y, nextRand);
-					break;
-				case 2:
-					this.drawAncientMonolith(g, x, y, nextRand);
-					break;
-				case 3:
-					this.drawFloweringBush(g, x, y, nextRand);
-					break;
-				case 4:
-					this.drawStoneBrazier(g, x, y, nextRand);
-					break;
-			}
-		}
-		this.drawRimWaterLilies(g, cx, cy, seed);
 	}
 
 	private drawMushroomCluster(g: Graphics, x: number, y: number, rand: () => number): void {

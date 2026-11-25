@@ -17,7 +17,6 @@
 	} from 'lucide-svelte';
 	import { settings } from '$lib/services/settings.svelte';
 	import { fullscreen, canFullscreen } from '$lib/services/fullscreen.svelte';
-	import { t } from '$lib/i18n';
 
 	let {
 		isOpen = false,

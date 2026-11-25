@@ -17,9 +17,7 @@
 		TreePine,
 		Crown,
 		Shield,
-		Heart,
-		Crosshair,
-		Feather
+		Heart
 	} from 'lucide-svelte';
 	import UnitSilhouette from './ui/UnitSilhouette.svelte';
 	import { sound } from '../services/audio';
@@ -75,6 +73,24 @@
 
 	let rescueCd = $derived(sim.getRescueStrikeCooldown(activeTeam, player));
 
+	function execBattleAbility(
+		canUse: boolean,
+		cmd: 'RESCUE_STRIKE' | 'REPAIR' | 'BRIDGE_REPAIR' | 'USE_ABILITY',
+		payload: Record<string, unknown>,
+		localFn: () => void,
+		playSfx: () => void
+	) {
+		if (!canUse) {
+			sound.playErrorResource();
+			return;
+		}
+		if (!routeBattleCommand?.(cmd, payload)) {
+			localFn();
+		}
+		playSfx();
+		onClose();
+	}
+
 	let abilities = $derived<RadialAbilityItem[]>([
 		{
 			id: 'rescue_strike',
@@ -84,22 +100,14 @@
 			hotkey: '1',
 			icon: 'rescue',
 			enabled: sim.canUseRescueStrike(activeTeam, player),
-			action: () => {
-				if (sim.canUseRescueStrike(activeTeam, player)) {
-					if (
-						!routeBattleCommand?.('RESCUE_STRIKE', {
-							team: activeTeam,
-							playerSlot: player.slot
-						})
-					) {
-						sim.triggerRescueStrike(activeTeam, player);
-					}
-					sound.playRescueStrike();
-					onClose();
-				} else {
-					sound.playErrorResource();
-				}
-			}
+			action: () =>
+				execBattleAbility(
+					sim.canUseRescueStrike(activeTeam, player),
+					'RESCUE_STRIKE',
+					{ team: activeTeam, playerSlot: player.slot },
+					() => sim.triggerRescueStrike(activeTeam, player),
+					() => sound.playRescueStrike()
+				)
 		},
 		{
 			id: 'repair_castle',
@@ -110,22 +118,14 @@
 			icon: 'repair',
 			enabled: sim.castles[activeTeam].hp < sim.castles[activeTeam].maxHp,
 			action: () => {
-				if (sim.castles[activeTeam].hp < sim.castles[activeTeam].maxHp) {
-					const targetId = `castle_${activeTeam}`;
-					if (
-						!routeBattleCommand?.('REPAIR', {
-							team: activeTeam,
-							playerSlot: player.slot,
-							targetId
-						})
-					) {
-						sim.repairBuilding(activeTeam, targetId, player);
-					}
-					sound.playRepair();
-					onClose();
-				} else {
-					sound.playErrorResource();
-				}
+				const targetId = `castle_${activeTeam}`;
+				execBattleAbility(
+					sim.castles[activeTeam].hp < sim.castles[activeTeam].maxHp,
+					'REPAIR',
+					{ team: activeTeam, playerSlot: player.slot, targetId },
+					() => sim.repairBuilding(activeTeam, targetId, player),
+					() => sound.playRepair()
+				);
 			}
 		},
 		{
@@ -136,22 +136,14 @@
 			hotkey: '3',
 			icon: 'bridge',
 			enabled: Boolean(sim.brokenBridge) && lumber >= 50,
-			action: () => {
-				if (sim.brokenBridge && lumber >= 50) {
-					if (
-						!routeBattleCommand?.('BRIDGE_REPAIR', {
-							team: activeTeam,
-							playerSlot: player.slot
-						})
-					) {
-						sim.orderBridgeRepair(activeTeam, player);
-					}
-					sound.playBuild();
-					onClose();
-				} else {
-					sound.playErrorResource();
-				}
-			}
+			action: () =>
+				execBattleAbility(
+					Boolean(sim.brokenBridge) && lumber >= 50,
+					'BRIDGE_REPAIR',
+					{ team: activeTeam, playerSlot: player.slot },
+					() => sim.orderBridgeRepair(activeTeam, player),
+					() => sound.playBuild()
+				)
 		},
 		{
 			id: 'open_shop',
@@ -187,22 +179,14 @@
 			hotkey: '6',
 			icon: 'skill',
 			enabled: sim.canUseRaceSkill(activeTeam),
-			action: () => {
-				if (sim.canUseRaceSkill(activeTeam)) {
-					if (
-						!routeBattleCommand?.('USE_ABILITY', {
-							team: activeTeam,
-							playerSlot: player.slot
-						})
-					) {
-						sim.useRaceSkill(activeTeam, player);
-					}
-					sound.playUpgrade();
-					onClose();
-				} else {
-					sound.playErrorResource();
-				}
-			}
+			action: () =>
+				execBattleAbility(
+					sim.canUseRaceSkill(activeTeam),
+					'USE_ABILITY',
+					{ team: activeTeam, playerSlot: player.slot },
+					() => sim.useRaceSkill(activeTeam, player),
+					() => sound.playUpgrade()
+				)
 		}
 	]);
 
@@ -367,6 +351,20 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
+{#snippet abilityIcon(iconType: string | undefined, cls: string)}
+	{#if iconType === 'rescue'}
+		<ShieldAlert class="{cls} text-amber-400" />
+	{:else if iconType === 'repair' || iconType === 'bridge'}
+		<Wrench class="{cls} text-emerald-400" />
+	{:else if iconType === 'shop'}
+		<ShoppingBag class="{cls} text-sky-400" />
+	{:else if iconType === 'forge'}
+		<Anvil class="{cls} text-amber-400" />
+	{:else}
+		<Sparkles class="{cls} text-purple-400" />
+	{/if}
+{/snippet}
+
 {#if isOpen}
 	<div
 		class="fixed inset-0 z-40 flex flex-col items-center justify-center bg-[#03050a]/72 backdrop-blur-xs select-none animate-in fade-in duration-150 p-3 gap-3"
@@ -517,17 +515,7 @@
 							</span>
 						{/if}
 					{:else}
-						{#if hoveredItem.iconType === 'rescue'}
-							<ShieldAlert class="w-10 h-10 text-amber-400" />
-						{:else if hoveredItem.iconType === 'repair' || hoveredItem.iconType === 'bridge'}
-							<Wrench class="w-10 h-10 text-emerald-400" />
-						{:else if hoveredItem.iconType === 'shop'}
-							<ShoppingBag class="w-10 h-10 text-sky-400" />
-						{:else if hoveredItem.iconType === 'forge'}
-							<Anvil class="w-10 h-10 text-amber-400" />
-						{:else}
-							<Sparkles class="w-10 h-10 text-purple-400" />
-						{/if}
+						{@render abilityIcon(hoveredItem.iconType, 'w-10 h-10')}
 						<span
 							class="text-[11px] font-black text-amber-200 text-center leading-tight max-w-[132px]"
 						>
@@ -652,16 +640,8 @@
 							{#if item.isLegendary}
 								<Crown class="w-3 h-3 text-amber-300 absolute top-0.5 left-0.5 drop-shadow" />
 							{/if}
-						{:else if item.iconType === 'rescue'}
-							<ShieldAlert class="w-6 h-6 text-amber-400" />
-						{:else if item.iconType === 'repair' || item.iconType === 'bridge'}
-							<Wrench class="w-6 h-6 text-emerald-400" />
-						{:else if item.iconType === 'shop'}
-							<ShoppingBag class="w-6 h-6 text-sky-400" />
-						{:else if item.iconType === 'forge'}
-							<Anvil class="w-6 h-6 text-amber-400" />
 						{:else}
-							<Sparkles class="w-6 h-6 text-purple-400" />
+							{@render abilityIcon(item.iconType, 'w-6 h-6')}
 						{/if}
 					</div>
 
@@ -735,13 +715,7 @@
 					</div>
 					{#if hoveredItem.unitDef}
 						<span class="text-[11.5px] text-sky-300 font-semibold shrink-0 flex items-center gap-1">
-							{#if hoveredItem.unitDef.flying}
-								<Feather class="w-3.5 h-3.5 text-sky-400" />
-							{:else if hoveredItem.unitDef.attack_type === 'pierce'}
-								<Crosshair class="w-3.5 h-3.5 text-emerald-400" />
-							{:else}
-								<Swords class="w-3.5 h-3.5 text-amber-300" />
-							{/if}
+							<Swords class="w-3.5 h-3.5 text-amber-300" />
 							{hoveredItem.unitDef.name}
 						</span>
 					{/if}
@@ -768,9 +742,9 @@
 						Оборонна вежа · Атака: {hoveredItem.buildingDef.damage_base ?? 50} · Дист.:
 						{hoveredItem.buildingDef.range ?? 500}px
 					</div>
-				{:else if hoveredItem.buildingDef?.raw_fields?.utub}
-					<p class="pt-1.5 text-[11.5px] text-slate-300 line-clamp-2">
-						{hoveredItem.buildingDef.raw_fields.utub}
+				{:else if hoveredItem.buildingDef}
+					<p class="pt-1.5 text-[11.5px] text-slate-300">
+						Тактична споруда бази · Вартість: {hoveredItem.subtitle}
 					</p>
 				{:else if hoveredItem.description}
 					<p class="pt-1.5 text-[11.5px] text-slate-300">{hoveredItem.description}</p>

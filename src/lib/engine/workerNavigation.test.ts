@@ -105,6 +105,7 @@ describe('Worker Navigation and Building Order (v10 Canon)', () => {
 
 		it('allows worker to construct building placed in corner from open perimeter side', () => {
 			const sim = new Simulation();
+			sim.decorations = [];
 			sim.isRunning = true;
 			const worker = sim.players.west.worker;
 			expect(worker).toBeDefined();
@@ -216,6 +217,7 @@ describe('Worker Navigation and Building Order (v10 Canon)', () => {
 				startGold: 2000,
 				westRace: 'Ельфи'
 			});
+			sim.decorations = [];
 			sim.isRunning = true;
 			const worker = sim.players.west.worker!;
 

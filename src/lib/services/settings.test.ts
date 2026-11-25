@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { settings } from './settings.svelte';
 import { sound } from './audio';
+import { t, setLocale } from '$lib/i18n';
 
 describe('SettingsService & Header Claiming', () => {
 	it('allows claiming and releasing header titles and custom back actions', () => {
@@ -32,7 +33,10 @@ describe('SettingsService & Header Claiming', () => {
 		expect(settings.headerBack).toBeNull();
 	});
 
-	it('toggles sound and synchronizes with sound engine', () => {
+	it('defaults master volume to 10% (0.1) and synchronizes sound bounds', () => {
+		expect(settings.volume).toBe(0.1);
+		expect(sound.getVolume()).toBe(0.1);
+
 		settings.setSound(false);
 		expect(settings.sound).toBe(false);
 		expect(sound.isEnabled()).toBe(false);
@@ -53,14 +57,18 @@ describe('SettingsService & Header Claiming', () => {
 		settings.setVolume(-0.2);
 		expect(settings.volume).toBe(0.0);
 		expect(sound.getVolume()).toBe(0.0);
+
+		settings.setVolume(0.1);
 	});
 
-	it('toggles locale', () => {
+	it('toggles locale reactively between uk and en', () => {
 		settings.setLocale('en');
 		expect(settings.locale).toBe('en');
+		expect(t('gold')).toBe('Gold');
 
-		settings.setLocale('uk');
+		setLocale('uk');
 		expect(settings.locale).toBe('uk');
+		expect(t('gold')).toBe('Золото');
 	});
 
 	it('manages UI scale and settings modal state', () => {

@@ -3,9 +3,7 @@
  * Підтримуються українська (uk) та англійська (en).
  */
 
-import { localeState, type Locale } from './localeState.svelte';
-
-export type { Locale };
+export type Locale = 'uk' | 'en';
 
 export const translations = {
 	uk: {
@@ -630,15 +628,30 @@ export const translations = {
 
 export type TranslationKey = keyof (typeof translations)['uk'];
 
+let currentLocale: Locale = 'uk';
+let reactiveLocaleGetter: (() => Locale) | null = null;
+let reactiveLocaleSetter: ((loc: Locale) => void) | null = null;
+
+/**
+ * Links pure i18n lookups to a reactive Svelte $state container in settings.svelte.ts
+ * without importing Svelte runes into raw Node scripts (e.g. check:i18n).
+ */
+export function bindReactiveLocale(getter: () => Locale, setter: (loc: Locale) => void): void {
+	reactiveLocaleGetter = getter;
+	reactiveLocaleSetter = setter;
+	setter(currentLocale);
+}
+
 export function setLocale(loc: Locale): void {
-	localeState.current = loc;
+	currentLocale = loc;
+	reactiveLocaleSetter?.(loc);
 	if (typeof document !== 'undefined') {
 		document.documentElement.lang = loc;
 	}
 }
 
 export function getLocale(): Locale {
-	return localeState.current;
+	return reactiveLocaleGetter ? reactiveLocaleGetter() : currentLocale;
 }
 
 export function t(
@@ -646,8 +659,9 @@ export function t(
 	paramsOrLocale?: Record<string, string | number> | Locale,
 	localeOverride?: Locale
 ): string {
+	const activeLocale = reactiveLocaleGetter ? reactiveLocaleGetter() : currentLocale;
 	const locale: Locale =
-		typeof paramsOrLocale === 'string' ? paramsOrLocale : (localeOverride ?? localeState.current);
+		typeof paramsOrLocale === 'string' ? paramsOrLocale : (localeOverride ?? activeLocale);
 	const params =
 		typeof paramsOrLocale === 'object' && paramsOrLocale !== null ? paramsOrLocale : undefined;
 

@@ -124,6 +124,7 @@ describe('Point 9: Game Modes & Random Race Bonus (+30% Gold)', () => {
 			modeId: 'noArtillery',
 			westRace: 'Люди'
 		});
+		sim.decorations = [];
 
 		// cg0a is Garbage Ballista (attack_type: siege)
 		const builtArtillery = sim.build('west', 'cg0a', 25, 20);
