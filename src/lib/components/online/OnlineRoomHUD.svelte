@@ -12,12 +12,28 @@
 		Wifi,
 		WifiOff,
 		Bot,
-		UserMinus
+		UserMinus,
+		Palette,
+		Sliders,
+		Dices,
+		Crown,
+		Lock,
+		Swords,
+		Shield,
+		Flame,
+		Coins,
+		Eye,
+		Ban,
+		Trophy,
+		AlertTriangle,
+		ArrowLeftRight
 	} from 'lucide-svelte';
+	import Avatar from '$lib/components/ui/Avatar.svelte';
 	import { connect } from '$lib/net/firebase';
 	import { liveNet } from '$lib/net/roomNet';
 	import { probeNetProblem } from '$lib/utils/netProblem';
 	import { removeFromLobby, updateLobbyPlayers } from '$lib/net/lobby';
+	import { getHumanClaimedColorIds, getMemberContentionInfo } from '$lib/net/colorLottery';
 	import {
 		countOpenHumanCapacity,
 		getSlotKey,
@@ -27,6 +43,7 @@
 	} from '$lib/net/onlineMatchSetup';
 	import type {
 		Member,
+		RoomConfig,
 		RoomInfo,
 		RoomSlotKey,
 		RoomSlotKind,
@@ -34,10 +51,12 @@
 		RoomTransport
 	} from '$lib/net/roomTypes';
 	import { ALL_PLAYER_COLORS } from '$lib/engine/types';
+	import { GAME_MODES } from '$lib/engine/gameModes';
 	import { PLAYABLE_RACES, formatRaceName } from '$lib/engine/gameData';
 	import { PlayerIdentity } from '$lib/controllers/playerIdentity.svelte';
 	import { settings } from '$lib/services/settings.svelte';
 	import { t } from '$lib/i18n';
+	import OnlineConfigModal from './OnlineConfigModal.svelte';
 
 	interface Props {
 		roomCode: string;
@@ -69,6 +88,12 @@
 	let roomError = $state<string | null>(null);
 	let hasSeenSelfMember = $state(false);
 	let leavingIntentional = $state(false);
+	let isConfigModalOpen = $state(false);
+	let paletteTarget = $state<{
+		slotKey: RoomSlotKey;
+		isBot: boolean;
+		currentColorId?: number;
+	} | null>(null);
 
 	const identity = new PlayerIdentity();
 
@@ -124,6 +149,16 @@
 		return { west, east };
 	});
 	let canStartMatch = $derived(teamActiveCounts.west > 0 && teamActiveCounts.east > 0);
+	let activeSlotCount = $derived(teamActiveCounts.west + teamActiveCounts.east);
+	let bannedRacesList = $derived(
+		Array.isArray(roomInfo?.config?.bannedRaces) ? roomInfo.config.bannedRaces : []
+	);
+	let availablePlayableRaces = $derived(
+		PLAYABLE_RACES.filter(
+			(r) => !bannedRacesList.includes(r) && !bannedRacesList.includes(formatRaceName(r))
+		)
+	);
+	let humanClaimedColorIds = $derived(getHumanClaimedColorIds(members));
 
 	onMount(() => {
 		let stopPresence = () => {};
@@ -317,14 +352,63 @@
 		await liveNet.updateMe(roomCode, { race: nextRace }).catch(() => {});
 	}
 
-	async function handleToggleFogOfWar(nextFog: boolean) {
+	async function handleSaveRoomConfig(patch: Partial<RoomConfig>) {
 		if (!isLobby || !isEffectiveHost || !transport?.setConfig || !roomInfo) return;
-		await transport
-			.setConfig({
-				...roomInfo.config,
-				fogOfWar: nextFog
-			})
-			.catch(() => {});
+		const nextBans = Array.isArray(patch.bannedRaces) ? patch.bannedRaces : bannedRacesList;
+		const nextSlots = { ...roomSlots };
+		for (const key of Object.keys(nextSlots) as RoomSlotKey[]) {
+			const s = nextSlots[key];
+			if (
+				s.kind === 'bot' &&
+				s.race &&
+				s.race !== 'random' &&
+				(nextBans.includes(s.race) || nextBans.includes(formatRaceName(s.race)))
+			) {
+				nextSlots[key] = { ...s, race: 'random' };
+			}
+		}
+		if (
+			localMember?.race &&
+			localMember.race !== 'in_game' &&
+			localMember.race !== 'random' &&
+			(nextBans.includes(localMember.race) || nextBans.includes(formatRaceName(localMember.race)))
+		) {
+			await liveNet.updateMe(roomCode, { race: 'in_game' }).catch(() => {});
+		}
+		const nextConfig: RoomConfig = {
+			...roomInfo.config,
+			...patch,
+			slots: nextSlots
+		};
+		await transport.setConfig(nextConfig).catch(() => {});
+		if (!nextConfig.isPrivate && typeof patch.modeId === 'string') {
+			const { db } = await connect();
+			await import('firebase/database')
+				.then(({ ref, update }) =>
+					update(ref(db, `lobby/castlefight/${roomCode}`), { modeId: patch.modeId })
+				)
+				.catch(() => {});
+		}
+	}
+
+	async function handlePickPaletteColor(colorId: number | null) {
+		if (!isLobby || !paletteTarget) return;
+		const target = paletteTarget;
+		paletteTarget = null;
+		if (target.isBot) {
+			if (colorId !== null && humanClaimedColorIds.has(colorId)) return;
+			await liveNet.setBotSlotColor(roomCode, target.slotKey, colorId).catch(() => {});
+			return;
+		}
+		const conflictingBotKeys: RoomSlotKey[] = [];
+		if (colorId !== null) {
+			for (const [k, s] of Object.entries(roomSlots) as Array<[RoomSlotKey, RoomSlotSetting]>) {
+				if (s.kind === 'bot' && s.colorId === colorId) {
+					conflictingBotKeys.push(k);
+				}
+			}
+		}
+		await liveNet.pickHumanColor(roomCode, colorId, conflictingBotKeys).catch(() => {});
 	}
 
 	async function handleStartMatch() {
@@ -339,15 +423,20 @@
 					name: m.name,
 					team: m.team ?? 'west',
 					...(typeof m.slot === 'number' ? { slot: m.slot } : {}),
-					...(m.race ? { race: m.race } : {})
+					race: m.race || 'in_game',
+					...(typeof m.colorId === 'number' ? { colorId: m.colorId } : {})
 				}));
+			const hasInGamePicks =
+				!roomInfo?.config?.allRandom && roster.some((r) => !r.race || r.race === 'in_game');
 			await transport.setStatus('playing', roster);
-			await transport.append({
-				seq: maxMoveSeq + 1,
-				by: localUid,
-				type: 'RESUME',
-				payload: { tick: 0, team: localMember?.team ?? (isHost ? 'west' : 'east') }
-			});
+			if (!hasInGamePicks) {
+				await transport.append({
+					seq: maxMoveSeq + 1,
+					by: localUid,
+					type: 'RESUME',
+					payload: { tick: 0, team: localMember?.team ?? (isHost ? 'west' : 'east') }
+				});
+			}
 			const { db } = await connect();
 			await removeFromLobby(db, roomCode).catch(() => {});
 		} finally {
@@ -401,166 +490,418 @@
 
 {#if isLobby && !roomError}
 	<div
-		class="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-3 sm:p-4"
+		class="fixed inset-0 z-40 flex items-center justify-center bg-[#05070c]/85 backdrop-blur-md p-2 sm:p-4 select-none"
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="online-lobby-title"
 		data-testid="online-waiting-lobby"
 	>
 		<div
-			class="w-full max-w-3xl max-h-[92vh] overflow-y-auto rounded-2xl bg-slate-900 border border-slate-700 p-4 sm:p-5 shadow-2xl"
+			class="w-full max-w-4xl max-h-[94vh] overflow-y-auto rounded-[16px] bg-gradient-to-b from-[#171d2b] via-[#111622] to-[#0a0d14] border-2 border-[#8c7456] p-4 sm:p-5 text-slate-100"
+			style="box-shadow: 0 24px 70px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,220,150,0.18), inset 0 0 26px rgba(140,116,86,0.12);"
 		>
-			<div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-				<div class="flex items-center gap-2.5">
-					<h2 id="online-lobby-title" class="text-lg font-extrabold text-amber-300">
-						{t('online.hud.roomTitle', { code: roomCode })}
-					</h2>
-					<span
-						class="text-xs px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-cyan-300 font-bold"
+			<!-- Top Tactical Lobby Header -->
+			<div
+				class="flex flex-wrap items-center justify-between gap-3 pb-3 mb-3 border-b border-[#3b3226]"
+			>
+				<div class="flex flex-wrap items-center gap-2.5">
+					<div
+						class="w-9 h-9 rounded-[8px] bg-amber-500/15 border border-[#8c7456]/70 flex items-center justify-center text-amber-300 shadow-inner"
 					>
-						{teamActiveCounts.west}v{teamActiveCounts.east}
-					</span>
+						<Swords class="w-4 h-4" />
+					</div>
+					<div>
+						<div class="flex items-center gap-2">
+							<h2
+								id="online-lobby-title"
+								class="text-base sm:text-lg font-black uppercase tracking-wide text-amber-300"
+							>
+								{t('online.hud.roomTitle', { code: roomCode })}
+							</h2>
+							<button
+								type="button"
+								onclick={copyCode}
+								title={t('online.hud.copyCode')}
+								class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-[6px] bg-[#090c14] hover:bg-[#131926] border border-[#8c7456]/60 hover:border-amber-400 text-[11px] font-mono font-bold transition cursor-pointer {copied
+									? 'text-emerald-300 border-emerald-400/70'
+									: 'text-amber-200'}"
+							>
+								<span>{roomCode}</span>
+								{#if copied}
+									<Check class="w-3 h-3 text-emerald-400" />
+								{:else}
+									<Copy class="w-3 h-3 text-sky-400" />
+								{/if}
+							</button>
+						</div>
+						<div class="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+							<span class="inline-flex items-center gap-1 font-semibold text-sky-300">
+								<span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+								{t('online.hud.teamWest')}
+								{teamActiveCounts.west}
+							</span>
+							<span class="text-slate-600 font-bold">vs</span>
+							<span class="inline-flex items-center gap-1 font-semibold text-rose-300">
+								<span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+								{t('online.hud.teamEast')}
+								{teamActiveCounts.east}
+							</span>
+							{#if roomInfo?.config?.isPrivate}
+								<span
+									class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] bg-slate-800/80 border border-slate-700 text-[10px] text-slate-300"
+								>
+									<Lock class="w-2.5 h-2.5 text-amber-300" />
+									{t('online.private')}
+								</span>
+							{/if}
+						</div>
+					</div>
 				</div>
+
 				<div class="flex items-center gap-2">
+					<button
+						type="button"
+						onclick={() => (chatOpen = !chatOpen)}
+						class="relative min-h-[38px] px-2.5 py-1.5 rounded-[8px] border text-xs font-bold flex items-center gap-1.5 cursor-pointer transition {chatOpen
+							? 'bg-sky-500/20 border-sky-400/70 text-sky-200'
+							: 'bg-[#161d2b] hover:bg-[#1e273a] border-[#3b3226] text-slate-300 hover:text-white'}"
+						aria-label={t('online.hud.roomChatLabel')}
+					>
+						<MessageSquare class="w-4 h-4 text-sky-400" />
+						<span class="hidden sm:inline">Чат</span>
+						{#if messages.length > 0}
+							<span
+								class="px-1.5 py-0.5 rounded-[4px] bg-sky-500/25 text-sky-200 text-[10px] font-mono leading-none"
+							>
+								{messages.length}
+							</span>
+						{/if}
+					</button>
+
 					{#if localMember}
 						<button
 							type="button"
 							data-testid="lobby-ready-btn"
 							onclick={handleToggleReady}
-							class="min-h-[38px] px-3 py-1.5 rounded-lg border text-xs font-bold cursor-pointer transition {localMember.ready
-								? 'bg-emerald-500/25 border-emerald-400 text-emerald-200'
-								: 'bg-slate-800 border-slate-600 text-slate-300 hover:text-white'}"
+							class="min-h-[38px] px-3.5 py-1.5 rounded-[8px] border text-xs font-extrabold uppercase tracking-wide cursor-pointer transition flex items-center gap-1.5 {localMember.ready
+								? 'bg-emerald-600/25 border-emerald-400 text-emerald-200 shadow-[0_0_14px_rgba(16,185,129,0.28)]'
+								: 'bg-[#161d2b] hover:bg-[#1e273a] border-[#3b3226] hover:border-amber-500/60 text-slate-200'}"
 						>
-							{localMember.ready ? t('online.hud.ready') : t('online.hud.notReady')}
+							{#if localMember.ready}
+								<Check class="w-3.5 h-3.5 text-emerald-300" />
+							{:else}
+								<span class="w-2 h-2 rounded-full bg-slate-500"></span>
+							{/if}
+							<span>{localMember.ready ? t('online.hud.ready') : t('online.hud.notReady')}</span>
 						</button>
 					{/if}
-					<button
-						type="button"
-						onclick={copyCode}
-						class="min-h-[38px] px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-bold text-slate-200 flex items-center gap-1.5 cursor-pointer"
-					>
-						{#if copied}
-							<Check class="w-4 h-4 text-emerald-400" />
-							<span>{t('online.hud.copied')}</span>
-						{:else}
-							<Copy class="w-4 h-4 text-sky-400" />
-							<span>{t('online.hud.copyCode')}</span>
-						{/if}
-					</button>
 				</div>
 			</div>
 
-			{#if roomInfo}
-				{@const roomFogEnabled = roomInfo.config?.fogOfWar !== false}
+			<!-- Inline Collapsible Lobby Chat Drawer -->
+			{#if chatOpen}
 				<div
-					class="mb-3 p-2.5 rounded-xl bg-slate-800/70 border border-slate-700 flex flex-wrap items-center justify-between gap-2"
+					class="mb-3 rounded-[10px] bg-[#0b0f18] border border-sky-500/40 p-2.5 space-y-2 shadow-inner"
 				>
-					<span class="text-xs font-semibold text-slate-300">{t('online.mapVisibility')}:</span>
-					{#if isEffectiveHost}
-						<div class="flex gap-1.5">
-							<button
-								type="button"
-								data-testid="lobby-fog-on-btn"
-								onclick={() => handleToggleFogOfWar(true)}
-								class="px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer {roomFogEnabled
-									? 'bg-amber-500/25 border-amber-400 text-amber-200'
-									: 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'}"
-							>
-								{t('online.fogEnabled')}
-							</button>
-							<button
-								type="button"
-								data-testid="lobby-fog-off-btn"
-								onclick={() => handleToggleFogOfWar(false)}
-								class="px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer {!roomFogEnabled
-									? 'bg-emerald-500/25 border-emerald-400 text-emerald-200'
-									: 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'}"
-							>
-								{t('online.fogDisabled')}
-							</button>
-						</div>
-					{:else}
-						<span
-							data-testid="lobby-fog-status"
-							class="px-2.5 py-1 rounded-lg text-xs font-bold border {roomFogEnabled
-								? 'bg-amber-500/15 border-amber-500/40 text-amber-200'
-								: 'bg-emerald-500/15 border-emerald-500/40 text-emerald-200'}"
+					<div class="max-h-28 overflow-y-auto space-y-1 text-xs pr-1">
+						{#if messages.length === 0}
+							<div class="text-slate-500 italic">{t('online.hud.noMessages')}</div>
+						{:else}
+							{#each messages as msg (msg.id)}
+								<div class="break-words">
+									<span class="font-bold text-amber-300">{msg.senderName}:</span>
+									<span class="text-slate-200"> {msg.text}</span>
+								</div>
+							{/each}
+						{/if}
+					</div>
+					<form onsubmit={sendChat} class="flex gap-1.5">
+						<input
+							type="text"
+							bind:value={chatInput}
+							maxlength="200"
+							placeholder={t('online.hud.chatPlaceholder')}
+							class="flex-1 px-2.5 py-1.5 rounded-[6px] bg-[#141a26] border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-500"
+						/>
+						<button
+							type="submit"
+							class="min-h-[34px] px-3 rounded-[6px] bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold cursor-pointer flex items-center justify-center"
+							aria-label={t('online.hud.sendChat')}
 						>
-							{roomFogEnabled ? t('online.fogEnabled') : t('online.fogDisabled')}
-						</span>
-					{/if}
+							<Send class="w-3.5 h-3.5" />
+						</button>
+					</form>
 				</div>
 			{/if}
 
-			<!-- Warcraft III-style 7v7 Configurable Slot Table -->
-			<div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-				{#each [{ id: 'west' as const, title: t('online.hud.teamWest'), headerCls: 'text-sky-300 border-sky-500/30 bg-sky-950/30' }, { id: 'east' as const, title: t('online.hud.teamEast'), headerCls: 'text-rose-300 border-rose-500/30 bg-rose-950/30' }] as teamCol (teamCol.id)}
-					<div class="rounded-xl border border-slate-700/90 bg-slate-950/50 p-2.5 space-y-1.5">
-						<div
-							class="px-2 py-1 rounded-lg border text-xs font-extrabold uppercase tracking-wider flex items-center justify-between {teamCol.headerCls}"
+			<!-- Tactical Match Rules Command Strip -->
+			{#if roomInfo}
+				{@const roomFogEnabled = roomInfo.config?.fogOfWar !== false}
+				{@const roomGold =
+					typeof roomInfo.config?.startGold === 'number' ? roomInfo.config.startGold : 500}
+				{@const roomModeName =
+					GAME_MODES[roomInfo.config?.modeId]?.nameUk || roomInfo.config?.modeId}
+				{@const coinModeVal = roomInfo.config?.coinMode ?? 'normal'}
+				<div
+					class="mb-3.5 p-2 rounded-[10px] bg-[#0b0f18]/90 border border-[#3b3226] flex flex-wrap items-center justify-between gap-2"
+				>
+					<div class="flex flex-wrap items-center gap-1.5 text-[11px]">
+						<span
+							class="inline-flex items-center gap-1 px-2 py-1 rounded-[6px] bg-[#161c2a] border border-amber-500/35 text-amber-200 font-bold"
 						>
-							<span>{teamCol.title}</span>
-							<span class="font-mono">
+							<Swords class="w-3 h-3 text-amber-400" />
+							{roomModeName}
+						</span>
+						<span
+							class="inline-flex items-center gap-1 px-2 py-1 rounded-[6px] bg-[#161c2a] border border-emerald-500/30 text-emerald-300 font-semibold"
+						>
+							<Trophy class="w-3 h-3 text-emerald-400" />
+							До {roomInfo.config?.targetWins ?? 2}
+						</span>
+						<span
+							class="inline-flex items-center gap-1 px-2 py-1 rounded-[6px] bg-[#161c2a] border border-slate-700 text-amber-200 font-mono font-semibold"
+						>
+							<Coins class="w-3 h-3 text-amber-400" />
+							{roomGold >= 90000 ? '∞ Золото' : `${roomGold}g`}
+						</span>
+						<span
+							data-testid="lobby-fog-status"
+							class="inline-flex items-center gap-1 px-2 py-1 rounded-[6px] border font-semibold {roomFogEnabled
+								? 'bg-amber-500/12 border-amber-500/40 text-amber-200'
+								: 'bg-emerald-500/12 border-emerald-500/40 text-emerald-200'}"
+						>
+							<Eye class="w-3 h-3" />
+							{roomFogEnabled ? t('online.fogEnabled') : t('online.fogDisabled')}
+						</span>
+						{#if coinModeVal === 'none' || roomInfo.config?.coinCount === 0}
+							<span
+								class="inline-flex items-center gap-1 px-2 py-1 rounded-[6px] bg-[#161c2a] border border-slate-700 text-slate-400"
+							>
+								Монети: Вимк.
+							</span>
+						{:else if coinModeVal === 'crazy'}
+							<span
+								class="inline-flex items-center gap-1 px-2 py-1 rounded-[6px] bg-purple-950/50 border border-purple-500/40 text-purple-200 font-semibold"
+							>
+								Монети: Божевільні
+							</span>
+						{/if}
+						{#if bannedRacesList.length > 0}
+							<span
+								class="inline-flex items-center gap-1 px-2 py-1 rounded-[6px] bg-rose-950/60 border border-rose-500/45 text-rose-300 font-bold"
+							>
+								<Ban class="w-3 h-3" />
+								Бан: {bannedRacesList.length}
+							</span>
+						{/if}
+					</div>
+					<button
+						type="button"
+						onclick={() => (isConfigModalOpen = true)}
+						data-testid="online-room-settings-btn"
+						class="min-h-[34px] px-3 py-1 rounded-[8px] bg-gradient-to-b from-amber-500/25 to-amber-600/15 hover:from-amber-500/35 hover:to-amber-600/25 border border-[#8c7456] hover:border-amber-400 text-xs font-bold text-amber-200 flex items-center gap-1.5 cursor-pointer transition shadow-sm"
+					>
+						<Sliders class="w-3.5 h-3.5 text-amber-300" />
+						<span>{t('online.hud.settingsBtn')}</span>
+					</button>
+				</div>
+			{/if}
+
+			<!-- Warcraft III-style 7v7 Tactical Roster Grid -->
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 mb-4">
+				{#each [{ id: 'west' as const, title: t('online.hud.teamWest'), panelCls: 'border-sky-500/30 bg-[#0b101b]/95', headerCls: 'text-sky-200 border-sky-500/40 bg-gradient-to-r from-sky-950/85 via-sky-900/35 to-[#121826]', badgeCls: 'bg-sky-500/20 text-sky-200 border-sky-400/40' }, { id: 'east' as const, title: t('online.hud.teamEast'), panelCls: 'border-rose-500/30 bg-[#120c13]/95', headerCls: 'text-rose-200 border-rose-500/40 bg-gradient-to-r from-rose-950/85 via-rose-900/35 to-[#18121b]', badgeCls: 'bg-rose-500/20 text-rose-200 border-rose-400/40' }] as teamCol (teamCol.id)}
+					<div class="rounded-[12px] border {teamCol.panelCls} p-2.5 space-y-1.5 shadow-inner">
+						<div
+							class="px-3 py-2 rounded-[8px] border text-xs font-black uppercase tracking-wider flex items-center justify-between {teamCol.headerCls}"
+						>
+							<span class="flex items-center gap-2">
+								{#if teamCol.id === 'west'}
+									<Shield class="w-3.5 h-3.5 text-sky-400" />
+								{:else}
+									<Flame class="w-3.5 h-3.5 text-rose-400" />
+								{/if}
+								<span>{teamCol.title}</span>
+							</span>
+							<span
+								class="px-2 py-0.5 rounded-[5px] border font-mono text-[11px] font-bold {teamCol.badgeCls}"
+							>
 								{teamCol.id === 'west' ? teamActiveCounts.west : teamActiveCounts.east}/7
 							</span>
 						</div>
+
 						{#each [1, 2, 3, 4, 5, 6, 7] as idx (idx)}
 							{@const slotNum = getSlotNumber(teamCol.id, idx)}
 							{@const slotKey = getSlotKey(teamCol.id, idx)}
 							{@const slotCfg = roomSlots[slotKey]}
 							{@const occupant = slotOccupants.get(slotNum) ?? null}
-							{@const colorDef = ALL_PLAYER_COLORS[slotNum - 1] ?? ALL_PLAYER_COLORS[0]}
+							{@const isSelf = Boolean(occupant && occupant.uid === localUid)}
+							{@const humanColorDef =
+								occupant && typeof occupant.colorId === 'number'
+									? ALL_PLAYER_COLORS.find((c) => c.id === occupant.colorId)
+									: undefined}
+							{@const humanContention = occupant
+								? getMemberContentionInfo(members, occupant.uid, occupant.colorId)
+								: null}
+							{@const botExplicitColorDef =
+								!occupant && slotCfg.kind === 'bot' && typeof slotCfg.colorId === 'number'
+									? !humanClaimedColorIds.has(slotCfg.colorId)
+										? ALL_PLAYER_COLORS.find((c) => c.id === slotCfg.colorId)
+										: undefined
+									: undefined}
 							{@const slotModeVal =
 								slotCfg.kind === 'bot' ? `bot:${slotCfg.botDifficulty ?? 15}` : slotCfg.kind}
 							<div
 								data-testid="lobby-slot-{slotKey}"
-								class="flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-lg border text-xs {slotCfg.kind ===
-									'closed' && !occupant
-									? 'bg-slate-900/40 border-slate-800/80 opacity-60'
-									: 'bg-slate-800/80 border-slate-700'}"
+								class="relative flex items-center justify-between gap-2 px-2.5 py-2 rounded-[8px] border text-xs transition {occupant
+									? isSelf
+										? 'bg-gradient-to-r from-[#1b2438] to-[#131a29] border-amber-400/55 shadow-[0_0_16px_rgba(245,158,11,0.1)]'
+										: 'bg-[#151c2c] border-slate-600/70'
+									: slotCfg.kind === 'bot'
+										? 'bg-[#151a26] border-amber-500/35'
+										: slotCfg.kind === 'open'
+											? 'bg-[#0e1420]/90 border-dashed border-slate-700/80 hover:border-sky-500/45'
+											: 'bg-[#090c14]/75 border-slate-800/70 opacity-55'}"
 							>
-								<div class="flex items-center gap-2 min-w-0 flex-1">
+								<!-- Slot Color / Index Indicator Strip -->
+								{#if occupant || slotCfg.kind === 'bot'}
 									<span
-										class="w-3 h-3 rounded-sm shrink-0 border border-white/25"
-										style="background-color: {colorDef.hex};"
-										title={colorDef.nameUk}
+										class="w-1 self-stretch rounded-full shrink-0"
+										style="background-color: {occupant
+											? (humanColorDef?.hex ?? (teamCol.id === 'west' ? '#38bdf8' : '#fb7185'))
+											: (botExplicitColorDef?.hex ?? '#f59e0b')};"
 									></span>
+								{/if}
 
+								<div class="flex items-center gap-2 min-w-0 flex-1">
 									{#if occupant}
+										{@const canPickMyColor = occupant.uid === localUid}
+										<button
+											type="button"
+											disabled={!canPickMyColor}
+											onclick={() => {
+												if (canPickMyColor) {
+													paletteTarget = {
+														slotKey,
+														isBot: false,
+														currentColorId: occupant.colorId
+													};
+												}
+											}}
+											data-testid="lobby-color-btn-{slotKey}"
+											title={humanColorDef
+												? `${humanColorDef.nameUk}${
+														humanContention && humanContention.totalClaimants > 1
+															? ` (${humanContention.probabilityPct}%)`
+															: ''
+													}`
+												: t('online.hud.randomColor')}
+											class="h-7 px-1.5 rounded-[6px] border flex items-center gap-1 shrink-0 transition {canPickMyColor
+												? 'border-[#8c7456]/70 hover:border-amber-300 cursor-pointer bg-[#0a0e17]'
+												: 'border-slate-700 cursor-default bg-[#0a0e17]/70'}"
+										>
+											{#if humanColorDef}
+												<span
+													class="w-3.5 h-3.5 rounded-[4px] border border-white/40 shrink-0 shadow-sm"
+													style="background-color: {humanColorDef.hex};"
+												></span>
+												{#if humanContention && humanContention.totalClaimants > 1}
+													<span class="text-[10px] font-mono font-bold text-amber-300">
+														{humanContention.probabilityPct}%
+													</span>
+												{/if}
+											{:else}
+												<Palette class="w-3.5 h-3.5 text-amber-300" />
+											{/if}
+										</button>
+
+										<Avatar avatar={occupant.avatar} size={26} showDefault />
+
 										<div class="min-w-0 flex-1">
-											<div class="flex items-center gap-1.5 truncate">
+											<div class="flex items-center gap-1.5 min-w-0">
 												<span class="font-bold text-slate-100 truncate">{occupant.name}</span>
 												{#if occupant.uid === roomInfo?.hostUid}
-													<span class="text-[10px] text-amber-400 font-bold">★</span>
+													<span title="Господар кімнати" class="shrink-0 text-amber-400">
+														<Crown class="w-3.5 h-3.5" />
+													</span>
+												{/if}
+												{#if occupant.country}
+													<span
+														class="text-[9px] px-1 py-0.5 rounded-[4px] bg-[#0b0f18] border border-slate-700 text-slate-400 font-mono uppercase shrink-0"
+													>
+														{occupant.country}
+													</span>
 												{/if}
 												{#if occupant.ready}
-													<span class="text-[10px] text-emerald-400 font-bold">✓</span>
+													<span
+														class="text-[9px] px-1.5 py-0.5 rounded-[4px] bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 font-bold shrink-0"
+													>
+														✓
+													</span>
 												{/if}
 											</div>
 											{#if occupant.uid === localUid && !roomInfo?.config?.allRandom}
 												<select
 													aria-label="Раса"
-													value={occupant.race ?? 'random'}
+													data-testid="lobby-race-select-{slotKey}"
+													value={occupant.race ?? 'in_game'}
 													onchange={(e) =>
 														handleChangeRace((e.currentTarget as HTMLSelectElement).value)}
-													class="mt-0.5 w-full max-w-[140px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-[11px] text-amber-200"
+													class="mt-1 w-full max-w-[165px] px-2 py-0.5 rounded-[6px] bg-[#0b0f18] border border-[#8c7456]/60 hover:border-amber-400 text-[11px] font-semibold text-amber-200 cursor-pointer focus:outline-none focus:border-amber-400"
 												>
+													<option value="in_game">{t('online.hud.raceInGame')}</option>
 													<option value="random">{t('online.hud.randomRaceBonus')}</option>
-													{#each PLAYABLE_RACES as race (race)}
+													{#each availablePlayableRaces as race (race)}
 														<option value={race}>{formatRaceName(race)}</option>
 													{/each}
 												</select>
-											{:else if occupant.race}
-												<span class="text-[10px] text-amber-300/90">
-													{occupant.race === 'random'
-														? t('online.hud.randomRaceBonus')
-														: formatRaceName(occupant.race)}
-												</span>
+											{:else if !roomInfo?.config?.allRandom}
+												{@const occRace = occupant.race ?? 'in_game'}
+												<div class="text-[10px] text-amber-300/90 font-medium mt-0.5">
+													{occRace === 'in_game'
+														? t('online.hud.raceInGame')
+														: occRace === 'random'
+															? t('online.hud.randomRaceBonus')
+															: formatRaceName(occRace)}
+												</div>
 											{/if}
 										</div>
 									{:else if slotCfg.kind === 'bot'}
+										{@const canPickBotColor = Boolean(localMember && localMember.role === 'player')}
+										<button
+											type="button"
+											disabled={!canPickBotColor}
+											onclick={() => {
+												if (canPickBotColor) {
+													paletteTarget = {
+														slotKey,
+														isBot: true,
+														currentColorId: botExplicitColorDef?.id
+													};
+												}
+											}}
+											data-testid="lobby-color-btn-{slotKey}"
+											title={botExplicitColorDef
+												? botExplicitColorDef.nameUk
+												: t('online.hud.randomColor')}
+											class="h-7 px-1.5 rounded-[6px] border flex items-center justify-center shrink-0 transition {canPickBotColor
+												? 'border-[#8c7456]/60 hover:border-amber-300 cursor-pointer bg-[#0a0e17]'
+												: 'border-slate-700 cursor-default bg-[#0a0e17]/70'}"
+										>
+											{#if botExplicitColorDef}
+												<span
+													class="w-3.5 h-3.5 rounded-[4px] border border-white/40"
+													style="background-color: {botExplicitColorDef.hex};"
+												></span>
+											{:else}
+												<Palette class="w-3.5 h-3.5 text-slate-300" />
+											{/if}
+										</button>
 										<div class="flex items-center gap-1.5 min-w-0 flex-1">
-											<Bot class="w-3.5 h-3.5 text-amber-300 shrink-0" />
+											<span
+												class="w-6 h-6 rounded-[6px] bg-amber-500/15 border border-amber-500/40 flex items-center justify-center shrink-0"
+											>
+												<Bot class="w-3.5 h-3.5 text-amber-300" />
+											</span>
 											{#if isEffectiveHost && !roomInfo?.config?.allRandom}
 												<select
 													aria-label="Раса бота"
@@ -572,10 +913,10 @@
 															slotCfg.botDifficulty ?? 15,
 															(e.currentTarget as HTMLSelectElement).value
 														)}
-													class="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-[11px] text-amber-200 max-w-[115px]"
+													class="px-2 py-0.5 rounded-[6px] bg-[#0b0f18] border border-slate-700 hover:border-amber-400/70 text-[11px] font-semibold text-amber-200 max-w-[130px] cursor-pointer"
 												>
 													<option value="random">{t('online.hud.randomRaceBonus')}</option>
-													{#each PLAYABLE_RACES as race (race)}
+													{#each availablePlayableRaces as race (race)}
 														<option value={race}>{formatRaceName(race)}</option>
 													{/each}
 												</select>
@@ -586,31 +927,45 @@
 											{/if}
 										</div>
 									{:else if slotCfg.kind === 'open'}
-										<span class="text-slate-400 italic">{t('online.hud.slotOpen')}</span>
+										<span
+											class="w-6 h-6 rounded-[6px] bg-[#090c14] border border-slate-700/80 text-[10px] font-mono font-bold text-slate-500 flex items-center justify-center shrink-0"
+										>
+											{idx}
+										</span>
+										<span class="text-slate-400 font-medium truncate">
+											{isEffectiveHost ? 'Вільне місце' : t('online.hud.slotOpen')}
+										</span>
 									{:else}
-										<span class="text-slate-500">{t('online.hud.slotClosed')}</span>
+										<span
+											class="w-6 h-6 rounded-[6px] bg-[#070a10] border border-slate-800 text-slate-600 flex items-center justify-center shrink-0"
+										>
+											<Lock class="w-3 h-3" />
+										</span>
+										<span class="text-slate-500 font-medium truncate">
+											{isEffectiveHost ? `Слот #${idx}` : t('online.hud.slotClosed')}
+										</span>
 									{/if}
 								</div>
 
-								<div class="flex items-center gap-1 shrink-0">
+								<div class="flex items-center gap-1.5 shrink-0">
 									{#if occupant}
 										{#if isEffectiveHost && occupant.uid !== localUid}
 											<button
 												type="button"
 												onclick={() => handleHostSwapPlayerTeam(occupant)}
-												class="px-1.5 py-1 rounded bg-slate-900 hover:bg-slate-700 border border-slate-700 text-[10px] text-sky-300 cursor-pointer"
+												class="p-1.5 rounded-[6px] bg-[#0b0f18] hover:bg-slate-800 border border-slate-700 hover:border-sky-400/60 text-sky-300 cursor-pointer transition"
 												title="Змінити команду"
 											>
-												⇄
+												<ArrowLeftRight class="w-3.5 h-3.5" />
 											</button>
 											<button
 												type="button"
 												data-testid="lobby-kick-{occupant.uid}"
 												onclick={() => handleHostKickPlayer(occupant.uid)}
-												class="p-1 rounded bg-slate-900 hover:bg-rose-900/70 border border-slate-700 text-rose-300 cursor-pointer"
+												class="p-1.5 rounded-[6px] bg-[#0b0f18] hover:bg-rose-950 border border-slate-700 hover:border-rose-500/60 text-rose-300 cursor-pointer transition"
 												title={t('online.hud.kickPlayer')}
 											>
-												<UserMinus class="w-3 h-3" />
+												<UserMinus class="w-3.5 h-3.5" />
 											</button>
 										{/if}
 									{:else}
@@ -619,7 +974,7 @@
 												type="button"
 												data-testid="lobby-sit-{slotKey}"
 												onclick={() => handleMoveToSlot(teamCol.id, slotNum)}
-												class="px-2 py-1 rounded bg-sky-500/20 hover:bg-sky-500/35 border border-sky-400/50 text-[11px] font-bold text-sky-200 cursor-pointer"
+												class="px-2.5 py-1 rounded-[6px] bg-sky-500/20 hover:bg-sky-500/35 border border-sky-400/60 text-[11px] font-bold text-sky-200 cursor-pointer transition"
 											>
 												{t('online.hud.sitHere')}
 											</button>
@@ -634,7 +989,7 @@
 														slotKey,
 														(e.currentTarget as HTMLSelectElement).value
 													)}
-												class="px-1.5 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] text-slate-200 cursor-pointer"
+												class="px-2 py-1 rounded-[6px] bg-[#0b0f18] border border-slate-700 hover:border-[#8c7456] text-[11px] font-semibold text-slate-200 cursor-pointer focus:outline-none focus:border-amber-400"
 											>
 												<option value="open">{t('online.hud.slotOpen')}</option>
 												<option value="closed">{t('online.hud.slotClosed')}</option>
@@ -653,34 +1008,41 @@
 			</div>
 
 			{#if !canStartMatch && isEffectiveHost}
-				<div class="mb-2 text-xs text-amber-300 text-center font-semibold">
-					{t('online.hud.needBothTeams')}
+				<div
+					class="mb-3 px-3 py-2 rounded-[8px] bg-amber-950/45 border border-amber-500/45 text-xs text-amber-200 flex items-center justify-center gap-2 font-semibold"
+				>
+					<AlertTriangle class="w-4 h-4 text-amber-400 shrink-0" />
+					<span>{t('online.hud.needBothTeams')}</span>
 				</div>
 			{/if}
 
 			{#if canClaimHost}
 				<div
-					class="mb-2 px-3 py-2 rounded-xl bg-amber-950/80 border border-amber-500/40 text-xs text-amber-200 flex items-center justify-between gap-2"
+					class="mb-3 px-3 py-2 rounded-[8px] bg-amber-950/80 border border-amber-500/50 text-xs text-amber-200 flex items-center justify-between gap-2"
 				>
 					<span>{t('online.hud.hostOffline')}</span>
 					<button
 						type="button"
 						disabled={claimingHost}
 						onclick={handleClaimHost}
-						class="shrink-0 min-h-[36px] px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-bold cursor-pointer"
+						class="shrink-0 min-h-[34px] px-3 py-1 rounded-[6px] bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-bold cursor-pointer"
 					>
 						{t('online.hud.claimHost')}
 					</button>
 				</div>
 			{/if}
 
-			<div class="flex gap-2">
+			<!-- Footer Actions -->
+			<div class="flex gap-2.5 pt-1">
 				{#if isEffectiveHost}
 					<button
 						type="button"
 						disabled={starting || !canStartMatch}
 						onclick={handleStartMatch}
-						class="flex-1 min-h-[44px] py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-extrabold text-sm flex items-center justify-center gap-2 cursor-pointer"
+						class="flex-1 min-h-[46px] py-2.5 px-5 rounded-[10px] font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition {canStartMatch &&
+						!starting
+							? 'bg-gradient-to-b from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:via-amber-400 hover:to-amber-500 border-2 border-amber-200/80 text-slate-950 cursor-pointer shadow-[0_0_24px_rgba(245,158,11,0.35)] active:scale-[0.99]'
+							: 'bg-slate-800/80 border border-slate-700 text-slate-500 cursor-not-allowed'}"
 						data-testid="online-start-battle-btn"
 					>
 						<Play class="w-4 h-4 fill-current" />
@@ -688,7 +1050,7 @@
 					</button>
 				{:else}
 					<div
-						class="flex-1 min-h-[44px] py-2.5 px-4 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 text-xs font-semibold flex items-center justify-center"
+						class="flex-1 min-h-[46px] py-2.5 px-4 rounded-[10px] bg-[#121826] border border-[#3b3226] text-slate-300 text-xs font-semibold flex items-center justify-center"
 					>
 						{t('online.hud.waitingHost')}
 					</div>
@@ -697,14 +1059,112 @@
 				<button
 					type="button"
 					onclick={handleLeaveRoom}
-					class="min-h-[44px] min-w-[44px] px-3 rounded-xl bg-slate-800 hover:bg-rose-900/60 border border-slate-700 text-slate-300 hover:text-rose-200 flex items-center justify-center cursor-pointer"
+					class="min-h-[46px] px-4 rounded-[10px] bg-[#151c2c] hover:bg-rose-950/80 border border-[#3b3226] hover:border-rose-500/60 text-slate-300 hover:text-rose-200 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition"
 					aria-label={t('online.hud.leaveRoom')}
 				>
 					<LogOut class="w-4 h-4" />
+					<span class="hidden sm:inline">{t('online.hud.leaveRoom')}</span>
 				</button>
 			</div>
 		</div>
 	</div>
+
+	{#if paletteTarget}
+		{@const isBotTarget = paletteTarget.isBot}
+		{@const targetKey = paletteTarget.slotKey}
+		{@const takenByOtherBots = new Set(
+			(Object.entries(roomSlots) as Array<[RoomSlotKey, RoomSlotSetting]>)
+				.filter(([k, s]) => k !== targetKey && s.kind === 'bot' && typeof s.colorId === 'number')
+				.map(([, s]) => s.colorId as number)
+		)}
+		<div
+			class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[2px] p-4"
+			role="dialog"
+			aria-modal="true"
+			aria-label={t('online.hud.pickColor')}
+			data-testid="lobby-color-picker-modal"
+		>
+			<div
+				class="w-full max-w-xs rounded-[14px] bg-gradient-to-b from-[#171d2b] to-[#0c1018] border-2 border-[#8c7456] p-4 shadow-2xl space-y-3"
+			>
+				<div class="flex items-center justify-between pb-2 border-b border-[#3b3226]">
+					<span
+						class="text-sm font-black uppercase tracking-wide text-amber-300 flex items-center gap-1.5"
+					>
+						<Palette class="w-4 h-4" />
+						<span>{t('online.hud.pickColor')}</span>
+					</span>
+					<button
+						type="button"
+						onclick={() => (paletteTarget = null)}
+						class="px-2 py-0.5 rounded-[6px] bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs cursor-pointer"
+					>
+						✕
+					</button>
+				</div>
+
+				<button
+					type="button"
+					onclick={() => handlePickPaletteColor(null)}
+					data-testid="palette-color-random"
+					class="w-full py-2 px-3 rounded-[8px] border text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition {paletteTarget.currentColorId ===
+					undefined
+						? 'bg-amber-500/20 border-amber-400 text-amber-200'
+						: 'bg-[#141a26] border-slate-700 text-slate-300 hover:border-amber-400/50'}"
+				>
+					<Dices class="w-4 h-4 text-amber-300" />
+					<span>{t('online.hud.randomColor')}</span>
+				</button>
+
+				<div class="grid grid-cols-7 gap-2">
+					{#each ALL_PLAYER_COLORS as c (c.id)}
+						{@const humanContenders = members.filter(
+							(m) => m.role === 'player' && m.colorId === c.id
+						).length}
+						{@const disabledForBot =
+							isBotTarget && (humanClaimedColorIds.has(c.id) || takenByOtherBots.has(c.id))}
+						{@const isSelected = paletteTarget.currentColorId === c.id}
+						<button
+							type="button"
+							disabled={disabledForBot}
+							onclick={() => handlePickPaletteColor(c.id)}
+							data-testid="palette-color-{c.id}"
+							title={disabledForBot
+								? `${c.nameUk} (${t('online.hud.colorTakenByPlayer')})`
+								: `${c.nameUk}${humanContenders > 0 && !isBotTarget ? ` (претендентів: ${humanContenders})` : ''}`}
+							class="relative w-9 h-9 rounded-[6px] border-2 flex items-center justify-center transition {disabledForBot
+								? 'opacity-20 cursor-not-allowed border-slate-700'
+								: isSelected
+									? 'border-white ring-2 ring-amber-400 scale-105 cursor-pointer'
+									: 'border-white/30 hover:border-white cursor-pointer hover:scale-105'}"
+							style="background-color: {c.hex};"
+						>
+							{#if isSelected}
+								<Check class="w-4 h-4 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" />
+							{:else if !isBotTarget && humanContenders > 0}
+								<span
+									class="text-[9px] font-mono font-black px-1 rounded-[4px] bg-black/80 text-amber-300"
+								>
+									×{humanContenders}
+								</span>
+							{/if}
+						</button>
+					{/each}
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	{#if roomInfo}
+		<OnlineConfigModal
+			isOpen={isConfigModalOpen}
+			canEdit={isEffectiveHost}
+			currentConfig={roomInfo.config}
+			{activeSlotCount}
+			onClose={() => (isConfigModalOpen = false)}
+			onSave={handleSaveRoomConfig}
+		/>
+	{/if}
 {/if}
 
 <div class="fixed top-14 right-3 z-30 flex flex-col items-end gap-2">

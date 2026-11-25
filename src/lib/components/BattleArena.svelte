@@ -163,6 +163,10 @@
 	let countdownSeconds = $state(10);
 	let countdownTimer: ReturnType<typeof setInterval> | null = null;
 	let chosenWestRace = $state<string | null>(null);
+	let onlinePickedRace = $state<string | null>(null);
+	let onlineRacePickError = $state<string | null>(null);
+	let onlineResumeSent = false;
+	let onlineCountdownTimer: ReturnType<typeof setInterval> | null = null;
 
 	let isForgeOpen = $state(false);
 	let isCommanderOpen = $state(false);
@@ -572,6 +576,12 @@
 					perfMonitor.attachSim(sim);
 					if (unlistenAudio) unlistenAudio();
 					unlistenAudio = attachAudioBridge(sim, sound);
+					if (nextSim.allPlayers.some((p) => !p.isBot && p.pendingRacePick)) {
+						startOnlineCountdown();
+					} else {
+						clearOnlineCountdownTimer();
+						matchPhase = 'BATTLE';
+					}
 					uiTick = sim.stateVersion;
 				},
 				onHostChange: (host) => {
@@ -590,10 +600,31 @@
 					networkNotice = `Увага: розсинхронізація на тіку ${tick}`;
 				},
 				onGone: (reason) => {
+					clearOnlineCountdownTimer();
 					networkNotice = `Мережева сесія завершена: ${reason}`;
 				},
 				onCommandApplied: (move) => {
-					if (move.type === 'NEXT_ROUND' || move.type === 'RESTART_MATCH') {
+					if (move.type === 'SET_RACE' && matchPhase === 'COUNTDOWN') {
+						if (
+							onlinePickedRace &&
+							controlledPlayer.pendingRacePick &&
+							move.payload?.playerSlot === controlledPlayer.slot
+						) {
+							onlinePickedRace = null;
+							onlineRacePickError = 'Расу вже зайнято (-ur), виберіть іншу!';
+							sound.playErrorResource();
+						} else if (!sim.allPlayers.some((p) => !p.isBot && p.pendingRacePick)) {
+							void finalizeOnlineCountdown();
+						}
+					} else if (move.type === 'RESUME' && matchPhase === 'COUNTDOWN') {
+						clearOnlineCountdownTimer();
+						matchPhase = 'BATTLE';
+						onlinePickedRace = null;
+						onlineRacePickError = null;
+						sim.isRunning = true;
+						sound.playHorn();
+						renderer?.resetCastleVisuals();
+					} else if (move.type === 'NEXT_ROUND' || move.type === 'RESTART_MATCH') {
 						selectedBuildingId = null;
 						selectedPlacedBuildingId = null;
 						selectedUnitId = null;
@@ -613,8 +644,14 @@
 					unlistenAudio = attachAudioBridge(sim, sound);
 					renderer?.setSimulation(sim);
 					renderer?.resetCastleVisuals();
-					sim.isRunning = true;
-					sound.playHorn();
+					if (nextSim.allPlayers.some((p) => !p.isBot && p.pendingRacePick)) {
+						startOnlineCountdown();
+					} else {
+						clearOnlineCountdownTimer();
+						matchPhase = 'BATTLE';
+						sim.isRunning = true;
+						sound.playHorn();
+					}
 					uiTick = sim.stateVersion;
 				},
 				onErrorNotice: (msg) => {
@@ -1090,7 +1127,68 @@
 		};
 	});
 
+	function clearOnlineCountdownTimer() {
+		if (onlineCountdownTimer) {
+			clearInterval(onlineCountdownTimer);
+			onlineCountdownTimer = null;
+		}
+	}
+
+	async function finalizeOnlineCountdown() {
+		if (!matchSync || !isOnlineHost || onlineResumeSent) return;
+		onlineResumeSent = true;
+		clearOnlineCountdownTimer();
+		const pendingHumans = sim.allPlayers.filter((p) => !p.isBot && p.pendingRacePick);
+		for (const p of pendingHumans) {
+			await matchSync.dispatch('SET_RACE', {
+				team: p.team,
+				playerSlot: p.slot,
+				race: 'random'
+			});
+		}
+		await matchSync.dispatch('RESUME', { tick: 0 });
+	}
+
+	function startOnlineCountdown() {
+		clearOnlineCountdownTimer();
+		matchPhase = 'COUNTDOWN';
+		onlinePickedRace = null;
+		onlineRacePickError = null;
+		onlineResumeSent = false;
+		countdownSeconds = onlineSession?.getCountdownRemainingSec() ?? 15;
+		sim.isRunning = false;
+
+		onlineCountdownTimer = setInterval(() => {
+			if (!matchSync || matchPhase !== 'COUNTDOWN') {
+				clearOnlineCountdownTimer();
+				return;
+			}
+			const rem = onlineSession?.getCountdownRemainingSec();
+			if (rem !== null && rem !== undefined) {
+				countdownSeconds = rem;
+			} else {
+				countdownSeconds = Math.max(0, countdownSeconds - 1);
+			}
+			const allReady = !sim.allPlayers.some((p) => !p.isBot && p.pendingRacePick);
+			if (allReady || countdownSeconds <= 0) {
+				void finalizeOnlineCountdown();
+			}
+		}, 250);
+	}
+
 	function selectRaceAndStart(race: string) {
+		if (matchSync) {
+			if (!controlledPlayer.pendingRacePick || onlinePickedRace !== null) return;
+			onlinePickedRace = race;
+			onlineRacePickError = null;
+			sound.playUpgrade();
+			void matchSync.dispatch('SET_RACE', {
+				team: controlledPlayer.team,
+				playerSlot: controlledPlayer.slot,
+				race
+			});
+			return;
+		}
 		chosenWestRace = race;
 		sound.playUpgrade();
 		finishCountdownAndStartBattle();
@@ -1191,6 +1289,10 @@
 
 		<!-- Pre-Match 15s Countdown & Race Selection Overlay -->
 		{#if matchPhase === 'COUNTDOWN'}
+			{@const humanPlayersList = sim.allPlayers.filter((p) => !p.isBot)}
+			{@const pickedHumansCount = humanPlayersList.filter((p) => !p.pendingRacePick).length}
+			{@const waitingForOthersOnline =
+				Boolean(matchSync) && (!controlledPlayer.pendingRacePick || onlinePickedRace !== null)}
 			<div
 				class="absolute inset-0 bg-black/75 backdrop-blur-sm flex flex-col items-center justify-center z-30 p-4 select-none"
 			>
@@ -1198,73 +1300,118 @@
 					class="bg-[#121622] border-2 border-[#8c7456] rounded-3xl p-5 max-w-xl w-full text-center shadow-2xl space-y-3"
 					style="box-shadow: 0 10px 40px rgba(0,0,0,0.9);"
 				>
-					<!-- Top Button: Random Race (+30% Gold) with countdown timer -->
-					<button
-						type="button"
-						onclick={() => selectRaceAndStart('random')}
-						class="w-full py-2.5 px-4 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 shadow-lg bg-gradient-to-r from-purple-950/70 via-purple-900/50 to-[#181e2b] border-purple-500/60 hover:border-purple-400 hover:bg-purple-900/60 text-purple-200 active:scale-[0.99]"
-					>
-						<div class="flex items-center gap-2.5">
-							<Dices class="w-6 h-6 text-purple-300 shrink-0" />
-							<span class="text-sm font-bold tracking-wide">Випадкова раса</span>
-						</div>
-						<div class="flex items-center gap-2">
-							<span
-								class="px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-400/50 text-xs text-amber-300 font-black"
-							>
-								+30% золота
-							</span>
+					{#if waitingForOthersOnline}
+						<div class="py-4 px-2 space-y-3">
 							<div
-								class="px-2.5 py-1 bg-amber-500/20 border-2 border-amber-400/80 rounded-xl flex items-center gap-1.5 animate-pulse"
+								class="inline-flex items-center gap-2 px-4 py-2 bg-amber-500/20 border-2 border-amber-400/80 rounded-2xl animate-pulse"
 							>
-								<span class="text-base font-mono font-black text-amber-300">
+								<span class="text-2xl font-mono font-black text-amber-300">
 									{countdownSeconds}
 								</span>
-								<span class="text-[10px] text-amber-200 font-bold uppercase">сек</span>
+								<span class="text-xs text-amber-200 font-bold uppercase">сек</span>
+							</div>
+							<div class="text-sm font-bold text-slate-100">
+								{onlinePickedRace
+									? 'Расу зафіксовано! Очікування інших гравців...'
+									: 'Очікування гравців, які обирають расу в грі...'}
+							</div>
+							<div class="text-xs text-slate-400">
+								Готові: <strong class="text-emerald-300 font-mono">
+									{pickedHumansCount}/{Math.max(1, humanPlayersList.length)}
+								</strong>
+								· Раси приховані до початку бою
 							</div>
 						</div>
-					</button>
-
-					<!-- Race pick chips (Only the playable races) -->
-					<div class="grid grid-cols-3 sm:grid-cols-4 gap-2 text-xs">
-						{#each RACES_LIST.filter( (r) => (PLAYABLE_RACES as readonly string[]).includes(r.race) ) as raceDef}
-							{@const isBanned = sim.isRaceBanned(raceDef.race)}
-							{@const isOpponentOccupied =
-								sim.gameModeConfig.uniqueRaces &&
-								sim.allPlayers.some(
-									(p) =>
-										p !== controlledPlayer &&
-										formatRaceName(p.race) === formatRaceName(raceDef.race)
-								)}
-							{@const isDisabled = isBanned || isOpponentOccupied}
-							<button
-								type="button"
-								disabled={isDisabled}
-								onclick={() => {
-									if (!isDisabled) {
-										selectRaceAndStart(raceDef.race);
-									}
-								}}
-								class="p-2.5 rounded-xl border text-center transition flex flex-col items-center justify-center gap-1 {isDisabled
-									? 'bg-slate-900/40 border-red-950/60 text-slate-500 opacity-50 cursor-not-allowed'
-									: 'bg-[#181e2b] border-[#3b3226] hover:border-amber-400/80 hover:bg-[#202738] text-slate-200 hover:text-white cursor-pointer active:scale-95'}"
+					{:else}
+						{#if onlineRacePickError}
+							<div
+								class="px-3 py-2 rounded-xl bg-rose-950/90 border border-rose-500/50 text-xs text-rose-200 font-semibold"
 							>
-								<span class="text-xs font-bold {isBanned ? 'line-through text-red-400/80' : ''}">
-									{raceDef.race}
+								{onlineRacePickError}
+							</div>
+						{/if}
+						<!-- Top Button: Random Race (+30% Gold) with countdown timer -->
+						<button
+							type="button"
+							onclick={() => selectRaceAndStart('random')}
+							class="w-full py-2.5 px-4 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 shadow-lg bg-gradient-to-r from-purple-950/70 via-purple-900/50 to-[#181e2b] border-purple-500/60 hover:border-purple-400 hover:bg-purple-900/60 text-purple-200 active:scale-[0.99]"
+						>
+							<div class="flex items-center gap-2.5">
+								<Dices class="w-6 h-6 text-purple-300 shrink-0" />
+								<span class="text-sm font-bold tracking-wide">Випадкова раса</span>
+							</div>
+							<div class="flex items-center gap-2">
+								<span
+									class="px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-400/50 text-xs text-amber-300 font-black"
+								>
+									+30% золота
 								</span>
-								{#if isBanned}
-									<span
-										class="text-[9px] text-red-400 font-bold flex items-center justify-center gap-1"
-									>
-										<CircleSlash class="w-3 h-3 text-red-400 shrink-0" />
-										<span>Бан (-ban)</span>
+								<div
+									class="px-2.5 py-1 bg-amber-500/20 border-2 border-amber-400/80 rounded-xl flex items-center gap-1.5 animate-pulse"
+								>
+									<span class="text-base font-mono font-black text-amber-300">
+										{countdownSeconds}
 									</span>
-								{:else if isOpponentOccupied}
-									<span class="text-[9px] text-amber-400/80 font-bold">Зайнято (-ur)</span>
-								{/if}
-							</button>
-						{/each}
-					</div>
+									<span class="text-[10px] text-amber-200 font-bold uppercase">сек</span>
+								</div>
+							</div>
+						</button>
+
+						{#if matchSync && humanPlayersList.length > 1}
+							<div class="text-[11px] text-slate-400">
+								Готові: <span class="text-emerald-300 font-mono font-bold">
+									{pickedHumansCount}/{humanPlayersList.length}
+								</span> · Вибір суперника приховано
+							</div>
+						{/if}
+
+						<!-- Race pick chips (Only the playable races) -->
+						{@const availablePlayableCount = PLAYABLE_RACES.filter(
+							(r) => !sim.isRaceBanned(r)
+						).length}
+						{@const teamScopedUr = sim.allPlayers.length > availablePlayableCount}
+						<div class="grid grid-cols-3 sm:grid-cols-4 gap-2 text-xs">
+							{#each RACES_LIST.filter( (r) => (PLAYABLE_RACES as readonly string[]).includes(r.race) ) as raceDef}
+								{@const isBanned = sim.isRaceBanned(raceDef.race)}
+								{@const isOpponentOccupied =
+									sim.gameModeConfig.uniqueRaces &&
+									sim.allPlayers.some(
+										(p) =>
+											p !== controlledPlayer &&
+											!p.pendingRacePick &&
+											(!teamScopedUr || p.team === controlledPlayer.team) &&
+											formatRaceName(p.race) === formatRaceName(raceDef.race)
+									)}
+								{@const isDisabled = isBanned || isOpponentOccupied}
+								<button
+									type="button"
+									disabled={isDisabled}
+									onclick={() => {
+										if (!isDisabled) {
+											selectRaceAndStart(raceDef.race);
+										}
+									}}
+									class="p-2.5 rounded-xl border text-center transition flex flex-col items-center justify-center gap-1 {isDisabled
+										? 'bg-slate-900/40 border-red-950/60 text-slate-500 opacity-50 cursor-not-allowed'
+										: 'bg-[#181e2b] border-[#3b3226] hover:border-amber-400/80 hover:bg-[#202738] text-slate-200 hover:text-white cursor-pointer active:scale-95'}"
+								>
+									<span class="text-xs font-bold {isBanned ? 'line-through text-red-400/80' : ''}">
+										{raceDef.race}
+									</span>
+									{#if isBanned}
+										<span
+											class="text-[9px] text-red-400 font-bold flex items-center justify-center gap-1"
+										>
+											<CircleSlash class="w-3 h-3 text-red-400 shrink-0" />
+											<span>Бан (-ban)</span>
+										</span>
+									{:else if isOpponentOccupied}
+										<span class="text-[9px] text-amber-400/80 font-bold">Зайнято (-ur)</span>
+									{/if}
+								</button>
+							{/each}
+						</div>
+					{/if}
 				</div>
 			</div>
 		{/if}

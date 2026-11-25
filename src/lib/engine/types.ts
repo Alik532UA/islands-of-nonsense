@@ -531,6 +531,7 @@ export interface PlayerState {
 	name: string;
 	race: string;
 	color: PlayerColorDef;
+	pendingRacePick?: boolean;
 	isRandomRace?: boolean;
 	randomGoldGranted?: boolean;
 	gold: number;

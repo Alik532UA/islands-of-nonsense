@@ -22,6 +22,7 @@ export interface RoomSlotSetting {
 	kind: RoomSlotKind;
 	botDifficulty?: number;
 	race?: string;
+	colorId?: number;
 }
 
 export interface RosterEntry {
@@ -30,6 +31,7 @@ export interface RosterEntry {
 	team?: MatchTeamId;
 	race?: string;
 	slot?: number;
+	colorId?: number;
 }
 
 export interface Member {
@@ -40,6 +42,8 @@ export interface Member {
 	avatar?: string;
 	team?: MatchTeamId;
 	race?: string;
+	colorId?: number;
+	colorPickedAt?: number;
 	ready?: boolean;
 	order: number;
 	slot?: number;
@@ -55,6 +59,8 @@ export interface MemberPatch {
 	team?: MatchTeamId;
 	slot?: number;
 	race?: string;
+	colorId?: number | null;
+	colorPickedAt?: number | object | null;
 	ready?: boolean;
 	compact?: boolean;
 }
@@ -67,6 +73,7 @@ export interface RoomEntry {
 	team?: MatchTeamId;
 	slot?: number;
 	race?: string;
+	colorId?: number;
 	compact?: boolean;
 }
 
@@ -78,8 +85,12 @@ export interface RoomConfig {
 	slots?: Partial<Record<RoomSlotKey, RoomSlotSetting>>;
 	allRandom?: boolean;
 	uniqueRaces?: boolean;
+	bannedRaces?: string[];
 	targetWins: number;
+	startGold?: number;
 	coinMode?: 'none' | 'normal' | 'crazy';
+	coinSpawnInterval?: number;
+	coinCount?: number;
 	fogOfWar?: boolean;
 	isPrivate?: boolean;
 	[key: string]: unknown;

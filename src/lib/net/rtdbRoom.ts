@@ -11,6 +11,7 @@ import type {
 	RoomConfig,
 	RoomEntry,
 	RoomInfo,
+	RoomSlotKey,
 	RoomSnapshot,
 	RoomStatus,
 	RoomTransport,
@@ -307,6 +308,7 @@ export async function createRoom(options: NewRoomOptions): Promise<string> {
 
 		const hostTeam = options.team ?? 'west';
 		const hostSeat = pickFirstAvailableSeat([], hostTeam, options.config);
+		const initialRace = options.race ?? 'in_game';
 
 		await set(ref(db, `rooms/${code}/members/${uid}`), {
 			name: options.name,
@@ -316,7 +318,7 @@ export async function createRoom(options: NewRoomOptions): Promise<string> {
 			...(options.country && options.country.length === 2 ? { country: options.country } : {}),
 			...(options.avatar ? { avatar: options.avatar } : {}),
 			team: hostSeat.team,
-			...(options.race ? { race: options.race } : {}),
+			race: initialRace,
 			...(options.compact ? { compact: true } : {}),
 			...(auth.currentUser?.isAnonymous === false ? { account: true } : {})
 		});
@@ -339,7 +341,14 @@ export async function joinRoom(code: string, entry: RoomEntry): Promise<void> {
 	]);
 	const currentMembers = membersSnap.val() as Record<
 		string,
-		{ team?: string; slot?: number; order?: number }
+		{
+			team?: string;
+			slot?: number;
+			order?: number;
+			race?: string;
+			colorId?: number;
+			colorPickedAt?: number;
+		}
 	> | null;
 	const roomConfig = (configSnap.val() as RoomConfig | null) ?? undefined;
 	const memberList = currentMembers ? Object.values(currentMembers) : [];
@@ -347,6 +356,9 @@ export async function joinRoom(code: string, entry: RoomEntry): Promise<void> {
 	const preferredTeam = entry.team ?? (count % 2 === 0 ? 'west' : 'east');
 	const existingSelf = currentMembers?.[uid];
 	const order = typeof existingSelf?.order === 'number' ? existingSelf.order : count + 1;
+	const resolvedRace = entry.race ?? existingSelf?.race ?? 'in_game';
+	const resolvedColorId = entry.colorId ?? existingSelf?.colorId;
+	const resolvedColorPickedAt = existingSelf?.colorPickedAt;
 
 	let team: 'west' | 'east' = preferredTeam;
 	let slot: number;
@@ -371,7 +383,9 @@ export async function joinRoom(code: string, entry: RoomEntry): Promise<void> {
 		...(entry.country && entry.country.length === 2 ? { country: entry.country } : {}),
 		...(entry.avatar ? { avatar: entry.avatar } : {}),
 		team,
-		...(entry.race ? { race: entry.race } : {}),
+		race: resolvedRace,
+		...(typeof resolvedColorId === 'number' ? { colorId: resolvedColorId } : {}),
+		...(typeof resolvedColorPickedAt === 'number' ? { colorPickedAt: resolvedColorPickedAt } : {}),
 		...(entry.compact ? { compact: true } : {}),
 		...(auth.currentUser?.isAnonymous === false ? { account: true } : {})
 	});
@@ -381,6 +395,42 @@ export async function updateMe(code: string, patch: MemberPatch): Promise<void> 
 	const { uid, db } = await connect();
 	const { ref, update } = await import('firebase/database');
 	await update(ref(db, `rooms/${code}/members/${uid}`), patch);
+}
+
+/**
+ * Sets or clears the current player's requested color with a server timestamp for fair lottery
+ * weighting, and resets any bot slot currently holding that same color back to random.
+ */
+export async function pickHumanColor(
+	code: string,
+	colorId: number | null,
+	conflictingBotKeys: readonly RoomSlotKey[] = []
+): Promise<void> {
+	const { uid, db } = await connect();
+	const { ref, serverTimestamp, update } = await import('firebase/database');
+	const updates: Record<string, unknown> = {
+		[`members/${uid}/colorId`]: colorId,
+		[`members/${uid}/colorPickedAt`]: colorId !== null ? serverTimestamp() : null
+	};
+	if (colorId !== null) {
+		for (const botKey of conflictingBotKeys) {
+			updates[`info/config/slots/${botKey}/colorId`] = null;
+		}
+	}
+	await update(ref(db, `rooms/${code}`), updates);
+}
+
+/**
+ * Sets or clears a bot slot's lobby color (allowed for any player while room is in lobby).
+ */
+export async function setBotSlotColor(
+	code: string,
+	slotKey: RoomSlotKey,
+	colorId: number | null
+): Promise<void> {
+	const { db } = await connect();
+	const { ref, set } = await import('firebase/database');
+	await set(ref(db, `rooms/${code}/info/config/slots/${slotKey}/colorId`), colorId);
 }
 
 export async function updateMemberSlot(

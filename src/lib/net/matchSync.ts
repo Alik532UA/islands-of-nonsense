@@ -27,6 +27,7 @@ const IMMEDIATE_MOVE_TYPES = new Set([
 	'CHECKSUM',
 	'CHAT',
 	'lead',
+	'SET_RACE',
 	'PAUSE',
 	'RESUME',
 	'SURRENDER',
@@ -472,6 +473,12 @@ export class MatchSync {
 					(typeof p.commanderId === 'number' && p.commanderId >= 1 && p.commanderId <= 6)
 				) {
 					this.sim.selectPlayerCommander(team, p.commanderId, player);
+				}
+				break;
+
+			case 'SET_RACE':
+				if (typeof p.race === 'string' && p.race.length > 0) {
+					this.sim.setPlayerRace(team, p.race, player);
 				}
 				break;
 

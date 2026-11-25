@@ -25,6 +25,7 @@ export interface OnlineBattleSession {
 	readonly localTeam: 'west' | 'east';
 	readonly localSlot: number;
 	getTargetTick: () => number | null;
+	getCountdownRemainingSec: () => number | null;
 	dispose: () => void;
 }
 
@@ -98,8 +99,17 @@ export async function startOnlineBattleSession(
 		let presencePeerOnline = false;
 		let handoverInFlight = false;
 		let currentDesyncNotice: string | null = null;
+		const initialAwaitingPick = activeSim.allPlayers.some((p) => !p.isBot && p.pendingRacePick);
+		let countdownAnchorServerMs: number | null =
+			roomInfo?.status === 'playing' && initialAwaitingPick
+				? (roomInfo.startedAt ?? Date.now())
+				: null;
 		let epochAnchorServerMs: number | null =
-			typeof roomInfo?.startedAt === 'number' ? roomInfo.startedAt : null;
+			roomInfo?.status === 'playing' &&
+			!initialAwaitingPick &&
+			typeof roomInfo?.startedAt === 'number'
+				? roomInfo.startedAt
+				: null;
 
 		const publishPeerOnline = () => {
 			const peerOnline = presencePeerOnline || memberPeerOnline;
@@ -120,20 +130,21 @@ export async function startOnlineBattleSession(
 		stopRoomWatch = transport.watch((snap) => {
 			latestRoomInfo = snap.info;
 			latestMembers = snap.members;
-			if (
-				snap.info.status === 'playing' &&
-				typeof snap.info.startedAt === 'number' &&
-				epochAnchorServerMs === null
-			) {
-				epochAnchorServerMs = snap.info.startedAt;
-			}
 			callbacks.onHostChange(snap.info.hostUid === uid);
 			if (snap.info.status === 'playing' && !onlineStarted) {
 				onlineStarted = true;
-				epochAnchorServerMs =
-					typeof snap.info.startedAt === 'number' ? snap.info.startedAt : transport.now();
 				const fresh = createOnlineSimulation(snap.info, snap.members, uid);
 				activeSim = fresh.sim;
+				const awaitingPick = activeSim.allPlayers.some((p) => !p.isBot && p.pendingRacePick);
+				const startedMs =
+					typeof snap.info.startedAt === 'number' ? snap.info.startedAt : transport.now();
+				if (awaitingPick) {
+					countdownAnchorServerMs = startedMs;
+					epochAnchorServerMs = null;
+				} else {
+					countdownAnchorServerMs = null;
+					epochAnchorServerMs = startedMs;
+				}
 				sync?.setRosterSlots(fresh.uidToSlot);
 				sync?.setSimulation(activeSim);
 				callbacks.onMatchStarted(activeSim, fresh.localSlot);
@@ -169,8 +180,13 @@ export async function startOnlineBattleSession(
 				callbacks.onGone(reason);
 			},
 			onCommandApplied: (move) => {
-				if (move.type === 'NEXT_ROUND' || move.type === 'RESTART_MATCH') {
+				if (
+					(move.type === 'RESUME' && epochAnchorServerMs === null) ||
+					move.type === 'NEXT_ROUND' ||
+					move.type === 'RESTART_MATCH'
+				) {
 					epochAnchorServerMs = typeof move.at === 'number' ? move.at : transport.now();
+					countdownAnchorServerMs = null;
 				}
 				callbacks.onCommandApplied(move);
 			}
@@ -218,6 +234,13 @@ export async function startOnlineBattleSession(
 				if (!onlineStarted || epochAnchorServerMs === null) return null;
 				const elapsedMs = Math.max(0, transport.now() - epochAnchorServerMs);
 				return Math.floor((elapsedMs / 1000) * 60);
+			},
+			getCountdownRemainingSec() {
+				if (countdownAnchorServerMs === null || epochAnchorServerMs !== null) return null;
+				const elapsedSec = Math.floor(
+					Math.max(0, transport.now() - countdownAnchorServerMs) / 1000
+				);
+				return Math.max(0, 15 - elapsedSec);
 			},
 			dispose() {
 				stopPresenceTrack?.();

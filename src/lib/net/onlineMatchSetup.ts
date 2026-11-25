@@ -5,7 +5,8 @@ import {
 	type SimulationConfig
 } from '$lib/engine/simulation';
 import { getBuilderNameForRace, formatRaceName, PLAYABLE_RACES } from '$lib/engine/gameData';
-import type { PlayerState } from '$lib/engine/types';
+import { ALL_PLAYER_COLORS, type PlayerState } from '$lib/engine/types';
+import { resolveOnlineSlotColors } from './colorLottery';
 import type { Member, RoomConfig, RoomInfo, RoomSlotKey, RoomSlotSetting } from './roomTypes';
 
 export const BATTLE_COMMAND_ROUTER_KEY = 'battleCommandRouter';
@@ -65,7 +66,12 @@ export function buildRoomSlots(
 					...(custom.kind === 'bot'
 						? {
 								botDifficulty: typeof custom.botDifficulty === 'number' ? custom.botDifficulty : 15,
-								race: custom.race ?? 'random'
+								race: custom.race ?? 'random',
+								...(typeof custom.colorId === 'number' &&
+								custom.colorId >= 1 &&
+								custom.colorId <= ALL_PLAYER_COLORS.length
+									? { colorId: custom.colorId }
+									: {})
 							}
 						: {})
 				};
@@ -151,7 +157,8 @@ export function pickFirstAvailableSeat(
 
 function buildCustomSlotsFromRoom(
 	info: RoomInfo,
-	members: readonly Member[]
+	members: readonly Member[],
+	resolvedColors?: Record<number, number>
 ): SimCustomSlot[] | undefined {
 	const hasExplicitSlots = Boolean(info.config?.slots);
 	const westCount = info.config?.teamSizeWest ?? info.config?.teamSize ?? 1;
@@ -210,6 +217,7 @@ function buildCustomSlotsFromRoom(
 			const sn = getSlotNumber(team, i);
 			const cfg = slotsMap[getSlotKey(team, i)];
 			const occupant = occupiedSlots.get(sn);
+			const assignedColor = resolvedColors?.[sn];
 			if (occupant) {
 				teamHasAny = true;
 				custom.push({
@@ -217,7 +225,8 @@ function buildCustomSlotsFromRoom(
 					team,
 					isBot: false,
 					name: occupant.name,
-					race: occupant.race
+					race: occupant.race,
+					...(typeof assignedColor === 'number' ? { colorId: assignedColor } : {})
 				});
 			} else if (cfg.kind === 'bot') {
 				teamHasAny = true;
@@ -228,7 +237,8 @@ function buildCustomSlotsFromRoom(
 					isBot: true,
 					botDifficulty: diff,
 					name: `${team === 'west' ? 'Бот-Захід' : 'Бот-Схід'} #${i}`,
-					race: cfg.race ?? 'random'
+					race: cfg.race ?? 'random',
+					...(typeof assignedColor === 'number' ? { colorId: assignedColor } : {})
 				});
 			}
 		}
@@ -265,6 +275,15 @@ export function buildOnlineSimulationConfig(info: RoomInfo): SimulationConfig {
 		1,
 		Math.min(MAX_PLAYERS_PER_TEAM, Math.round(info.config?.teamSizeEast ?? teamSize))
 	);
+	const bannedRaces = Array.isArray(info.config?.bannedRaces)
+		? info.config.bannedRaces.filter((r): r is string => typeof r === 'string' && r.length > 0)
+		: undefined;
+	const coinMode =
+		info.config?.coinMode === 'none' ||
+		info.config?.coinMode === 'normal' ||
+		info.config?.coinMode === 'crazy'
+			? info.config.coinMode
+			: 'normal';
 
 	return {
 		modeId: typeof info.config?.modeId === 'string' ? info.config.modeId : 'standard',
@@ -274,12 +293,12 @@ export function buildOnlineSimulationConfig(info: RoomInfo): SimulationConfig {
 		targetWins: typeof info.config?.targetWins === 'number' ? info.config.targetWins : 2,
 		allRandom: Boolean(info.config?.allRandom),
 		uniqueRaces: Boolean(info.config?.uniqueRaces),
-		coinMode:
-			info.config?.coinMode === 'none' ||
-			info.config?.coinMode === 'normal' ||
-			info.config?.coinMode === 'crazy'
-				? info.config.coinMode
-				: 'normal',
+		...(bannedRaces && bannedRaces.length > 0 ? { bannedRaces } : {}),
+		coinMode,
+		...(typeof info.config?.coinSpawnInterval === 'number'
+			? { coinSpawnInterval: info.config.coinSpawnInterval }
+			: {}),
+		...(typeof info.config?.coinCount === 'number' ? { coinCount: info.config.coinCount } : {}),
 		botDifficulty: 0,
 		botVsBot: false,
 		autoStepBots: true,
@@ -411,7 +430,16 @@ export function createOnlineSimulation(
 	localUid: string
 ): OnlineSimInitResult {
 	const simConfig = buildOnlineSimulationConfig(info);
-	const customSlots = buildCustomSlotsFromRoom(info, members);
+	const resolvedColors =
+		info.status === 'playing'
+			? resolveOnlineSlotColors({
+					seed: info.seed,
+					config: info.config,
+					members,
+					roster: info.roster
+				})
+			: undefined;
+	const customSlots = buildCustomSlotsFromRoom(info, members, resolvedColors);
 	if (customSlots && customSlots.length > 0) {
 		simConfig.customSlots = customSlots;
 	}
@@ -422,6 +450,16 @@ export function createOnlineSimulation(
 		members,
 		localUid
 	);
+	if (resolvedColors) {
+		for (const p of sim.allPlayers) {
+			const slotNum = p.slot;
+			if (typeof slotNum === 'number' && typeof resolvedColors[slotNum] === 'number') {
+				const found = ALL_PLAYER_COLORS.find((c) => c.id === resolvedColors[slotNum]);
+				if (found) p.color = found;
+			}
+		}
+		sim.assignCastleColors();
+	}
 	// Rebuild active BotAI controllers cleanly after human slots took over from any initial placeholder
 	sim.bots = sim.allPlayers
 		.filter((p) => p.isBot && !p.name.startsWith('Очікування ('))
@@ -430,6 +468,7 @@ export function createOnlineSimulation(
 			return existing;
 		})
 		.filter((b): b is NonNullable<typeof b> => Boolean(b));
-	sim.isRunning = info.status === 'playing';
+	const hasPendingInGamePicks = sim.allPlayers.some((p) => !p.isBot && p.pendingRacePick);
+	sim.isRunning = info.status === 'playing' && !hasPendingInGamePicks;
 	return { sim, uidToSlot, localTeam, localSlot };
 }

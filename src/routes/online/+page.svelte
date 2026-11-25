@@ -110,30 +110,31 @@
 		busy = false;
 	}
 
-	async function handleCreate(config: {
-		modeId: string;
-		teamSizeWest: number;
-		teamSizeEast: number;
-		isPrivate: boolean;
-		fogOfWar: boolean;
-	}) {
+	async function handleCreate(config: { isPrivate: boolean }) {
 		busy = true;
 		errorMessage = null;
 		try {
 			const { db, uid } = await connect();
 			const entryName = player.forEntry(settings.locale);
 			const seed = Math.floor(Math.random() * 1_000_000);
-			const teamSize = Math.max(config.teamSizeWest, config.teamSizeEast);
-			const slots = buildRoomSlots(config.teamSizeWest, config.teamSizeEast);
+			const teamSizeWest = 3;
+			const teamSizeEast = 3;
+			const teamSize = 3;
+			const slots = buildRoomSlots(teamSizeWest, teamSizeEast);
 			const roomConfig = {
-				modeId: config.modeId,
+				modeId: 'standard',
 				teamSize,
-				teamSizeWest: config.teamSizeWest,
-				teamSizeEast: config.teamSizeEast,
+				teamSizeWest,
+				teamSizeEast,
 				slots,
-				allRandom: config.modeId === 'allRandom',
+				allRandom: false,
+				uniqueRaces: false,
 				targetWins: 2,
-				fogOfWar: config.fogOfWar,
+				startGold: 500,
+				coinMode: 'normal' as const,
+				coinSpawnInterval: 40,
+				coinCount: 1,
+				fogOfWar: true,
 				isPrivate: config.isPrivate
 			};
 			const maxPlayers = countOpenHumanCapacity(roomConfig);
@@ -146,6 +147,7 @@
 				country: player.country,
 				avatar: player.avatar,
 				team: 'west',
+				race: 'in_game',
 				isPrivate: config.isPrivate
 			});
 
@@ -160,7 +162,7 @@
 					rulesVersion: RULES_VERSION,
 					players: 1,
 					maxPlayers,
-					modeId: config.modeId
+					modeId: roomConfig.modeId
 				});
 			}
 
@@ -197,7 +199,8 @@
 				name: entryName,
 				role,
 				country: player.country,
-				avatar: player.avatar
+				avatar: player.avatar,
+				race: 'in_game'
 			});
 
 			const { db } = await connect();

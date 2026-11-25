@@ -80,6 +80,7 @@ export interface SimCustomSlot {
 	botDifficulty?: number;
 	name?: string;
 	race?: string;
+	colorId?: number;
 }
 
 /**
@@ -430,32 +431,46 @@ export class Simulation {
 		const isBotVsBot = !!(config.botVsBot || config.modeId === 'botVsBot');
 		const avoidDuplicateRaces = isUniqueRaces || isBotVsBot;
 
-		const remainingRaces = [...availableRaces];
-		const takeRace = (requested?: string, isRand = false): { race: string; isRandom: boolean } => {
+		const totalActivePlayers = config.customSlots?.length
+			? config.customSlots.length
+			: Math.max(1, Math.round(config.teamSizeWest ?? this.teamSize)) +
+				Math.max(1, Math.round(config.teamSizeEast ?? this.teamSize));
+		const teamScopedUniqueRaces = avoidDuplicateRaces && totalActivePlayers > availableRaces.length;
+
+		const remainingRacesGlobal = [...availableRaces];
+		const remainingRacesByTeam: Record<MatchTeam, string[]> = {
+			west: [...availableRaces],
+			east: [...availableRaces]
+		};
+		const takeRace = (
+			requested?: string,
+			isRand = false,
+			team?: MatchTeam
+		): { race: string; isRandom: boolean } => {
+			const pool =
+				teamScopedUniqueRaces && team ? remainingRacesByTeam[team] : remainingRacesGlobal;
 			if (isAllRandom || requested === 'random' || isRand) {
-				const idx = Math.floor(this.nextRandom() * remainingRaces.length);
-				const picked = remainingRaces[idx] || availableRaces[0];
-				if (avoidDuplicateRaces && remainingRaces.length > 1) {
-					remainingRaces.splice(idx, 1);
+				const idx = Math.floor(this.nextRandom() * pool.length);
+				const picked = pool[idx] || availableRaces[0];
+				if (avoidDuplicateRaces && pool.length > 1) {
+					pool.splice(idx, 1);
 				}
 				return { race: picked, isRandom: true };
 			}
 			if (requested && requested !== 'in_game' && isRaceAvailable(requested)) {
 				const canonical = formatRaceName(requested);
 				if (avoidDuplicateRaces) {
-					const remIdx = remainingRaces.findIndex(
-						(r) => r === requested || formatRaceName(r) === canonical
-					);
-					if (remIdx !== -1 && remainingRaces.length > 1) {
-						remainingRaces.splice(remIdx, 1);
+					const remIdx = pool.findIndex((r) => r === requested || formatRaceName(r) === canonical);
+					if (remIdx !== -1 && pool.length > 1) {
+						pool.splice(remIdx, 1);
 					}
 				}
 				return { race: requested, isRandom: false };
 			}
-			const idx = Math.floor(this.nextRandom() * remainingRaces.length);
-			const picked = remainingRaces[idx] || availableRaces[0];
-			if (avoidDuplicateRaces && remainingRaces.length > 1) {
-				remainingRaces.splice(idx, 1);
+			const idx = Math.floor(this.nextRandom() * pool.length);
+			const picked = pool[idx] || availableRaces[0];
+			if (avoidDuplicateRaces && pool.length > 1) {
+				pool.splice(idx, 1);
 			}
 			return { race: picked, isRandom: false };
 		};
@@ -468,7 +483,8 @@ export class Simulation {
 			availableRaces.find((r) => r === 'Альянс' || r === 'Люди') || availableRaces[0];
 		const westChoice = takeRace(
 			initialWestReq || (isAllRandom || config.westRace === 'random' ? undefined : defaultRace),
-			isAllRandom || config.westRace === 'random'
+			isAllRandom || config.westRace === 'random',
+			'west'
 		);
 		const eastIsRandomReq =
 			isAllRandom || config.eastRace === 'random' || (!config.eastRace && config.botDifficulty > 0);
@@ -476,7 +492,7 @@ export class Simulation {
 			config.eastRace && config.eastRace !== 'in_game' && isRaceAvailable(config.eastRace)
 				? config.eastRace
 				: undefined;
-		const eastChoice = takeRace(initialEastReq || undefined, eastIsRandomReq);
+		const eastChoice = takeRace(initialEastReq || undefined, eastIsRandomReq, 'east');
 
 		const westRace = westChoice.race;
 		const westIsRandom = westChoice.isRandom;
@@ -496,12 +512,19 @@ export class Simulation {
 			botDifficulty: number;
 			name: string;
 			race: string;
+			pendingRacePick?: boolean;
 			isRandomRace: boolean;
 			randomGoldGranted: boolean;
 			gold: number;
+			colorId?: number;
 		}): PlayerState => {
 			const spawnPt = computeWorkerSpawnPoint(opts.team, opts.indexOnTeam, opts.teamCount);
+			const explicitColor =
+				typeof opts.colorId === 'number'
+					? ALL_PLAYER_COLORS.find((c) => c.id === opts.colorId)
+					: undefined;
 			const colorDef =
+				explicitColor ??
 				ALL_PLAYER_COLORS[(Math.max(1, opts.slot) - 1) % ALL_PLAYER_COLORS.length] ??
 				ALL_PLAYER_COLORS[0];
 			return {
@@ -513,6 +536,7 @@ export class Simulation {
 				name: opts.name,
 				color: colorDef,
 				race: opts.race,
+				...(opts.pendingRacePick ? { pendingRacePick: true } : {}),
 				isRandomRace: opts.isRandomRace,
 				randomGoldGranted: opts.randomGoldGranted,
 				gold: opts.gold,
@@ -563,6 +587,7 @@ export class Simulation {
 			const hydrateTeam = (team: MatchTeam, specs: SimCustomSlot[]) => {
 				specs.forEach((spec, idx) => {
 					const fallbackRace = team === 'west' ? config.westRace : config.eastRace;
+					const pendingPick = !isAllRandom && !spec.isBot && spec.race === 'in_game';
 					const requestedRace =
 						spec.race && spec.race !== 'in_game'
 							? spec.race
@@ -570,13 +595,17 @@ export class Simulation {
 								? fallbackRace
 								: undefined;
 					const shouldRollRandom =
-						isAllRandom ||
-						spec.race === 'random' ||
-						(!requestedRace && (spec.isBot || idx > 0 || fallbackRace === 'random'));
-					const choice = takeRace(
-						requestedRace || (shouldRollRandom ? undefined : defaultRace),
-						shouldRollRandom
-					);
+						!pendingPick &&
+						(isAllRandom ||
+							spec.race === 'random' ||
+							(!requestedRace && (spec.isBot || idx > 0 || fallbackRace === 'random')));
+					const choice = pendingPick
+						? { race: defaultRace, isRandom: false }
+						: takeRace(
+								requestedRace || (shouldRollRandom ? undefined : defaultRace),
+								shouldRollRandom,
+								team
+							);
 					const grantBonus =
 						choice.isRandom && (!spec.isBot || (idx === 0 && team === 'east')) && !spec.isBot;
 					const gold = grantBonus ? Math.round(config.startGold * 1.3) : config.startGold;
@@ -595,9 +624,11 @@ export class Simulation {
 									? `${team === 'west' ? 'Бот-союзник' : 'Бот'} #${idx + 1}`
 									: `Гравець #${spec.slot}`),
 							race: choice.race,
+							pendingRacePick: pendingPick,
 							isRandomRace: choice.isRandom,
 							randomGoldGranted: grantBonus,
-							gold
+							gold,
+							colorId: spec.colorId
 						})
 					);
 				});
@@ -715,7 +746,12 @@ export class Simulation {
 		};
 
 		this.allPlayers = [...this.teamMembers.west, ...this.teamMembers.east];
-		this.randomizePlayerColors(config.randomColors === false);
+		const hasExplicitSlotColors = Boolean(
+			config.customSlots?.some((s) => typeof s.colorId === 'number')
+		);
+		if (!hasExplicitSlotColors) {
+			this.randomizePlayerColors(config.randomColors === false);
+		}
 		this.assignCastleColors();
 		this.bots = [];
 		for (const p of this.allPlayers) {
@@ -785,17 +821,28 @@ export class Simulation {
 	/**
 	 * Sets player race or rolls random race with +30% gold bonus and -ur unique race enforcement.
 	 */
-	public setPlayerRace(team: MatchTeam, race: string | 'random'): boolean {
-		const player = this.players[team];
+	public setPlayerRace(
+		team: MatchTeam,
+		race: string | 'random',
+		playerInput?: PlayerState
+	): boolean {
+		const player = playerInput || this.players[team];
 		if (!player) return false;
 
+		const isRaceAvailable = (r: string): boolean => {
+			const canonical = formatRaceName(r);
+			return !this.bannedRaces.includes(r) && !this.bannedRaces.includes(canonical);
+		};
 		const isUniqueRaces = !!(this.gameModeConfig.uniqueRaces || this.config.uniqueRaces);
-		const otherPlayers = this.allPlayers.filter((p) => p !== player);
 		const availableRaces = RACES_LIST.filter((r) =>
 			(PLAYABLE_RACES as readonly string[]).includes(r.race)
 		)
 			.map((r) => r.race)
-			.filter((r) => !this.bannedRaces.includes(r));
+			.filter((r) => isRaceAvailable(r));
+		const teamScopedUr = this.allPlayers.length > availableRaces.length;
+		const otherPlayers = this.allPlayers.filter(
+			(p) => p !== player && !p.pendingRacePick && (!teamScopedUr || p.team === player.team)
+		);
 
 		if (race === 'random') {
 			let pool = availableRaces;
@@ -807,6 +854,7 @@ export class Simulation {
 
 			const picked = pool[Math.floor(this.nextRandom() * pool.length)];
 			player.race = picked;
+			player.pendingRacePick = false;
 			player.isRandomRace = true;
 			if (player.worker) {
 				player.worker.name = getBuilderNameForRace(player.race);
@@ -839,7 +887,7 @@ export class Simulation {
 			return false;
 		}
 
-		if (this.bannedRaces.includes(race) || this.bannedRaces.includes(canonicalRace)) {
+		if (!isRaceAvailable(race)) {
 			this.addFloatingText(
 				'Раса заблокована (-ban)!',
 				team === 'west' ? 300 : 1600,
@@ -865,6 +913,7 @@ export class Simulation {
 		}
 
 		player.race = race;
+		player.pendingRacePick = false;
 		player.isRandomRace = false;
 		if (player.worker) {
 			player.worker.name = getBuilderNameForRace(player.race);

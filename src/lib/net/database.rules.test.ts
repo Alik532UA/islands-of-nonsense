@@ -158,8 +158,16 @@ describe('database.rules.json security invariants & Firebase architecture', () =
 		expect(payloadRules.commanderId['.validate']).toContain("'random'");
 		expect(payloadRules.playerSlot['.validate']).toContain('<= 14');
 		expect(room.info.config.fogOfWar['.validate']).toBe('newData.isBoolean()');
+		expect(room.info.config.startGold['.validate']).toContain('99999');
+		expect(room.info.config.coinSpawnInterval['.validate']).toContain('<= 100');
+		expect(room.info.config.coinCount['.validate']).toContain('<= 15');
+		expect(room.info.config.bannedRaces.$idx['.validate']).toContain('<= 32');
 		expect(room.info.config.slots.$slotKey['.validate']).toContain('(west|east)_[1-7]');
+		expect(room.info.config.slots.$slotKey.colorId['.validate']).toContain('<= 14');
 		expect(room.info.config.slots.$slotKey.$other['.validate']).toBe(false);
+		expect(member.colorId['.validate']).toContain('<= 14');
+		expect(member.colorPickedAt['.validate']).toContain('now');
+		expect(room.moves.$seq.type['.validate']).toContain("'SET_RACE'");
 	});
 
 	it('enforces strict $other: false schema locking across critical nodes', () => {
