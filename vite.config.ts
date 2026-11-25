@@ -60,7 +60,7 @@ export default defineConfig(({ mode }) => ({
 				base: (process.env.BASE_PATH ?? (mode === 'production' ? '/islands-of-nonsense' : '')) as
 					'' | `/${string}`,
 				relative: false,
-				origin: 'https://alik532ua.github.io'
+				origin: process.env.BASE_PATH === '' ? 'http://localhost' : 'https://alik532ua.github.io'
 			},
 			version: {
 				pollInterval: 60000
