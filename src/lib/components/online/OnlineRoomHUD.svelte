@@ -117,6 +117,8 @@
 						maxMoveSeq = snap.moves.reduce((acc, m) => Math.max(acc, m.seq), 0);
 					},
 					(why) => {
+						stopBeat();
+						stopPresence();
 						roomError =
 							why === 'closed' ? t('online.hud.roomClosed') : t('online.hud.connectionLost');
 					}

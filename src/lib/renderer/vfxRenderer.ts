@@ -1,5 +1,6 @@
 import type { Graphics } from 'pixi.js';
 import type { Simulation } from '../engine/simulation';
+import type { MatchTeam } from '../engine/types';
 
 /**
  * VfxRenderer handles rendering of bouncing gold coins, ballistic projectiles,
@@ -22,7 +23,8 @@ export class VfxRenderer {
 	public drawCoinsLayer(
 		g: Graphics,
 		enableFog = false,
-		bounds?: { minX: number; minY: number; maxX: number; maxY: number }
+		bounds?: { minX: number; minY: number; maxX: number; maxY: number },
+		viewerTeam: MatchTeam = 'west'
 	): void {
 		g.clear();
 
@@ -37,7 +39,7 @@ export class VfxRenderer {
 						deb.y - 20 > bounds.maxY)
 				)
 					continue;
-				if (enableFog && !this.sim.isPointRevealed('west', deb.x, deb.y)) continue;
+				if (enableFog && !this.sim.isPointRevealed(viewerTeam, deb.x, deb.y)) continue;
 				const alpha = Math.min(1.0, deb.lifeTime / 4.0);
 				// Cogwheel scrap
 				g.beginPath();
@@ -57,7 +59,7 @@ export class VfxRenderer {
 
 		// 2. Gold Coins
 		for (const coin of this.sim.goldCoins) {
-			if (enableFog && !this.sim.isPointRevealed('west', coin.x, coin.y)) continue;
+			if (enableFog && !this.sim.isPointRevealed(viewerTeam, coin.x, coin.y)) continue;
 			const pulse = 1.0 + Math.sin(this.sim.gameTime * 6 + coin.x * 0.05) * 0.15;
 			const radius = 9 * pulse;
 
@@ -78,7 +80,7 @@ export class VfxRenderer {
 		// 3. Battlefield corpses (skeletons / decaying remains for Necromancy)
 		if (this.sim.corpses) {
 			for (const corpse of this.sim.corpses) {
-				if (enableFog && !this.sim.isPointRevealed('west', corpse.x, corpse.y)) continue;
+				if (enableFog && !this.sim.isPointRevealed(viewerTeam, corpse.x, corpse.y)) continue;
 				const decayRatio = Math.max(0, Math.min(1, corpse.decayTimer / 20.0));
 				const alpha = 0.2 + 0.6 * decayRatio;
 				// Skeleton bones cross
@@ -99,7 +101,8 @@ export class VfxRenderer {
 	public drawProjectilesLayer(
 		g: Graphics,
 		enableFog = false,
-		bounds?: { minX: number; minY: number; maxX: number; maxY: number }
+		bounds?: { minX: number; minY: number; maxX: number; maxY: number },
+		viewerTeam: MatchTeam = 'west'
 	): void {
 		g.clear();
 
@@ -114,7 +117,7 @@ export class VfxRenderer {
 			) {
 				continue;
 			}
-			if (enableFog && !this.sim.isPointRevealed('west', p.x, p.y)) continue;
+			if (enableFog && !this.sim.isPointRevealed(viewerTeam, p.x, p.y)) continue;
 
 			let z = 0;
 			if (p.originX !== undefined && p.originY !== undefined && p.totalDist && p.arcHeight) {

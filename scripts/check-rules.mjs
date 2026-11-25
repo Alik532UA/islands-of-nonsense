@@ -73,8 +73,8 @@ assertRule(
 	'Move x coordinate must be within grid boundary <= 120'
 );
 assertRule(
-	payload.y?.['.validate']?.includes('<= 60'),
-	'Move y coordinate must be within grid boundary <= 60'
+	payload.y?.['.validate']?.includes('<= 70'),
+	'Move y coordinate must be within grid boundary <= 70'
 );
 assertRule(
 	payload.buildingType?.['.validate']?.includes('length <= 16'),

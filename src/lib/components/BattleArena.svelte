@@ -541,11 +541,12 @@
 		const owner =
 			(bld?.playerSlot ? getControllablePlayerBySlot(bld.playerSlot) : null) ??
 			(controlledPlayer.team === targetTeam ? controlledPlayer : sim.players[targetTeam]);
-		const success = sim.continueConstruction(targetTeam, instanceId, owner);
-		if (success) {
-			sound.playWorkerAck();
-			uiTick = sim.stateVersion;
-		}
+		dispatchCommand(
+			'CONTINUE_BUILD',
+			{ targetId: instanceId },
+			() => sim.continueConstruction(targetTeam, instanceId, owner),
+			() => sound.playWorkerAck()
+		);
 	}
 
 	onMount(async () => {
@@ -622,7 +623,7 @@
 			});
 			matchSync = onlineSession?.matchSync ?? null;
 			if (!onlineSession && searchParams?.get('host') !== '1') {
-				cameraX = 6400;
+				cameraX = 5600;
 				cameraY = 1200;
 			}
 		} else {
@@ -639,6 +640,16 @@
 				cameraX = cx;
 				cameraY = cy;
 				zoom = cz;
+			},
+			onWorkerCommand: (cmd) => {
+				if (!matchSync) return false;
+				if (cmd.type === 'MOVE_WORKER' || cmd.type === 'ORDER_WORKER_MOVE') {
+					return routeOnlineCommand(cmd.type, {
+						worldX: Math.round(cmd.worldX),
+						worldY: Math.round(cmd.worldY)
+					});
+				}
+				return routeOnlineCommand(cmd.type, { targetId: cmd.targetId });
 			},
 			onTileClick: (tileX: number, tileY: number, shiftKey = false) => {
 				if (selectedBuildingId) {
@@ -752,8 +763,6 @@
 			lastTime = now;
 
 			if (sim.isRunning && !isSettingsOpen) {
-				const stepMultiplier = matchSync ? 1 : sim.speed;
-				accumulator += rawDelta * stepMultiplier;
 				let stepsCount = 0;
 				const subDt = matchSync
 					? FIXED_STEP
@@ -762,22 +771,45 @@
 						: sim.speed >= 10
 							? 1 / 30
 							: FIXED_STEP;
-				const maxStepsPerFrame = matchSync ? 8 : sim.speed >= 50 ? 15 : sim.speed >= 10 ? 12 : 8;
 
-				while (accumulator >= subDt && stepsCount < maxStepsPerFrame) {
-					if (matchSync) {
+				const serverTargetTick = onlineSession?.getTargetTick() ?? null;
+				if (matchSync && serverTargetTick !== null) {
+					const maxCatchupSteps = 12;
+					while (sim.tick < serverTargetTick && stepsCount < maxCatchupSteps) {
 						matchSync.flushTick(sim.tick);
+						sim.step(FIXED_STEP);
+						if (sim.tick > 0 && sim.tick % 300 === 0 && sim.tick !== lastChecksumTick) {
+							lastChecksumTick = sim.tick;
+							void matchSync.broadcastChecksum();
+						}
+						stepsCount++;
 					}
-					sim.step(subDt);
-					if (matchSync && sim.tick > 0 && sim.tick % 300 === 0 && sim.tick !== lastChecksumTick) {
-						lastChecksumTick = sim.tick;
-						void matchSync.broadcastChecksum();
-					}
-					accumulator -= subDt;
-					stepsCount++;
-				}
-				if (accumulator > subDt * 2) {
 					accumulator = 0;
+				} else {
+					const stepMultiplier = matchSync ? 1 : sim.speed;
+					accumulator += rawDelta * stepMultiplier;
+					const maxStepsPerFrame = matchSync ? 8 : sim.speed >= 50 ? 15 : sim.speed >= 10 ? 12 : 8;
+
+					while (accumulator >= subDt && stepsCount < maxStepsPerFrame) {
+						if (matchSync) {
+							matchSync.flushTick(sim.tick);
+						}
+						sim.step(subDt);
+						if (
+							matchSync &&
+							sim.tick > 0 &&
+							sim.tick % 300 === 0 &&
+							sim.tick !== lastChecksumTick
+						) {
+							lastChecksumTick = sim.tick;
+							void matchSync.broadcastChecksum();
+						}
+						accumulator -= subDt;
+						stepsCount++;
+					}
+					if (accumulator > subDt * 2) {
+						accumulator = 0;
+					}
 				}
 
 				if (stepsCount > 0 && !sim.winner) {
@@ -1065,7 +1097,7 @@
 			countdownTimer = null;
 		}
 		const finalRace = chosenWestRace || 'Альянс';
-		sim.setPlayerRace('west', finalRace);
+		sim.setPlayerRace(controlledPlayer.team, finalRace);
 		matchPhase = 'BATTLE';
 		sim.isRunning = true;
 		sound.playHorn();
@@ -1196,7 +1228,7 @@
 								sim.gameModeConfig.uniqueRaces &&
 								sim.allPlayers.some(
 									(p) =>
-										p !== sim.players.west &&
+										p !== controlledPlayer &&
 										formatRaceName(p.race) === formatRaceName(raceDef.race)
 								)}
 							{@const isDisabled = isBanned || isOpponentOccupied}

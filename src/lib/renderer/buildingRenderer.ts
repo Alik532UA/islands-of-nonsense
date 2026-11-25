@@ -1,6 +1,6 @@
 import type { Graphics } from 'pixi.js';
 import type { Simulation } from '../engine/simulation';
-import type { Castle } from '../engine/types';
+import type { Castle, MatchTeam } from '../engine/types';
 import { computeSpawnProgressRatio } from '../engine/buildingSystem';
 import { CELL_SIZE } from '../engine/constants';
 import {
@@ -35,7 +35,8 @@ export class BuildingRenderer {
 		g: Graphics,
 		selectedPlacedId: string | null,
 		enableFog = false,
-		bounds?: { minX: number; minY: number; maxX: number; maxY: number }
+		bounds?: { minX: number; minY: number; maxX: number; maxY: number },
+		viewerTeam: MatchTeam = 'west'
 	): void {
 		g.clear();
 		const time = this.sim.gameTime;
@@ -52,8 +53,8 @@ export class BuildingRenderer {
 			}
 			if (
 				enableFog &&
-				b.team !== 'west' &&
-				!this.sim.isPointRevealed('west', b.x + CELL_SIZE / 2, b.y + CELL_SIZE / 2)
+				b.team !== viewerTeam &&
+				!this.sim.isPointRevealed(viewerTeam, b.x + CELL_SIZE / 2, b.y + CELL_SIZE / 2)
 			) {
 				continue;
 			}

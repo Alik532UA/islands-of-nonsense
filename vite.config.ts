@@ -100,6 +100,12 @@ export default defineConfig(({ mode }) => ({
 								] as const))
 					],
 					'worker-src': ['self', 'blob:'],
+					'frame-src': [
+						'self',
+						...(mode === 'production'
+							? ([] as const)
+							: (['http://127.0.0.1:9012', 'http://localhost:9012'] as const))
+					],
 					'object-src': ['none'],
 					'frame-ancestors': ['none'],
 					'base-uri': ['self'],

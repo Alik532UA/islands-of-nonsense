@@ -24,6 +24,7 @@ export interface OnlineBattleSession {
 	readonly matchSync: MatchSync;
 	readonly localTeam: 'west' | 'east';
 	readonly localSlot: number;
+	getTargetTick: () => number | null;
 	dispose: () => void;
 }
 
@@ -84,7 +85,7 @@ export async function startOnlineBattleSession(
 			callbacks.onSimInitialized(activeSim, {
 				localSlot,
 				localTeam,
-				cameraX: localTeam === 'east' ? 6400 : 1200,
+				cameraX: localTeam === 'east' ? 5600 : 1600,
 				cameraY: 1200
 			});
 		}
@@ -97,6 +98,8 @@ export async function startOnlineBattleSession(
 		let presencePeerOnline = false;
 		let handoverInFlight = false;
 		let currentDesyncNotice: string | null = null;
+		let epochAnchorServerMs: number | null =
+			typeof roomInfo?.startedAt === 'number' ? roomInfo.startedAt : null;
 
 		const publishPeerOnline = () => {
 			const peerOnline = presencePeerOnline || memberPeerOnline;
@@ -112,6 +115,31 @@ export async function startOnlineBattleSession(
 			}
 		};
 
+		// Subscribe BEFORE MatchSync so 'playing' simulation re-initialization always runs
+		// prior to MatchSync processing any initial match moves/RESUME in the same snapshot.
+		stopRoomWatch = transport.watch((snap) => {
+			latestRoomInfo = snap.info;
+			latestMembers = snap.members;
+			if (
+				snap.info.status === 'playing' &&
+				typeof snap.info.startedAt === 'number' &&
+				epochAnchorServerMs === null
+			) {
+				epochAnchorServerMs = snap.info.startedAt;
+			}
+			callbacks.onHostChange(snap.info.hostUid === uid);
+			if (snap.info.status === 'playing' && !onlineStarted) {
+				onlineStarted = true;
+				epochAnchorServerMs =
+					typeof snap.info.startedAt === 'number' ? snap.info.startedAt : transport.now();
+				const fresh = createOnlineSimulation(snap.info, snap.members, uid);
+				activeSim = fresh.sim;
+				sync?.setRosterSlots(fresh.uidToSlot);
+				sync?.setSimulation(activeSim);
+				callbacks.onMatchStarted(activeSim, fresh.localSlot);
+			}
+		});
+
 		callbacks.onHostChange(Boolean(roomInfo?.hostUid === uid));
 		sync = new MS({
 			sim: activeSim,
@@ -120,7 +148,7 @@ export async function startOnlineBattleSession(
 			localTeam,
 			localSlot,
 			uidToSlot: onlineInit?.uidToSlot,
-			commandLeadTicks: 3,
+			commandLeadTicks: 10,
 			onPeerStatusChange: (status) => {
 				memberPeerOnline = status.online;
 				publishPeerOnline();
@@ -134,9 +162,16 @@ export async function startOnlineBattleSession(
 				callbacks.onDesync(tick);
 			},
 			onGone: (reason) => {
+				if (heartbeatTimer) {
+					clearInterval(heartbeatTimer);
+					heartbeatTimer = null;
+				}
 				callbacks.onGone(reason);
 			},
 			onCommandApplied: (move) => {
+				if (move.type === 'NEXT_ROUND' || move.type === 'RESTART_MATCH') {
+					epochAnchorServerMs = typeof move.at === 'number' ? move.at : transport.now();
+				}
 				callbacks.onCommandApplied(move);
 			}
 		});
@@ -168,20 +203,6 @@ export async function startOnlineBattleSession(
 			}
 		});
 
-		stopRoomWatch = transport.watch((snap) => {
-			latestRoomInfo = snap.info;
-			latestMembers = snap.members;
-			callbacks.onHostChange(snap.info.hostUid === uid);
-			if (snap.info.status === 'playing' && !onlineStarted) {
-				onlineStarted = true;
-				const fresh = createOnlineSimulation(snap.info, snap.members, uid);
-				activeSim = fresh.sim;
-				sync?.setRosterSlots(fresh.uidToSlot);
-				sync?.setSimulation(activeSim);
-				callbacks.onMatchStarted(activeSim, fresh.localSlot);
-			}
-		});
-
 		heartbeatTimer = setInterval(() => {
 			if (sync && activeSim.isRunning) {
 				void sync.sendHeartbeat();
@@ -193,6 +214,11 @@ export async function startOnlineBattleSession(
 			matchSync: createdSync,
 			localTeam,
 			localSlot,
+			getTargetTick() {
+				if (!onlineStarted || epochAnchorServerMs === null) return null;
+				const elapsedMs = Math.max(0, transport.now() - epochAnchorServerMs);
+				return Math.floor((elapsedMs / 1000) * 60);
+			},
 			dispose() {
 				stopPresenceTrack?.();
 				stopPresenceTrack = null;

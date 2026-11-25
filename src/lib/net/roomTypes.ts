@@ -83,6 +83,8 @@ export interface MovePayload {
 	buildingType?: string;
 	x?: number;
 	y?: number;
+	worldX?: number;
+	worldY?: number;
 	shiftKey?: boolean;
 	targetId?: string;
 	abilityId?: string;

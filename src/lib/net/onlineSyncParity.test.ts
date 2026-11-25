@@ -218,4 +218,70 @@ describe('Online Deterministic Parity & Team Slot Sync', () => {
 		expect(pickNextTeamSlot([{ team: 'west', slot: 1 }], 'west')).toBe(3);
 		expect(pickNextTeamSlot([{ team: 'west', slot: 1 }], 'east')).toBe(2);
 	});
+
+	it('supports negative East island tileX builds and synced MOVE_WORKER across peers', async () => {
+		const initWest = createOnlineSimulation(baseInfo, members, 'u_west_1');
+		const initEast = createOnlineSimulation(baseInfo, members, 'u_east_1');
+		const room = new LocalRoom(baseInfo, members);
+
+		const syncWest = new MatchSync({
+			sim: initWest.sim,
+			transport: room.transport({ as: 'u_west_1' }),
+			localUid: 'u_west_1',
+			localTeam: 'west',
+			localSlot: 1,
+			uidToSlot: initWest.uidToSlot
+		});
+		const syncEast = new MatchSync({
+			sim: initEast.sim,
+			transport: room.transport({ as: 'u_east_1' }),
+			localUid: 'u_east_1',
+			localTeam: 'east',
+			localSlot: 2,
+			uidToSlot: initEast.uidToSlot
+		});
+
+		const syncEastAlly = new MatchSync({
+			sim: initEast.sim,
+			transport: room.transport({ as: 'u_east_2' }),
+			localUid: 'u_east_2',
+			localTeam: 'east',
+			localSlot: 4,
+			uidToSlot: initEast.uidToSlot
+		});
+
+		for (const p of [...initWest.sim.allPlayers, ...initEast.sim.allPlayers]) {
+			p.gold = 2000;
+			p.lumber = 2000;
+		}
+
+		// East builds on the front-left half of East island where tileX is negative (slot 2)
+		expect(initEast.sim.canBuild('east', -18, 20)).toBe(true);
+		await syncEast.dispatch('BUILD', { buildingType: 'cg11_forge', x: -18, y: 20 });
+		// East ally (slot 4) moves independently via synced MOVE_WORKER without cancelling slot 2's blueprint
+		await syncEastAlly.dispatch('MOVE_WORKER', { worldX: 5200, worldY: 950 });
+
+		for (let t = 0; t < 120; t++) {
+			syncWest.flushTick(initWest.sim.tick);
+			syncEast.flushTick(initEast.sim.tick);
+			initWest.sim.step(1 / 60);
+			initEast.sim.step(1 / 60);
+		}
+
+		expect(initWest.sim.buildings.length).toBe(1);
+		expect(initEast.sim.buildings.length).toBe(1);
+		expect(initWest.sim.buildings[0].tileX).toBe(-18);
+		expect(initEast.sim.buildings[0].tileX).toBe(-18);
+		expect(Math.round(initWest.sim.players.east.worker!.x)).toBe(
+			Math.round(initEast.sim.players.east.worker!.x)
+		);
+		const eastAllyW = initWest.sim.allPlayers.find((p) => p.slot === 4)!.worker!;
+		const eastAllyE = initEast.sim.allPlayers.find((p) => p.slot === 4)!.worker!;
+		expect(Math.round(eastAllyW.x)).toBe(Math.round(eastAllyE.x));
+		expect(computeSimStateChecksum(initWest.sim)).toBe(computeSimStateChecksum(initEast.sim));
+
+		syncWest.dispose();
+		syncEast.dispose();
+		syncEastAlly.dispose();
+	});
 });

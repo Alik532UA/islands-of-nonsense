@@ -619,7 +619,16 @@
 
 			<!-- Center Minimap: strictly centered and flush to bottom -->
 			<div class="flex items-center shrink-0 pointer-events-auto z-30 self-end">
-				<Minimap {sim} {uiTick} {cameraX} {cameraY} {zoom} {onMinimapClick} {touchControls} />
+				<Minimap
+					{sim}
+					{uiTick}
+					localTeam={effectiveTeam}
+					{cameraX}
+					{cameraY}
+					{zoom}
+					{onMinimapClick}
+					{touchControls}
+				/>
 			</div>
 
 			<!-- Right Cluster (Opponent/Enemy/Boss if localTeam='west', Allied if localTeam='east') -->

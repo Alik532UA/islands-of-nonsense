@@ -1,6 +1,6 @@
 import type { Graphics } from 'pixi.js';
 import type { Simulation } from '../engine/simulation';
-import type { Unit } from '../engine/types';
+import type { MatchTeam, Unit } from '../engine/types';
 import { CELL_SIZE } from '../engine/constants';
 import type { SelectedEntity } from './entityRenderer';
 import { drawRaceWorkerModel } from './workerModels';
@@ -39,7 +39,8 @@ export class UnitRenderer {
 		g: Graphics,
 		selectedWorker: boolean | number | null,
 		enableFog = false,
-		bounds?: { minX: number; minY: number; maxX: number; maxY: number }
+		bounds?: { minX: number; minY: number; maxX: number; maxY: number },
+		viewerTeam: MatchTeam = 'west'
 	): void {
 		g.clear();
 
@@ -59,7 +60,11 @@ export class UnitRenderer {
 			) {
 				continue;
 			}
-			if (enableFog && player.team !== 'west' && !this.sim.isPointRevealed('west', w.x, w.y)) {
+			if (
+				enableFog &&
+				player.team !== viewerTeam &&
+				!this.sim.isPointRevealed(viewerTeam, w.x, w.y)
+			) {
 				continue;
 			}
 
@@ -68,7 +73,7 @@ export class UnitRenderer {
 			const isSelectedThisWorker =
 				typeof selectedWorker === 'number'
 					? slot === selectedWorker
-					: Boolean(selectedWorker && player === this.sim.players.west);
+					: Boolean(selectedWorker && player === this.sim.players[viewerTeam]);
 			const wx = w.x;
 			const wy = w.y;
 			const bob = Math.sin(this.sim.gameTime * 7 + slot) * 2;
@@ -153,7 +158,8 @@ export class UnitRenderer {
 		g: Graphics,
 		selectedEntity: SelectedEntity,
 		enableFog: boolean,
-		bounds?: { minX: number; minY: number; maxX: number; maxY: number }
+		bounds?: { minX: number; minY: number; maxX: number; maxY: number },
+		viewerTeam: MatchTeam = 'west'
 	): void {
 		g.clear();
 
@@ -183,7 +189,7 @@ export class UnitRenderer {
 			}
 
 			// Fog of War check: hide unrevealed enemy and neutral units
-			if (enableFog && u.team !== 'west' && !this.sim.isPointRevealed('west', u.x, u.y)) {
+			if (enableFog && u.team !== viewerTeam && !this.sim.isPointRevealed(viewerTeam, u.x, u.y)) {
 				continue;
 			}
 

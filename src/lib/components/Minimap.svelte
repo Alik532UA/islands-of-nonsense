@@ -31,6 +31,7 @@
 	let {
 		sim,
 		uiTick: _uiTick = 0,
+		localTeam = 'west',
 		cameraX = 800,
 		cameraY = 1200,
 		zoom = 0.85,
@@ -39,6 +40,7 @@
 	}: {
 		sim: Simulation;
 		uiTick?: number;
+		localTeam?: 'west' | 'east';
 		cameraX?: number;
 		cameraY?: number;
 		zoom?: number;
@@ -556,7 +558,7 @@
 
 		// 3. Placed Buildings (2x2 footprint) with real player/bot colors
 		for (const b of sim.buildings) {
-			if (b.team === 'east' && !sim.isPointRevealed('west', b.x, b.y)) continue;
+			if (b.team !== localTeam && !sim.isPointRevealed(localTeam, b.x, b.y)) continue;
 			const bx = b.x * scaleX;
 			const by = b.y * scaleY;
 			const owner = sim.allPlayers.find((p) => p.slot === b.playerSlot) || sim.players[b.team];
@@ -567,7 +569,7 @@
 		// 4. Units with real player/bot colors
 		for (const u of sim.units) {
 			if (u.state === 'DEAD') continue;
-			if (u.team !== 'west' && !sim.isPointRevealed('west', u.x, u.y)) continue;
+			if (u.team !== localTeam && !sim.isPointRevealed(localTeam, u.x, u.y)) continue;
 
 			const ux = u.x * scaleX;
 			const uy = u.y * scaleY;
@@ -581,7 +583,7 @@
 			} else {
 				const owner = sim.allPlayers.find((p) => p.slot === u.playerSlot) || sim.players[u.team];
 				ctx.fillStyle = allyColorsMode
-					? u.team === 'west'
+					? u.team === localTeam
 						? '#22c55e'
 						: '#ef4444'
 					: owner?.color?.hex || (u.team === 'west' ? westColor : eastColor);
@@ -590,10 +592,10 @@
 		}
 
 		// 5. Worker blips
-		for (const p of sim.allPlayers || [sim.players.west]) {
+		for (const p of sim.allPlayers || [sim.players[localTeam]]) {
 			const worker = p.worker;
 			if (!worker) continue;
-			if (p.team !== 'west' && !sim.isPointRevealed('west', worker.x, worker.y)) continue;
+			if (p.team !== localTeam && !sim.isPointRevealed(localTeam, worker.x, worker.y)) continue;
 			const wx = worker.x * scaleX;
 			const wy = worker.y * scaleY;
 			ctx.fillStyle = p.color?.hex || (p.team === 'west' ? '#06b6d4' : '#ef4444');
@@ -608,7 +610,7 @@
 		// 6. Gold coins (Filtered by visibility)
 		ctx.fillStyle = '#fde047';
 		for (const coin of sim.goldCoins) {
-			if (!sim.isPointRevealed('west', coin.x, coin.y)) continue;
+			if (!sim.isPointRevealed(localTeam, coin.x, coin.y)) continue;
 			ctx.fillRect(coin.x * scaleX - 1, coin.y * scaleY - 1, 2, 2);
 		}
 

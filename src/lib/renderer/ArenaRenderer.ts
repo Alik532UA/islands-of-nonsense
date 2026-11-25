@@ -36,11 +36,18 @@ import { stepSmoothCameraPan, type CameraPanInput } from './cameraPan';
 
 export type { SelectedEntity };
 
+export type WorkerCanvasCommand =
+	| { type: 'ORDER_WORKER_MOVE'; worldX: number; worldY: number }
+	| { type: 'CONTINUE_BUILD'; targetId: string }
+	| { type: 'REPAIR'; targetId: string }
+	| { type: 'MOVE_WORKER'; worldX: number; worldY: number };
+
 export interface RendererOptions {
 	canvas: HTMLCanvasElement;
 	sim: Simulation;
 	graphicsStyle?: GraphicsStyle;
 	onTileClick: (tileX: number, tileY: number, shiftKey?: boolean) => void;
+	onWorkerCommand?: (cmd: WorkerCanvasCommand) => boolean;
 	onSelectEntity?: (entity: SelectedEntity) => void;
 	getSelectedEntity?: () => SelectedEntity;
 	getSelectedBuildingDefId: () => string | null;
@@ -54,6 +61,7 @@ export class ArenaRenderer {
 	public sim: Simulation;
 	public graphicsStyle: GraphicsStyle = '2.5d';
 	private onTileClick: (tileX: number, tileY: number, shiftKey?: boolean) => void;
+	private onWorkerCommand?: (cmd: WorkerCanvasCommand) => boolean;
 	private onSelectEntity?: (entity: SelectedEntity) => void;
 	private getSelectedEntity?: () => SelectedEntity;
 	private getSelectedBuildingDefId: () => string | null;
@@ -148,6 +156,7 @@ export class ArenaRenderer {
 	constructor(options: RendererOptions) {
 		this.sim = options.sim;
 		this.onTileClick = options.onTileClick;
+		this.onWorkerCommand = options.onWorkerCommand;
 		this.onSelectEntity = options.onSelectEntity;
 		this.getSelectedEntity = options.getSelectedEntity;
 		this.getSelectedBuildingDefId = options.getSelectedBuildingDefId;
@@ -614,7 +623,15 @@ export class ArenaRenderer {
 					(c) => Math.hypot(world.x - c.x, world.y - c.y) <= 32
 				);
 				if (clickedCoin) {
-					this.sim.orderWorkerMove(activeTeam, clickedCoin.x, clickedCoin.y, activePlayer);
+					if (
+						!this.onWorkerCommand?.({
+							type: 'ORDER_WORKER_MOVE',
+							worldX: clickedCoin.x,
+							worldY: clickedCoin.y
+						})
+					) {
+						this.sim.orderWorkerMove(activeTeam, clickedCoin.x, clickedCoin.y, activePlayer);
+					}
 					return;
 				}
 
@@ -630,20 +647,49 @@ export class ArenaRenderer {
 
 				if (clickedBuilding) {
 					if (clickedBuilding.isUnderConstruction) {
-						this.sim.continueConstruction(activeTeam, clickedBuilding.instanceId, activePlayer);
+						if (
+							!this.onWorkerCommand?.({
+								type: 'CONTINUE_BUILD',
+								targetId: clickedBuilding.instanceId
+							})
+						) {
+							this.sim.continueConstruction(activeTeam, clickedBuilding.instanceId, activePlayer);
+						}
 						return;
 					}
 					if (clickedBuilding.hp < clickedBuilding.maxHp) {
-						this.sim.repairBuilding(activeTeam, clickedBuilding.instanceId, activePlayer);
+						if (
+							!this.onWorkerCommand?.({
+								type: 'REPAIR',
+								targetId: clickedBuilding.instanceId
+							})
+						) {
+							this.sim.repairBuilding(activeTeam, clickedBuilding.instanceId, activePlayer);
+						}
 						return;
 					}
 				} else if (clickedCastle && teamCastle.hp < teamCastle.maxHp) {
-					this.sim.repairBuilding(activeTeam, `castle_${activeTeam}`, activePlayer);
+					if (
+						!this.onWorkerCommand?.({
+							type: 'REPAIR',
+							targetId: `castle_${activeTeam}`
+						})
+					) {
+						this.sim.repairBuilding(activeTeam, `castle_${activeTeam}`, activePlayer);
+					}
 					return;
 				}
 
 				// Otherwise regular move worker order
-				this.sim.moveWorker(activeTeam, world.x, world.y, activePlayer);
+				if (
+					!this.onWorkerCommand?.({
+						type: 'MOVE_WORKER',
+						worldX: world.x,
+						worldY: world.y
+					})
+				) {
+					this.sim.moveWorker(activeTeam, world.x, world.y, activePlayer);
+				}
 				return;
 			}
 
@@ -722,11 +768,20 @@ export class ArenaRenderer {
 				const minY = Math.min(this.boxStartWorld.y, this.boxCurrentWorld.y);
 				const maxY = Math.max(this.boxStartWorld.y, this.boxCurrentWorld.y);
 
+				const viewerTeam: MatchTeam = this.getActiveControlPlayer?.()?.team ?? 'west';
 				const selectedUnits = this.sim.units.filter(
-					(u) => u.state !== 'DEAD' && u.x >= minX && u.x <= maxX && u.y >= minY && u.y <= maxY
+					(u) =>
+						u.state !== 'DEAD' &&
+						u.x >= minX &&
+						u.x <= maxX &&
+						u.y >= minY &&
+						u.y <= maxY &&
+						(!this.enableFog ||
+							u.team === viewerTeam ||
+							this.sim.isPointRevealed(viewerTeam, u.x, u.y))
 				);
 
-				const friendly = selectedUnits.filter((u) => u.team === 'west');
+				const friendly = selectedUnits.filter((u) => u.team === viewerTeam);
 				const targets = friendly.length > 0 ? friendly : selectedUnits;
 
 				if (targets.length > 1) {
@@ -774,10 +829,19 @@ export class ArenaRenderer {
 
 			// A. Command active worker to run to Gold Coin (Warcraft 3: worker runs to coin)
 			for (const coin of this.sim.goldCoins) {
+				if (this.enableFog && !this.sim.isPointRevealed(activeTeam, coin.x, coin.y)) continue;
 				const dx = world.x - coin.x;
 				const dy = world.y - coin.y;
 				if (dx * dx + dy * dy <= 32 * 32) {
-					this.sim.orderWorkerMove(activeTeam, coin.x, coin.y, activePlayer);
+					if (
+						!this.onWorkerCommand?.({
+							type: 'ORDER_WORKER_MOVE',
+							worldX: coin.x,
+							worldY: coin.y
+						})
+					) {
+						this.sim.orderWorkerMove(activeTeam, coin.x, coin.y, activePlayer);
+					}
 					this.moveMarkers.push({
 						x: coin.x,
 						y: coin.y,
@@ -819,7 +883,11 @@ export class ArenaRenderer {
 			for (const p of allWorkersPlayers) {
 				const w = p?.worker;
 				if (!w) continue;
-				if (this.enableFog && p.team !== 'west' && !this.sim.isPointRevealed('west', w.x, w.y)) {
+				if (
+					this.enableFog &&
+					p.team !== activeTeam &&
+					!this.sim.isPointRevealed(activeTeam, w.x, w.y)
+				) {
 					continue;
 				}
 				const wDist = Math.hypot(world.x - w.x, world.y - w.y);
@@ -838,6 +906,13 @@ export class ArenaRenderer {
 			let closestUnitDist = Infinity;
 			for (const u of this.sim.units) {
 				if (u.state === 'DEAD') continue;
+				if (
+					this.enableFog &&
+					u.team !== activeTeam &&
+					!this.sim.isPointRevealed(activeTeam, u.x, u.y)
+				) {
+					continue;
+				}
 				const dist = Math.hypot(world.x - u.x, world.y - u.y);
 				const hitRadius = Math.max(u.size * 2.2, 38);
 				if (dist <= hitRadius && dist < closestUnitDist) {
@@ -852,6 +927,13 @@ export class ArenaRenderer {
 
 			// E. Check Placed Building click (2x2 footprint)
 			for (const b of this.sim.buildings) {
+				if (
+					this.enableFog &&
+					b.team !== activeTeam &&
+					!this.sim.isPointRevealed(activeTeam, b.x + CELL_SIZE / 2, b.y + CELL_SIZE / 2)
+				) {
+					continue;
+				}
 				if (
 					world.x >= b.x &&
 					world.x <= b.x + CELL_SIZE &&
@@ -917,38 +999,50 @@ export class ArenaRenderer {
 				: null;
 		const bounds = this.getVisibleWorldBounds();
 
-		this.overlayRenderer.drawGridLayer(
-			this.gridLayer,
-			selectedDefId,
-			this.hoveredTile,
-			activeControlPlayer.team
-		);
+		const viewerTeam: MatchTeam = activeControlPlayer.team;
+
+		this.overlayRenderer.drawGridLayer(this.gridLayer, selectedDefId, this.hoveredTile, viewerTeam);
 		this.entityRenderer.drawBuildingsLayer(
 			this.buildingsLayer,
 			selectedPlacedId,
 			this.enableFog,
-			bounds
+			bounds,
+			viewerTeam
 		);
 		this.entityRenderer.drawWorkersLayer(
 			this.workersLayer,
 			selectedWorkerSlot,
 			this.enableFog,
-			bounds
+			bounds,
+			viewerTeam
 		);
-		this.entityRenderer.drawUnitsLayer(this.unitsLayer, selectedEntity, this.enableFog, bounds);
-		this.entityRenderer.drawCoinsLayer(this.coinsLayer, this.enableFog, bounds);
+		this.entityRenderer.drawUnitsLayer(
+			this.unitsLayer,
+			selectedEntity,
+			this.enableFog,
+			bounds,
+			viewerTeam
+		);
+		this.entityRenderer.drawCoinsLayer(this.coinsLayer, this.enableFog, bounds, viewerTeam);
 		this.renderCastles(selectedEntity);
-		this.entityRenderer.drawProjectilesLayer(this.projectilesLayer, this.enableFog, bounds);
+		this.entityRenderer.drawProjectilesLayer(
+			this.projectilesLayer,
+			this.enableFog,
+			bounds,
+			viewerTeam
+		);
 		this.entityRenderer.drawRescueStrikeEffects(this.projectilesLayer);
 		this.entityRenderer.drawLightningEffects(this.projectilesLayer);
 		this.overlayRenderer.drawDayNight(
 			this.dayNightLayer,
 			this.sim.dayNightCycle,
 			this.castleGlowLayer,
-			bounds
+			bounds,
+			this.enableFog,
+			viewerTeam
 		);
 		this.overlayRenderer.drawOrderMarkers(this.markersLayer, this.moveMarkers);
-		this.overlayRenderer.drawFogOfWar(this.fogLayer, this.enableFog);
+		this.overlayRenderer.drawFogOfWar(this.fogLayer, this.enableFog, viewerTeam);
 		this.overlayRenderer.drawFloatingTexts(this.floatingTextsLayer, this.sim.floatingTexts);
 		this.overlayRenderer.drawSelectionUI(
 			this.uiLayer,

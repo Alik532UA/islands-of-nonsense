@@ -92,6 +92,7 @@ export class MatchSync {
 	private checksumHistory = new Map<number, string>();
 	private pendingRemoteChecksums = new Map<number, { peerUid: string; checksum: string }[]>();
 	private pendingMoves: Move[] = [];
+	private lastDispatchMs = 0;
 
 	constructor(options: MatchSyncOptions) {
 		this.sim = options.sim;
@@ -128,6 +129,8 @@ export class MatchSync {
 
 	setSimulation(sim: Simulation) {
 		this.sim = sim;
+		this.hydrated = false;
+		this.appliedSeq = 0;
 		this.pendingMoves = [];
 		this.checksumHistory.clear();
 		this.pendingRemoteChecksums.clear();
@@ -216,6 +219,7 @@ export class MatchSync {
 	}
 
 	async sendHeartbeat(): Promise<boolean> {
+		if (Date.now() - this.lastDispatchMs < 150) return false;
 		return this.dispatch('HEARTBEAT', {
 			clientTime: Math.floor(this.transport.now()),
 			tick: this.sim.tick
@@ -255,6 +259,7 @@ export class MatchSync {
 	 * Dispatches a player command to the room transport.
 	 */
 	async dispatch(type: string, payload: Partial<MovePayload> = {}): Promise<boolean> {
+		this.lastDispatchMs = Date.now();
 		const seq = this.nextSeq++;
 		const scheduledTick = IMMEDIATE_MOVE_TYPES.has(type)
 			? this.sim.tick
@@ -424,6 +429,24 @@ export class MatchSync {
 			case 'REPAIR':
 				if (typeof p.targetId === 'string') {
 					this.sim.repairBuilding(team, p.targetId, player);
+				}
+				break;
+
+			case 'CONTINUE_BUILD':
+				if (typeof p.targetId === 'string') {
+					this.sim.continueConstruction(team, p.targetId, player);
+				}
+				break;
+
+			case 'MOVE_WORKER':
+				if (typeof p.worldX === 'number' && typeof p.worldY === 'number') {
+					this.sim.moveWorker(team, p.worldX, p.worldY, player);
+				}
+				break;
+
+			case 'ORDER_WORKER_MOVE':
+				if (typeof p.worldX === 'number' && typeof p.worldY === 'number') {
+					this.sim.orderWorkerMove(team, p.worldX, p.worldY, player);
 				}
 				break;
 

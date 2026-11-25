@@ -95,8 +95,9 @@ describe('database.rules.json security invariants & Firebase architecture', () =
 		expect(payloadRules.team['.validate']).toContain("'west'");
 		expect(payloadRules.team['.validate']).toContain("'east'");
 		expect(payloadRules.buildingType['.validate']).toContain('newData.val().length <= 16');
+		expect(payloadRules.x['.validate']).toContain('newData.val() >= -60');
 		expect(payloadRules.x['.validate']).toContain('newData.val() <= 120');
-		expect(payloadRules.y['.validate']).toContain('newData.val() <= 60');
+		expect(payloadRules.y['.validate']).toContain('newData.val() <= 70');
 		expect(payloadRules.checksum['.validate']).toContain('newData.val().length <= 32');
 		expect(payloadRules.itemId['.validate']).toContain('newData.val().length <= 64');
 		expect(payloadRules.forgeType['.validate']).toContain("'attack'");

@@ -68,6 +68,7 @@
 		key: string;
 		label: string;
 	} | null>(null);
+	let viewerTeam = $derived(player.team);
 </script>
 
 {#if activeEntityType === 'worker'}
@@ -119,9 +120,15 @@
 				{#if activeEntityType === 'none'}
 					Виділення відсутнє
 				{:else if activeEntityType === 'castle' && selectedCastle}
-					{selectedCastle.team === 'west'
-						? 'Західна Цитадель (Ваш замок)'
-						: 'Східна Фортеця (Замок ворога)'}
+					{#if selectedCastle.team === viewerTeam}
+						{selectedCastle.team === 'west'
+							? 'Західна Цитадель (Ваш замок)'
+							: 'Східна Фортеця (Ваш замок)'}
+					{:else}
+						{selectedCastle.team === 'west'
+							? 'Західна Цитадель (Замок ворога)'
+							: 'Східна Фортеця (Замок ворога)'}
+					{/if}
 				{:else if activeEntityType === 'group'}
 					Загін військ ({groupUnits.length} бійців)
 				{:else if activeEntityType === 'building' && placedBuilding}
@@ -144,36 +151,36 @@
 		{:else if activeEntityType === 'building' && placedBuilding}
 			<div
 				class="flex items-center gap-1.5 bg-[#0c1017] px-2.5 py-0.5 rounded border {placedBuilding.team ===
-				'west'
+				viewerTeam
 					? 'border-blue-500/60 text-blue-300'
 					: 'border-rose-500/60 text-rose-300'}"
 			>
 				<span class="text-xs font-bold">
-					{placedBuilding.team === 'west' ? 'Союзна споруда' : 'Ворожа споруда'}
+					{placedBuilding.team === viewerTeam ? 'Союзна споруда' : 'Ворожа споруда'}
 				</span>
 			</div>
 		{:else if activeEntityType === 'castle' && selectedCastle}
 			<div
 				class="flex items-center gap-1.5 bg-[#0c1017] px-2.5 py-0.5 rounded border {selectedCastle.team ===
-				'west'
+				viewerTeam
 					? 'border-blue-500/60 text-blue-300'
 					: 'border-rose-500/60 text-rose-300'}"
 			>
 				<span class="text-xs font-bold">
-					{selectedCastle.team === 'west' ? 'Союзний замок' : 'Ціль: Ворог'}
+					{selectedCastle.team === viewerTeam ? 'Союзний замок' : 'Ціль: Ворог'}
 				</span>
 			</div>
 		{:else if activeEntityType === 'unit' && selectedUnit}
 			<div
 				class="flex items-center gap-1.5 bg-[#0c1017] px-2.5 py-0.5 rounded border {selectedUnit.team ===
-				'west'
+				viewerTeam
 					? 'border-blue-500/60 text-blue-300'
 					: selectedUnit.team === 'neutral'
 						? 'border-purple-500/60 text-purple-300'
 						: 'border-rose-500/60 text-rose-300'}"
 			>
 				<span class="text-xs font-bold">
-					{selectedUnit.team === 'west'
+					{selectedUnit.team === viewerTeam
 						? 'Союзник'
 						: selectedUnit.team === 'neutral'
 							? 'Нейтральний'
@@ -392,7 +399,9 @@
 		<div class="border-t border-[#3b3226] pt-1 flex items-center justify-between text-[11px]">
 			{#if activeEntityType === 'castle' && selectedCastle}
 				<span class="text-[#9ca3af] text-[10px]">
-					{selectedCastle.team === 'west' ? 'Головна Цитадель (Союзник)' : 'Ворожа Цитадель (Ціль)'}
+					{selectedCastle.team === viewerTeam
+						? 'Головна Цитадель (Союзник)'
+						: 'Ворожа Цитадель (Ціль)'}
 				</span>
 				<button
 					onclick={() => onClearSelection?.()}
@@ -430,7 +439,7 @@
 						</span>
 						<div class="w-32 h-2 bg-[#0c1017] rounded-full overflow-hidden border border-[#3b3226]">
 							<div
-								class="h-full {placedBuilding.team === 'west'
+								class="h-full {placedBuilding.team === viewerTeam
 									? 'bg-cyan-400'
 									: 'bg-rose-400'} transition-all"
 								style="width: {remPct}%"
@@ -446,7 +455,7 @@
 				</div>
 			{:else}
 				<span class="text-[#9ca3af] text-[10px]">
-					{selectedUnit?.team === 'west'
+					{selectedUnit?.team === viewerTeam
 						? 'Союзний боєць'
 						: selectedUnit?.team === 'neutral'
 							? 'Нейтральний бос'

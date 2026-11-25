@@ -41,9 +41,10 @@ export class EntityRenderer {
 		g: Graphics,
 		selectedPlacedId: string | null,
 		enableFog = false,
-		bounds?: { minX: number; minY: number; maxX: number; maxY: number }
+		bounds?: { minX: number; minY: number; maxX: number; maxY: number },
+		viewerTeam: MatchTeam = 'west'
 	): void {
-		this.buildingRenderer.drawBuildingsLayer(g, selectedPlacedId, enableFog, bounds);
+		this.buildingRenderer.drawBuildingsLayer(g, selectedPlacedId, enableFog, bounds, viewerTeam);
 	}
 
 	public drawCastles(g: Graphics, selectedEntity?: SelectedEntity, enableFog = false): void {
@@ -67,18 +68,20 @@ export class EntityRenderer {
 		g: Graphics,
 		selectedWorker: boolean | number | null,
 		enableFog = false,
-		bounds?: { minX: number; minY: number; maxX: number; maxY: number }
+		bounds?: { minX: number; minY: number; maxX: number; maxY: number },
+		viewerTeam: MatchTeam = 'west'
 	): void {
-		this.unitRenderer.drawWorkersLayer(g, selectedWorker, enableFog, bounds);
+		this.unitRenderer.drawWorkersLayer(g, selectedWorker, enableFog, bounds, viewerTeam);
 	}
 
 	public drawUnitsLayer(
 		g: Graphics,
 		selectedEntity: SelectedEntity,
 		enableFog = false,
-		bounds?: { minX: number; minY: number; maxX: number; maxY: number }
+		bounds?: { minX: number; minY: number; maxX: number; maxY: number },
+		viewerTeam: MatchTeam = 'west'
 	): void {
-		this.unitRenderer.drawUnitsLayer(g, selectedEntity, enableFog, bounds);
+		this.unitRenderer.drawUnitsLayer(g, selectedEntity, enableFog, bounds, viewerTeam);
 	}
 
 	// =========================================================================
@@ -87,17 +90,19 @@ export class EntityRenderer {
 	public drawCoinsLayer(
 		g: Graphics,
 		enableFog = false,
-		bounds?: { minX: number; minY: number; maxX: number; maxY: number }
+		bounds?: { minX: number; minY: number; maxX: number; maxY: number },
+		viewerTeam: MatchTeam = 'west'
 	): void {
-		this.vfxRenderer.drawCoinsLayer(g, enableFog, bounds);
+		this.vfxRenderer.drawCoinsLayer(g, enableFog, bounds, viewerTeam);
 	}
 
 	public drawProjectilesLayer(
 		g: Graphics,
 		enableFog = false,
-		bounds?: { minX: number; minY: number; maxX: number; maxY: number }
+		bounds?: { minX: number; minY: number; maxX: number; maxY: number },
+		viewerTeam: MatchTeam = 'west'
 	): void {
-		this.vfxRenderer.drawProjectilesLayer(g, enableFog, bounds);
+		this.vfxRenderer.drawProjectilesLayer(g, enableFog, bounds, viewerTeam);
 	}
 
 	public drawLightningEffects(g: Graphics): void {

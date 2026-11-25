@@ -2,7 +2,7 @@
 	"rules": {
 		"__rulesVersion": {
 			"$v": {
-				".read": "auth != null && $v === '04b54c8d2a32'"
+				".read": "auth != null && $v === '56a1981eddf3'"
 			}
 		},
 		"rooms": {
@@ -171,7 +171,7 @@
 							".validate": "newData.val() === auth.uid"
 						},
 						"type": {
-							".validate": "newData.isString() && (newData.val() === 'BUILD' || newData.val() === 'UPGRADE' || newData.val() === 'SELL' || newData.val() === 'REPAIR' || newData.val() === 'USE_ABILITY' || newData.val() === 'BUY_ITEM' || newData.val() === 'UPGRADE_FORGE' || newData.val() === 'SELECT_COMMANDER' || newData.val() === 'BRIDGE_REPAIR' || newData.val() === 'RESCUE_STRIKE' || newData.val() === 'SURRENDER' || newData.val() === 'PAUSE' || newData.val() === 'RESUME' || newData.val() === 'NEXT_ROUND' || newData.val() === 'RESTART_MATCH' || newData.val() === 'HEARTBEAT' || newData.val() === 'CHECKSUM' || newData.val() === 'CHAT' || newData.val() === 'lead')"
+							".validate": "newData.isString() && (newData.val() === 'BUILD' || newData.val() === 'UPGRADE' || newData.val() === 'SELL' || newData.val() === 'REPAIR' || newData.val() === 'CONTINUE_BUILD' || newData.val() === 'MOVE_WORKER' || newData.val() === 'ORDER_WORKER_MOVE' || newData.val() === 'USE_ABILITY' || newData.val() === 'BUY_ITEM' || newData.val() === 'UPGRADE_FORGE' || newData.val() === 'SELECT_COMMANDER' || newData.val() === 'BRIDGE_REPAIR' || newData.val() === 'RESCUE_STRIKE' || newData.val() === 'SURRENDER' || newData.val() === 'PAUSE' || newData.val() === 'RESUME' || newData.val() === 'NEXT_ROUND' || newData.val() === 'RESTART_MATCH' || newData.val() === 'HEARTBEAT' || newData.val() === 'CHECKSUM' || newData.val() === 'CHAT' || newData.val() === 'lead')"
 						},
 						"at": {
 							".validate": "newData.isNumber() && newData.val() <= now && newData.val() > now - 60000"
@@ -194,10 +194,16 @@
 								".validate": "newData.isString() && newData.val().length <= 16"
 							},
 							"x": {
-								".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 120"
+								".validate": "newData.isNumber() && newData.val() >= -60 && newData.val() <= 120"
 							},
 							"y": {
-								".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 60"
+								".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 70"
+							},
+							"worldX": {
+								".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 8000"
+							},
+							"worldY": {
+								".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3000"
 							},
 							"targetId": {
 								".validate": "newData.isString() && newData.val().length <= 64"

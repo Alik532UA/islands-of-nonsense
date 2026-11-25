@@ -15,6 +15,8 @@ import {
 	BOTTOM_LANE_Y,
 	WEST_ISLAND_CENTER_X,
 	WEST_ISLAND_CENTER_Y,
+	EAST_ISLAND_CENTER_X,
+	EAST_ISLAND_CENTER_Y,
 	ISLAND_RADIUS_X,
 	ISLAND_RADIUS_Y
 } from '../engine/constants';
@@ -27,6 +29,7 @@ export class OverlayRenderer {
 	private fogTexture: Texture | null = null;
 	private fogSprite: Sprite | null = null;
 	private fogFrameCounter = 0;
+	private lastFogViewerTeam: MatchTeam | null = null;
 
 	constructor(sim: Simulation) {
 		this.sim = sim;
@@ -134,7 +137,11 @@ export class OverlayRenderer {
 		this.fogSprite.alpha = 0.45;
 	}
 
-	public drawFogOfWar(container: Container, enableFog: boolean): void {
+	public drawFogOfWar(
+		container: Container,
+		enableFog: boolean,
+		viewerTeam: MatchTeam = 'west'
+	): void {
 		if (!enableFog) {
 			if (this.fogSprite) this.fogSprite.visible = false;
 			return;
@@ -151,6 +158,12 @@ export class OverlayRenderer {
 		this.fogSprite.x = -3000;
 		this.fogSprite.y = -2000;
 		this.fogSprite.scale.set(10, 10);
+
+		// Always redraw immediately when viewer team switches (e.g. joining as East or spectator switch)
+		if (this.lastFogViewerTeam !== viewerTeam) {
+			this.lastFogViewerTeam = viewerTeam;
+			this.fogFrameCounter = 2;
+		}
 
 		// Throttle full canvas redraw and texture upload to every 3rd frame (20 Hz)
 		// Saves 66% GPU texture upload overhead while preserving smooth vision
@@ -175,9 +188,11 @@ export class OverlayRenderer {
 		const offsetX = 3000;
 		const offsetY = 2000;
 
-		// A. West Island Home Base (Entire courtyard fully and smoothly revealed matching island contour)
-		const islandCx = (WEST_ISLAND_CENTER_X + offsetX) * scale;
-		const islandCy = (WEST_ISLAND_CENTER_Y + offsetY) * scale;
+		// A. Allied Island Home Base (Entire courtyard fully and smoothly revealed matching island contour)
+		const homeIslandX = viewerTeam === 'east' ? EAST_ISLAND_CENTER_X : WEST_ISLAND_CENTER_X;
+		const homeIslandY = viewerTeam === 'east' ? EAST_ISLAND_CENTER_Y : WEST_ISLAND_CENTER_Y;
+		const islandCx = (homeIslandX + offsetX) * scale;
+		const islandCy = (homeIslandY + offsetY) * scale;
 		const islandRx = (ISLAND_RADIUS_X + 80) * scale;
 		const islandRy = (ISLAND_RADIUS_Y + 80) * scale;
 
@@ -217,27 +232,30 @@ export class OverlayRenderer {
 			ctx.fill();
 		};
 
-		// B. West Castle (wide panoramic vision)
-		addVision(this.sim.castles.west.x, this.sim.castles.west.y, 750);
+		// B. Allied Castle (wide panoramic vision)
+		const homeCastle = this.sim.castles[viewerTeam];
+		if (homeCastle) {
+			addVision(homeCastle.x, homeCastle.y, 750);
+		}
 
-		// C. West Worker(s)
-		for (const p of this.sim.teamMembers?.west || [this.sim.players.west]) {
+		// C. Allied Worker(s)
+		for (const p of this.sim.teamMembers?.[viewerTeam] || [this.sim.players[viewerTeam]]) {
 			if (p?.worker) {
 				addVision(p.worker.x, p.worker.y, 520);
 			}
 		}
 
-		// D. West Buildings & Towers
+		// D. Allied Buildings & Towers
 		for (const b of this.sim.buildings) {
-			if (b.team === 'west') {
+			if (b.team === viewerTeam) {
 				const radius = b.specialType === 'tower' ? 750 : 500;
 				addVision(b.x + CELL_SIZE / 2, b.y + CELL_SIZE / 2, radius);
 			}
 		}
 
-		// E. West Units advancing across arena
+		// E. Allied Units advancing across arena
 		for (const u of this.sim.units) {
-			if (u.team === 'west' && u.state !== 'DEAD') {
+			if (u.team === viewerTeam && u.state !== 'DEAD') {
 				const baseVision = u.flying ? 1250 : 1100;
 				const radius = Math.max(baseVision, (u.range ?? 0) + 100);
 				addVision(u.x, u.y, radius);
@@ -363,7 +381,9 @@ export class OverlayRenderer {
 		g: Graphics,
 		_cycle?: 'day' | 'night',
 		castleLightLayer?: Graphics,
-		bounds?: { minX: number; minY: number; maxX: number; maxY: number }
+		bounds?: { minX: number; minY: number; maxX: number; maxY: number },
+		enableFog = false,
+		viewerTeam: MatchTeam = 'west'
 	): void {
 		g.clear();
 		if (castleLightLayer) {
@@ -462,9 +482,19 @@ export class OverlayRenderer {
 			}
 		}
 
-		// D. Workers carrying lanterns
-		for (const p of [this.sim.players.west, this.sim.players.east]) {
+		// D. Workers carrying lanterns (respecting fog of war so hidden enemy lanterns don't glow through fog)
+		const workerPlayers = this.sim.allPlayers?.length
+			? this.sim.allPlayers
+			: [this.sim.players.west, this.sim.players.east];
+		for (const p of workerPlayers) {
 			if (p?.worker) {
+				if (
+					enableFog &&
+					p.team !== viewerTeam &&
+					!this.sim.isPointRevealed(viewerTeam, p.worker.x, p.worker.y)
+				) {
+					continue;
+				}
 				if (
 					bounds &&
 					(p.worker.x < bounds.minX - 200 ||

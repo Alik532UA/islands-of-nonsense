@@ -5,6 +5,9 @@ export const VALID_ACTION_TYPES = [
 	'UPGRADE',
 	'SELL',
 	'REPAIR',
+	'CONTINUE_BUILD',
+	'MOVE_WORKER',
+	'ORDER_WORKER_MOVE',
 	'USE_ABILITY',
 	'BUY_ITEM',
 	'UPGRADE_FORGE',
@@ -85,17 +88,41 @@ export function validatePlayerMove(raw: unknown): ValidationResult {
 	}
 
 	if ('x' in p) {
-		if (typeof p.x !== 'number' || p.x < 0 || p.x > 120 || !Number.isFinite(p.x)) {
-			return { valid: false, error: 'Coordinate x is outside allowable grid bounds [0, 120]' };
+		if (typeof p.x !== 'number' || p.x < -60 || p.x > 120 || !Number.isFinite(p.x)) {
+			return { valid: false, error: 'Coordinate x is outside allowable grid bounds [-60, 120]' };
 		}
 		sanitizedPayload.x = Math.round(p.x);
 	}
 
 	if ('y' in p) {
-		if (typeof p.y !== 'number' || p.y < 0 || p.y > 60 || !Number.isFinite(p.y)) {
-			return { valid: false, error: 'Coordinate y is outside allowable grid bounds [0, 60]' };
+		if (typeof p.y !== 'number' || p.y < 0 || p.y > 70 || !Number.isFinite(p.y)) {
+			return { valid: false, error: 'Coordinate y is outside allowable grid bounds [0, 70]' };
 		}
 		sanitizedPayload.y = Math.round(p.y);
+	}
+
+	if ('worldX' in p) {
+		if (
+			typeof p.worldX !== 'number' ||
+			p.worldX < 0 ||
+			p.worldX > 8000 ||
+			!Number.isFinite(p.worldX)
+		) {
+			return { valid: false, error: 'Coordinate worldX is outside arena bounds [0, 8000]' };
+		}
+		sanitizedPayload.worldX = Math.round(p.worldX);
+	}
+
+	if ('worldY' in p) {
+		if (
+			typeof p.worldY !== 'number' ||
+			p.worldY < 0 ||
+			p.worldY > 3000 ||
+			!Number.isFinite(p.worldY)
+		) {
+			return { valid: false, error: 'Coordinate worldY is outside arena bounds [0, 3000]' };
+		}
+		sanitizedPayload.worldY = Math.round(p.worldY);
 	}
 
 	if ('shiftKey' in p) {
