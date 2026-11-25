@@ -984,7 +984,14 @@ export class EconomySystem {
 				let approachX = tx;
 				let approachY = ty;
 				if (this.sim.workerSystem.isPointBlockedForWorker(team, approachX, approachY)) {
-					const resolved = this.sim.workerSystem.resolveGroundObstacles(approachX, approachY, 20);
+					const resolved = this.sim.workerSystem.clampPointToOwnIsland(
+						team,
+						approachX,
+						approachY,
+						16,
+						w.x,
+						w.y
+					);
 					approachX = resolved.x;
 					approachY = resolved.y;
 				}

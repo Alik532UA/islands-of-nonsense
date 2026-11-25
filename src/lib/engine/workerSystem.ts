@@ -45,6 +45,21 @@ export class WorkerSystem {
 		return this.nav.isPointBlockedForWorker(team, x, y, radius);
 	}
 
+	public isPointOnOwnDryIsland(team: MatchTeam, x: number, y: number, radius = 16): boolean {
+		return this.nav.isPointOnOwnDryIsland(team, x, y, radius);
+	}
+
+	public clampPointToOwnIsland(
+		team: MatchTeam,
+		targetX: number,
+		targetY: number,
+		radius = 16,
+		fallbackX?: number,
+		fallbackY?: number
+	): { x: number; y: number } {
+		return this.nav.clampPointToOwnIsland(team, targetX, targetY, radius, fallbackX, fallbackY);
+	}
+
 	public isPointBlockedForGround(
 		x: number,
 		y: number,
@@ -216,7 +231,7 @@ export class WorkerSystem {
 			let tx = targetX;
 			let ty = targetY;
 			if (this.isPointBlockedForWorker(team, tx, ty)) {
-				const resolved = this.resolveGroundObstacles(tx, ty, 20);
+				const resolved = this.clampPointToOwnIsland(team, tx, ty, 16, w.x, w.y);
 				tx = resolved.x;
 				ty = resolved.y;
 			}
@@ -300,7 +315,7 @@ export class WorkerSystem {
 		const angle = Math.atan2(workerY - cy, workerX - cx);
 		const fallbackX = cx + Math.cos(angle) * (bldWidth / 2 + 20);
 		const fallbackY = cy + Math.sin(angle) * (bldHeight / 2 + 20);
-		return this.resolveGroundObstacles(fallbackX, fallbackY, 14);
+		return this.nav.resolveWorkerObstacles(team, fallbackX, fallbackY, 14, workerX, workerY);
 	}
 
 	public continueConstruction(

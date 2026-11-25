@@ -302,16 +302,156 @@ export class GroundNavigation {
 	}
 
 	/**
-	 * Checks if a point is impassable for a worker (colliding with buildings or terrain obstacles).
+	 * Checks whether a point is strictly on the team's own dry island landmass
+	 * (never in ocean/river water, never on a bridge deck, and never on the enemy island).
 	 */
-	public isPointBlockedForWorker(team: MatchTeam, x: number, y: number, radius = 16): boolean {
-		// Base territory boundaries: worker must remain on solid island landmass
-		if (!this.sim.buildingSystem.isPointOnIsland(team, x, y, 10)) {
+	public isPointOnOwnDryIsland(team: MatchTeam, x: number, y: number, radius = 16): boolean {
+		const bridgeBuffer = Math.max(radius, 16);
+		if (team === 'west') {
+			if (x < 180 || x > BRIDGE_SPAN_MIN_X - bridgeBuffer) return false;
+		} else {
+			if (x < BRIDGE_SPAN_MAX_X + bridgeBuffer || x > ARENA_WIDTH - 180) return false;
+		}
+		if (y < 180 || y > ARENA_HEIGHT - 180) return false;
+		if (this.isPointOnWater(x, y, radius)) return false;
+		if (!this.sim.buildingSystem.isPointOnIsland(team, x, y, Math.max(radius, 10))) return false;
+
+		const cx = team === 'west' ? WEST_ISLAND_CENTER_X : EAST_ISLAND_CENTER_X;
+		const cy = team === 'west' ? WEST_ISLAND_CENTER_Y : EAST_ISLAND_CENTER_Y;
+		const dx = x - cx;
+		const dy = y - cy;
+		const dryRx = ISLAND_RADIUS_X - 45;
+		const dryRy = ISLAND_RADIUS_Y - 45;
+		if ((dx / dryRx) ** 2 + (dy / dryRy) ** 2 <= 1.0) {
 			return true;
 		}
 
-		// Water boundary check: workers cannot step onto water
-		if (this.isPointOnWater(x, y, radius)) {
+		// Allow narrow dry bridgehead promontories on the river-facing shore without stepping into river water
+		const onRiverFacingHalf = team === 'west' ? dx >= 0 : dx <= 0;
+		if (
+			onRiverFacingHalf &&
+			(Math.abs(y - TOP_LANE_Y) <= 110 ||
+				Math.abs(y - MID_LANE_Y) <= 110 ||
+				Math.abs(y - BOTTOM_LANE_Y) <= 110)
+		) {
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Clamps any target coordinate (e.g., clicked on water, bridge, or enemy island)
+	 * to the nearest valid walkable point on the worker's own island.
+	 */
+	public clampPointToOwnIsland(
+		team: MatchTeam,
+		targetX: number,
+		targetY: number,
+		radius = 16,
+		fallbackX?: number,
+		fallbackY?: number
+	): { x: number; y: number } {
+		if (!this.isPointBlockedForWorker(team, targetX, targetY, radius)) {
+			return { x: targetX, y: targetY };
+		}
+
+		const bridgeBuffer = Math.max(radius, 16) + 4;
+		const clampedX =
+			team === 'west'
+				? Math.max(200, Math.min(BRIDGE_SPAN_MIN_X - bridgeBuffer, targetX))
+				: Math.max(BRIDGE_SPAN_MAX_X + bridgeBuffer, Math.min(ARENA_WIDTH - 200, targetX));
+		const clampedY = Math.max(200, Math.min(ARENA_HEIGHT - 200, targetY));
+
+		if (!this.isPointBlockedForWorker(team, clampedX, clampedY, radius)) {
+			return { x: clampedX, y: clampedY };
+		}
+
+		// Search outward in rings from the clamped coastal/target point
+		for (let r = 24; r <= 420; r += 24) {
+			let best: { x: number; y: number } | null = null;
+			let bestDist = Infinity;
+			for (let a = 0; a < 16; a++) {
+				const rad = (a / 16) * Math.PI * 2;
+				const cx = clampedX + Math.cos(rad) * r;
+				const cy = clampedY + Math.sin(rad) * r;
+				if (!this.isPointBlockedForWorker(team, cx, cy, radius)) {
+					const d = Math.hypot(cx - targetX, cy - targetY);
+					if (d < bestDist) {
+						bestDist = d;
+						best = { x: cx, y: cy };
+					}
+				}
+			}
+			if (best) return best;
+		}
+
+		// Step inward towards the island's center if click was deep outside coastal coves
+		const islandCx = team === 'west' ? WEST_ISLAND_CENTER_X : EAST_ISLAND_CENTER_X;
+		const islandCy = team === 'west' ? WEST_ISLAND_CENTER_Y : EAST_ISLAND_CENTER_Y;
+		const toCenterX = islandCx - clampedX;
+		const toCenterY = islandCy - clampedY;
+		const centerDist = Math.hypot(toCenterX, toCenterY);
+		if (centerDist > 1) {
+			const steps = Math.ceil(centerDist / 32);
+			for (let s = 1; s <= steps; s++) {
+				const t = s / steps;
+				const px = clampedX + toCenterX * t;
+				const py = clampedY + toCenterY * t;
+				if (!this.isPointBlockedForWorker(team, px, py, radius)) {
+					return { x: px, y: py };
+				}
+			}
+		}
+
+		if (
+			typeof fallbackX === 'number' &&
+			typeof fallbackY === 'number' &&
+			this.isPointOnOwnDryIsland(team, fallbackX, fallbackY, radius)
+		) {
+			return { x: fallbackX, y: fallbackY };
+		}
+
+		return {
+			x: team === 'west' ? WEST_ISLAND_CENTER_X + 160 : EAST_ISLAND_CENTER_X - 160,
+			y: MID_LANE_Y
+		};
+	}
+
+	/**
+	 * Resolves solid obstacles for a worker and guarantees the final coordinate stays on its own dry island.
+	 */
+	public resolveWorkerObstacles(
+		team: MatchTeam,
+		x: number,
+		y: number,
+		radius = 14,
+		prevX?: number,
+		prevY?: number
+	): { x: number; y: number } {
+		const res = this.resolveGroundObstacles(x, y, radius);
+		if (this.isPointOnOwnDryIsland(team, res.x, res.y, radius)) {
+			return res;
+		}
+		if (
+			typeof prevX === 'number' &&
+			typeof prevY === 'number' &&
+			this.isPointOnOwnDryIsland(team, prevX, prevY, radius)
+		) {
+			// Project onto the last valid shore axis when sliding against water/bridge/island perimeter
+			const tryX = this.resolveGroundObstacles(res.x, prevY, radius);
+			if (this.isPointOnOwnDryIsland(team, tryX.x, tryX.y, radius)) return tryX;
+			const tryY = this.resolveGroundObstacles(prevX, res.y, radius);
+			if (this.isPointOnOwnDryIsland(team, tryY.x, tryY.y, radius)) return tryY;
+		}
+		return this.clampPointToOwnIsland(team, res.x, res.y, radius, prevX, prevY);
+	}
+
+	/**
+	 * Checks if a point is impassable for a worker (off own dry island, in water, on bridge, or colliding with obstacles).
+	 */
+	public isPointBlockedForWorker(team: MatchTeam, x: number, y: number, radius = 16): boolean {
+		// Strict own-island & bridge/water exclusion
+		if (!this.isPointOnOwnDryIsland(team, x, y, radius)) {
 			return true;
 		}
 
@@ -921,9 +1061,15 @@ export class GroundNavigation {
 		targetX: number,
 		targetY: number
 	): { x: number; y: number }[] {
+		const safeTarget = this.isPointOnOwnDryIsland(team, targetX, targetY, 16)
+			? { x: targetX, y: targetY }
+			: this.clampPointToOwnIsland(team, targetX, targetY, 16, startX, startY);
+		const destX = safeTarget.x;
+		const destY = safeTarget.y;
+
 		// 1. Direct line check: if straight path is unobstructed, no waypoints needed!
-		if (this.isWorkerLineClear(team, startX, startY, targetX, targetY)) {
-			return [{ x: targetX, y: targetY }];
+		if (this.isWorkerLineClear(team, startX, startY, destX, destY)) {
+			return [{ x: destX, y: destY }];
 		}
 
 		// 2. Setup A* navigation grid across the entire island
@@ -944,8 +1090,8 @@ export class GroundNavigation {
 
 		const startCol = clampCol(Math.round((startX - minX) / step));
 		const startRow = clampRow(Math.round((startY - minY) / step));
-		let endCol = clampCol(Math.round((targetX - minX) / step));
-		let endRow = clampRow(Math.round((targetY - minY) / step));
+		let endCol = clampCol(Math.round((destX - minX) / step));
+		let endRow = clampRow(Math.round((destY - minY) / step));
 
 		// If end node itself is blocked, find closest walkable node to end
 		if (this.isPointBlockedForWorker(team, getNodeX(endCol), getNodeY(endRow))) {
@@ -959,7 +1105,7 @@ export class GroundNavigation {
 					const nx = getNodeX(nc);
 					const ny = getNodeY(nr);
 					if (!this.isPointBlockedForWorker(team, nx, ny)) {
-						const d = Math.hypot(targetX - nx, targetY - ny);
+						const d = Math.hypot(destX - nx, destY - ny);
 						if (d < bestDist) {
 							bestDist = d;
 							bestC = nc;
@@ -976,7 +1122,7 @@ export class GroundNavigation {
 		let endIndex = endRow * cols + endCol;
 
 		if (startIndex === endIndex) {
-			return [{ x: targetX, y: targetY }];
+			return [{ x: destX, y: destY }];
 		}
 
 		const openSet: number[] = [startIndex];
@@ -1057,7 +1203,7 @@ export class GroundNavigation {
 			for (const node of cameFrom.keys()) {
 				const c = node % cols;
 				const r = Math.floor(node / cols);
-				const d = Math.hypot(getNodeX(c) - targetX, getNodeY(r) - targetY);
+				const d = Math.hypot(getNodeX(c) - destX, getNodeY(r) - destY);
 				if (d < closestDist) {
 					closestDist = d;
 					closestNode = node;
@@ -1066,7 +1212,7 @@ export class GroundNavigation {
 			if (closestNode !== startIndex) {
 				endIndex = closestNode;
 			} else {
-				return [{ x: targetX, y: targetY }];
+				return [{ x: destX, y: destY }];
 			}
 		}
 
@@ -1102,12 +1248,14 @@ export class GroundNavigation {
 			i = furthest + 1;
 		}
 
-		// Append final destination
-		smoothed.push({ x: targetX, y: targetY });
+		// Append final destination only if safely on own dry island (never on bridge/water/enemy shore)
+		if (smoothed.length === 0 || !this.isPointBlockedForWorker(team, destX, destY)) {
+			smoothed.push({ x: destX, y: destY });
+		}
 		logService.navigation('Worker path calculated', {
 			team,
 			start: { x: Math.round(startX), y: Math.round(startY) },
-			target: { x: Math.round(targetX), y: Math.round(targetY) },
+			target: { x: Math.round(destX), y: Math.round(destY) },
 			waypointsCount: smoothed.length
 		});
 		return smoothed;
@@ -1135,7 +1283,10 @@ export class GroundNavigation {
 			w.path = this.findWorkerPath(team, w.x, w.y, destX, destY);
 		} else {
 			const lastWp = w.path[w.path.length - 1];
-			if (Math.hypot(lastWp.x - destX, lastWp.y - destY) > 28) {
+			if (
+				Math.hypot(lastWp.x - destX, lastWp.y - destY) > 28 &&
+				!this.isPointBlockedForWorker(team, destX, destY)
+			) {
 				w.path = this.findWorkerPath(team, w.x, w.y, destX, destY);
 			}
 		}
@@ -1191,10 +1342,13 @@ export class GroundNavigation {
 			}
 			w.path = this.findWorkerPath(team, w.x, w.y, destX, destY);
 			if (dist > 0.001) {
-				const nudge = this.resolveGroundObstacles(
+				const nudge = this.resolveWorkerObstacles(
+					team,
 					w.x + (dx / dist) * 10,
 					w.y + (dy / dist) * 10,
-					14
+					14,
+					w.x,
+					w.y
 				);
 				w.x = nudge.x;
 				w.y = nudge.y;
@@ -1207,7 +1361,7 @@ export class GroundNavigation {
 			const moveDist = Math.min(dist, w.speed * dt);
 			const nx = w.x + (dx / dist) * moveDist;
 			const ny = w.y + (dy / dist) * moveDist;
-			const res = this.resolveGroundObstacles(nx, ny, 14);
+			const res = this.resolveWorkerObstacles(team, nx, ny, 14, w.x, w.y);
 
 			// Obstacle avoidance: check if forward progress was blocked by obstacle
 			const movedDist = Math.hypot(res.x - w.x, res.y - w.y);
@@ -1215,8 +1369,22 @@ export class GroundNavigation {
 				// Sliding along tangent
 				const perpX = -dy / dist;
 				const perpY = dx / dist;
-				const s1 = this.resolveGroundObstacles(w.x + perpX * moveDist, w.y + perpY * moveDist, 14);
-				const s2 = this.resolveGroundObstacles(w.x - perpX * moveDist, w.y - perpY * moveDist, 14);
+				const s1 = this.resolveWorkerObstacles(
+					team,
+					w.x + perpX * moveDist,
+					w.y + perpY * moveDist,
+					14,
+					w.x,
+					w.y
+				);
+				const s2 = this.resolveWorkerObstacles(
+					team,
+					w.x - perpX * moveDist,
+					w.y - perpY * moveDist,
+					14,
+					w.x,
+					w.y
+				);
 				const d1 = Math.hypot(destX - s1.x, destY - s1.y);
 				const d2 = Math.hypot(destX - s2.x, destY - s2.y);
 

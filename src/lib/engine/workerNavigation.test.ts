@@ -50,11 +50,11 @@ describe('Worker Navigation and Building Order (v10 Canon)', () => {
 	describe('Worker Pathfinding and Obstacle Avoidance', () => {
 		it('returns direct destination when straight path is unobstructed', () => {
 			const sim = new Simulation();
-			// Path within upper courtyard from (200, 200) to (250, 250)
-			const path = sim.findWorkerPath('west', 200, 200, 250, 250);
+			// Path within upper courtyard on West dry island from (1500, 900) to (1550, 950)
+			const path = sim.findWorkerPath('west', 1500, 900, 1550, 950);
 			expect(path.length).toBe(1);
-			expect(path[0].x).toBe(250);
-			expect(path[0].y).toBe(250);
+			expect(path[0].x).toBe(1550);
+			expect(path[0].y).toBe(950);
 		});
 
 		it('navigates around the solid castle structure when target is on the opposite courtyard', () => {
@@ -326,6 +326,52 @@ describe('Worker Navigation and Building Order (v10 Canon)', () => {
 			expect(report).toContain('Construction target interrupted by moveWorker');
 			expect(report).toContain('Worker assigned/resumed construction');
 			expect(report).toContain('Building completed');
+		});
+
+		it('keeps workers strictly on their own dry island and blocks entering bridges, water, or enemy island', () => {
+			const sim = new Simulation({ startGold: 500, botDifficulty: 0, isRunning: true });
+			sim.decorations = [];
+
+			const westWorker = sim.players.west.worker!;
+			const eastWorker = sim.players.east.worker!;
+
+			// 1. Order West worker onto middle bridge, river water, ocean water, and East island
+			const westIllegalTargets = [
+				{ x: 3600, y: 1200 }, // middle bridge deck
+				{ x: 3600, y: 900 }, // river water between bridges
+				{ x: 200, y: 150 }, // outer ocean water
+				{ x: 5600, y: 1200 } // East enemy island
+			];
+			for (const pt of westIllegalTargets) {
+				sim.moveWorker('west', pt.x, pt.y);
+				expect(westWorker.targetX).toBeLessThanOrEqual(3044);
+				for (let t = 0; t < 200; t++) {
+					sim.step(0.05);
+					expect(
+						sim.workerSystem.isPointOnOwnDryIsland('west', westWorker.x, westWorker.y, 14)
+					).toBe(true);
+					expect(sim.workerSystem.isPointOnWater(westWorker.x, westWorker.y, 14)).toBe(false);
+				}
+			}
+
+			// 2. Order East worker onto bridge, water, and West enemy island
+			const eastIllegalTargets = [
+				{ x: 3600, y: 660 }, // top bridge deck
+				{ x: 3600, y: 1500 }, // river water
+				{ x: 7050, y: 2200 }, // outer ocean water
+				{ x: 1600, y: 1200 } // West enemy island
+			];
+			for (const pt of eastIllegalTargets) {
+				sim.moveWorker('east', pt.x, pt.y);
+				expect(eastWorker.targetX).toBeGreaterThanOrEqual(4156);
+				for (let t = 0; t < 200; t++) {
+					sim.step(0.05);
+					expect(
+						sim.workerSystem.isPointOnOwnDryIsland('east', eastWorker.x, eastWorker.y, 14)
+					).toBe(true);
+					expect(sim.workerSystem.isPointOnWater(eastWorker.x, eastWorker.y, 14)).toBe(false);
+				}
+			}
 		});
 	});
 });

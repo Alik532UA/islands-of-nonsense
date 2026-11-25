@@ -68,7 +68,7 @@ export async function forgetOwnRoom(code: string): Promise<void> {
 export async function pruneOwnRooms(now: number = Date.now()): Promise<number> {
 	try {
 		const { uid, db } = await connect();
-		const { get, ref, remove, update } = await import('firebase/database');
+		const { get, ref, remove } = await import('firebase/database');
 		const indexSnap = await get(ref(db, `myRooms/${uid}`));
 		if (!indexSnap.exists()) return 0;
 
@@ -100,11 +100,9 @@ export async function pruneOwnRooms(now: number = Date.now()): Promise<number> {
 			const lastSeen = info.aliveAt ?? info.startedAt ?? info.createdAt ?? recordedAt;
 			if (now - lastSeen > ABANDONED_ROOM_MAX_AGE_MS) {
 				const gameId = typeof info.gameId === 'string' ? info.gameId : DEFAULT_GAME_ID;
-				await update(ref(db), {
-					[`rooms/${code}`]: null,
-					[`lobby/${gameId}/${code}`]: null,
-					[`myRooms/${uid}/${code}`]: null
-				}).catch(() => {});
+				await remove(ref(db, `lobby/${gameId}/${code}`)).catch(() => {});
+				await remove(ref(db, `rooms/${code}`)).catch(() => {});
+				await remove(ref(db, `myRooms/${uid}/${code}`)).catch(() => {});
 				pruned++;
 			}
 		}
@@ -121,7 +119,7 @@ export async function pruneOwnRooms(now: number = Date.now()): Promise<number> {
 export async function listOwnRooms(now: number = Date.now()): Promise<OwnActiveRoom[]> {
 	try {
 		const { uid, db } = await connect();
-		const { get, ref, remove, update } = await import('firebase/database');
+		const { get, ref, remove } = await import('firebase/database');
 		const indexSnap = await get(ref(db, `myRooms/${uid}`));
 		if (!indexSnap.exists()) return [];
 
@@ -159,14 +157,10 @@ export async function listOwnRooms(now: number = Date.now()): Promise<OwnActiveR
 			if (!stillAlive) {
 				if (info.hostUid === uid) {
 					const gameId = typeof info.gameId === 'string' ? info.gameId : DEFAULT_GAME_ID;
-					await update(ref(db), {
-						[`rooms/${code}`]: null,
-						[`lobby/${gameId}/${code}`]: null,
-						[`myRooms/${uid}/${code}`]: null
-					}).catch(() => {});
-				} else {
-					await remove(ref(db, `myRooms/${uid}/${code}`)).catch(() => {});
+					await remove(ref(db, `lobby/${gameId}/${code}`)).catch(() => {});
+					await remove(ref(db, `rooms/${code}`)).catch(() => {});
 				}
+				await remove(ref(db, `myRooms/${uid}/${code}`)).catch(() => {});
 				continue;
 			}
 
