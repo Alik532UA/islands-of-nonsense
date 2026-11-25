@@ -2,7 +2,7 @@
 	"rules": {
 		"__rulesVersion": {
 			"$v": {
-				".read": "auth != null && $v === '56a1981eddf3'"
+				".read": "auth != null && $v === '61b3c3ca3a52'"
 			}
 		},
 		"rooms": {
@@ -75,6 +75,9 @@
 							".validate": "newData.val() === 'none' || newData.val() === 'normal' || newData.val() === 'crazy'"
 						},
 						"isPrivate": {
+							".validate": "newData.isBoolean()"
+						},
+						"fogOfWar": {
 							".validate": "newData.isBoolean()"
 						},
 						"botDifficulty": {

@@ -174,6 +174,16 @@
 		await liveNet.updateMe(roomCode, { race: nextRace }).catch(() => {});
 	}
 
+	async function handleToggleFogOfWar(nextFog: boolean) {
+		if (!isLobby || !isEffectiveHost || !transport?.setConfig || !roomInfo) return;
+		await transport
+			.setConfig({
+				...roomInfo.config,
+				fogOfWar: nextFog
+			})
+			.catch(() => {});
+	}
+
 	async function handleStartMatch() {
 		if (!transport || !localUid || starting) return;
 		starting = true;
@@ -271,6 +281,48 @@
 					{/if}
 				</button>
 			</div>
+
+			{#if roomInfo}
+				{@const roomFogEnabled = roomInfo.config?.fogOfWar !== false}
+				<div
+					class="mb-4 p-3 rounded-xl bg-slate-800/70 border border-slate-700 flex items-center justify-between gap-2"
+				>
+					<span class="text-xs font-semibold text-slate-300">{t('online.mapVisibility')}:</span>
+					{#if isEffectiveHost}
+						<div class="flex gap-1.5">
+							<button
+								type="button"
+								data-testid="lobby-fog-on-btn"
+								onclick={() => handleToggleFogOfWar(true)}
+								class="px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer {roomFogEnabled
+									? 'bg-amber-500/25 border-amber-400 text-amber-200'
+									: 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'}"
+							>
+								{t('online.fogEnabled')}
+							</button>
+							<button
+								type="button"
+								data-testid="lobby-fog-off-btn"
+								onclick={() => handleToggleFogOfWar(false)}
+								class="px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer {!roomFogEnabled
+									? 'bg-emerald-500/25 border-emerald-400 text-emerald-200'
+									: 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'}"
+							>
+								{t('online.fogDisabled')}
+							</button>
+						</div>
+					{:else}
+						<span
+							data-testid="lobby-fog-status"
+							class="px-2.5 py-1 rounded-lg text-xs font-bold border {roomFogEnabled
+								? 'bg-amber-500/15 border-amber-500/40 text-amber-200'
+								: 'bg-emerald-500/15 border-emerald-500/40 text-emerald-200'}"
+						>
+							{roomFogEnabled ? t('online.fogEnabled') : t('online.fogDisabled')}
+						</span>
+					{/if}
+				</div>
+			{/if}
 
 			{#if localMember && !roomInfo?.config?.allRandom}
 				<div class="mb-4 p-3 rounded-xl bg-slate-800/70 border border-slate-700 space-y-2.5">

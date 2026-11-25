@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { MatchSync, computeSimStateChecksum } from './matchSync';
 import { LocalRoom } from './localRoom';
-import { createOnlineSimulation, pickNextTeamSlot } from './onlineMatchSetup';
+import {
+	buildOnlineSimulationConfig,
+	createOnlineSimulation,
+	pickNextTeamSlot
+} from './onlineMatchSetup';
 import { validatePlayerMove } from './actionValidation';
 import type { Member, RoomInfo } from './roomTypes';
 
@@ -283,5 +287,25 @@ describe('Online Deterministic Parity & Team Slot Sync', () => {
 		syncWest.dispose();
 		syncEast.dispose();
 		syncEastAlly.dispose();
+	});
+
+	it('respects fogOfWar room configuration (enabled by default, disabled for open-map testing)', () => {
+		expect(buildOnlineSimulationConfig(baseInfo).fogOfWar).toBe(true);
+
+		const openMapInfo: RoomInfo = {
+			...baseInfo,
+			config: { ...baseInfo.config, fogOfWar: false }
+		};
+		const initWest = createOnlineSimulation(openMapInfo, members, 'u_west_1');
+		const initEast = createOnlineSimulation(openMapInfo, members, 'u_east_1');
+
+		expect(initWest.sim.config.fogOfWar).toBe(false);
+		expect(initEast.sim.config.fogOfWar).toBe(false);
+		expect(
+			initWest.sim.isPointRevealed('west', initWest.sim.castles.east.x, initWest.sim.castles.east.y)
+		).toBe(true);
+		expect(
+			initEast.sim.isPointRevealed('east', initEast.sim.castles.west.x, initEast.sim.castles.west.y)
+		).toBe(true);
 	});
 });

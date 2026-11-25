@@ -156,6 +156,7 @@ describe('database.rules.json security invariants & Firebase architecture', () =
 		const payloadRules = room.moves.$seq.payload;
 		expect(payloadRules.commanderId['.validate']).toContain("'random'");
 		expect(payloadRules.playerSlot['.validate']).toContain('<= 6');
+		expect(room.info.config.fogOfWar['.validate']).toBe('newData.isBoolean()');
 	});
 
 	it('enforces strict $other: false schema locking across critical nodes', () => {

@@ -99,7 +99,12 @@
 		busy = false;
 	}
 
-	async function handleCreate(config: { modeId: string; teamSize: 1 | 2 | 3; isPrivate: boolean }) {
+	async function handleCreate(config: {
+		modeId: string;
+		teamSize: 1 | 2 | 3;
+		isPrivate: boolean;
+		fogOfWar: boolean;
+	}) {
 		busy = true;
 		errorMessage = null;
 		try {
@@ -115,6 +120,7 @@
 					teamSize: config.teamSize,
 					allRandom: config.modeId === 'allRandom',
 					targetWins: 2,
+					fogOfWar: config.fogOfWar,
 					isPrivate: config.isPrivate
 				},
 				name: entryName,

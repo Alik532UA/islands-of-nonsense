@@ -53,6 +53,7 @@ export interface RoomConfig {
 	uniqueRaces?: boolean;
 	targetWins: number;
 	coinMode?: 'none' | 'normal' | 'crazy';
+	fogOfWar?: boolean;
 	isPrivate?: boolean;
 	[key: string]: unknown;
 }

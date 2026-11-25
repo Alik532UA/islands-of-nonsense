@@ -60,6 +60,7 @@ export function buildOnlineSimulationConfig(info: RoomInfo): SimulationConfig {
 				: 'normal',
 		botDifficulty: 0,
 		botVsBot: false,
+		fogOfWar: info.config?.fogOfWar !== false,
 		startGold: typeof info.config?.startGold === 'number' ? info.config.startGold : 500,
 		seed: info.seed,
 		randomColors: false,

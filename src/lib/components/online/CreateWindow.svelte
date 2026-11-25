@@ -4,7 +4,12 @@
 
 	interface Props {
 		busy: boolean;
-		onCreate: (config: { modeId: string; teamSize: 1 | 2 | 3; isPrivate: boolean }) => void;
+		onCreate: (config: {
+			modeId: string;
+			teamSize: 1 | 2 | 3;
+			isPrivate: boolean;
+			fogOfWar: boolean;
+		}) => void;
 		onBack: () => void;
 	}
 
@@ -13,9 +18,10 @@
 	let selectedMode = $state('standard');
 	let teamSize = $state<1 | 2 | 3>(1);
 	let isPrivate = $state(false);
+	let fogOfWar = $state(true);
 
 	function submit() {
-		onCreate({ modeId: selectedMode, teamSize, isPrivate });
+		onCreate({ modeId: selectedMode, teamSize, isPrivate, fogOfWar });
 	}
 </script>
 
@@ -70,7 +76,7 @@
 	</div>
 
 	<!-- Privacy toggle -->
-	<div class="mb-6">
+	<div class="mb-4">
 		<span class="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
 			{t('online.roomAccess')}
 		</span>
@@ -92,6 +98,35 @@
 				onclick={() => (isPrivate = true)}
 			>
 				{t('online.private')}
+			</button>
+		</div>
+	</div>
+
+	<!-- Map visibility (Fog of War vs Open Map) -->
+	<div class="mb-6">
+		<span class="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
+			{t('online.mapVisibility')}
+		</span>
+		<div class="flex gap-2">
+			<button
+				type="button"
+				data-testid="create-fog-on-btn"
+				class="flex-1 min-h-[44px] py-2 px-3 border rounded-lg text-xs font-semibold text-center transition-colors cursor-pointer {fogOfWar
+					? 'bg-amber-500/20 border-amber-400 text-amber-200'
+					: 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-750'}"
+				onclick={() => (fogOfWar = true)}
+			>
+				{t('online.fogEnabled')}
+			</button>
+			<button
+				type="button"
+				data-testid="create-fog-off-btn"
+				class="flex-1 min-h-[44px] py-2 px-3 border rounded-lg text-xs font-semibold text-center transition-colors cursor-pointer {!fogOfWar
+					? 'bg-emerald-500/20 border-emerald-400 text-emerald-200'
+					: 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-750'}"
+				onclick={() => (fogOfWar = false)}
+			>
+				{t('online.fogDisabled')}
 			</button>
 		</div>
 	</div>
