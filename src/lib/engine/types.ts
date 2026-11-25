@@ -525,6 +525,7 @@ export interface WorkerState {
 	avoidanceBias?: 1 | -1;
 	isRepairing?: boolean;
 	targetRepairBuildingId?: string | null;
+	repairGoldAccumulator?: number;
 	path?: { x: number; y: number }[];
 	stuckTimer?: number;
 	lastMoveX?: number;

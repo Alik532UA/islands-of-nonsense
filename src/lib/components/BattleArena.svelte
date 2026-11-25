@@ -859,6 +859,18 @@
 					}
 					uiTick = sim.stateVersion;
 				},
+				onSimResynced: (nextSim) => {
+					sim = nextSim;
+					if (!isOnlineSpectator) attachReplayRecorder(sim);
+					perfMonitor.attachSim(sim);
+					if (unlistenAudio) unlistenAudio();
+					unlistenAudio = attachAudioBridge(sim, sound);
+					renderer?.setSimulation(sim);
+					if (networkNotice?.includes('розсинхронізація')) {
+						networkNotice = null;
+					}
+					uiTick = sim.stateVersion;
+				},
 				onHostChange: (host) => {
 					isOnlineHost = host;
 				},
@@ -1107,7 +1119,7 @@
 			const rawDelta = Math.min(0.25, (now - lastTime) / 1000);
 			lastTime = now;
 
-			if (sim.isRunning && !isSettingsOpen) {
+			if (sim.isRunning && (matchSync || !isSettingsOpen)) {
 				let stepsCount = 0;
 				const subDt = matchSync
 					? FIXED_STEP

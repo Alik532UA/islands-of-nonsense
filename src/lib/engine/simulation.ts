@@ -380,6 +380,13 @@ export class Simulation {
 		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 	}
 
+	/**
+	 * Read-only snapshot of current Mulberry32 PRNG state for lockstep checksum verification.
+	 */
+	public getRngState(): number {
+		return this.rngState >>> 0;
+	}
+
 	constructor(config: SimulationConfig = { botDifficulty: 0, startGold: 500 }) {
 		this.config = config;
 		this.rngState = (config.seed ?? createRandomDecorationSeed()) >>> 0 || 1;
@@ -1250,6 +1257,7 @@ export class Simulation {
 				p.worker.targetBuildingId = null;
 				p.worker.isRepairing = false;
 				p.worker.targetRepairBuildingId = null;
+				p.worker.repairGoldAccumulator = 0;
 				p.worker.path = [];
 			}
 		}

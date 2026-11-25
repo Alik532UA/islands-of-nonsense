@@ -753,7 +753,7 @@
 							: canUseRescue
 								? 'bg-rose-950/90 hover:bg-rose-900 border-rose-500 text-rose-100 ring-2 ring-rose-500/50'
 								: disabledBtnClass}"
-						aria-label="Прицільний Рятівний Удар на своєму острові (-950 облогової шкоди у 750px, 500px від робітника, КД 180с, клавіша E)"
+						aria-label="Прицільний Рятівний Удар на своєму острові (-950 хаос-шкоди по наземних і повітряних ворогах у 750px, 500px від робітника, КД 180с, клавіша E)"
 						aria-keyshortcuts="e"
 						aria-pressed={isRescueTargeting}
 					>

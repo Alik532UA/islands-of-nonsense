@@ -11,6 +11,9 @@ export interface MatchSyncOptions {
 	localSlot?: number;
 	uidToSlot?: Record<string, number>;
 	commandLeadTicks?: number;
+	getTargetTick?: () => number | null;
+	createResyncSimulation?: () => Simulation | null;
+	onSimResynced?: (sim: Simulation) => void;
 	onCommandApplied?: (move: Move) => void;
 	onGone?: (reason: string) => void;
 	onPeerStatusChange?: (status: { peerUid: string; online: boolean }) => void;
@@ -27,10 +30,7 @@ const IMMEDIATE_MOVE_TYPES = new Set([
 	'CHECKSUM',
 	'CHAT',
 	'lead',
-	'SET_RACE',
-	'PAUSE',
 	'RESUME',
-	'SURRENDER',
 	'NEXT_ROUND',
 	'RESTART_MATCH'
 ]);
@@ -38,8 +38,8 @@ const IMMEDIATE_MOVE_TYPES = new Set([
 const TELEMETRY_MOVE_TYPES = new Set(['HEARTBEAT', 'CHECKSUM', 'CHAT', 'lead']);
 
 export function computeSimStateChecksum(sim: Simulation): string {
-	const westHp = Math.round(sim.castles?.west?.hp ?? 0);
-	const eastHp = Math.round(sim.castles?.east?.hp ?? 0);
+	const westHp = Math.round((sim.castles?.west?.hp ?? 0) * 10);
+	const eastHp = Math.round((sim.castles?.east?.hp ?? 0) * 10);
 	const playerSignatures = (
 		sim.allPlayers?.length ? sim.allPlayers : [sim.players?.west, sim.players?.east]
 	)
@@ -52,10 +52,12 @@ export function computeSimStateChecksum(sim: Simulation): string {
 	const buildingsCount = sim.buildings?.length ?? 0;
 	const buildingsHp = (sim.buildings ?? []).reduce((sum, b) => sum + Math.round(b.hp), 0);
 	const unitsCount = sim.units?.length ?? 0;
+	const unitsHp = (sim.units ?? []).reduce((sum, u) => sum + Math.round(u.hp), 0);
+	const rngState = typeof sim.getRngState === 'function' ? sim.getRngState() : 0;
 
 	const cannonSig = `${sim.castleCannonUpgraded?.west ? 1 : 0}${sim.castleCannonUpgraded?.east ? 1 : 0}`;
 
-	const raw = `${sim.tick}:t${Math.round(sim.gameTime * 10)}:r${sim.round}:${sim.score.west}-${sim.score.east}:${sim.brokenBridge ?? 'none'}:${westHp},${eastHp}:${cannonSig}:${playerSignatures}:b${buildingsCount}/${buildingsHp}:u${unitsCount}`;
+	const raw = `${sim.tick}:t${Math.round(sim.gameTime * 10)}:r${sim.round}:${sim.score.west}-${sim.score.east}:${sim.brokenBridge ?? 'none'}:${westHp},${eastHp}:${cannonSig}:${playerSignatures}:b${buildingsCount}/${buildingsHp}:u${unitsCount}/${unitsHp}:g${rngState}`;
 	let hash = 5381;
 	for (let i = 0; i < raw.length; i++) {
 		hash = ((hash << 5) + hash + raw.charCodeAt(i)) & 0xffffffff;
@@ -77,8 +79,12 @@ export class MatchSync {
 	public localSlot: number;
 
 	private commandLeadTicks: number;
+	private getTargetTick?: () => number | null;
+	private createResyncSimulation?: () => Simulation | null;
+	private onSimResynced?: (sim: Simulation) => void;
 	private uidToSlot = new Map<string, number>();
 	private hydrated = false;
+	private resyncInProgress = false;
 	private nextSeq = 1;
 	private appliedSeq = 0;
 	private unwatch: (() => void) | null = null;
@@ -95,6 +101,7 @@ export class MatchSync {
 	private checksumHistory = new Map<number, string>();
 	private pendingRemoteChecksums = new Map<number, { peerUid: string; checksum: string }[]>();
 	private pendingMoves: Move[] = [];
+	private appliedHistory: Move[] = [];
 	private lastDispatchMs = 0;
 
 	constructor(options: MatchSyncOptions) {
@@ -104,6 +111,9 @@ export class MatchSync {
 		this.localTeam = options.localTeam;
 		this.localSlot = options.localSlot ?? (options.localTeam === 'east' ? 2 : 1);
 		this.commandLeadTicks = Math.max(0, Math.floor(options.commandLeadTicks ?? 0));
+		this.getTargetTick = options.getTargetTick;
+		this.createResyncSimulation = options.createResyncSimulation;
+		this.onSimResynced = options.onSimResynced;
 		if (options.uidToSlot) {
 			this.setRosterSlots(options.uidToSlot);
 		}
@@ -118,6 +128,7 @@ export class MatchSync {
 					this.appliedSeq = 0;
 					this.nextSeq = 1;
 					this.pendingMoves = [];
+					this.appliedHistory = [];
 					this.checksumHistory.clear();
 					this.pendingRemoteChecksums.clear();
 				}
@@ -135,6 +146,7 @@ export class MatchSync {
 		this.hydrated = false;
 		this.appliedSeq = 0;
 		this.pendingMoves = [];
+		this.appliedHistory = [];
 		this.checksumHistory.clear();
 		this.pendingRemoteChecksums.clear();
 	}
@@ -168,7 +180,7 @@ export class MatchSync {
 	 * Executes any buffered tick-scheduled commands whose target tick has been reached.
 	 * Should be invoked right before `sim.step(...)` in the fixed-step simulation loop.
 	 */
-	flushTick(tick: number = this.sim.tick): number {
+	flushTick(tick: number = this.sim.tick, emitCallbacks = true): number {
 		if (this.pendingMoves.length === 0) return 0;
 		const ready: Move[] = [];
 		const remaining: Move[] = [];
@@ -185,7 +197,9 @@ export class MatchSync {
 		ready.sort((a, b) => (a.payload?.tick ?? 0) - (b.payload?.tick ?? 0) || a.seq - b.seq);
 		for (const move of ready) {
 			this.applyMoveToSimulation(move);
-			this.onCommandApplied?.(move);
+			if (emitCallbacks) {
+				this.onCommandApplied?.(move);
+			}
 		}
 		return ready.length;
 	}
@@ -264,9 +278,13 @@ export class MatchSync {
 	async dispatch(type: string, payload: Partial<MovePayload> = {}): Promise<boolean> {
 		this.lastDispatchMs = Date.now();
 		const seq = this.nextSeq++;
+		const clockTick = this.getTargetTick?.();
+		const baseTick = this.sim.isRunning
+			? Math.max(this.sim.tick, typeof clockTick === 'number' ? clockTick : 0)
+			: this.sim.tick;
 		const scheduledTick = IMMEDIATE_MOVE_TYPES.has(type)
 			? this.sim.tick
-			: this.sim.tick + (this.sim.isRunning ? this.commandLeadTicks : 0);
+			: baseTick + (this.sim.isRunning ? this.commandLeadTicks : 0);
 		const move: Move = {
 			seq,
 			by: this.localUid,
@@ -298,6 +316,9 @@ export class MatchSync {
 			return;
 		}
 
+		let needsLateResync = false;
+		const resyncTargetTick = this.sim.tick;
+
 		for (const rawMove of sorted) {
 			if (rawMove.seq <= this.appliedSeq) continue;
 
@@ -310,19 +331,33 @@ export class MatchSync {
 			this.appliedSeq = move.seq;
 			this.nextSeq = Math.max(this.nextSeq, move.seq + 1);
 
+			if (!TELEMETRY_MOVE_TYPES.has(move.type)) {
+				this.appliedHistory.push(move);
+			}
+
 			const targetTick = move.payload?.tick;
 			if (
 				!IMMEDIATE_MOVE_TYPES.has(move.type) &&
 				typeof targetTick === 'number' &&
-				targetTick > this.sim.tick &&
 				this.sim.isRunning
 			) {
-				this.pendingMoves.push(move);
-				continue;
+				if (targetTick > this.sim.tick) {
+					this.pendingMoves.push(move);
+					continue;
+				}
+				if (targetTick < this.sim.tick && this.createResyncSimulation && !this.resyncInProgress) {
+					needsLateResync = true;
+					this.onCommandApplied?.(move);
+					continue;
+				}
 			}
 
 			this.applyMoveToSimulation(move);
 			this.onCommandApplied?.(move);
+		}
+
+		if (needsLateResync) {
+			this.resyncSimulationToTick(resyncTargetTick);
 		}
 	}
 
@@ -335,18 +370,50 @@ export class MatchSync {
 			const move = validation.sanitized;
 			this.appliedSeq = move.seq;
 			this.nextSeq = Math.max(this.nextSeq, move.seq + 1);
+			if (!TELEMETRY_MOVE_TYPES.has(move.type)) {
+				this.appliedHistory.push(move);
+			}
 			validMoves.push(move);
 		}
 		if (validMoves.length === 0) return;
 
+		this.replayMovesThroughCurrentSim(validMoves, 0, true);
+	}
+
+	private resyncSimulationToTick(targetTick: number): boolean {
+		if (this.resyncInProgress || !this.createResyncSimulation) return false;
+		const freshSim = this.createResyncSimulation();
+		if (!freshSim) return false;
+
+		this.resyncInProgress = true;
+		try {
+			this.sim = freshSim;
+			this.pendingMoves = [];
+			this.checksumHistory.clear();
+			this.pendingRemoteChecksums.clear();
+			this.replayMovesThroughCurrentSim(this.appliedHistory, targetTick, false);
+			this.onSimResynced?.(this.sim);
+			return true;
+		} finally {
+			this.resyncInProgress = false;
+		}
+	}
+
+	private replayMovesThroughCurrentSim(
+		moves: Move[],
+		minFinalTargetTick: number,
+		emitCallbacks: boolean
+	) {
 		// Split history cleanly on round/match boundaries so each epoch steps from tick 0
 		const segments: { moves: Move[]; resetMove: Move | null; targetTick: number }[] = [];
 		let currentMoves: Move[] = [];
 		let maxTick = 0;
 
-		for (const move of validMoves) {
+		for (const move of moves) {
 			const tick = typeof move.payload?.tick === 'number' ? move.payload.tick : 0;
-			if (tick > maxTick) maxTick = tick;
+			if (tick > maxTick && (minFinalTargetTick === 0 || tick <= minFinalTargetTick)) {
+				maxTick = tick;
+			}
 
 			if (move.type === 'NEXT_ROUND' || move.type === 'RESTART_MATCH') {
 				segments.push({ moves: currentMoves, resetMove: move, targetTick: maxTick });
@@ -358,8 +425,13 @@ export class MatchSync {
 		}
 		segments.push({ moves: currentMoves, resetMove: null, targetTick: maxTick });
 
-		for (const seg of segments) {
-			const clampedTarget = Math.min(seg.targetTick, MAX_CATCHUP_TICKS);
+		for (let segIdx = 0; segIdx < segments.length; segIdx++) {
+			const seg = segments[segIdx];
+			const isLastSeg = segIdx === segments.length - 1;
+			const desiredTarget = isLastSeg
+				? Math.max(seg.targetTick, minFinalTargetTick)
+				: seg.targetTick;
+			const clampedTarget = Math.min(desiredTarget, MAX_CATCHUP_TICKS);
 			const checksums: Move[] = [];
 			for (const move of seg.moves) {
 				if (move.type === 'CHECKSUM') {
@@ -370,13 +442,13 @@ export class MatchSync {
 			}
 
 			// Flush initial tick-0 commands (e.g. RESUME) before checking `this.sim.isRunning`
-			this.flushTick(this.sim.tick);
+			this.flushTick(this.sim.tick, emitCallbacks);
 
 			while (this.sim.tick < clampedTarget && this.sim.isRunning && !this.sim.winner) {
-				this.flushTick(this.sim.tick);
+				this.flushTick(this.sim.tick, emitCallbacks);
 				this.sim.step(FIXED_STEP);
 			}
-			this.flushTick(this.sim.tick);
+			this.flushTick(this.sim.tick, emitCallbacks);
 
 			for (const cMove of checksums) {
 				this.applyMoveToSimulation(cMove);
@@ -384,7 +456,9 @@ export class MatchSync {
 
 			if (seg.resetMove) {
 				this.applyMoveToSimulation(seg.resetMove);
-				this.onCommandApplied?.(seg.resetMove);
+				if (emitCallbacks) {
+					this.onCommandApplied?.(seg.resetMove);
+				}
 			}
 		}
 	}
@@ -597,6 +671,7 @@ export class MatchSync {
 			this.unwatch = null;
 		}
 		this.pendingMoves = [];
+		this.appliedHistory = [];
 		this.checksumHistory.clear();
 		this.pendingRemoteChecksums.clear();
 	}

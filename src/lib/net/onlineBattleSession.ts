@@ -17,6 +17,7 @@ export interface OnlineBattleSessionCallbacks {
 			isPlaying: boolean;
 		}
 	) => void;
+	onSimResynced?: (nextSim: Simulation) => void;
 	onHostChange: (isHost: boolean) => void;
 	onPeerStatusChange: (status: { peerOnline: boolean; notice?: string | null }) => void;
 	onPeerPing: (rtt: number) => void;
@@ -146,6 +147,16 @@ export async function startOnlineBattleSession(
 			typeof roomInfo?.startedAt === 'number'
 				? roomInfo.startedAt
 				: null;
+		let pausedAtServerMs: number | null = null;
+
+		const getTargetTickInternal = (): number | null => {
+			if (!onlineStarted || epochAnchorServerMs === null) return null;
+			if (pausedAtServerMs !== null) {
+				return activeSim.tick;
+			}
+			const elapsedMs = Math.max(0, transport.now() - epochAnchorServerMs);
+			return Math.floor((elapsedMs / 1000) * 60);
+		};
 
 		const publishPeerOnline = () => {
 			const peerOnline = presencePeerOnline || memberPeerOnline;
@@ -178,9 +189,11 @@ export async function startOnlineBattleSession(
 				if (awaitingPick) {
 					countdownAnchorServerMs = startedMs;
 					epochAnchorServerMs = null;
+					pausedAtServerMs = null;
 				} else {
 					countdownAnchorServerMs = null;
 					epochAnchorServerMs = startedMs;
+					pausedAtServerMs = null;
 				}
 				sync?.setRosterSlots(fresh.uidToSlot);
 				sync?.setSimulation(activeSim);
@@ -196,7 +209,14 @@ export async function startOnlineBattleSession(
 			localTeam,
 			localSlot,
 			uidToSlot: onlineInit?.uidToSlot,
-			commandLeadTicks: 10,
+			commandLeadTicks: 24,
+			getTargetTick: getTargetTickInternal,
+			createResyncSimulation: () =>
+				latestRoomInfo ? createOnlineSimulation(latestRoomInfo, latestMembers, uid).sim : null,
+			onSimResynced: (nextSim) => {
+				activeSim = nextSim;
+				callbacks.onSimResynced?.(nextSim);
+			},
 			onPeerStatusChange: (status) => {
 				memberPeerOnline = status.online;
 				publishPeerOnline();
@@ -217,13 +237,24 @@ export async function startOnlineBattleSession(
 				callbacks.onGone(reason);
 			},
 			onCommandApplied: (move) => {
-				if (
-					(move.type === 'RESUME' && epochAnchorServerMs === null) ||
-					move.type === 'NEXT_ROUND' ||
-					move.type === 'RESTART_MATCH'
-				) {
-					epochAnchorServerMs = typeof move.at === 'number' ? move.at : transport.now();
+				const moveAt = typeof move.at === 'number' ? move.at : transport.now();
+				if (move.type === 'PAUSE') {
+					if (pausedAtServerMs === null) {
+						pausedAtServerMs = moveAt;
+					}
+				} else if (move.type === 'RESUME') {
+					if (pausedAtServerMs !== null && epochAnchorServerMs !== null) {
+						epochAnchorServerMs += Math.max(0, moveAt - pausedAtServerMs);
+						pausedAtServerMs = null;
+					} else if (epochAnchorServerMs === null) {
+						epochAnchorServerMs = moveAt;
+						countdownAnchorServerMs = null;
+						pausedAtServerMs = null;
+					}
+				} else if (move.type === 'NEXT_ROUND' || move.type === 'RESTART_MATCH') {
+					epochAnchorServerMs = moveAt;
 					countdownAnchorServerMs = null;
+					pausedAtServerMs = null;
 				}
 				callbacks.onCommandApplied(move);
 			}
@@ -283,11 +314,7 @@ export async function startOnlineBattleSession(
 				if (!latestRoomInfo) return isHostHint;
 				return selectCountdownCoordinatorUid(latestMembers, latestRoomInfo.hostUid) === uid;
 			},
-			getTargetTick() {
-				if (!onlineStarted || epochAnchorServerMs === null) return null;
-				const elapsedMs = Math.max(0, transport.now() - epochAnchorServerMs);
-				return Math.floor((elapsedMs / 1000) * 60);
-			},
+			getTargetTick: getTargetTickInternal,
 			getCountdownRemainingSec() {
 				if (countdownAnchorServerMs === null || epochAnchorServerMs !== null) return null;
 				const elapsedSec = Math.floor(

@@ -1053,7 +1053,7 @@ export class EconomySystem {
 				const dx = u.x - targetX;
 				const dy = u.y - targetY;
 				if (dx * dx + dy * dy <= radiusSq) {
-					this.sim.combatSystem.applyUnitDamage(u, strikeDamage, 'siege', team, true, undefined, {
+					this.sim.combatSystem.applyUnitDamage(u, strikeDamage, 'chaos', team, true, undefined, {
 						bountyMultiplier: 2,
 						killerPlayer: targetPlayer,
 						suppressKillFloatingText: true

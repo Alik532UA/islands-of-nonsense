@@ -308,4 +308,122 @@ describe('Online Deterministic Parity & Team Slot Sync', () => {
 			initEast.sim.isPointRevealed('east', initEast.sim.castles.west.x, initEast.sim.castles.west.y)
 		).toBe(true);
 	});
+
+	it('reconciles late remote commands without desyncing building completion or castle HP', async () => {
+		const initA = createOnlineSimulation(baseInfo, members, 'u_west_1');
+		const initB = createOnlineSimulation(baseInfo, members, 'u_east_1');
+		const room = new LocalRoom(baseInfo, members);
+		const desyncs: number[] = [];
+
+		let currentSimB = initB.sim;
+		const syncA = new MatchSync({
+			sim: initA.sim,
+			transport: room.transport({ as: 'u_west_1' }),
+			localUid: 'u_west_1',
+			localTeam: 'west',
+			localSlot: 1,
+			uidToSlot: initA.uidToSlot,
+			commandLeadTicks: 24,
+			createResyncSimulation: () => createOnlineSimulation(baseInfo, members, 'u_west_1').sim
+		});
+
+		const syncB = new MatchSync({
+			sim: initB.sim,
+			transport: room.transport({ as: 'u_east_1' }),
+			localUid: 'u_east_1',
+			localTeam: 'east',
+			localSlot: 2,
+			uidToSlot: initB.uidToSlot,
+			commandLeadTicks: 24,
+			createResyncSimulation: () => createOnlineSimulation(baseInfo, members, 'u_east_1').sim,
+			onSimResynced: (nextSim) => {
+				currentSimB = nextSim;
+			},
+			onDesync: (info) => desyncs.push(info.tick)
+		});
+
+		// Peer B steps ahead to tick 60 before Peer A's tick-10 move arrives
+		for (let t = 0; t < 60; t++) {
+			currentSimB.step(1 / 60);
+		}
+
+		// Peer A is at tick 10 and sends a BUILD with targetTick = 34 (< Peer B's tick 60)
+		for (let t = 0; t < 10; t++) {
+			initA.sim.step(1 / 60);
+		}
+		await syncA.dispatch('BUILD', { buildingType: 'cg11_forge', x: 25, y: 20 });
+
+		// Peer A catches up to tick 60 cleanly executing BUILD at tick 34
+		while (initA.sim.tick < 60) {
+			syncA.flushTick(initA.sim.tick);
+			initA.sim.step(1 / 60);
+		}
+
+		// Both peers advance to tick 300 and verify checksums + buildings match identically
+		for (let t = 60; t < 300; t++) {
+			syncA.flushTick(initA.sim.tick);
+			syncB.flushTick(currentSimB.tick);
+			initA.sim.step(1 / 60);
+			currentSimB.step(1 / 60);
+			if (initA.sim.tick % 120 === 0) {
+				await syncA.broadcastChecksum();
+				await syncB.broadcastChecksum();
+			}
+		}
+
+		expect(desyncs).toEqual([]);
+		expect(computeSimStateChecksum(initA.sim)).toBe(computeSimStateChecksum(currentSimB));
+		expect(initA.sim.buildings.length).toBe(currentSimB.buildings.length);
+
+		syncA.dispose();
+		syncB.dispose();
+	});
+
+	it('schedules in-game PAUSE on identical targetTick across peers without drift', async () => {
+		const initA = createOnlineSimulation(baseInfo, members, 'u_west_1');
+		const initB = createOnlineSimulation(baseInfo, members, 'u_east_1');
+		const room = new LocalRoom(baseInfo, members);
+
+		const syncA = new MatchSync({
+			sim: initA.sim,
+			transport: room.transport({ as: 'u_west_1' }),
+			localUid: 'u_west_1',
+			localTeam: 'west',
+			localSlot: 1,
+			uidToSlot: initA.uidToSlot,
+			commandLeadTicks: 24
+		});
+		const syncB = new MatchSync({
+			sim: initB.sim,
+			transport: room.transport({ as: 'u_east_1' }),
+			localUid: 'u_east_1',
+			localTeam: 'east',
+			localSlot: 2,
+			uidToSlot: initB.uidToSlot,
+			commandLeadTicks: 24
+		});
+
+		for (let t = 0; t < 50; t++) {
+			initA.sim.step(1 / 60);
+			initB.sim.step(1 / 60);
+		}
+
+		await syncA.dispatch('PAUSE');
+		// Advance both to tick 80 (past scheduled PAUSE at tick 74); both must halt at exact tick 74
+		for (let t = 0; t < 30; t++) {
+			syncA.flushTick(initA.sim.tick);
+			syncB.flushTick(initB.sim.tick);
+			initA.sim.step(1 / 60);
+			initB.sim.step(1 / 60);
+		}
+
+		expect(initA.sim.isRunning).toBe(false);
+		expect(initB.sim.isRunning).toBe(false);
+		expect(initA.sim.tick).toBe(74);
+		expect(initB.sim.tick).toBe(74);
+		expect(computeSimStateChecksum(initA.sim)).toBe(computeSimStateChecksum(initB.sim));
+
+		syncA.dispose();
+		syncB.dispose();
+	});
 });

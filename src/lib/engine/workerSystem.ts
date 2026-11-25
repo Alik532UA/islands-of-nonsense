@@ -650,8 +650,15 @@ export class WorkerSystem {
 						const bh = isCastle ? 280 : CELL_SIZE;
 						const distToRep = this.getDistanceToBox(w.x, w.y, bx, by, bw, bh);
 						if (distToRep <= 48) {
+							const REPAIR_HP_PER_SEC = 50;
+							// 0.012 gold per HP = 0.6g/sec at 50 HP/sec (100x cheaper than the old 1g/tick = 60g/sec bug)
+							const REPAIR_GOLD_PER_HP = 0.012;
+							const healAmount = Math.min(repTarget.maxHp - repTarget.hp, REPAIR_HP_PER_SEC * dt);
+							const nextCostAcc = (w.repairGoldAccumulator ?? 0) + healAmount * REPAIR_GOLD_PER_HP;
+							const goldCost = Math.floor(nextCostAcc + 1e-9);
+
 							// If out of gold, worker cannot continue repairing
-							if (p.gold < 1) {
+							if (p.gold < Math.max(1, goldCost)) {
 								w.isRepairing = false;
 								w.isBuilding = false;
 								w.targetRepairBuildingId = null;
@@ -663,9 +670,11 @@ export class WorkerSystem {
 							w.isBuilding = true;
 							w.isRepairing = true;
 							w.path = [];
-							const healAmount = Math.min(repTarget.maxHp - repTarget.hp, 50 * dt);
 							repTarget.hp += healAmount;
-							p.gold = Math.max(0, p.gold - Math.max(1, Math.round(2 * dt)));
+							w.repairGoldAccumulator = Math.max(0, nextCostAcc - goldCost);
+							if (goldCost > 0) {
+								p.gold = Math.max(0, p.gold - goldCost);
+							}
 							if (repTarget.hp >= repTarget.maxHp) {
 								w.isRepairing = false;
 								w.isBuilding = false;

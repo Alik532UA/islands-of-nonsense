@@ -312,4 +312,48 @@ describe('Point 5: Rescue Strike (Emergency Castle Defense)', () => {
 		expect(worker.pendingRescueStrike).toBeNull();
 		expect(sim.canUseRescueStrike('west', player)).toBe(true);
 	});
+
+	it('damages all enemy ground and flying units (including medium armor and banished flyers) uniformly', () => {
+		const westCastle = sim.castles.west;
+
+		const groundEnemy = sim.spawnUnitDirectly({
+			team: 'east',
+			lane: 'mid',
+			x: westCastle.x + 150,
+			y: westCastle.y,
+			hp: 400,
+			armor: 0,
+			armorType: 'medium',
+			flying: false
+		});
+
+		const mediumArmorFlyer = sim.spawnUnitDirectly({
+			team: 'east',
+			lane: 'mid',
+			x: westCastle.x + 220,
+			y: westCastle.y - 40,
+			hp: 620,
+			armor: 4,
+			armorType: 'medium',
+			flying: true
+		});
+
+		const banishedFlyer = sim.spawnUnitDirectly({
+			team: 'east',
+			lane: 'top',
+			x: westCastle.x + 260,
+			y: westCastle.y + 40,
+			hp: 500,
+			armor: 2,
+			armorType: 'small',
+			flying: true
+		});
+		banishedFlyer.isBanished = true;
+
+		const outcome = sim.triggerRescueStrike('west');
+		expect(outcome?.hitCount).toBe(3);
+		expect(groundEnemy.state).toBe('DEAD');
+		expect(mediumArmorFlyer.state).toBe('DEAD');
+		expect(banishedFlyer.state).toBe('DEAD');
+	});
 });

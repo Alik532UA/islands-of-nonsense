@@ -44,11 +44,15 @@ describe('Point 8: Worker Building & Castle Repair Mechanic', () => {
 		const initialGold = sim.players.west.gold;
 		const initialHp = bld.hp;
 
-		// Update workers for 1 second
-		sim.workerSystem.updateWorkers(1.0);
+		// Update workers across 2 seconds at 60Hz (100 HP repaired -> ~1 gold instead of 120g)
+		for (let i = 0; i < 120; i++) {
+			sim.workerSystem.updateWorkers(1 / 60);
+		}
 
-		expect(bld.hp).toBeGreaterThan(initialHp);
-		expect(sim.players.west.gold).toBeLessThan(initialGold);
+		expect(bld.hp).toBeCloseTo(initialHp + 100, 1);
+		const goldSpent = initialGold - sim.players.west.gold;
+		expect(goldSpent).toBeGreaterThanOrEqual(1);
+		expect(goldSpent).toBeLessThanOrEqual(2);
 	});
 
 	it('завершує ремонт і скидає стан робітника при досягненні 100% HP', () => {
