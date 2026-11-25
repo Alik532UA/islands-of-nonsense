@@ -1,8 +1,37 @@
 import { connect } from './firebase';
 import { logService } from '$lib/services/logService.svelte';
+import { countOpenHumanCapacity } from './onlineMatchSetup';
+import type { RoomConfig } from './roomTypes';
 import { SWEEP_MAX_AGE_MS } from './sweepRooms';
 
 const ROOM_CODE_PATTERN = /^[0-9A-Z]{2,6}$/;
+
+export interface OwnActiveRoom {
+	code: string;
+	status: 'lobby' | 'playing';
+	players: number;
+	maxPlayers: number;
+	modeId: string;
+	createdAt: number;
+}
+
+export function isActiveOwnRoomInfo(
+	info: {
+		hostUid?: string;
+		status?: string;
+		aliveAt?: number;
+		startedAt?: number;
+		createdAt?: number;
+	} | null,
+	uid: string,
+	now: number = Date.now(),
+	recordedAt: number = 0
+): boolean {
+	if (!info || info.hostUid !== uid) return false;
+	if (info.status !== 'lobby' && info.status !== 'playing') return false;
+	const lastSeen = info.aliveAt ?? info.startedAt ?? info.createdAt ?? recordedAt;
+	return now - lastSeen <= SWEEP_MAX_AGE_MS;
+}
 
 /**
  * Records a newly created room under `myRooms/{uid}/{code}` so the host
@@ -83,5 +112,61 @@ export async function pruneOwnRooms(now: number = Date.now()): Promise<number> {
 	} catch (error) {
 		logService.warn('network', 'own rooms prune failed', { reason: String(error) });
 		return 0;
+	}
+}
+
+/**
+ * Lists active (`lobby` or `playing`) rooms hosted by the current user for quick resume/close.
+ */
+export async function listOwnRooms(now: number = Date.now()): Promise<OwnActiveRoom[]> {
+	try {
+		const { uid, db } = await connect();
+		const { get, ref, remove } = await import('firebase/database');
+		const indexSnap = await get(ref(db, `myRooms/${uid}`));
+		if (!indexSnap.exists()) return [];
+
+		const entries = indexSnap.val() as Record<string, { at?: number } | number>;
+		const active: OwnActiveRoom[] = [];
+
+		for (const [code, raw] of Object.entries(entries)) {
+			if (!ROOM_CODE_PATTERN.test(code)) continue;
+			const [infoSnap, membersSnap] = await Promise.all([
+				get(ref(db, `rooms/${code}/info`)),
+				get(ref(db, `rooms/${code}/members`))
+			]);
+			if (!infoSnap.exists()) {
+				await remove(ref(db, `myRooms/${uid}/${code}`)).catch(() => {});
+				continue;
+			}
+			const info = infoSnap.val() as {
+				hostUid?: string;
+				status?: string;
+				aliveAt?: number;
+				startedAt?: number;
+				createdAt?: number;
+				config?: RoomConfig;
+			};
+			const recordedAt = typeof raw === 'number' ? raw : (raw?.at ?? 0);
+			if (!isActiveOwnRoomInfo(info, uid, now, recordedAt)) continue;
+
+			const membersVal = membersSnap.exists()
+				? (membersSnap.val() as Record<string, { role?: string }>)
+				: {};
+			const players = Object.values(membersVal).filter((m) => m?.role === 'player').length;
+			active.push({
+				code,
+				status: info.status === 'playing' ? 'playing' : 'lobby',
+				players,
+				maxPlayers: countOpenHumanCapacity(info.config),
+				modeId: info.config?.modeId ?? 'standard',
+				createdAt: info.createdAt ?? recordedAt
+			});
+		}
+
+		active.sort((a, b) => b.createdAt - a.createdAt);
+		return active;
+	} catch (error) {
+		logService.warn('network', 'list own rooms failed', { reason: String(error) });
+		return [];
 	}
 }

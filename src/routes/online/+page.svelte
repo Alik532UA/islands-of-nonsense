@@ -27,6 +27,8 @@
 		RULES_VERSION
 	} from '$lib/net/lobby';
 	import { liveNet } from '$lib/net/roomNet';
+	import { listOwnRooms, type OwnActiveRoom } from '$lib/net/ownRooms';
+	import { checkLiveRules } from '$lib/net/rulesLive';
 	import { seekMatch, type SeekFormat } from '$lib/net/seek';
 	import { buildRoomSlots, countOpenHumanCapacity } from '$lib/net/onlineMatchSetup';
 	import type { LobbyRoom } from '$lib/net/roomTypes';
@@ -47,6 +49,8 @@
 	let busy = $state(false);
 	let errorMessage = $state<string | null>(null);
 	let rooms = $state<LobbyRoom[]>([]);
+	let ownRooms = $state<OwnActiveRoom[]>([]);
+	let rulesStale = $state(false);
 	let friendUids = $state<string[]>([]);
 	let followingUids = $state<string[]>([]);
 	let myUid = $state<string | null>(null);
@@ -121,6 +125,12 @@
 				}
 				unsubscribeLobby = subscribeLobby(db, (updated) => {
 					rooms = updated;
+				});
+				void listOwnRooms().then((list) => {
+					if (active) ownRooms = list;
+				});
+				void checkLiveRules().then((state) => {
+					if (active && state === 'stale') rulesStale = true;
 				});
 
 				if (urlCode && /^[0-9A-Z]{2,6}$/.test(urlCode)) {
@@ -383,6 +393,22 @@
 			</p>
 		</header>
 
+		{#if rulesStale}
+			<div
+				class="w-full max-w-xl mx-auto mb-4 px-4 py-3 rounded-xl bg-amber-950/90 border border-amber-500/60 text-amber-100 text-xs flex items-center justify-between gap-3"
+				data-testid="online-rules-stale-banner"
+			>
+				<span>{t('online.rulesStale')}</span>
+				<button
+					type="button"
+					onclick={() => typeof window !== 'undefined' && window.location.reload()}
+					class="px-3 py-1 rounded-lg bg-amber-500 text-slate-950 font-bold cursor-pointer shrink-0"
+				>
+					{t('pwa.updateAction')}
+				</button>
+			</div>
+		{/if}
+
 		<!-- Player Identity Customizer -->
 		{#if roomInvites.length > 0}
 			{@const topInvite = roomInvites[0]}
@@ -468,6 +494,59 @@
 				<span class="text-xs text-slate-400 font-normal">{t('online.joinByCodeDesc')}</span>
 			</button>
 		</nav>
+
+		<!-- Active Own Rooms (Resume / Close) -->
+		{#if ownRooms.length > 0}
+			<div class="w-full max-w-xl mx-auto mt-6" data-testid="own-active-rooms">
+				<h3 class="text-sm font-bold text-amber-300 uppercase tracking-wider mb-2.5 flex items-center gap-2">
+					<UiIcon name="play" class="w-4 h-4" />
+					<span>{t('online.myRooms.title')}</span>
+				</h3>
+				<div class="flex flex-col gap-2">
+					{#each ownRooms as myRoom (myRoom.code)}
+						<div
+							class="flex items-center justify-between p-3 rounded-xl bg-amber-950/20 border border-amber-500/40 text-xs"
+						>
+							<div>
+								<div class="font-black text-amber-200 font-mono">
+									{myRoom.code} ·
+									<span class="font-sans font-semibold text-slate-300">
+										{myRoom.status === 'playing'
+											? t('online.myRooms.playing')
+											: t('online.myRooms.lobby')}
+									</span>
+								</div>
+								<div class="text-[11px] text-slate-400">
+									{myRoom.players}/{myRoom.maxPlayers} {t('online.playersCount')}
+								</div>
+							</div>
+							<div class="flex items-center gap-1.5 shrink-0">
+								<button
+									type="button"
+									onclick={() =>
+										void goto(
+											`${resolve('/play/battle')}?room=${myRoom.code}&host=1`
+										)}
+									class="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold cursor-pointer"
+								>
+									{t('online.myRooms.resume')}
+								</button>
+								<button
+									type="button"
+									onclick={async () => {
+										await liveNet.closeRoom(myRoom.code).catch(() => {});
+										ownRooms = ownRooms.filter((r) => r.code !== myRoom.code);
+									}}
+									class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-900/50 text-rose-300 font-bold cursor-pointer"
+								>
+									{t('online.myRooms.close')}
+								</button>
+							</div>
+						</div>
+					{/each}
+				</div>
+			</div>
+		{/if}
 
 		<!-- Open Rooms List -->
 		<RoomList {rooms} {friendUids} onJoin={handleJoin} onSpectate={handleSpectate} />

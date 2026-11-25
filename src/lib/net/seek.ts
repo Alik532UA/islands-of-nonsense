@@ -70,6 +70,7 @@ function findJoinableLobbyRoom(
 				r &&
 				r.hostUid !== myUid &&
 				r.players < r.maxPlayers &&
+				r.rulesVersion === RULES_VERSION &&
 				(format === 'any' || (r.modeId === 'standard' && r.maxPlayers === desiredMaxPlayers)) &&
 				now - (r.createdAt ?? 0) < 120_000
 		)
@@ -165,7 +166,11 @@ export async function seekMatch(
 				const checkLobby = await get(lobbyRef);
 				if (checkLobby.exists()) {
 					const matchRoom = Object.values(checkLobby.val() as Record<string, LobbyRoom>).find(
-						(r) => r && r.hostUid === peerUid && r.players < r.maxPlayers
+						(r) =>
+							r &&
+							r.hostUid === peerUid &&
+							r.rulesVersion === RULES_VERSION &&
+							r.players < r.maxPlayers
 					);
 					if (matchRoom) {
 						await cleanupTicket();

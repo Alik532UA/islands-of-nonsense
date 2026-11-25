@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect, vi } from 'vitest';
 import { buildSeekTicket, seekMatch } from './seek';
+import { isCompatibleLobbyRoom, RULES_VERSION } from './lobby';
 import type { Database } from 'firebase/database';
 
 describe('seek matchmaking & RTDB schema compliance', () => {
@@ -45,5 +46,41 @@ describe('seek matchmaking & RTDB schema compliance', () => {
 				{ format: '3v3' }
 			)
 		).rejects.toThrow('Search cancelled');
+	});
+
+	it('filters lobby rooms by rulesVersion compatibility and capacity', () => {
+		const now = Date.now();
+		expect(
+			isCompatibleLobbyRoom(
+				{
+					code: 'AB12',
+					hostUid: 'u1',
+					hostName: 'Host',
+					gameId: 'castlefight',
+					rulesVersion: RULES_VERSION,
+					players: 1,
+					maxPlayers: 2,
+					modeId: 'standard',
+					createdAt: now - 1000
+				},
+				now
+			)
+		).toBe(true);
+		expect(
+			isCompatibleLobbyRoom(
+				{
+					code: 'OLD1',
+					hostUid: 'u1',
+					hostName: 'Old',
+					gameId: 'castlefight',
+					rulesVersion: RULES_VERSION + 99,
+					players: 1,
+					maxPlayers: 2,
+					modeId: 'standard',
+					createdAt: now - 1000
+				},
+				now
+			)
+		).toBe(false);
 	});
 });

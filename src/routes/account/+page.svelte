@@ -43,6 +43,10 @@
 	let authMode = $state<'signin' | 'register'>('register');
 	let authErrorMessage = $state('');
 	let authInfoMessage = $state('');
+	let currentPassword = $state('');
+	let newPassword = $state('');
+	let deletePassword = $state('');
+	let confirmDeleteOpen = $state(false);
 	let savedSuccess = $state(false);
 	let handleStatus = $state<'idle' | 'invalid' | 'checking' | 'available' | 'taken'>('idle');
 	let handleClean = $derived(formHandle.trim().replace(/^@/, '').toLowerCase());
@@ -192,6 +196,45 @@
 
 	async function handleSignOut() {
 		await controller.signOut();
+	}
+
+	async function handleResetPassword() {
+		if (!authEmail.trim()) {
+			authErrorMessage = t('account.auth.email');
+			return;
+		}
+		authErrorMessage = '';
+		authInfoMessage = '';
+		const ok = await controller.resetPassword(authEmail);
+		if (ok) {
+			authInfoMessage = t('account.auth.resetSent');
+			toast.success(t('account.auth.resetSent'));
+		} else {
+			authErrorMessage = controller.error || 'Помилка мережі';
+		}
+	}
+
+	async function handleChangePassword() {
+		if (!currentPassword || newPassword.length < 6) return;
+		const ok = await controller.changePassword(currentPassword, newPassword);
+		if (ok) {
+			currentPassword = '';
+			newPassword = '';
+			toast.success(t('account.auth.passChanged'));
+		} else {
+			toast.error(controller.error || 'Error');
+		}
+	}
+
+	async function handleDeleteAccount() {
+		const ok = await controller.deleteAccount(deletePassword || undefined);
+		if (ok) {
+			confirmDeleteOpen = false;
+			deletePassword = '';
+			toast.success(t('account.auth.deletedToast'));
+		} else {
+			toast.error(controller.error || 'Error');
+		}
 	}
 </script>
 
@@ -472,7 +515,7 @@
 				</form>
 
 				<!-- Auth / Cloud Linking Section -->
-				<div class="mt-8 pt-6 border-t border-slate-800">
+				<div class="mt-8 pt-6 border-t border-slate-800 space-y-4">
 					{#if controller.state === 'linked'}
 						<div
 							class="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl flex items-center justify-between"
@@ -491,6 +534,97 @@
 								<UiIcon name="logOut" class="w-4 h-4" />
 								<span>{t('account.auth.signOut')}</span>
 							</button>
+						</div>
+
+						{#if controller.email}
+							<form
+								onsubmit={(e) => {
+									e.preventDefault();
+									void handleChangePassword();
+								}}
+								class="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl space-y-3"
+							>
+								<div class="text-xs font-bold text-slate-300">
+									{t('account.auth.changePassTitle')}
+								</div>
+								<div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+									<input
+										type="password"
+										autocomplete="current-password"
+										bind:value={currentPassword}
+										placeholder={t('account.auth.currentPass')}
+										class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500"
+									/>
+									<input
+										type="password"
+										autocomplete="new-password"
+										minlength="6"
+										bind:value={newPassword}
+										placeholder={t('account.auth.newPass')}
+										class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500"
+									/>
+								</div>
+								<div class="flex justify-end">
+									<button
+										type="submit"
+										disabled={controller.busy || !currentPassword || newPassword.length < 6}
+										class="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-xs cursor-pointer disabled:opacity-50"
+									>
+										{t('account.auth.changePassBtn')}
+									</button>
+								</div>
+							</form>
+						{/if}
+
+						<div class="p-4 bg-rose-950/20 border border-rose-500/30 rounded-2xl space-y-3">
+							<div class="flex items-center justify-between gap-3">
+								<div>
+									<div class="text-xs font-bold text-rose-300">{t('account.auth.deleteTitle')}</div>
+									<div class="text-[11px] text-slate-400">{t('account.auth.deleteDesc')}</div>
+								</div>
+								{#if !confirmDeleteOpen}
+									<button
+										type="button"
+										onclick={() => (confirmDeleteOpen = true)}
+										class="px-3 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/35 border border-rose-500/40 text-rose-200 font-bold text-xs cursor-pointer shrink-0"
+										data-testid="btn-delete-account-open"
+									>
+										{t('account.auth.deleteBtn')}
+									</button>
+								{/if}
+							</div>
+							{#if confirmDeleteOpen}
+								<div class="flex flex-wrap items-center gap-2 pt-1">
+									{#if controller.email}
+										<input
+											type="password"
+											autocomplete="current-password"
+											bind:value={deletePassword}
+											placeholder={t('account.auth.currentPass')}
+											class="flex-1 min-w-[160px] bg-slate-900 border border-rose-500/40 rounded-xl px-3 py-1.5 text-xs text-slate-100"
+										/>
+									{/if}
+									<button
+										type="button"
+										disabled={controller.busy || (Boolean(controller.email) && !deletePassword)}
+										onclick={() => void handleDeleteAccount()}
+										class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs cursor-pointer disabled:opacity-50"
+										data-testid="btn-delete-account-confirm"
+									>
+										{t('account.auth.deleteConfirm')}
+									</button>
+									<button
+										type="button"
+										onclick={() => {
+											confirmDeleteOpen = false;
+											deletePassword = '';
+										}}
+										class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 text-xs cursor-pointer"
+									>
+										{t('common.close')}
+									</button>
+								</div>
+							{/if}
 						</div>
 					{:else}
 						<div
@@ -583,7 +717,16 @@
 										{/if}
 									</div>
 
-									<div class="flex items-center justify-end pt-1">
+									<div class="flex items-center justify-between pt-1">
+										<button
+											type="button"
+											onclick={() => void handleResetPassword()}
+											disabled={controller.busy}
+											class="text-xs text-sky-400/90 hover:text-sky-300 underline cursor-pointer"
+											data-testid="login-forgot-btn"
+										>
+											{t('account.auth.forgotBtn')}
+										</button>
 										<button
 											type="submit"
 											data-testid="login-submit-btn"

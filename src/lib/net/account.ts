@@ -84,6 +84,25 @@ export async function signOut(): Promise<void> {
 	forget();
 }
 
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+	const { auth } = await connect();
+	const user = auth.currentUser;
+	if (!user || !user.email) throw new Error('no-email-account');
+	const { EmailAuthProvider, reauthenticateWithCredential, updatePassword } =
+		await import('firebase/auth');
+	const cred = EmailAuthProvider.credential(user.email, currentPassword);
+	await reauthenticateWithCredential(user, cred);
+	await updatePassword(user, newPassword);
+}
+
+export async function resetPassword(email: string): Promise<void> {
+	const clean = email.trim();
+	if (!clean) throw new Error('email-required');
+	const { auth } = await connect();
+	const { sendPasswordResetEmail } = await import('firebase/auth');
+	await sendPasswordResetEmail(auth, clean);
+}
+
 export async function handleFree(handle: string): Promise<boolean> {
 	if (!handle) return false;
 	try {

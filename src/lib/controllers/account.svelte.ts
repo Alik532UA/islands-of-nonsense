@@ -1,7 +1,9 @@
 import {
+	changePassword as authChangePassword,
 	currentUserInfo,
 	linkEmail,
 	readProfile,
+	resetPassword as authResetPassword,
 	saveProfile,
 	signInEmail,
 	signInGoogle,
@@ -9,6 +11,7 @@ import {
 	type AccountState,
 	type Profile
 } from '$lib/net/account';
+import { deleteAccount as eraseAndDeleteAccount } from '$lib/net/erase';
 import { readPlay, mergePlay, writePlay, EMPTY_PLAY, type PlayData } from '$lib/net/play';
 import {
 	leadersByUids,
@@ -165,6 +168,52 @@ export class AccountController {
 			await this.load();
 		} catch (err) {
 			this.error = (err as Error).message;
+		} finally {
+			this.busy = false;
+		}
+	}
+
+	async changePassword(currentPassword: string, nextPassword: string): Promise<boolean> {
+		this.busy = true;
+		this.error = null;
+		try {
+			await authChangePassword(currentPassword, nextPassword);
+			return true;
+		} catch (err) {
+			this.error = (err as Error).message;
+			return false;
+		} finally {
+			this.busy = false;
+		}
+	}
+
+	async resetPassword(email: string): Promise<boolean> {
+		this.busy = true;
+		this.error = null;
+		try {
+			await authResetPassword(email);
+			return true;
+		} catch (err) {
+			this.error = (err as Error).message;
+			return false;
+		} finally {
+			this.busy = false;
+		}
+	}
+
+	async deleteAccount(password?: string): Promise<boolean> {
+		this.busy = true;
+		this.error = null;
+		try {
+			await eraseAndDeleteAccount(password);
+			this.profile = null;
+			this.email = null;
+			this.state = 'anonymous';
+			await this.load();
+			return true;
+		} catch (err) {
+			this.error = (err as Error).message;
+			return false;
 		} finally {
 			this.busy = false;
 		}
