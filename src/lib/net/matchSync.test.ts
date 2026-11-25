@@ -443,4 +443,51 @@ describe('MatchSync', () => {
 		syncB.dispose();
 		reloadedSyncB.dispose();
 	});
+
+	it('applies tick-0 RESUME before stepping during mid-match catch-up from paused state', async () => {
+		const liveSimA = new Simulation({
+			botDifficulty: 0,
+			startGold: 1000,
+			seed: 8888,
+			isRunning: false
+		});
+		const syncA = new MatchSync({
+			sim: liveSimA,
+			transport: room.transport({ as: 'player_a' }),
+			localUid: 'player_a',
+			localTeam: 'west',
+			commandLeadTicks: 3
+		});
+
+		await syncA.dispatch('RESUME');
+		await syncA.dispatch('BUILD', { buildingType: 'h05X', x: 25, y: 20 });
+		for (let i = 0; i < 60; i++) {
+			syncA.flushTick(liveSimA.tick);
+			liveSimA.step(1 / 60);
+		}
+
+		// Peer B starts paused (isRunning: false) as if room watcher hasn't started yet
+		const pausedSimB = new Simulation({
+			botDifficulty: 0,
+			startGold: 1000,
+			seed: 8888,
+			isRunning: false
+		});
+		const syncB = new MatchSync({
+			sim: pausedSimB,
+			transport: room.transport({ as: 'player_b' }),
+			localUid: 'player_b',
+			localTeam: 'east',
+			commandLeadTicks: 3
+		});
+
+		expect(pausedSimB.isRunning).toBe(true);
+		expect(pausedSimB.tick).toBe(3);
+		expect(pausedSimB.buildings.length).toBe(1);
+
+		await syncA.dispatch('CHECKSUM', { checksum: syncA.getSimChecksum(), tick: liveSimA.tick });
+
+		syncA.dispose();
+		syncB.dispose();
+	});
 });

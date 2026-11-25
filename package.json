@@ -1,6 +1,6 @@
 {
 	"name": "islands-of-nonsense",
-	"version": "0.0.170",
+	"version": "0.0.171",
 	"private": true,
 	"type": "module",
 	"imports": {
@@ -9,6 +9,7 @@
 	},
 	"scripts": {
 		"dev": "vite dev --port 5174 --strictPort",
+		"dev:live": "vite dev --mode live --port 5174 --strictPort",
 		"emulators": "npx --engine-strict=false firebase-tools emulators:start --config firebase.dev.json --project demo-islands-of-nonsense",
 		"build": "vite build",
 		"bump": "node scripts/bump-version.mjs",

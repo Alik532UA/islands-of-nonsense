@@ -361,6 +361,9 @@ export class MatchSync {
 				}
 			}
 
+			// Flush initial tick-0 commands (e.g. RESUME) before checking `this.sim.isRunning`
+			this.flushTick(this.sim.tick);
+
 			while (this.sim.tick < clampedTarget && this.sim.isRunning && !this.sim.winner) {
 				this.flushTick(this.sim.tick);
 				this.sim.step(FIXED_STEP);

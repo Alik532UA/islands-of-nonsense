@@ -69,12 +69,19 @@ export default defineConfig(({ mode }) => ({
 				mode: 'hash',
 				directives: {
 					'default-src': ['self'],
-					'script-src': ['self', ...getInlineScriptHashes()],
+					'script-src': [
+						'self',
+						...getInlineScriptHashes(),
+						...(mode === 'production'
+							? ([] as const)
+							: (['http://127.0.0.1:9012', 'http://localhost:9012'] as const))
+					],
 					'style-src': ['self', 'unsafe-inline'],
 					'font-src': ['self', 'data:'],
 					'img-src': ['self', 'data:', 'blob:'],
 					'connect-src': [
 						'self',
+						'https://api.country.is',
 						'https://*.firebasedatabase.app',
 						'wss://*.firebasedatabase.app',
 						'https://*.firebaseio.com',
