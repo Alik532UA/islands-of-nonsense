@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { computeLevelProgress } from '$lib/config/rewards';
+import { computeLevelProgress, titleLabel } from '$lib/config/rewards';
+import { withAvatarFrame, parseAvatar } from '$lib/config/avatars';
 import { EMPTY_PLAY, type PlayData } from '$lib/net/play';
 import { EMPTY_REWARDS, mergeRewards } from '$lib/net/rewards';
 import { applyMatchRewards, hasUnlockedGrant } from './rewardsService.svelte';
@@ -78,5 +79,12 @@ describe('rewards & progression system', () => {
 		expect(merged.totals.kills).toBe(50);
 		expect(merged.totals.castleDamage).toBe(5000);
 		expect(Object.keys(merged.totals.racesWon)).toHaveLength(2);
+	});
+
+	it('applies unlocked frames onto existing avatars and resolves title labels', () => {
+		const framed = withAvatarFrame('swords:emerald', 'gold');
+		expect(parseAvatar(framed)?.frame).toBe('gold');
+		expect(titleLabel('strategist', 'uk')).not.toBe('strategist');
+		expect(titleLabel('strategist', 'en')).not.toBe('strategist');
 	});
 });

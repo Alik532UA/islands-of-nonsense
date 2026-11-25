@@ -20,6 +20,8 @@
 	import DmDrawer from '$lib/components/chat/DmDrawer.svelte';
 	import { loadSocialLists } from '$lib/net/social';
 	import { rewardsStore } from '$lib/services/rewardsService.svelte';
+	import { computeLevelProgress, titleLabel } from '$lib/config/rewards';
+	import { withAvatarFrame, type AvatarFrame } from '$lib/config/avatars';
 
 	const controller = new AccountController();
 
@@ -41,6 +43,19 @@
 	let savedSuccess = $state(false);
 	let handleStatus = $state<'idle' | 'invalid' | 'checking' | 'available' | 'taken'>('idle');
 	let handleClean = $derived(formHandle.trim().replace(/^@/, '').toLowerCase());
+	const rewardLevel = $derived(computeLevelProgress(rewardsStore.data.xp));
+	const equippedTitleText = $derived(
+		titleLabel(rewardsStore.data.equippedTitle, settings.locale === 'en' ? 'en' : 'uk')
+	);
+
+	function handleEquipFrame(frame: AvatarFrame) {
+		const next = withAvatarFrame(formAvatar, frame);
+		formAvatar = next;
+		playerAvatar.set(next);
+		if (controller.state === 'linked' && controller.profile) {
+			void saveAvatar(next).catch(() => {});
+		}
+	}
 
 	$effect(() => {
 		const candidate = handleClean;
@@ -295,8 +310,18 @@
 				>
 					<Avatar avatar={formAvatar} size={40} />
 					<div class="flex-1 min-w-0">
-						<div class="flex items-center gap-2">
+						<div class="flex items-center gap-2 flex-wrap">
 							<span class="font-bold text-slate-100 truncate">{formName || 'Гравець'}</span>
+							<span
+								class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-mono font-bold"
+							>
+								Lv.{rewardLevel.level}
+							</span>
+							<span
+								class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-200 border border-amber-500/30 font-semibold"
+							>
+								{equippedTitleText}
+							</span>
 							{#if formCountry}
 								<span class="text-xs px-1.5 py-0.5 bg-slate-800 rounded text-slate-300 uppercase">
 									{formCountry}
@@ -684,7 +709,11 @@
 
 		<!-- TAB 3: REWARDS -->
 		{#if activeTab === 'rewards'}
-			<RewardsPanel playData={controller.playData} />
+			<RewardsPanel
+				playData={controller.playData}
+				currentAvatar={formAvatar}
+				onEquipFrame={handleEquipFrame}
+			/>
 		{/if}
 
 		<!-- TAB 4: FRIENDS -->

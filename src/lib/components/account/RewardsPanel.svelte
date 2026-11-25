@@ -10,6 +10,7 @@
 		type RewardCategory,
 		type RewardRarity
 	} from '$lib/config/rewards';
+	import { parseAvatar, type AvatarFrame } from '$lib/config/avatars';
 	import type { PlayData } from '$lib/net/play';
 	import {
 		hasUnlockedGrant,
@@ -20,9 +21,11 @@
 
 	interface Props {
 		playData: PlayData;
+		currentAvatar?: string;
+		onEquipFrame?: (frame: AvatarFrame) => void;
 	}
 
-	let { playData }: Props = $props();
+	let { playData, currentAvatar = '', onEquipFrame }: Props = $props();
 
 	let categoryFilter = $state<'all' | RewardCategory>('all');
 
@@ -30,6 +33,7 @@
 	const levelInfo = $derived(computeLevelProgress(rewards.xp));
 	const unlockedCount = $derived(Object.keys(rewards.unlocked).length);
 	const locale = $derived(settings.locale === 'en' ? 'en' : 'uk');
+	const equippedFrame = $derived(parseAvatar(currentAvatar)?.frame ?? 'none');
 
 	const filteredAchievements = $derived(
 		categoryFilter === 'all'
@@ -48,6 +52,17 @@
 		const ok = await rewardsStore.equipTitle(titleId);
 		if (ok) {
 			toast.success(t('account.rewards.titleEquipped'));
+		}
+	}
+
+	function handleEquipGrant(kind: 'frame' | 'title', id: string) {
+		if (kind === 'title') {
+			void handleEquipTitle(id);
+			return;
+		}
+		if (onEquipFrame) {
+			onEquipFrame(id as AvatarFrame);
+			toast.success(t('account.rewards.frameEquipped'));
 		}
 	}
 </script>
@@ -202,10 +217,30 @@
 
 				<div class="space-y-1.5">
 					{#if ach.grant}
-						<div class="inline-flex items-center gap-1 text-[10px] font-bold text-cyan-300">
-							<UiIcon name="sparkles" class="w-3 h-3" />
-							<span>{locale === 'en' ? ach.grant.labelEn : ach.grant.labelUk}</span>
-						</div>
+						{@const isEquipped =
+							ach.grant.kind === 'title'
+								? (rewards.equippedTitle ?? 'recruit') === ach.grant.id
+								: equippedFrame === ach.grant.id}
+						{#if isUnlocked}
+							<button
+								type="button"
+								onclick={() => ach.grant && handleEquipGrant(ach.grant.kind, ach.grant.id)}
+								class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold border transition cursor-pointer {isEquipped
+									? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-300'
+									: 'bg-cyan-500/15 border-cyan-400/40 text-cyan-200 hover:bg-cyan-500/25'}"
+							>
+								<UiIcon name={isEquipped ? 'checkCircle2' : 'sparkles'} class="w-3 h-3" />
+								<span>{locale === 'en' ? ach.grant.labelEn : ach.grant.labelUk}</span>
+								<span class="opacity-80">
+									· {isEquipped ? t('account.rewards.equipped') : t('account.rewards.equip')}
+								</span>
+							</button>
+						{:else}
+							<div class="inline-flex items-center gap-1 text-[10px] font-bold text-cyan-300/80">
+								<UiIcon name="sparkles" class="w-3 h-3" />
+								<span>{locale === 'en' ? ach.grant.labelEn : ach.grant.labelUk}</span>
+							</div>
+						{/if}
 					{/if}
 					<div class="flex items-center justify-between text-[10px] text-slate-400 font-mono">
 						<span>{t(`account.rewards.rarity.${ach.rarity}`)}</span>
