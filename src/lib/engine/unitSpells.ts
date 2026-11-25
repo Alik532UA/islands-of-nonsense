@@ -94,6 +94,7 @@ export class UnitSpellSystem {
 					other.lane === u.lane &&
 					other.state !== 'DEAD' &&
 					other.maxHp - other.hp >= 15 &&
+					!other.buffs?.some((b) => b.type === 'heal_block') &&
 					Math.hypot(other.x - u.x, other.y - u.y) <= 350
 			);
 			injuredCandidates.sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp);
@@ -546,7 +547,8 @@ export class UnitSpellSystem {
 		if (
 			hasCannibalize &&
 			(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
-			u.hp < u.maxHp * 0.75
+			u.hp < u.maxHp * 0.75 &&
+			!u.buffs?.some((b) => b.type === 'heal_block')
 		) {
 			const corpseIdx = this.sim.corpses.findIndex(
 				(c) => c.lane === u.lane && Math.hypot(c.x - u.x, c.y - u.y) <= 150

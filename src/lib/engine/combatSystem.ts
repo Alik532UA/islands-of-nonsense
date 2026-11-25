@@ -934,6 +934,21 @@ export class CombatSystem {
 
 		const isFriendlyDamage = Boolean(options?.isFriendlyFire) || attackerTeam === target.team;
 
+		if (
+			options?.antiHealDuration &&
+			options.antiHealDuration > 0 &&
+			!isFriendlyDamage &&
+			target.hp > 0
+		) {
+			target.buffs = target.buffs || [];
+			const existingAntiHeal = target.buffs.find((b) => b.type === 'heal_block');
+			if (existingAntiHeal) {
+				existingAntiHeal.timer = Math.max(existingAntiHeal.timer, options.antiHealDuration);
+			} else {
+				target.buffs.push({ type: 'heal_block', timer: options.antiHealDuration, value: 1 });
+			}
+		}
+
 		if (!isFriendlyDamage && (attackerTeam === 'west' || attackerTeam === 'east')) {
 			const attStats = this.sim.players[attackerTeam].stats;
 			attStats.totalDamageDealt += finalDamage;
@@ -1092,7 +1107,9 @@ export class CombatSystem {
 					);
 					const chosen = allies.slice(0, targetCount);
 					for (const ally of chosen) {
-						ally.hp = Math.min(ally.maxHp, ally.hp + 75);
+						if (!ally.buffs?.some((b) => b.type === 'heal_block')) {
+							ally.hp = Math.min(ally.maxHp, ally.hp + 75);
+						}
 						ally.buffs = ally.buffs || [];
 						ally.buffs.push({ type: 'as', timer: buffDuration, value: asBonus });
 						ally.buffs.push({ type: 'dmg', timer: buffDuration, value: 0.15 });

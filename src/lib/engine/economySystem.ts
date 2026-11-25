@@ -592,7 +592,9 @@ export class EconomySystem {
 					if (u.team === team && u.state !== 'DEAD') {
 						u.buffs = u.buffs || [];
 						u.buffs.push({ type: 'as', timer: 10, value: 0.25 });
-						u.hp = Math.min(u.maxHp, u.hp + 50);
+						if (!u.buffs.some((b) => b.type === 'heal_block')) {
+							u.hp = Math.min(u.maxHp, u.hp + 50);
+						}
 					}
 				}
 				this.sim.addFloatingText(
@@ -607,7 +609,11 @@ export class EconomySystem {
 					if (u.team === team && u.state !== 'DEAD') {
 						u.buffs = u.buffs || [];
 						u.buffs.push({ type: 'bloodlust', timer: 12, value: 0.2 });
-						u.hp = Math.min(u.maxHp * 1.2, u.hp + Math.round(u.maxHp * 0.2));
+						const bonusHp = Math.round(u.maxHp * 0.2);
+						u.maxHp += bonusHp;
+						if (!u.buffs.some((b) => b.type === 'heal_block')) {
+							u.hp = Math.min(u.maxHp, u.hp + bonusHp);
+						}
 					}
 				}
 				this.sim.addFloatingText(
@@ -637,9 +643,11 @@ export class EconomySystem {
 			case 'heal_cleanse':
 				for (const u of this.sim.units) {
 					if (u.team === team && u.state !== 'DEAD') {
-						u.hp = Math.min(u.maxHp, u.hp + 200);
+						if (!u.buffs?.some((b) => b.type === 'heal_block')) {
+							u.hp = Math.min(u.maxHp, u.hp + 200);
+							this.sim.addFloatingText('+200', u.x, u.y - 15, '#fbbf24');
+						}
 						u.buffs = (u.buffs || []).filter((b) => b.type !== 'slow' && b.type !== 'infect');
-						this.sim.addFloatingText('+200', u.x, u.y - 15, '#fbbf24');
 					}
 				}
 				this.sim.addFloatingText(

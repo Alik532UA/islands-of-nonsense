@@ -23,7 +23,8 @@ import {
 	CASTLE_CANNON_UPGRADE_LUMBER,
 	CASTLE_CANNON_BASE_DAMAGE,
 	CASTLE_CANNON_SPLASH_RADIUS,
-	CASTLE_CANNON_FRIENDLY_FIRE_FACTOR
+	CASTLE_CANNON_FRIENDLY_FIRE_FACTOR,
+	CASTLE_CANNON_ANTI_HEAL_DURATION
 } from './constants';
 import { getBuilding, isLegendaryBuilding } from './gameData';
 
@@ -396,7 +397,8 @@ export class DefenseSystem {
 				shooterPlayerId: shooter.id,
 				shooterSlot: shooter.slot,
 				suppressBounty: true,
-				isFriendlyFire
+				isFriendlyFire,
+				antiHealDuration: isFriendlyFire ? undefined : CASTLE_CANNON_ANTI_HEAL_DURATION
 			});
 			if (isFriendlyFire) {
 				this.sim.addFloatingText('Дружній вогонь!', castle.x, castle.y - 68, '#f97316');
@@ -529,11 +531,12 @@ export class DefenseSystem {
 					shooterPlayer ??
 					(ownerPlayerId ? this.sim.allPlayers.find((pl) => pl.id === ownerPlayerId) : undefined);
 				const killOptions: DamageKillOptions | undefined =
-					killerPlayer || p.suppressBounty || p.isFriendlyFire
+					killerPlayer || p.suppressBounty || p.isFriendlyFire || p.antiHealDuration
 						? {
 								killerPlayer,
 								suppressBounty: p.suppressBounty,
-								isFriendlyFire: p.isFriendlyFire
+								isFriendlyFire: p.isFriendlyFire,
+								antiHealDuration: p.antiHealDuration
 							}
 						: undefined;
 				if (p.isArtillery) {
@@ -629,15 +632,16 @@ export class DefenseSystem {
 						this.applyCastleDamageDirect(targetCastle, p.damage, attackerUnit, p.team as MatchTeam);
 					}
 
+					const hitDirectUnit = Boolean(target && target.state !== 'DEAD');
 					if (p.splashRadius) {
 						this.combat.triggerSplashDamage(
 							p.targetX,
 							p.targetY,
 							p.splashRadius,
-							p.damage * 0.5,
+							hitDirectUnit ? p.damage * 0.5 : p.damage,
 							p.attackType,
 							p.team,
-							p.targetUnitId,
+							hitDirectUnit ? p.targetUnitId : undefined,
 							killerPlayer,
 							killOptions
 						);

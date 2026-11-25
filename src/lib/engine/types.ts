@@ -303,7 +303,8 @@ export interface ActiveBuff {
 		| 'polymorph'
 		| 'cyclone'
 		| 'banish'
-		| 'mana_shield';
+		| 'mana_shield'
+		| 'heal_block';
 	timer: number;
 	value: number;
 }
@@ -393,6 +394,7 @@ export interface DamageKillOptions {
 	suppressKillFloatingText?: boolean;
 	suppressBounty?: boolean;
 	isFriendlyFire?: boolean;
+	antiHealDuration?: number;
 }
 
 export interface BuildingPerformance {
@@ -468,6 +470,7 @@ export interface Projectile {
 	shooterSlot?: number;
 	suppressBounty?: boolean;
 	isFriendlyFire?: boolean;
+	antiHealDuration?: number;
 }
 
 export interface LightningEffect {

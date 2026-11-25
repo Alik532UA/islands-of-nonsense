@@ -851,7 +851,9 @@ export class BuildingSystem {
 									break;
 								}
 								case 'heal':
-									u.hp = Math.min(u.maxHp, u.hp + b.aura.value * dt);
+									if (!u.buffs?.some((buf) => buf.type === 'heal_block')) {
+										u.hp = Math.min(u.maxHp, u.hp + b.aura.value * dt);
+									}
 									break;
 								case 'mana':
 									if (u.maxMana && u.mana !== undefined) {

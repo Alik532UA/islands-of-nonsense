@@ -332,4 +332,92 @@ describe('Manual Castle Cannon Defense Mechanics', () => {
 		expect(fired).toBe(true);
 		expect(sim.getCastleCannonCooldown('east')).toBe(CASTLE_CANNON_BASE_COOLDOWN);
 	});
+
+	it('suppresses enemy healing after castle cannon hit and keeps splash damage when direct target dies mid-flight', () => {
+		const sim = new Simulation({ botDifficulty: 0, startGold: 300, seed: 77 });
+		const player = sim.players.west;
+
+		const targetEnemy = makeTestUnit({
+			instanceId: 'cannon_victim',
+			team: 'east',
+			x: sim.castles.west.x + 350,
+			y: sim.castles.west.y,
+			hp: 400,
+			maxHp: 400
+		});
+		const enemyHealer = makeTestUnit({
+			instanceId: 'enemy_priest',
+			team: 'east',
+			x: sim.castles.west.x + 500,
+			y: sim.castles.west.y,
+			hp: 300,
+			maxHp: 300,
+			abilityType: 'heal',
+			abilityCooldownTimer: 0,
+			mana: 200,
+			maxMana: 200
+		});
+		sim.units.push(targetEnemy, enemyHealer);
+		sim.step(0.05);
+
+		// Target only cannon_victim by moving healer temporarily out of 500px range
+		enemyHealer.x = sim.castles.west.x + 650;
+		sim.step(0.05);
+		const shot = sim.fireCastleCannon('west', 'short', player);
+		expect(shot.fired).toBe(true);
+		expect(shot.targetId).toBe('cannon_victim');
+
+		// Bring healer into Heal cast range (350px) while cannon shell hits
+		enemyHealer.x = sim.castles.west.x + 450;
+		for (let i = 0; i < 20; i++) {
+			sim.step(0.05);
+		}
+
+		const hpAfterHit = targetEnemy.hp;
+		expect(hpAfterHit).toBeLessThan(400);
+		expect(targetEnemy.buffs?.some((b) => b.type === 'heal_block')).toBe(true);
+
+		// Advance 2 more seconds: enemy healer must NOT restore HP during heal_block
+		for (let i = 0; i < 20; i++) {
+			sim.step(0.1);
+		}
+		expect(targetEnemy.hp).toBe(hpAfterHit);
+
+		// Verify mid-flight target death still deals full splash to nearby enemy
+		const dyingPrimary = makeTestUnit({
+			instanceId: 'midflight_dead',
+			team: 'east',
+			x: sim.castles.west.x + 380,
+			y: sim.castles.west.y,
+			hp: 300,
+			maxHp: 300
+		});
+		const bystander = makeTestUnit({
+			instanceId: 'splash_bystander',
+			team: 'east',
+			x: sim.castles.west.x + 390,
+			y: sim.castles.west.y,
+			hp: 500,
+			maxHp: 500
+		});
+		targetEnemy.state = 'DEAD';
+		enemyHealer.state = 'DEAD';
+		sim.units.push(dyingPrimary, bystander);
+		sim.step(0.05);
+
+		// Fire at dyingPrimary only (keep bystander outside 500px at launch, or remove after)
+		bystander.x = sim.castles.west.x + 700;
+		sim.step(0.05);
+		const shot2 = sim.fireCastleCannon('west', 'short', player);
+		expect(shot2.targetId).toBe('midflight_dead');
+
+		// Kill primary mid-flight and move bystander right onto impact point
+		dyingPrimary.state = 'DEAD';
+		bystander.x = sim.castles.west.x + 380;
+		for (let i = 0; i < 20; i++) {
+			sim.step(0.05);
+		}
+		const expectedFullSplash = calculateDamage('siege', 'none', CASTLE_CANNON_BASE_DAMAGE, 0);
+		expect(bystander.hp).toBe(500 - expectedFullSplash);
+	});
 });
