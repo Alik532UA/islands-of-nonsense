@@ -45,7 +45,9 @@
 	let botDifficulty = $state(15);
 	let startGold = $state(500);
 	let selectedMode = $state('standard');
-	let teamSize = $state<1 | 2 | 3>(1);
+	let teamSize = $state<number>(1);
+	let teamSizeWest = $state<number>(1);
+	let teamSizeEast = $state<number>(1);
 	let targetWins = $state(2);
 	let westRace = $state<string>('in_game'); // Default: choose in game!
 	let eastRace = $state<string>('random');
@@ -77,6 +79,8 @@
 			botDifficulty === 15 &&
 			startGold === 500 &&
 			teamSize === 1 &&
+			teamSizeWest === 1 &&
+			teamSizeEast === 1 &&
 			targetWins === 2 &&
 			fogOfWar === true &&
 			coinMode === 'normal' &&
@@ -94,6 +98,8 @@
 			botDifficulty === 0 &&
 			startGold >= 90000 &&
 			teamSize === 1 &&
+			teamSizeWest === 1 &&
+			teamSizeEast === 1 &&
 			targetWins === 2 &&
 			!fogOfWar &&
 			coinMode === 'crazy' &&
@@ -107,6 +113,8 @@
 			botDifficulty === 15 &&
 			startGold === 500 &&
 			teamSize === 1 &&
+			teamSizeWest === 1 &&
+			teamSizeEast === 1 &&
 			targetWins === 2 &&
 			!fogOfWar &&
 			coinMode === 'normal' &&
@@ -126,6 +134,8 @@
 			botDifficulty = 15;
 			startGold = 500;
 			teamSize = 1;
+			teamSizeWest = 1;
+			teamSizeEast = 1;
 			targetWins = 2;
 			fogOfWar = true;
 			coinMode = 'normal';
@@ -140,6 +150,8 @@
 			botDifficulty = 0;
 			startGold = 99999;
 			teamSize = 1;
+			teamSizeWest = 1;
+			teamSizeEast = 1;
 			targetWins = 2;
 			fogOfWar = false;
 			coinMode = 'crazy';
@@ -154,6 +166,8 @@
 			botDifficulty = 15;
 			startGold = 500;
 			teamSize = 1;
+			teamSizeWest = 1;
+			teamSizeEast = 1;
 			targetWins = 2;
 			fogOfWar = false;
 			coinMode = 'normal';
@@ -195,7 +209,9 @@
 
 			botDifficulty = source.botDifficulty ?? 15;
 			startGold = source.startGold ?? 500;
-			teamSize = (source.teamSize ?? 1) as 1 | 2 | 3;
+			teamSize = source.teamSize ?? 1;
+			teamSizeWest = source.teamSizeWest ?? teamSize;
+			teamSizeEast = source.teamSizeEast ?? teamSize;
 			targetWins = source.targetWins ?? 2;
 			bannedRaces = source.bannedRaces ? [...source.bannedRaces] : [];
 			westRace = source.westRace ?? 'in_game';
@@ -217,7 +233,9 @@
 			botDifficulty,
 			startGold,
 			modeId: selectedMode,
-			teamSize,
+			teamSize: Math.max(teamSizeWest, teamSizeEast),
+			teamSizeWest,
+			teamSizeEast,
 			allRandom: isAr,
 			uniqueRaces: isUr,
 			bannedRaces: isBanDraft || bannedRaces.length > 0 ? bannedRaces : undefined,
@@ -609,7 +627,7 @@
 							<span
 								class="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-900 bg-amber-400/50 px-2.5 py-0.5 rounded-full mt-1.5"
 							>
-								<span>{teamSize} на {teamSize}</span>
+								<span>{teamSizeWest} на {teamSizeEast}</span>
 								<span>•</span>
 								<span>До {targetWins}</span>
 								<span>•</span>
@@ -638,19 +656,23 @@
 				>
 					<!-- Team Size & Target Wins -->
 					<div class="space-y-3">
-						<!-- Team Size -->
+						<!-- Team Size (1..7 per side, supports 1v1..7v7 and asymmetric like 1v6 / 5v3) -->
 						<div class="space-y-1.5" data-testid="setup-team-size">
 							<label class="text-xs font-bold text-slate-300 flex items-center gap-1">
 								<Users class="w-3.5 h-3.5 text-cyan-400" />
-								Формат гри:
+								Формат гри ({teamSizeWest}v{teamSizeEast}):
 							</label>
-							<div class="grid grid-cols-3 gap-1.5">
-								{#each [{ val: 1 as const, label: '1 на 1', sub: 'Соло' }, { val: 2 as const, label: '2 на 2', sub: 'Команда' }, { val: 3 as const, label: '3 на 3', sub: 'Масова' }] as fmt}
+							<div class="grid grid-cols-5 gap-1">
+								{#each [{ val: 1, label: '1v1', sub: 'Соло' }, { val: 2, label: '2v2', sub: 'Дует' }, { val: 3, label: '3v3', sub: 'Тріо' }, { val: 5, label: '5v5', sub: 'Масова' }, { val: 7, label: '7v7', sub: 'Макс' }] as fmt (fmt.val)}
+									{@const activeFmt = teamSizeWest === fmt.val && teamSizeEast === fmt.val}
 									<button
 										type="button"
-										onclick={() => (teamSize = fmt.val)}
-										class="py-1.5 px-1 rounded-lg border text-center transition cursor-pointer flex flex-col items-center justify-center {teamSize ===
-										fmt.val
+										onclick={() => {
+											teamSize = fmt.val;
+											teamSizeWest = fmt.val;
+											teamSizeEast = fmt.val;
+										}}
+										class="py-1.5 px-1 rounded-lg border text-center transition cursor-pointer flex flex-col items-center justify-center {activeFmt
 											? 'bg-cyan-500/20 border-cyan-500 text-cyan-200 font-bold ring-1 ring-cyan-500/40 shadow-sm'
 											: 'bg-[#181d28] border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
 										data-testid="teamsize-btn-{fmt.val}"
@@ -659,6 +681,72 @@
 										<span class="text-[9px] text-slate-500">{fmt.sub}</span>
 									</button>
 								{/each}
+							</div>
+							<div class="grid grid-cols-2 gap-1.5 pt-0.5">
+								<div
+									class="flex items-center justify-between px-2 py-1 rounded-lg bg-[#181d28] border border-slate-700/80"
+								>
+									<span class="text-[10px] font-bold text-sky-300">Захід</span>
+									<div class="flex items-center gap-1">
+										<button
+											type="button"
+											data-testid="offline-west-dec"
+											onclick={() => {
+												teamSizeWest = Math.max(1, teamSizeWest - 1);
+												teamSize = Math.max(teamSizeWest, teamSizeEast);
+											}}
+											class="w-5 h-5 rounded bg-slate-900 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer"
+										>
+											-
+										</button>
+										<span class="w-4 text-center text-[11px] font-mono font-bold text-white">
+											{teamSizeWest}
+										</span>
+										<button
+											type="button"
+											data-testid="offline-west-inc"
+											onclick={() => {
+												teamSizeWest = Math.min(7, teamSizeWest + 1);
+												teamSize = Math.max(teamSizeWest, teamSizeEast);
+											}}
+											class="w-5 h-5 rounded bg-slate-900 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer"
+										>
+											+
+										</button>
+									</div>
+								</div>
+								<div
+									class="flex items-center justify-between px-2 py-1 rounded-lg bg-[#181d28] border border-slate-700/80"
+								>
+									<span class="text-[10px] font-bold text-rose-300">Схід</span>
+									<div class="flex items-center gap-1">
+										<button
+											type="button"
+											data-testid="offline-east-dec"
+											onclick={() => {
+												teamSizeEast = Math.max(1, teamSizeEast - 1);
+												teamSize = Math.max(teamSizeWest, teamSizeEast);
+											}}
+											class="w-5 h-5 rounded bg-slate-900 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer"
+										>
+											-
+										</button>
+										<span class="w-4 text-center text-[11px] font-mono font-bold text-white">
+											{teamSizeEast}
+										</span>
+										<button
+											type="button"
+											data-testid="offline-east-inc"
+											onclick={() => {
+												teamSizeEast = Math.min(7, teamSizeEast + 1);
+												teamSize = Math.max(teamSizeWest, teamSizeEast);
+											}}
+											class="w-5 h-5 rounded bg-slate-900 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer"
+										>
+											+
+										</button>
+									</div>
+								</div>
 							</div>
 						</div>
 

@@ -11,16 +11,17 @@ import type {
 export type RawInfo = Omit<RoomInfo, 'roster'> & { roster?: unknown };
 export type RosterRecord = Record<
 	string,
-	{ name: string; seat: number; team?: string; race?: string }
+	{ name: string; seat: number; slot?: number; team?: string; race?: string }
 >;
 
 export function rosterToRecord(roster: readonly RosterEntry[]): RosterRecord {
 	return Object.fromEntries(
-		roster.map(({ uid, name, team, race }, seat) => [
+		roster.map(({ uid, name, team, race, slot }, seat) => [
 			uid,
 			{
 				name,
 				seat,
+				...(typeof slot === 'number' ? { slot } : {}),
 				...(team ? { team } : {}),
 				...(race ? { race } : {})
 			}
@@ -31,7 +32,10 @@ export function rosterToRecord(roster: readonly RosterEntry[]): RosterRecord {
 export function rosterFromRecord(record: unknown): RosterEntry[] | undefined {
 	if (typeof record !== 'object' || record === null) return undefined;
 	const entries = Object.entries(
-		record as Record<string, { name?: unknown; seat?: unknown; team?: unknown; race?: unknown }>
+		record as Record<
+			string,
+			{ name?: unknown; seat?: unknown; slot?: unknown; team?: unknown; race?: unknown }
+		>
 	)
 		.filter(([, value]) => typeof value?.name === 'string' && typeof value?.seat === 'number')
 		.sort(
@@ -41,6 +45,7 @@ export function rosterFromRecord(record: unknown): RosterEntry[] | undefined {
 		.map(([uid, value]) => ({
 			uid,
 			name: value.name as string,
+			...(typeof value.slot === 'number' ? { slot: value.slot } : {}),
 			...(value.team === 'west' || value.team === 'east'
 				? { team: value.team as MatchTeamId }
 				: {}),

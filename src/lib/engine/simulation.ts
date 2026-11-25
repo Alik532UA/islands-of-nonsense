@@ -1,4 +1,4 @@
-import { WC3_PLAYER_COLORS } from './types';
+import { ALL_PLAYER_COLORS, WC3_PLAYER_COLORS } from './types';
 import type {
 	Unit,
 	Building,
@@ -71,6 +71,50 @@ export interface DebrisItem {
 	lifeTime: number;
 }
 
+export const MAX_PLAYERS_PER_TEAM = 7;
+
+export interface SimCustomSlot {
+	slot: number; // 1..14
+	team: MatchTeam;
+	isBot: boolean;
+	botDifficulty?: number;
+	name?: string;
+	race?: string;
+}
+
+/**
+ * Computes deterministic initial worker spawn coordinates around the team's castle.
+ * Preserves exact 1v1..3v3 positions and spreads 4..7 players along a compact arc.
+ */
+export function computeWorkerSpawnPoint(
+	team: MatchTeam,
+	indexOnTeam: number,
+	teamCount: number
+): { x: number; y: number } {
+	const isWest = team === 'west';
+	const castleX = isWest ? WEST_CASTLE_X : EAST_CASTLE_X;
+	const castleY = isWest ? WEST_CASTLE_Y : EAST_CASTLE_Y;
+
+	if (teamCount <= 3) {
+		const yOffsets = [0, -80, 80];
+		const offsetY = yOffsets[indexOnTeam] ?? 0;
+		return {
+			x: isWest ? castleX + 160 : castleX - 160,
+			y: castleY + offsetY
+		};
+	}
+
+	const count = Math.min(MAX_PLAYERS_PER_TEAM, Math.max(1, teamCount));
+	const frac = count > 1 ? indexOnTeam / (count - 1) : 0.5;
+	const maxSpread = Math.PI * 0.42;
+	const angle = -maxSpread + frac * (maxSpread * 2);
+	const radius = 175;
+	return {
+		x: Math.round(isWest ? castleX + Math.cos(angle) * radius : castleX - Math.cos(angle) * radius),
+		y: Math.round(castleY + Math.sin(angle) * radius)
+	};
+}
+
 export interface SimulationConfig {
 	botDifficulty: number; // 0, 15, 30, 80
 	startGold: number;
@@ -88,9 +132,11 @@ export interface SimulationConfig {
 	coinMode?: CoinMode;
 	coinSpawnInterval?: number;
 	coinCount?: number;
-	teamSize?: 1 | 2 | 3;
-	teamSizeWest?: 1 | 2 | 3;
-	teamSizeEast?: 1 | 2 | 3;
+	teamSize?: number;
+	teamSizeWest?: number;
+	teamSizeEast?: number;
+	customSlots?: SimCustomSlot[];
+	autoStepBots?: boolean;
 	botVsBot?: boolean; // Spectator mode: bots play against each other without human player
 	randomColors?: boolean; // Default true: randomizes player and bot colors across match
 	seed?: number; // Deterministic PRNG seed for headless benchmarks and replays
@@ -128,7 +174,7 @@ export class Simulation {
 
 	public castles: Record<MatchTeam, Castle>;
 	public players: Record<MatchTeam, PlayerState>;
-	public teamSize: 1 | 2 | 3 = 1;
+	public teamSize = 1;
 	public allPlayers: PlayerState[] = [];
 	public teamMembers: Record<MatchTeam, PlayerState[]> = { west: [], east: [] };
 	public bots: BotAI[] = [];
@@ -336,7 +382,7 @@ export class Simulation {
 		if (config.isRunning !== undefined) {
 			this.isRunning = config.isRunning;
 		}
-		this.teamSize = config.teamSize ?? 1;
+		this.teamSize = Math.max(1, Math.min(MAX_PLAYERS_PER_TEAM, Math.round(config.teamSize ?? 1)));
 		this.gameModeConfig = {
 			...getGameMode(config.modeId || 'standard'),
 			...(config.gameModeConfig || {})
@@ -437,315 +483,236 @@ export class Simulation {
 		const eastRace = eastChoice.race;
 		const eastIsRandom = eastChoice.isRandom;
 
-		const westGold = westIsRandom ? Math.round(config.startGold * 1.3) : config.startGold;
-		const eastGold = eastIsRandom ? Math.round(config.startGold * 1.3) : config.startGold;
 		const startingMaxFood =
 			this.gameModeConfig?.noSpecialBuildings || this.gameModeConfig?.noLegendaries ? 0 : 1;
 
-		const p1: PlayerState = {
-			id: 'p1',
-			slot: 1,
-			team: 'west',
-			isBot: isBotVsBot,
-			botDifficulty: isBotVsBot ? config.botDifficulty : 0,
-			name: isBotVsBot ? 'Бот (Захід)' : 'Гравець',
-			color: WC3_PLAYER_COLORS[0],
-			race: westRace,
-			isRandomRace: westIsRandom,
-			randomGoldGranted: westIsRandom,
-			gold: westGold,
-			lumber: 125,
-			food: 0,
-			maxFood: startingMaxFood,
-			commander: 0, // Must build "Дім командира" to choose
-			isRandomCommander: false,
-			commanderCooldown: 0,
-			forge: { attack: 0, armor: 0, econ: 0 },
-			preferredLane: 'auto',
-			rescueStrikeCooldown: 0,
-			worker: {
-				name: getBuilderNameForRace(westRace),
-				x: WEST_CASTLE_X + 160,
-				y: WEST_CASTLE_Y,
-				targetX: WEST_CASTLE_X + 160,
-				targetY: WEST_CASTLE_Y,
-				hp: 220,
-				maxHp: 220,
-				armor: 'Неуразливий',
-				speed: WORKER_MOVE_SPEED,
-				isBuilding: false,
-				buildTimer: 0
-			},
-			stats: {
-				unitsSpawned: 0,
-				unitsKilled: 0,
-				goldSpent: 0,
-				totalDamageDealt: 0,
-				damageToCastle: 0,
-				coinsCollected: 0,
-				itemsPurchased: 0
-			}
+		const buildPlayer = (opts: {
+			id: string;
+			slot: number;
+			team: MatchTeam;
+			indexOnTeam: number;
+			teamCount: number;
+			isBot: boolean;
+			botDifficulty: number;
+			name: string;
+			race: string;
+			isRandomRace: boolean;
+			randomGoldGranted: boolean;
+			gold: number;
+		}): PlayerState => {
+			const spawnPt = computeWorkerSpawnPoint(opts.team, opts.indexOnTeam, opts.teamCount);
+			const colorDef =
+				ALL_PLAYER_COLORS[(Math.max(1, opts.slot) - 1) % ALL_PLAYER_COLORS.length] ??
+				ALL_PLAYER_COLORS[0];
+			return {
+				id: opts.id,
+				slot: opts.slot,
+				team: opts.team,
+				isBot: opts.isBot,
+				botDifficulty: opts.isBot ? opts.botDifficulty : 0,
+				name: opts.name,
+				color: colorDef,
+				race: opts.race,
+				isRandomRace: opts.isRandomRace,
+				randomGoldGranted: opts.randomGoldGranted,
+				gold: opts.gold,
+				lumber: 125,
+				food: 0,
+				maxFood: startingMaxFood,
+				commander: 0, // Must build "Дім командира" to choose
+				isRandomCommander: false,
+				commanderCooldown: 0,
+				forge: { attack: 0, armor: 0, econ: 0 },
+				preferredLane: 'auto',
+				rescueStrikeCooldown: 0,
+				worker: {
+					name: getBuilderNameForRace(opts.race),
+					x: spawnPt.x,
+					y: spawnPt.y,
+					targetX: spawnPt.x,
+					targetY: spawnPt.y,
+					hp: 220,
+					maxHp: 220,
+					armor: 'Неуразливий',
+					speed: WORKER_MOVE_SPEED,
+					isBuilding: false,
+					buildTimer: 0
+				},
+				stats: {
+					unitsSpawned: 0,
+					unitsKilled: 0,
+					goldSpent: 0,
+					totalDamageDealt: 0,
+					damageToCastle: 0,
+					coinsCollected: 0,
+					itemsPurchased: 0
+				}
+			};
 		};
 
-		const p2: PlayerState = {
-			id: 'p2',
-			slot: 2,
-			team: 'east',
-			isBot: true,
-			botDifficulty: config.botDifficulty,
-			name: 'Бот v37',
-			color: WC3_PLAYER_COLORS[1],
-			race: eastRace,
-			isRandomRace: eastIsRandom,
-			randomGoldGranted: eastIsRandom,
-			gold: eastGold,
-			lumber: 125,
-			food: 0,
-			maxFood: startingMaxFood,
-			commander: 0, // Must build "Дім командира" to choose
-			isRandomCommander: false,
-			commanderCooldown: 0,
-			forge: { attack: 0, armor: 0, econ: 0 },
-			preferredLane: 'auto',
-			rescueStrikeCooldown: 0,
-			worker: {
-				name: getBuilderNameForRace(eastRace),
-				x: EAST_CASTLE_X - 160,
-				y: EAST_CASTLE_Y,
-				targetX: EAST_CASTLE_X - 160,
-				targetY: EAST_CASTLE_Y,
-				hp: 220,
-				maxHp: 220,
-				armor: 'Неуразливий',
-				speed: WORKER_MOVE_SPEED,
-				isBuilding: false,
-				buildTimer: 0
-			},
-			stats: {
-				unitsSpawned: 0,
-				unitsKilled: 0,
-				goldSpent: 0,
-				totalDamageDealt: 0,
-				damageToCastle: 0,
-				coinsCollected: 0,
-				itemsPurchased: 0
+		this.teamMembers = { west: [], east: [] };
+
+		if (config.customSlots && config.customSlots.length > 0) {
+			const westSpecs = config.customSlots
+				.filter((s) => s.team === 'west')
+				.slice(0, MAX_PLAYERS_PER_TEAM);
+			const eastSpecs = config.customSlots
+				.filter((s) => s.team === 'east')
+				.slice(0, MAX_PLAYERS_PER_TEAM);
+
+			const hydrateTeam = (team: MatchTeam, specs: SimCustomSlot[]) => {
+				specs.forEach((spec, idx) => {
+					const fallbackRace = team === 'west' ? config.westRace : config.eastRace;
+					const requestedRace =
+						spec.race && spec.race !== 'in_game'
+							? spec.race
+							: idx === 0 && fallbackRace && fallbackRace !== 'in_game'
+								? fallbackRace
+								: undefined;
+					const shouldRollRandom =
+						isAllRandom ||
+						spec.race === 'random' ||
+						(!requestedRace && (spec.isBot || idx > 0 || fallbackRace === 'random'));
+					const choice = takeRace(
+						requestedRace || (shouldRollRandom ? undefined : defaultRace),
+						shouldRollRandom
+					);
+					const grantBonus =
+						choice.isRandom && (!spec.isBot || (idx === 0 && team === 'east')) && !spec.isBot;
+					const gold = grantBonus ? Math.round(config.startGold * 1.3) : config.startGold;
+					this.teamMembers[team].push(
+						buildPlayer({
+							id: `p${spec.slot}`,
+							slot: spec.slot,
+							team,
+							indexOnTeam: idx,
+							teamCount: specs.length,
+							isBot: spec.isBot,
+							botDifficulty: spec.botDifficulty ?? config.botDifficulty,
+							name:
+								spec.name ||
+								(spec.isBot
+									? `${team === 'west' ? 'Бот-союзник' : 'Бот'} #${idx + 1}`
+									: `Гравець #${spec.slot}`),
+							race: choice.race,
+							isRandomRace: choice.isRandom,
+							randomGoldGranted: grantBonus,
+							gold
+						})
+					);
+				});
+			};
+
+			hydrateTeam('west', westSpecs);
+			hydrateTeam('east', eastSpecs);
+			this.teamSize = Math.max(
+				1,
+				Math.min(MAX_PLAYERS_PER_TEAM, Math.max(westSpecs.length, eastSpecs.length))
+			);
+		} else {
+			const westSize = Math.max(
+				1,
+				Math.min(MAX_PLAYERS_PER_TEAM, Math.round(config.teamSizeWest ?? this.teamSize))
+			);
+			const eastSize = Math.max(
+				1,
+				Math.min(MAX_PLAYERS_PER_TEAM, Math.round(config.teamSizeEast ?? this.teamSize))
+			);
+
+			const westGold = westIsRandom ? Math.round(config.startGold * 1.3) : config.startGold;
+			const eastGold = eastIsRandom ? Math.round(config.startGold * 1.3) : config.startGold;
+
+			this.teamMembers.west.push(
+				buildPlayer({
+					id: 'p1',
+					slot: 1,
+					team: 'west',
+					indexOnTeam: 0,
+					teamCount: westSize,
+					isBot: isBotVsBot,
+					botDifficulty: isBotVsBot ? config.botDifficulty : 0,
+					name: isBotVsBot ? 'Бот (Захід)' : 'Гравець',
+					race: westRace,
+					isRandomRace: westIsRandom,
+					randomGoldGranted: westIsRandom,
+					gold: westGold
+				})
+			);
+
+			this.teamMembers.east.push(
+				buildPlayer({
+					id: 'p2',
+					slot: 2,
+					team: 'east',
+					indexOnTeam: 0,
+					teamCount: eastSize,
+					isBot: true,
+					botDifficulty: config.botDifficulty,
+					name: 'Бот v37',
+					race: eastRace,
+					isRandomRace: eastIsRandom,
+					randomGoldGranted: eastIsRandom,
+					gold: eastGold
+				})
+			);
+
+			const maxPairSize = Math.max(westSize, eastSize);
+			for (let idx = 1; idx < maxPairSize; idx++) {
+				if (idx < westSize) {
+					const slot = 1 + idx * 2;
+					const choice = takeRace(undefined, true);
+					const legacyWestNames: Record<number, string> = {
+						3: 'Бот-союзник v37',
+						5: 'Бот-союзник v38'
+					};
+					this.teamMembers.west.push(
+						buildPlayer({
+							id: `p${slot}`,
+							slot,
+							team: 'west',
+							indexOnTeam: idx,
+							teamCount: westSize,
+							isBot: true,
+							botDifficulty: config.botDifficulty,
+							name: legacyWestNames[slot] ?? `Бот-союзник #${idx + 1}`,
+							race: choice.race,
+							isRandomRace: choice.isRandom,
+							randomGoldGranted: false,
+							gold: config.startGold
+						})
+					);
+				}
+				if (idx < eastSize) {
+					const slot = 2 + idx * 2;
+					const choice = takeRace(undefined, true);
+					const legacyEastNames: Record<number, string> = {
+						4: 'Бот v38',
+						6: 'Бот v39'
+					};
+					this.teamMembers.east.push(
+						buildPlayer({
+							id: `p${slot}`,
+							slot,
+							team: 'east',
+							indexOnTeam: idx,
+							teamCount: eastSize,
+							isBot: true,
+							botDifficulty: config.botDifficulty,
+							name: legacyEastNames[slot] ?? `Бот #${idx + 1}`,
+							race: choice.race,
+							isRandomRace: choice.isRandom,
+							randomGoldGranted: false,
+							gold: config.startGold
+						})
+					);
+				}
 			}
-		};
+		}
 
 		this.players = {
-			west: p1,
-			east: p2
+			west: this.teamMembers.west[0],
+			east: this.teamMembers.east[0]
 		};
-
-		this.teamMembers = {
-			west: [p1],
-			east: [p2]
-		};
-
-		const westSize = config.teamSizeWest ?? this.teamSize;
-		const eastSize = config.teamSizeEast ?? this.teamSize;
-
-		if (westSize >= 2 || eastSize >= 2) {
-			const p3Choice = takeRace(undefined, true);
-			const p4Choice = takeRace(undefined, true);
-
-			const p3Gold = config.startGold;
-			const p4Gold = config.startGold;
-
-			const p3: PlayerState = {
-				id: 'p3',
-				slot: 3,
-				team: 'west',
-				isBot: true,
-				botDifficulty: config.botDifficulty,
-				name: 'Бот-союзник v37',
-				color: WC3_PLAYER_COLORS[2],
-				race: p3Choice.race,
-				isRandomRace: p3Choice.isRandom,
-				randomGoldGranted: false,
-				gold: p3Gold,
-				lumber: 125,
-				food: 0,
-				maxFood: startingMaxFood,
-				commander: 0,
-				isRandomCommander: false,
-				commanderCooldown: 0,
-				forge: { attack: 0, armor: 0, econ: 0 },
-				preferredLane: 'auto',
-				rescueStrikeCooldown: 0,
-				worker: {
-					name: getBuilderNameForRace(p3Choice.race),
-					x: WEST_CASTLE_X + 160,
-					y: WEST_CASTLE_Y - 80,
-					targetX: WEST_CASTLE_X + 160,
-					targetY: WEST_CASTLE_Y - 80,
-					hp: 220,
-					maxHp: 220,
-					armor: 'Неуразливий',
-					speed: WORKER_MOVE_SPEED,
-					isBuilding: false,
-					buildTimer: 0
-				},
-				stats: {
-					unitsSpawned: 0,
-					unitsKilled: 0,
-					goldSpent: 0,
-					totalDamageDealt: 0,
-					damageToCastle: 0,
-					coinsCollected: 0,
-					itemsPurchased: 0
-				}
-			};
-
-			const p4: PlayerState = {
-				id: 'p4',
-				slot: 4,
-				team: 'east',
-				isBot: true,
-				botDifficulty: config.botDifficulty,
-				name: 'Бот v38',
-				color: WC3_PLAYER_COLORS[3],
-				race: p4Choice.race,
-				isRandomRace: p4Choice.isRandom,
-				randomGoldGranted: false,
-				gold: p4Gold,
-				lumber: 125,
-				food: 0,
-				maxFood: startingMaxFood,
-				commander: 0,
-				isRandomCommander: false,
-				commanderCooldown: 0,
-				forge: { attack: 0, armor: 0, econ: 0 },
-				preferredLane: 'auto',
-				rescueStrikeCooldown: 0,
-				worker: {
-					name: getBuilderNameForRace(p4Choice.race),
-					x: EAST_CASTLE_X - 160,
-					y: EAST_CASTLE_Y - 80,
-					targetX: EAST_CASTLE_X - 160,
-					targetY: EAST_CASTLE_Y - 80,
-					hp: 220,
-					maxHp: 220,
-					armor: 'Неуразливий',
-					speed: WORKER_MOVE_SPEED,
-					isBuilding: false,
-					buildTimer: 0
-				},
-				stats: {
-					unitsSpawned: 0,
-					unitsKilled: 0,
-					goldSpent: 0,
-					totalDamageDealt: 0,
-					damageToCastle: 0,
-					coinsCollected: 0,
-					itemsPurchased: 0
-				}
-			};
-
-			if (westSize >= 2) this.teamMembers.west.push(p3);
-			if (eastSize >= 2) this.teamMembers.east.push(p4);
-		}
-
-		if (westSize === 3 || eastSize === 3) {
-			const p5Choice = takeRace(undefined, true);
-			const p6Choice = takeRace(undefined, true);
-
-			const p5Gold = config.startGold;
-			const p6Gold = config.startGold;
-
-			const p5: PlayerState = {
-				id: 'p5',
-				slot: 5,
-				team: 'west',
-				isBot: true,
-				botDifficulty: config.botDifficulty,
-				name: 'Бот-союзник v38',
-				color: WC3_PLAYER_COLORS[4],
-				race: p5Choice.race,
-				isRandomRace: p5Choice.isRandom,
-				randomGoldGranted: false,
-				gold: p5Gold,
-				lumber: 125,
-				food: 0,
-				maxFood: startingMaxFood,
-				commander: 0,
-				isRandomCommander: false,
-				commanderCooldown: 0,
-				forge: { attack: 0, armor: 0, econ: 0 },
-				preferredLane: 'auto',
-				rescueStrikeCooldown: 0,
-				worker: {
-					name: getBuilderNameForRace(p5Choice.race),
-					x: WEST_CASTLE_X + 160,
-					y: WEST_CASTLE_Y + 80,
-					targetX: WEST_CASTLE_X + 160,
-					targetY: WEST_CASTLE_Y + 80,
-					hp: 220,
-					maxHp: 220,
-					armor: 'Неуразливий',
-					speed: WORKER_MOVE_SPEED,
-					isBuilding: false,
-					buildTimer: 0
-				},
-				stats: {
-					unitsSpawned: 0,
-					unitsKilled: 0,
-					goldSpent: 0,
-					totalDamageDealt: 0,
-					damageToCastle: 0,
-					coinsCollected: 0,
-					itemsPurchased: 0
-				}
-			};
-
-			const p6: PlayerState = {
-				id: 'p6',
-				slot: 6,
-				team: 'east',
-				isBot: true,
-				botDifficulty: config.botDifficulty,
-				name: 'Бот v39',
-				color: WC3_PLAYER_COLORS[5],
-				race: p6Choice.race,
-				isRandomRace: p6Choice.isRandom,
-				randomGoldGranted: false,
-				gold: p6Gold,
-				lumber: 125,
-				food: 0,
-				maxFood: startingMaxFood,
-				commander: 0,
-				isRandomCommander: false,
-				commanderCooldown: 0,
-				forge: { attack: 0, armor: 0, econ: 0 },
-				preferredLane: 'auto',
-				rescueStrikeCooldown: 0,
-				worker: {
-					name: getBuilderNameForRace(p6Choice.race),
-					x: EAST_CASTLE_X - 160,
-					y: EAST_CASTLE_Y + 80,
-					targetX: EAST_CASTLE_X - 160,
-					targetY: EAST_CASTLE_Y + 80,
-					hp: 220,
-					maxHp: 220,
-					armor: 'Неуразливий',
-					speed: WORKER_MOVE_SPEED,
-					isBuilding: false,
-					buildTimer: 0
-				},
-				stats: {
-					unitsSpawned: 0,
-					unitsKilled: 0,
-					goldSpent: 0,
-					totalDamageDealt: 0,
-					damageToCastle: 0,
-					coinsCollected: 0,
-					itemsPurchased: 0
-				}
-			};
-
-			if (westSize === 3) this.teamMembers.west.push(p5);
-			if (eastSize === 3) this.teamMembers.east.push(p6);
-		}
 
 		this.allPlayers = [...this.teamMembers.west, ...this.teamMembers.east];
 		this.randomizePlayerColors(config.randomColors === false);
@@ -770,14 +737,16 @@ export class Simulation {
 	public randomizePlayerColors(fixed = false): void {
 		if (fixed) {
 			this.allPlayers.forEach((p, index) => {
-				const slotIdx = (p.slot !== undefined ? p.slot - 1 : index) % WC3_PLAYER_COLORS.length;
-				p.color = WC3_PLAYER_COLORS[slotIdx >= 0 ? slotIdx : 0];
+				const slotIdx = (p.slot !== undefined ? p.slot - 1 : index) % ALL_PLAYER_COLORS.length;
+				p.color = ALL_PLAYER_COLORS[slotIdx >= 0 ? slotIdx : 0];
 			});
 			return;
 		}
 
-		// Shuffle WC3 12 player colors so all active players and bots receive distinct random colors
-		const pool = [...WC3_PLAYER_COLORS];
+		// Use 12 classic WC3 colors when <= 12 players, and include extra 13..14 colors for 7v7
+		const palette =
+			this.allPlayers.length > WC3_PLAYER_COLORS.length ? ALL_PLAYER_COLORS : WC3_PLAYER_COLORS;
+		const pool = [...palette];
 		for (let i = pool.length - 1; i > 0; i--) {
 			const j = Math.floor(this.nextRandom() * (i + 1));
 			[pool[i], pool[j]] = [pool[j], pool[i]];
@@ -1216,15 +1185,13 @@ export class Simulation {
 			}
 			if (p.worker) {
 				p.worker.name = getBuilderNameForRace(p.race);
-				const isWest = p.team === 'west';
-				let defaultY = 1200;
-				if (p.slot === 3 || p.slot === 4) defaultY = 1120;
-				else if (p.slot === 5 || p.slot === 6) defaultY = 1280;
-				const defaultX = isWest ? WEST_CASTLE_X + 160 : EAST_CASTLE_X - 160;
-				p.worker.x = defaultX;
-				p.worker.y = defaultY;
-				p.worker.targetX = defaultX;
-				p.worker.targetY = defaultY;
+				const teamList = this.teamMembers[p.team];
+				const idxOnTeam = Math.max(0, teamList.indexOf(p));
+				const spawnPt = computeWorkerSpawnPoint(p.team, idxOnTeam, teamList.length);
+				p.worker.x = spawnPt.x;
+				p.worker.y = spawnPt.y;
+				p.worker.targetX = spawnPt.x;
+				p.worker.targetY = spawnPt.y;
 				p.worker.isBuilding = false;
 				p.worker.targetBuildingId = null;
 				p.worker.isRepairing = false;
@@ -1366,6 +1333,10 @@ export class Simulation {
 		// 12. Cleanup dead entities
 		this.units = this.units.filter((u) => u.state !== 'DEAD' || (u.deathTimer ?? 0) > 0);
 		this.projectiles = this.projectiles.filter((p) => p.damage > 0);
+
+		if (this.config.autoStepBots && !this.winner) {
+			this.updateBots(dt);
+		}
 
 		// 13. Check Win Condition
 		if (this.castles.west.hp <= 0 && !this.winner) {

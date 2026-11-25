@@ -2,7 +2,7 @@
 	"rules": {
 		"__rulesVersion": {
 			"$v": {
-				".read": "auth != null && $v === '61b3c3ca3a52'"
+				".read": "auth != null && $v === 'd3fbcb5f879d'"
 			}
 		},
 		"rooms": {
@@ -57,7 +57,13 @@
 							".validate": "newData.isString() && newData.val().length <= 32"
 						},
 						"teamSize": {
-							".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 3"
+							".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 7"
+						},
+						"teamSizeWest": {
+							".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 7"
+						},
+						"teamSizeEast": {
+							".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 7"
 						},
 						"targetWins": {
 							".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 5"
@@ -81,7 +87,24 @@
 							".validate": "newData.isBoolean()"
 						},
 						"botDifficulty": {
-							".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 4"
+							".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 80"
+						},
+						"slots": {
+							"$slotKey": {
+								".validate": "$slotKey.matches(/^(west|east)_[1-7]$/) && newData.hasChildren(['kind'])",
+								"kind": {
+									".validate": "newData.val() === 'open' || newData.val() === 'closed' || newData.val() === 'bot'"
+								},
+								"botDifficulty": {
+									".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 80"
+								},
+								"race": {
+									".validate": "newData.isString() && newData.val().length <= 32"
+								},
+								"$other": {
+									".validate": false
+								}
+							}
 						},
 						"$other": {
 							".validate": false
@@ -95,7 +118,10 @@
 								".validate": "newData.isString() && newData.val().length <= 48 && newData.val() === root.child('rooms').child($code).child('members').child($uid).child('name').val()"
 							},
 							"seat": {
-								".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 5"
+								".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 13"
+							},
+							"slot": {
+								".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 14"
 							},
 							"team": {
 								".validate": "newData.val() === 'west' || newData.val() === 'east'"
@@ -124,10 +150,11 @@
 							".validate": "newData.val() === 'player' || newData.val() === 'spectator'"
 						},
 						"order": {
-							".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 10 && (!data.exists() || newData.val() === data.val())"
+							".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 20 && (!data.exists() || newData.val() === data.val())"
 						},
 						"slot": {
-							".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 6"
+							".write": "auth != null && ($uid === auth.uid || (root.child('rooms').child($code).child('info/hostUid').val() === auth.uid && root.child('rooms').child($code).child('info/status').val() === 'lobby'))",
+							".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 14"
 						},
 						"country": {
 							".validate": "newData.isString() && newData.val().length === 2"
@@ -136,6 +163,7 @@
 							".validate": "newData.isString() && newData.val().length <= 32"
 						},
 						"team": {
+							".write": "auth != null && ($uid === auth.uid || (root.child('rooms').child($code).child('info/hostUid').val() === auth.uid && root.child('rooms').child($code).child('info/status').val() === 'lobby'))",
 							".validate": "newData.val() === 'west' || newData.val() === 'east'"
 						},
 						"race": {
@@ -191,7 +219,7 @@
 								".validate": "newData.val() === 'west' || newData.val() === 'east'"
 							},
 							"playerSlot": {
-								".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 6"
+								".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 14"
 							},
 							"buildingType": {
 								".validate": "newData.isString() && newData.val().length <= 16"
@@ -316,10 +344,10 @@
 						".validate": "newData.isNumber()"
 					},
 					"players": {
-						".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 6"
+						".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 14"
 					},
 					"maxPlayers": {
-						".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 6"
+						".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 14"
 					},
 					"modeId": {
 						".validate": "newData.isString() && newData.val().length <= 32"

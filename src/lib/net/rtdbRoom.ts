@@ -24,7 +24,7 @@ import {
 	rosterToRecord,
 	type RawInfo
 } from './roomShape';
-import { pickNextTeamSlot } from './onlineMatchSetup';
+import { pickFirstAvailableSeat, pickNextTeamSlot } from './onlineMatchSetup';
 
 export interface NewRoomOptions {
 	gameId: string;
@@ -305,14 +305,17 @@ export async function createRoom(options: NewRoomOptions): Promise<string> {
 			continue;
 		}
 
+		const hostTeam = options.team ?? 'west';
+		const hostSeat = pickFirstAvailableSeat([], hostTeam, options.config);
+
 		await set(ref(db, `rooms/${code}/members/${uid}`), {
 			name: options.name,
 			role: 'player',
 			order: 1,
-			slot: 1,
+			slot: hostSeat.slot,
 			...(options.country && options.country.length === 2 ? { country: options.country } : {}),
 			...(options.avatar ? { avatar: options.avatar } : {}),
-			...(options.team ? { team: options.team } : { team: 'west' }),
+			team: hostSeat.team,
 			...(options.race ? { race: options.race } : {}),
 			...(options.compact ? { compact: true } : {}),
 			...(auth.currentUser?.isAnonymous === false ? { account: true } : {})
@@ -330,20 +333,35 @@ export async function joinRoom(code: string, entry: RoomEntry): Promise<void> {
 	const { uid, db, auth } = await connect();
 	const { get, ref, set } = await import('firebase/database');
 
-	const membersSnap = await get(ref(db, `rooms/${code}/members`));
+	const [membersSnap, configSnap] = await Promise.all([
+		get(ref(db, `rooms/${code}/members`)),
+		get(ref(db, `rooms/${code}/info/config`))
+	]);
 	const currentMembers = membersSnap.val() as Record<
 		string,
 		{ team?: string; slot?: number; order?: number }
 	> | null;
+	const roomConfig = (configSnap.val() as RoomConfig | null) ?? undefined;
 	const memberList = currentMembers ? Object.values(currentMembers) : [];
 	const count = memberList.length;
-	const team = entry.team ?? (count % 2 === 0 ? 'west' : 'east');
+	const preferredTeam = entry.team ?? (count % 2 === 0 ? 'west' : 'east');
 	const existingSelf = currentMembers?.[uid];
 	const order = typeof existingSelf?.order === 'number' ? existingSelf.order : count + 1;
-	const slot =
-		typeof existingSelf?.slot === 'number' && existingSelf.team === team
-			? existingSelf.slot
-			: pickNextTeamSlot(memberList, team);
+
+	let team: 'west' | 'east' = preferredTeam;
+	let slot: number;
+	if (typeof existingSelf?.slot === 'number' && existingSelf.team === preferredTeam) {
+		slot = existingSelf.slot;
+	} else if (typeof entry.slot === 'number') {
+		slot = entry.slot;
+		team = slot % 2 === 0 ? 'east' : 'west';
+	} else if (roomConfig?.slots) {
+		const seat = pickFirstAvailableSeat(memberList, preferredTeam, roomConfig);
+		team = seat.team;
+		slot = seat.slot;
+	} else {
+		slot = pickNextTeamSlot(memberList, preferredTeam, roomConfig);
+	}
 
 	await set(ref(db, `rooms/${code}/members/${uid}`), {
 		name: entry.name,
@@ -363,6 +381,23 @@ export async function updateMe(code: string, patch: MemberPatch): Promise<void> 
 	const { uid, db } = await connect();
 	const { ref, update } = await import('firebase/database');
 	await update(ref(db, `rooms/${code}/members/${uid}`), patch);
+}
+
+export async function updateMemberSlot(
+	code: string,
+	targetUid: string,
+	team: 'west' | 'east',
+	slot: number
+): Promise<void> {
+	const { db } = await connect();
+	const { ref, update } = await import('firebase/database');
+	await update(ref(db, `rooms/${code}/members/${targetUid}`), { team, slot });
+}
+
+export async function kickMember(code: string, targetUid: string): Promise<void> {
+	const { db } = await connect();
+	const { ref, remove } = await import('firebase/database');
+	await remove(ref(db, `rooms/${code}/members/${targetUid}`));
 }
 
 /**

@@ -99,8 +99,8 @@ assertRule(
 	'Move shiftKey flag must be boolean'
 );
 assertRule(
-	rules.lobby?.$gameId?.$code?.players?.['.validate']?.includes('<= 6'),
-	'Lobby players count must be bounded <= 6'
+	rules.lobby?.$gameId?.$code?.players?.['.validate']?.includes('<= 14'),
+	'Lobby players count must be bounded <= 14'
 );
 
 // 6. Presence & Chat validation

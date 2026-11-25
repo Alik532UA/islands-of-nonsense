@@ -1,12 +1,22 @@
 <script lang="ts">
 	import { Loader2, X } from 'lucide-svelte';
 	import { t } from '$lib/i18n';
+	import type { SeekFormat } from '$lib/net/seek';
 
 	interface Props {
+		format?: SeekFormat;
+		onChangeFormat?: (format: SeekFormat) => void;
 		onCancel: () => void;
 	}
 
-	let { onCancel }: Props = $props();
+	let { format = '1v1', onChangeFormat, onCancel }: Props = $props();
+
+	const FORMATS: Array<{ id: SeekFormat; label: string }> = [
+		{ id: '1v1', label: '1v1' },
+		{ id: '2v2', label: '2v2' },
+		{ id: '3v3', label: '3v3' },
+		{ id: 'any', label: t('online.anyOpenRoom') }
+	];
 </script>
 
 <div
@@ -22,9 +32,32 @@
 	<h2 id="search-modal-title" class="text-xl font-bold text-sky-200 mb-2">
 		{t('online.searching')}
 	</h2>
-	<p class="text-xs text-slate-400 mb-6">
+	<p class="text-xs text-slate-400 mb-4">
 		{t('online.searchingHint')}
 	</p>
+
+	{#if onChangeFormat}
+		<div class="mb-5 text-left">
+			<span class="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+				{t('online.searchFormat')}
+			</span>
+			<div class="grid grid-cols-2 gap-1.5">
+				{#each FORMATS as item (item.id)}
+					<button
+						type="button"
+						data-testid="seek-format-{item.id}"
+						onclick={() => onChangeFormat(item.id)}
+						class="min-h-[38px] px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-colors cursor-pointer {format ===
+						item.id
+							? 'bg-sky-500/20 border-sky-400 text-sky-200'
+							: 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-750'}"
+					>
+						{item.label}
+					</button>
+				{/each}
+			</div>
+		</div>
+	{/if}
 
 	<button
 		type="button"

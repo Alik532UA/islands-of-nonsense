@@ -763,10 +763,11 @@
 			if (sim.tick % 30 !== 0) return;
 			lastCheckpointTick = sim.tick;
 
-			// Stagger CHECKSUM broadcasts per slot (0.5s apart) so synchronized peers never collide on RTDB move seqs
-			const slotOffset = ((Math.max(1, matchSync.localSlot) - 1) * 30) % 300;
+			// Stagger CHECKSUM broadcasts per slot across a 450-tick cycle (30 ticks apart)
+			// so up to 14 synchronized players never collide on RTDB move seqs
+			const slotOffset = ((Math.max(1, matchSync.localSlot) - 1) * 30) % 450;
 			const isNearLive = serverTargetTick === null || serverTargetTick - sim.tick <= 30;
-			if (sim.tick % 300 === slotOffset && isNearLive) {
+			if (sim.tick % 450 === slotOffset && isNearLive) {
 				void matchSync.broadcastChecksum();
 			} else {
 				matchSync.recordCheckpointChecksum();

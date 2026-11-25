@@ -139,7 +139,7 @@ export class MatchSync {
 	setRosterSlots(mapping: Record<string, number>) {
 		this.uidToSlot.clear();
 		for (const [uid, slot] of Object.entries(mapping)) {
-			if (Number.isInteger(slot) && slot >= 1 && slot <= 6) {
+			if (Number.isInteger(slot) && slot >= 1 && slot <= 14) {
 				this.uidToSlot.set(uid, slot);
 			}
 		}

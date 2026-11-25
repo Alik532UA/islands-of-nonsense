@@ -145,7 +145,8 @@ describe('database.rules.json security invariants & Firebase architecture', () =
 		expect(movesWrite).toContain('now - 80');
 
 		const member = room.members.$uid;
-		expect(member.order['.validate']).toContain('<= 10');
+		expect(member.order['.validate']).toContain('<= 20');
+		expect(member.slot['.validate']).toContain('<= 14');
 		expect(member.lastMoveAt['.validate']).toContain(
 			'!data.exists() || newData.val() > data.val()'
 		);
@@ -155,8 +156,10 @@ describe('database.rules.json security invariants & Firebase architecture', () =
 
 		const payloadRules = room.moves.$seq.payload;
 		expect(payloadRules.commanderId['.validate']).toContain("'random'");
-		expect(payloadRules.playerSlot['.validate']).toContain('<= 6');
+		expect(payloadRules.playerSlot['.validate']).toContain('<= 14');
 		expect(room.info.config.fogOfWar['.validate']).toBe('newData.isBoolean()');
+		expect(room.info.config.slots.$slotKey['.validate']).toContain('(west|east)_[1-7]');
+		expect(room.info.config.slots.$slotKey.$other['.validate']).toBe(false);
 	});
 
 	it('enforces strict $other: false schema locking across critical nodes', () => {

@@ -1,7 +1,10 @@
 import type { Database } from 'firebase/database';
 import { GAME_ID, RULES_VERSION, publishToLobby, updateLobbyPlayers } from './lobby';
+import { buildRoomSlots } from './onlineMatchSetup';
 import type { createRoom, joinRoom } from './rtdbRoom';
 import type { LobbyRoom } from './roomTypes';
+
+export type SeekFormat = '1v1' | '2v2' | '3v3' | 'any';
 
 export interface SeekPlayer {
 	uid: string;
@@ -23,9 +26,19 @@ export interface SeekDeps {
 	now?: () => number;
 }
 
+export interface SeekOptions {
+	format?: SeekFormat;
+}
+
 const SEEK_WINDOW_MS = 20_000;
 const POLL_WAIT_MS = 3_000;
 const POLL_STEP_MS = 400;
+
+function teamSizeForSeekFormat(format: SeekFormat): 1 | 2 | 3 {
+	if (format === '3v3') return 3;
+	if (format === '2v2') return 2;
+	return 1;
+}
 
 /**
  * Builds an RTDB-rule-compliant ticket for `/seek/{gameId}/{uid}`.
@@ -46,34 +59,37 @@ export function buildSeekTicket(
 function findJoinableLobbyRoom(
 	raw: Record<string, LobbyRoom> | null,
 	myUid: string,
-	now: number
+	now: number,
+	format: SeekFormat
 ): LobbyRoom | null {
 	if (!raw) return null;
+	const desiredMaxPlayers = format === 'any' ? null : teamSizeForSeekFormat(format) * 2;
 	const candidates = Object.values(raw)
 		.filter(
 			(r) =>
 				r &&
 				r.hostUid !== myUid &&
 				r.players < r.maxPlayers &&
-				r.modeId === 'standard' &&
-				now - (r.createdAt ?? 0) < 60_000
+				(format === 'any' || (r.modeId === 'standard' && r.maxPlayers === desiredMaxPlayers)) &&
+				now - (r.createdAt ?? 0) < 120_000
 		)
 		.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
 	return candidates[0] ?? null;
 }
 
 /**
- * 1v1 Quick matchmaking seek compatible with `database.rules.json`:
- * 1. Joins an open 1v1 lobby room if one is waiting.
- * 2. Registers `/seek/{gameId}/{uid}` with `at: serverTimestamp()` + `onDisconnect`.
- * 3. Pairs with active seekers using deterministic UID ordering or creates a real RTDB room.
+ * Quick matchmaking seek compatible with `database.rules.json`:
+ * Supports 1v1, 2v2, 3v3 or 'any' open room format.
  */
 export async function seekMatch(
 	db: Database,
 	player: SeekPlayer,
 	signal?: AbortSignal,
-	deps: SeekDeps = {}
+	deps: SeekDeps = {},
+	options: SeekOptions = {}
 ): Promise<SeekResult> {
+	const format: SeekFormat = options.format ?? '1v1';
+	const teamSize = teamSizeForSeekFormat(format);
 	const dbModule = await import('firebase/database');
 	const { ref, get, set, remove, onDisconnect, serverTimestamp, query, orderByChild, limitToLast } =
 		dbModule;
@@ -92,15 +108,15 @@ export async function seekMatch(
 		const open = findJoinableLobbyRoom(
 			lobbySnap.val() as Record<string, LobbyRoom>,
 			player.uid,
-			nowFn()
+			nowFn(),
+			format
 		);
 		if (open) {
 			await doJoinRoom(open.code, {
 				name: player.name,
 				role: 'player',
 				country: player.country,
-				avatar: player.avatar,
-				team: 'east'
+				avatar: player.avatar
 			});
 			await doUpdatePlayers(db, open.code, open.players + 1).catch(() => {});
 			return { code: open.code, isHost: false };
@@ -170,16 +186,24 @@ export async function seekMatch(
 		if (signal?.aborted) throw new Error('Search cancelled');
 
 		const seed = Math.floor(Math.random() * 1_000_000);
+		const slots = buildRoomSlots(teamSize, teamSize);
 		const roomCode = await doCreateRoom({
 			gameId: GAME_ID,
 			rulesVersion: RULES_VERSION,
 			seed,
-			config: { modeId: 'standard', teamSize: 1, targetWins: 2 },
+			config: {
+				modeId: 'standard',
+				teamSize,
+				teamSizeWest: teamSize,
+				teamSizeEast: teamSize,
+				slots,
+				targetWins: 2
+			},
 			name: player.name,
 			country: player.country,
 			avatar: player.avatar,
 			team: 'west',
-			autoStart: true
+			autoStart: teamSize === 1
 		});
 
 		await doPublish(db, {
@@ -191,7 +215,7 @@ export async function seekMatch(
 			gameId: GAME_ID,
 			rulesVersion: RULES_VERSION,
 			players: 1,
-			maxPlayers: 2,
+			maxPlayers: teamSize * 2,
 			modeId: 'standard'
 		});
 

@@ -356,6 +356,6 @@ export function resolveBattleLaunchConfig(
 	return {
 		...defaults,
 		...cleanSaved,
-		teamSize: (cleanSaved.teamSize as 1 | 2 | 3) ?? defaults.teamSize
+		teamSize: typeof cleanSaved.teamSize === 'number' ? cleanSaved.teamSize : defaults.teamSize
 	};
 }

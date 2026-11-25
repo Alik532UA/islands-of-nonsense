@@ -6,6 +6,13 @@ export interface RoomNet {
 	createRoom(options: NewRoomOptions): Promise<string>;
 	joinRoom(code: string, entry: RoomEntry): Promise<void>;
 	updateMe(code: string, patch: MemberPatch): Promise<void>;
+	updateMemberSlot(
+		code: string,
+		targetUid: string,
+		team: 'west' | 'east',
+		slot: number
+	): Promise<void>;
+	kickMember(code: string, targetUid: string): Promise<void>;
 	peekRoom(code: string): Promise<RoomInfo | null>;
 	peekMembers(code: string): Promise<Member[] | null>;
 	roomTransport(code: string): Promise<RoomTransport>;
@@ -21,6 +28,9 @@ export const liveNet: RoomNet = {
 	createRoom: async (options) => (await import('./rtdbRoom')).createRoom(options),
 	joinRoom: async (code, entry) => (await import('./rtdbRoom')).joinRoom(code, entry),
 	updateMe: async (code, patch) => (await import('./rtdbRoom')).updateMe(code, patch),
+	updateMemberSlot: async (code, targetUid, team, slot) =>
+		(await import('./rtdbRoom')).updateMemberSlot(code, targetUid, team, slot),
+	kickMember: async (code, targetUid) => (await import('./rtdbRoom')).kickMember(code, targetUid),
 	peekRoom: async (code) => (await import('./rtdbRoom')).peekRoom(code),
 	peekMembers: async (code) => (await import('./rtdbRoom')).peekMembers(code),
 	roomTransport: async (code) => (await import('./rtdbRoom')).roomTransport(code),

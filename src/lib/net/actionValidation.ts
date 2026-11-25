@@ -189,7 +189,7 @@ export function validatePlayerMove(raw: unknown): ValidationResult {
 			typeof p.playerSlot !== 'number' ||
 			!Number.isInteger(p.playerSlot) ||
 			p.playerSlot < 1 ||
-			p.playerSlot > 6
+			p.playerSlot > 14
 		) {
 			return { valid: false, error: 'Invalid playerSlot value' };
 		}

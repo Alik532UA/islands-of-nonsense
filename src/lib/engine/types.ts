@@ -128,6 +128,29 @@ export const WC3_PLAYER_COLORS: PlayerColorDef[] = [
 	}
 ];
 
+export const EXTRA_PLAYER_COLORS: PlayerColorDef[] = [
+	{
+		id: 13,
+		nameUk: 'Сріблястий',
+		nameEn: 'Silver',
+		hex: '#e2e8f0',
+		num: 0xe2e8f0,
+		darkHex: '#475569',
+		lightHex: '#f8fafc'
+	},
+	{
+		id: 14,
+		nameUk: 'Індіго',
+		nameEn: 'Indigo',
+		hex: '#6366f1',
+		num: 0x6366f1,
+		darkHex: '#312e81',
+		lightHex: '#a5b4fc'
+	}
+];
+
+export const ALL_PLAYER_COLORS: PlayerColorDef[] = [...WC3_PLAYER_COLORS, ...EXTRA_PLAYER_COLORS];
+
 export interface Vector2D {
 	x: number;
 	y: number;

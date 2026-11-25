@@ -32,4 +32,18 @@ describe('seek matchmaking & RTDB schema compliance', () => {
 			})
 		).rejects.toThrow('Search cancelled');
 	});
+
+	it('validates format-specific seek options (1v1/2v2/3v3/any)', async () => {
+		const controller = new AbortController();
+		controller.abort();
+		await expect(
+			seekMatch(
+				{} as Database,
+				{ uid: 'u1', name: 'Tester' },
+				controller.signal,
+				{ createRoom: vi.fn(), joinRoom: vi.fn() },
+				{ format: '3v3' }
+			)
+		).rejects.toThrow('Search cancelled');
+	});
 });

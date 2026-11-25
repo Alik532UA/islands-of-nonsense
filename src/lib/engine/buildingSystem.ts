@@ -374,6 +374,27 @@ export class BuildingSystem {
 			}
 		}
 
+		// Soft building limit for large team sizes (4..7 per island) to preserve space and 60 FPS
+		const teamMemberCount = Math.max(1, this.sim.teamMembers?.[team]?.length ?? 1);
+		if (teamMemberCount >= 4) {
+			const maxPerPlayer = Math.max(10, Math.floor(84 / teamMemberCount));
+			const ownedCount = this.sim.buildings.filter(
+				(b) => b.team === team && (!player || !b.playerId || b.playerId === player.id)
+			).length;
+			if (ownedCount >= maxPerPlayer) {
+				if (!player.isBot) {
+					this.sim.addFloatingText(
+						`Ліміт споруд (${ownedCount}/${maxPerPlayer})!`,
+						worldX,
+						worldY - 20,
+						'#ef4444'
+					);
+					this.sim.onSoundEffect?.('errorResource');
+				}
+				return false;
+			}
+		}
+
 		if (bDef.specialType === 'forge') {
 			const existingForge = this.sim.buildings.some(
 				(b) =>
@@ -894,6 +915,19 @@ export class BuildingSystem {
 	public spawnUnitFromBuilding(building: Building): Unit | null {
 		const unitDef = getUnit(building.spawnUnitId);
 		if (!unitDef) return null;
+
+		const teamMemberCount = Math.max(1, this.sim.teamMembers?.[building.team]?.length ?? 1);
+		if (teamMemberCount >= 4) {
+			let activeTeamUnits = 0;
+			for (const u of this.sim.units) {
+				if (u.team === building.team && !u.isBoss && u.state !== 'DEAD') {
+					activeTeamUnits++;
+				}
+			}
+			if (activeTeamUnits >= 140) {
+				return null;
+			}
+		}
 
 		const player =
 			(building.playerId ? this.sim.allPlayers.find((p) => p.id === building.playerId) : null) ||

@@ -1020,22 +1020,22 @@ export class BotAI {
 		const maxDist = pool[0].distToEnemy;
 		const furthestTier = pool.filter((s) => s.distToEnemy >= maxDist - 250);
 
-		// 3b. In team games (2v2, 3v3), assign natural courtyard sectors per player slot
+		// 3b. In team games (2+ per team), assign natural courtyard sectors per player slot
 		// so teammates don't crowd each other and maintain separate territory:
-		// Slots 3, 4: Top sector (tileY <= 30)
-		// Slots 5, 6: Bottom sector (tileY >= 40)
-		// Slots 1, 2: Mid sector (20 <= tileY <= 50)
+		// Top sector (tileY <= 30), Bot sector (tileY >= 40), Mid sector (20 <= tileY <= 50)
 		let candidateTier = furthestTier;
 		const player = this.getPlayer();
-		if (this.sim.teamSize >= 2 && player?.slot) {
-			const slot = player.slot;
-			if (slot === 3 || slot === 4) {
+		const teamCount = this.sim.teamMembers?.[this.team]?.length ?? this.sim.teamSize;
+		if ((teamCount >= 2 || this.sim.teamSize >= 2) && player?.slot) {
+			const teamIdx = Math.floor((player.slot - 1) / 2);
+			const sectorMod = teamIdx % 3;
+			if (sectorMod === 1) {
 				const topSector = candidateTier.filter((s) => s.y <= 30);
 				if (topSector.length > 0) candidateTier = topSector;
-			} else if (slot === 5 || slot === 6) {
+			} else if (sectorMod === 2) {
 				const botSector = candidateTier.filter((s) => s.y >= 40);
 				if (botSector.length > 0) candidateTier = botSector;
-			} else if (slot === 1 || slot === 2) {
+			} else {
 				const midSector = candidateTier.filter((s) => s.y >= 20 && s.y <= 50);
 				if (midSector.length > 0) candidateTier = midSector;
 			}

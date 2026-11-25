@@ -1,6 +1,28 @@
 export type Role = 'player' | 'spectator';
 export type RoomStatus = 'lobby' | 'playing' | 'over';
 export type MatchTeamId = 'west' | 'east';
+export type RoomSlotKind = 'open' | 'closed' | 'bot';
+export type RoomSlotKey =
+	| 'west_1'
+	| 'west_2'
+	| 'west_3'
+	| 'west_4'
+	| 'west_5'
+	| 'west_6'
+	| 'west_7'
+	| 'east_1'
+	| 'east_2'
+	| 'east_3'
+	| 'east_4'
+	| 'east_5'
+	| 'east_6'
+	| 'east_7';
+
+export interface RoomSlotSetting {
+	kind: RoomSlotKind;
+	botDifficulty?: number;
+	race?: string;
+}
 
 export interface RosterEntry {
 	uid: string;
@@ -31,6 +53,7 @@ export interface MemberPatch {
 	country?: string;
 	avatar?: string;
 	team?: MatchTeamId;
+	slot?: number;
 	race?: string;
 	ready?: boolean;
 	compact?: boolean;
@@ -42,13 +65,17 @@ export interface RoomEntry {
 	country?: string;
 	avatar?: string;
 	team?: MatchTeamId;
+	slot?: number;
 	race?: string;
 	compact?: boolean;
 }
 
 export interface RoomConfig {
 	modeId: string;
-	teamSize: 1 | 2 | 3;
+	teamSize: number;
+	teamSizeWest?: number;
+	teamSizeEast?: number;
+	slots?: Partial<Record<RoomSlotKey, RoomSlotSetting>>;
 	allRandom?: boolean;
 	uniqueRaces?: boolean;
 	targetWins: number;

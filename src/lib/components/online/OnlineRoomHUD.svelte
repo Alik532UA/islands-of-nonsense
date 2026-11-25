@@ -7,17 +7,33 @@
 		Check,
 		MessageSquare,
 		Play,
-		Users,
 		LogOut,
 		Send,
 		Wifi,
-		WifiOff
+		WifiOff,
+		Bot,
+		UserMinus
 	} from 'lucide-svelte';
 	import { connect } from '$lib/net/firebase';
 	import { liveNet } from '$lib/net/roomNet';
 	import { probeNetProblem } from '$lib/utils/netProblem';
-	import { removeFromLobby } from '$lib/net/lobby';
-	import type { Member, RoomInfo, RoomTransport } from '$lib/net/roomTypes';
+	import { removeFromLobby, updateLobbyPlayers } from '$lib/net/lobby';
+	import {
+		countOpenHumanCapacity,
+		getSlotKey,
+		getSlotNumber,
+		normalizeRoomSlots,
+		pickFirstAvailableSeat
+	} from '$lib/net/onlineMatchSetup';
+	import type {
+		Member,
+		RoomInfo,
+		RoomSlotKey,
+		RoomSlotKind,
+		RoomSlotSetting,
+		RoomTransport
+	} from '$lib/net/roomTypes';
+	import { ALL_PLAYER_COLORS } from '$lib/engine/types';
 	import { PLAYABLE_RACES, formatRaceName } from '$lib/engine/gameData';
 	import { PlayerIdentity } from '$lib/controllers/playerIdentity.svelte';
 	import { settings } from '$lib/services/settings.svelte';
@@ -51,6 +67,8 @@
 	let chatInput = $state('');
 	let messages = $state<ChatMessage[]>([]);
 	let roomError = $state<string | null>(null);
+	let hasSeenSelfMember = $state(false);
+	let leavingIntentional = $state(false);
 
 	const identity = new PlayerIdentity();
 
@@ -66,6 +84,46 @@
 	);
 	let peerOnlineCount = $derived(onlineUids.filter((id) => id !== localUid).length);
 	let localMember = $derived(members.find((m) => m.uid === localUid) ?? null);
+	let roomSlots = $derived(normalizeRoomSlots(roomInfo?.config));
+	let slotOccupants = $derived.by(() => {
+		const map = new Map<number, Member>();
+		const players = members.filter((m) => m.role === 'player').sort((a, b) => a.order - b.order);
+		const unassigned: Member[] = [];
+		for (const m of players) {
+			if (typeof m.slot === 'number' && !map.has(m.slot)) {
+				map.set(m.slot, m);
+			} else {
+				unassigned.push(m);
+			}
+		}
+		for (const m of unassigned) {
+			const team: 'west' | 'east' = m.team === 'east' ? 'east' : 'west';
+			for (let i = 1; i <= 7; i++) {
+				const sn = getSlotNumber(team, i);
+				if (!map.has(sn) && roomSlots[getSlotKey(team, i)].kind === 'open') {
+					map.set(sn, m);
+					break;
+				}
+			}
+		}
+		return map;
+	});
+	let teamActiveCounts = $derived.by(() => {
+		let west = 0;
+		let east = 0;
+		for (const team of ['west', 'east'] as const) {
+			for (let i = 1; i <= 7; i++) {
+				const sn = getSlotNumber(team, i);
+				const cfg = roomSlots[getSlotKey(team, i)];
+				if (slotOccupants.has(sn) || cfg.kind === 'bot') {
+					if (team === 'west') west++;
+					else east++;
+				}
+			}
+		}
+		return { west, east };
+	});
+	let canStartMatch = $derived(teamActiveCounts.west > 0 && teamActiveCounts.east > 0);
 
 	onMount(() => {
 		let stopPresence = () => {};
@@ -95,8 +153,7 @@
 						name: identity.forEntry(settings.locale),
 						role: currentInfo.status === 'playing' ? 'spectator' : 'player',
 						country: identity.country,
-						avatar: identity.avatar,
-						team: isHost ? 'west' : currentMembers.length % 2 === 0 ? 'west' : 'east'
+						avatar: identity.avatar
 					});
 				}
 
@@ -115,6 +172,12 @@
 						roomInfo = snap.info;
 						members = snap.members;
 						maxMoveSeq = snap.moves.reduce((acc, m) => Math.max(acc, m.seq), 0);
+						const amMember = Boolean(uid && snap.members.some((m) => m.uid === uid));
+						if (amMember) {
+							hasSeenSelfMember = true;
+						} else if (hasSeenSelfMember && !leavingIntentional && snap.info.status === 'lobby') {
+							roomError = t('online.hud.kickedNotice');
+						}
 					},
 					(why) => {
 						stopBeat();
@@ -164,9 +227,89 @@
 		}
 	}
 
-	async function handleChangeTeam(nextTeam: 'west' | 'east') {
+	async function syncLobbyMetadata(nextSlots: Record<RoomSlotKey, RoomSlotSetting>) {
+		if (!roomInfo || roomInfo.config?.isPrivate) return;
+		const { db } = await connect();
+		const playerCount = Math.max(1, members.filter((m) => m.role === 'player').length);
+		const maxOpen = countOpenHumanCapacity({ ...roomInfo.config, slots: nextSlots });
+		await import('firebase/database')
+			.then(({ ref, update }) =>
+				update(ref(db, `lobby/castlefight/${roomCode}`), {
+					players: Math.min(playerCount, maxOpen),
+					maxPlayers: maxOpen
+				})
+			)
+			.catch(() => {});
+	}
+
+	async function handleMoveToSlot(team: 'west' | 'east', slotNum: number) {
 		if (!isLobby || !localUid) return;
-		await liveNet.updateMe(roomCode, { team: nextTeam }).catch(() => {});
+		if (slotOccupants.has(slotNum)) return;
+		await liveNet.updateMe(roomCode, { team, slot: slotNum }).catch(() => {});
+	}
+
+	async function handleToggleReady() {
+		if (!isLobby || !localUid || !localMember) return;
+		await liveNet.updateMe(roomCode, { ready: !localMember.ready }).catch(() => {});
+	}
+
+	async function handleHostSetSlot(
+		key: RoomSlotKey,
+		kind: RoomSlotKind,
+		botDifficulty = 15,
+		race = 'random'
+	) {
+		if (!isLobby || !isEffectiveHost || !transport?.setConfig || !roomInfo) return;
+		const nextSlots: Record<RoomSlotKey, RoomSlotSetting> = {
+			...roomSlots,
+			[key]: kind === 'bot' ? { kind: 'bot', botDifficulty, race } : { kind }
+		};
+		const nextWestCount = [1, 2, 3, 4, 5, 6, 7].filter(
+			(i) => nextSlots[getSlotKey('west', i)].kind !== 'closed'
+		).length;
+		const nextEastCount = [1, 2, 3, 4, 5, 6, 7].filter(
+			(i) => nextSlots[getSlotKey('east', i)].kind !== 'closed'
+		).length;
+		await transport
+			.setConfig({
+				...roomInfo.config,
+				teamSizeWest: Math.max(1, nextWestCount),
+				teamSizeEast: Math.max(1, nextEastCount),
+				teamSize: Math.max(1, nextWestCount, nextEastCount),
+				slots: nextSlots
+			})
+			.catch(() => {});
+		void syncLobbyMetadata(nextSlots);
+	}
+
+	async function handleHostSetSlotMode(key: RoomSlotKey, modeVal: string) {
+		const current = roomSlots[key];
+		if (modeVal === 'open') {
+			await handleHostSetSlot(key, 'open');
+		} else if (modeVal === 'closed') {
+			await handleHostSetSlot(key, 'closed');
+		} else if (modeVal.startsWith('bot:')) {
+			const diff = Number(modeVal.slice(4)) || 0;
+			await handleHostSetSlot(key, 'bot', diff, current.race ?? 'random');
+		}
+	}
+
+	async function handleHostSwapPlayerTeam(target: Member) {
+		if (!isLobby || !isEffectiveHost) return;
+		const nextTeam: 'west' | 'east' = target.team === 'east' ? 'west' : 'east';
+		const seat = pickFirstAvailableSeat(members, nextTeam, roomInfo?.config);
+		if (seat.team !== nextTeam) return;
+		await liveNet.updateMemberSlot(roomCode, target.uid, seat.team, seat.slot).catch(() => {});
+	}
+
+	async function handleHostKickPlayer(targetUid: string) {
+		if (!isLobby || !isEffectiveHost || targetUid === localUid) return;
+		await liveNet.kickMember(roomCode, targetUid).catch(() => {});
+		if (!roomInfo?.config?.isPrivate) {
+			const { db } = await connect();
+			const remaining = Math.max(1, members.filter((m) => m.uid !== targetUid).length);
+			await updateLobbyPlayers(db, roomCode, remaining).catch(() => {});
+		}
 	}
 
 	async function handleChangeRace(nextRace: string) {
@@ -185,7 +328,7 @@
 	}
 
 	async function handleStartMatch() {
-		if (!transport || !localUid || starting) return;
+		if (!transport || !localUid || starting || !canStartMatch) return;
 		starting = true;
 		try {
 			const roster = [...members]
@@ -195,6 +338,7 @@
 					uid: m.uid,
 					name: m.name,
 					team: m.team ?? 'west',
+					...(typeof m.slot === 'number' ? { slot: m.slot } : {}),
 					...(m.race ? { race: m.race } : {})
 				}));
 			await transport.setStatus('playing', roster);
@@ -242,6 +386,7 @@
 	}
 
 	async function handleLeaveRoom() {
+		leavingIntentional = true;
 		try {
 			if (isEffectiveHost) {
 				const { db } = await connect();
@@ -256,36 +401,59 @@
 
 {#if isLobby && !roomError}
 	<div
-		class="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-4"
+		class="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-3 sm:p-4"
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="online-lobby-title"
 		data-testid="online-waiting-lobby"
 	>
-		<div class="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700 p-6 shadow-2xl">
-			<div class="flex items-center justify-between mb-4">
-				<h2 id="online-lobby-title" class="text-lg font-extrabold text-amber-300">
-					{t('online.hud.roomTitle', { code: roomCode })}
-				</h2>
-				<button
-					type="button"
-					onclick={copyCode}
-					class="min-h-[44px] px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-bold text-slate-200 flex items-center gap-1.5 cursor-pointer"
-				>
-					{#if copied}
-						<Check class="w-4 h-4 text-emerald-400" />
-						<span>{t('online.hud.copied')}</span>
-					{:else}
-						<Copy class="w-4 h-4 text-sky-400" />
-						<span>{t('online.hud.copyCode')}</span>
+		<div
+			class="w-full max-w-3xl max-h-[92vh] overflow-y-auto rounded-2xl bg-slate-900 border border-slate-700 p-4 sm:p-5 shadow-2xl"
+		>
+			<div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+				<div class="flex items-center gap-2.5">
+					<h2 id="online-lobby-title" class="text-lg font-extrabold text-amber-300">
+						{t('online.hud.roomTitle', { code: roomCode })}
+					</h2>
+					<span
+						class="text-xs px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-cyan-300 font-bold"
+					>
+						{teamActiveCounts.west}v{teamActiveCounts.east}
+					</span>
+				</div>
+				<div class="flex items-center gap-2">
+					{#if localMember}
+						<button
+							type="button"
+							data-testid="lobby-ready-btn"
+							onclick={handleToggleReady}
+							class="min-h-[38px] px-3 py-1.5 rounded-lg border text-xs font-bold cursor-pointer transition {localMember.ready
+								? 'bg-emerald-500/25 border-emerald-400 text-emerald-200'
+								: 'bg-slate-800 border-slate-600 text-slate-300 hover:text-white'}"
+						>
+							{localMember.ready ? t('online.hud.ready') : t('online.hud.notReady')}
+						</button>
 					{/if}
-				</button>
+					<button
+						type="button"
+						onclick={copyCode}
+						class="min-h-[38px] px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-bold text-slate-200 flex items-center gap-1.5 cursor-pointer"
+					>
+						{#if copied}
+							<Check class="w-4 h-4 text-emerald-400" />
+							<span>{t('online.hud.copied')}</span>
+						{:else}
+							<Copy class="w-4 h-4 text-sky-400" />
+							<span>{t('online.hud.copyCode')}</span>
+						{/if}
+					</button>
+				</div>
 			</div>
 
 			{#if roomInfo}
 				{@const roomFogEnabled = roomInfo.config?.fogOfWar !== false}
 				<div
-					class="mb-4 p-3 rounded-xl bg-slate-800/70 border border-slate-700 flex items-center justify-between gap-2"
+					class="mb-3 p-2.5 rounded-xl bg-slate-800/70 border border-slate-700 flex flex-wrap items-center justify-between gap-2"
 				>
 					<span class="text-xs font-semibold text-slate-300">{t('online.mapVisibility')}:</span>
 					{#if isEffectiveHost}
@@ -324,78 +492,171 @@
 				</div>
 			{/if}
 
-			{#if localMember && !roomInfo?.config?.allRandom}
-				<div class="mb-4 p-3 rounded-xl bg-slate-800/70 border border-slate-700 space-y-2.5">
-					<div class="flex items-center justify-between gap-2">
-						<span class="text-xs font-semibold text-slate-300">Команда:</span>
-						<div class="flex gap-1.5">
-							<button
-								type="button"
-								onclick={() => handleChangeTeam('west')}
-								class="px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer {localMember.team !==
-								'east'
-									? 'bg-sky-500/25 border-sky-400 text-sky-200'
-									: 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'}"
-							>
-								{t('online.hud.teamWest')}
-							</button>
-							<button
-								type="button"
-								onclick={() => handleChangeTeam('east')}
-								class="px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer {localMember.team ===
-								'east'
-									? 'bg-rose-500/25 border-rose-400 text-rose-200'
-									: 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'}"
-							>
-								{t('online.hud.teamEast')}
-							</button>
-						</div>
-					</div>
-					<div class="flex items-center justify-between gap-2">
-						<label for="online-lobby-race" class="text-xs font-semibold text-slate-300">
-							Раса:
-						</label>
-						<select
-							id="online-lobby-race"
-							value={localMember.race ?? 'random'}
-							onchange={(e) => handleChangeRace((e.currentTarget as HTMLSelectElement).value)}
-							class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs font-semibold text-slate-100"
+			<!-- Warcraft III-style 7v7 Configurable Slot Table -->
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+				{#each [{ id: 'west' as const, title: t('online.hud.teamWest'), headerCls: 'text-sky-300 border-sky-500/30 bg-sky-950/30' }, { id: 'east' as const, title: t('online.hud.teamEast'), headerCls: 'text-rose-300 border-rose-500/30 bg-rose-950/30' }] as teamCol (teamCol.id)}
+					<div class="rounded-xl border border-slate-700/90 bg-slate-950/50 p-2.5 space-y-1.5">
+						<div
+							class="px-2 py-1 rounded-lg border text-xs font-extrabold uppercase tracking-wider flex items-center justify-between {teamCol.headerCls}"
 						>
-							<option value="random">Випадкова (+30%)</option>
-							{#each PLAYABLE_RACES as race (race)}
-								<option value={race}>{formatRaceName(race)}</option>
-							{/each}
-						</select>
-					</div>
-				</div>
-			{/if}
-
-			<div class="mb-4 space-y-2">
-				<div
-					class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5"
-				>
-					<Users class="w-4 h-4 text-sky-400" />
-					<span>{t('online.hud.playersTitle', { count: members.length })}</span>
-				</div>
-				{#each members as member (member.uid)}
-					<div
-						class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/80 border border-slate-700 text-sm"
-					>
-						<div class="flex flex-col">
-							<span class="font-semibold text-slate-100">{member.name}</span>
-							{#if member.race}
-								<span class="text-[10px] text-amber-300/90">
-									{member.race === 'random' ? 'Випадкова (+30%)' : formatRaceName(member.race)}
-								</span>
-							{/if}
+							<span>{teamCol.title}</span>
+							<span class="font-mono">
+								{teamCol.id === 'west' ? teamActiveCounts.west : teamActiveCounts.east}/7
+							</span>
 						</div>
-						<span class="text-xs px-2 py-0.5 rounded bg-slate-900 text-slate-300">
-							{member.team === 'east' ? t('online.hud.teamEast') : t('online.hud.teamWest')}
-							{onlineUids.includes(member.uid) ? ` · ${t('online.hud.onlineBadge')}` : ''}
-						</span>
+						{#each [1, 2, 3, 4, 5, 6, 7] as idx (idx)}
+							{@const slotNum = getSlotNumber(teamCol.id, idx)}
+							{@const slotKey = getSlotKey(teamCol.id, idx)}
+							{@const slotCfg = roomSlots[slotKey]}
+							{@const occupant = slotOccupants.get(slotNum) ?? null}
+							{@const colorDef = ALL_PLAYER_COLORS[slotNum - 1] ?? ALL_PLAYER_COLORS[0]}
+							{@const slotModeVal =
+								slotCfg.kind === 'bot' ? `bot:${slotCfg.botDifficulty ?? 15}` : slotCfg.kind}
+							<div
+								data-testid="lobby-slot-{slotKey}"
+								class="flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-lg border text-xs {slotCfg.kind ===
+									'closed' && !occupant
+									? 'bg-slate-900/40 border-slate-800/80 opacity-60'
+									: 'bg-slate-800/80 border-slate-700'}"
+							>
+								<div class="flex items-center gap-2 min-w-0 flex-1">
+									<span
+										class="w-3 h-3 rounded-sm shrink-0 border border-white/25"
+										style="background-color: {colorDef.hex};"
+										title={colorDef.nameUk}
+									></span>
+
+									{#if occupant}
+										<div class="min-w-0 flex-1">
+											<div class="flex items-center gap-1.5 truncate">
+												<span class="font-bold text-slate-100 truncate">{occupant.name}</span>
+												{#if occupant.uid === roomInfo?.hostUid}
+													<span class="text-[10px] text-amber-400 font-bold">★</span>
+												{/if}
+												{#if occupant.ready}
+													<span class="text-[10px] text-emerald-400 font-bold">✓</span>
+												{/if}
+											</div>
+											{#if occupant.uid === localUid && !roomInfo?.config?.allRandom}
+												<select
+													aria-label="Раса"
+													value={occupant.race ?? 'random'}
+													onchange={(e) =>
+														handleChangeRace((e.currentTarget as HTMLSelectElement).value)}
+													class="mt-0.5 w-full max-w-[140px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-[11px] text-amber-200"
+												>
+													<option value="random">{t('online.hud.randomRaceBonus')}</option>
+													{#each PLAYABLE_RACES as race (race)}
+														<option value={race}>{formatRaceName(race)}</option>
+													{/each}
+												</select>
+											{:else if occupant.race}
+												<span class="text-[10px] text-amber-300/90">
+													{occupant.race === 'random'
+														? t('online.hud.randomRaceBonus')
+														: formatRaceName(occupant.race)}
+												</span>
+											{/if}
+										</div>
+									{:else if slotCfg.kind === 'bot'}
+										<div class="flex items-center gap-1.5 min-w-0 flex-1">
+											<Bot class="w-3.5 h-3.5 text-amber-300 shrink-0" />
+											{#if isEffectiveHost && !roomInfo?.config?.allRandom}
+												<select
+													aria-label="Раса бота"
+													value={slotCfg.race ?? 'random'}
+													onchange={(e) =>
+														handleHostSetSlot(
+															slotKey,
+															'bot',
+															slotCfg.botDifficulty ?? 15,
+															(e.currentTarget as HTMLSelectElement).value
+														)}
+													class="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-[11px] text-amber-200 max-w-[115px]"
+												>
+													<option value="random">{t('online.hud.randomRaceBonus')}</option>
+													{#each PLAYABLE_RACES as race (race)}
+														<option value={race}>{formatRaceName(race)}</option>
+													{/each}
+												</select>
+											{:else}
+												<span class="text-amber-200 font-semibold truncate">
+													{t('online.hud.slotBot')} ({slotCfg.botDifficulty ?? 15}%)
+												</span>
+											{/if}
+										</div>
+									{:else if slotCfg.kind === 'open'}
+										<span class="text-slate-400 italic">{t('online.hud.slotOpen')}</span>
+									{:else}
+										<span class="text-slate-500">{t('online.hud.slotClosed')}</span>
+									{/if}
+								</div>
+
+								<div class="flex items-center gap-1 shrink-0">
+									{#if occupant}
+										{#if isEffectiveHost && occupant.uid !== localUid}
+											<button
+												type="button"
+												onclick={() => handleHostSwapPlayerTeam(occupant)}
+												class="px-1.5 py-1 rounded bg-slate-900 hover:bg-slate-700 border border-slate-700 text-[10px] text-sky-300 cursor-pointer"
+												title="Змінити команду"
+											>
+												⇄
+											</button>
+											<button
+												type="button"
+												data-testid="lobby-kick-{occupant.uid}"
+												onclick={() => handleHostKickPlayer(occupant.uid)}
+												class="p-1 rounded bg-slate-900 hover:bg-rose-900/70 border border-slate-700 text-rose-300 cursor-pointer"
+												title={t('online.hud.kickPlayer')}
+											>
+												<UserMinus class="w-3 h-3" />
+											</button>
+										{/if}
+									{:else}
+										{#if slotCfg.kind === 'open' && localMember}
+											<button
+												type="button"
+												data-testid="lobby-sit-{slotKey}"
+												onclick={() => handleMoveToSlot(teamCol.id, slotNum)}
+												class="px-2 py-1 rounded bg-sky-500/20 hover:bg-sky-500/35 border border-sky-400/50 text-[11px] font-bold text-sky-200 cursor-pointer"
+											>
+												{t('online.hud.sitHere')}
+											</button>
+										{/if}
+										{#if isEffectiveHost}
+											<select
+												aria-label="Стан слота"
+												data-testid="lobby-slot-select-{slotKey}"
+												value={slotModeVal}
+												onchange={(e) =>
+													handleHostSetSlotMode(
+														slotKey,
+														(e.currentTarget as HTMLSelectElement).value
+													)}
+												class="px-1.5 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] text-slate-200 cursor-pointer"
+											>
+												<option value="open">{t('online.hud.slotOpen')}</option>
+												<option value="closed">{t('online.hud.slotClosed')}</option>
+												<option value="bot:0">{t('online.hud.botEasy')}</option>
+												<option value="bot:15">{t('online.hud.botMedium')}</option>
+												<option value="bot:30">{t('online.hud.botHard')}</option>
+												<option value="bot:80">{t('online.hud.botInsane')}</option>
+											</select>
+										{/if}
+									{/if}
+								</div>
+							</div>
+						{/each}
 					</div>
 				{/each}
 			</div>
+
+			{#if !canStartMatch && isEffectiveHost}
+				<div class="mb-2 text-xs text-amber-300 text-center font-semibold">
+					{t('online.hud.needBothTeams')}
+				</div>
+			{/if}
 
 			{#if canClaimHost}
 				<div
@@ -417,7 +678,7 @@
 				{#if isEffectiveHost}
 					<button
 						type="button"
-						disabled={starting}
+						disabled={starting || !canStartMatch}
 						onclick={handleStartMatch}
 						class="flex-1 min-h-[44px] py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-extrabold text-sm flex items-center justify-center gap-2 cursor-pointer"
 						data-testid="online-start-battle-btn"

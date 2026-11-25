@@ -1,7 +1,12 @@
-import { Simulation, type SimulationConfig } from '$lib/engine/simulation';
+import {
+	MAX_PLAYERS_PER_TEAM,
+	Simulation,
+	type SimCustomSlot,
+	type SimulationConfig
+} from '$lib/engine/simulation';
 import { getBuilderNameForRace, formatRaceName, PLAYABLE_RACES } from '$lib/engine/gameData';
 import type { PlayerState } from '$lib/engine/types';
-import type { Member, RoomInfo } from './roomTypes';
+import type { Member, RoomConfig, RoomInfo, RoomSlotKey, RoomSlotSetting } from './roomTypes';
 
 export const BATTLE_COMMAND_ROUTER_KEY = 'battleCommandRouter';
 
@@ -15,40 +20,257 @@ export interface OnlineSimInitResult {
 }
 
 const TEAM_SLOTS: Record<'west' | 'east', readonly number[]> = {
-	west: [1, 3, 5],
-	east: [2, 4, 6]
+	west: [1, 3, 5, 7, 9, 11, 13],
+	east: [2, 4, 6, 8, 10, 12, 14]
 };
 
+export function getSlotNumber(team: 'west' | 'east', index1to7: number): number {
+	const clamped = Math.max(1, Math.min(MAX_PLAYERS_PER_TEAM, index1to7));
+	return TEAM_SLOTS[team][clamped - 1];
+}
+
+export function getSlotKey(team: 'west' | 'east', index1to7: number): RoomSlotKey {
+	const clamped = Math.max(1, Math.min(MAX_PLAYERS_PER_TEAM, index1to7));
+	return `${team}_${clamped}` as RoomSlotKey;
+}
+
+export function getTeamAndIndexFromSlot(slot: number): {
+	team: 'west' | 'east';
+	index1to7: number;
+	key: RoomSlotKey;
+} {
+	const clamped = Math.max(1, Math.min(MAX_PLAYERS_PER_TEAM * 2, Math.round(slot)));
+	const team: 'west' | 'east' = clamped % 2 === 0 ? 'east' : 'west';
+	const index1to7 = Math.ceil(clamped / 2);
+	return { team, index1to7, key: getSlotKey(team, index1to7) };
+}
+
+export function buildRoomSlots(
+	teamSizeWest: number,
+	teamSizeEast: number,
+	overrides?: Partial<Record<RoomSlotKey, RoomSlotSetting>>
+): Record<RoomSlotKey, RoomSlotSetting> {
+	const westCount = Math.max(1, Math.min(MAX_PLAYERS_PER_TEAM, Math.round(teamSizeWest)));
+	const eastCount = Math.max(1, Math.min(MAX_PLAYERS_PER_TEAM, Math.round(teamSizeEast)));
+	const slots = {} as Record<RoomSlotKey, RoomSlotSetting>;
+
+	for (const team of ['west', 'east'] as const) {
+		const limit = team === 'west' ? westCount : eastCount;
+		for (let i = 1; i <= MAX_PLAYERS_PER_TEAM; i++) {
+			const key = getSlotKey(team, i);
+			const custom = overrides?.[key];
+			if (custom) {
+				slots[key] = {
+					kind: custom.kind,
+					...(custom.kind === 'bot'
+						? {
+								botDifficulty: typeof custom.botDifficulty === 'number' ? custom.botDifficulty : 15,
+								race: custom.race ?? 'random'
+							}
+						: {})
+				};
+			} else {
+				slots[key] = { kind: i <= limit ? 'open' : 'closed' };
+			}
+		}
+	}
+	return slots;
+}
+
+export function normalizeRoomSlots(
+	config?: Partial<RoomConfig>
+): Record<RoomSlotKey, RoomSlotSetting> {
+	const westSize = config?.teamSizeWest ?? config?.teamSize ?? 1;
+	const eastSize = config?.teamSizeEast ?? config?.teamSize ?? 1;
+	if (!config?.slots) {
+		return buildRoomSlots(westSize, eastSize);
+	}
+	return buildRoomSlots(westSize, eastSize, config.slots);
+}
+
+export function countOpenHumanCapacity(config?: Partial<RoomConfig>): number {
+	const slots = normalizeRoomSlots(config);
+	let openCount = 0;
+	for (const s of Object.values(slots)) {
+		if (s.kind === 'open') openCount++;
+	}
+	return Math.max(2, openCount);
+}
+
 /**
- * Computes the next available deterministic slot (1/3/5 for west, 2/4/6 for east)
- * given existing room members.
+ * Computes the next available deterministic slot (1,3,5..13 for west, 2,4,6..14 for east)
+ * given existing room members and optional slot configuration.
  */
 export function pickNextTeamSlot(
 	members: ReadonlyArray<{ team?: string; slot?: number }>,
-	team: 'west' | 'east'
+	team: 'west' | 'east',
+	config?: Partial<RoomConfig>
 ): number {
 	const pool = TEAM_SLOTS[team];
 	const taken = new Set(
-		members
-			.filter((m) => m.team === team && typeof m.slot === 'number')
-			.map((m) => m.slot as number)
+		members.filter((m) => typeof m.slot === 'number').map((m) => m.slot as number)
 	);
+	if (config?.slots) {
+		const slots = normalizeRoomSlots(config);
+		for (let i = 1; i <= MAX_PLAYERS_PER_TEAM; i++) {
+			const slotNum = getSlotNumber(team, i);
+			const setting = slots[getSlotKey(team, i)];
+			if (setting.kind === 'open' && !taken.has(slotNum)) {
+				return slotNum;
+			}
+		}
+	}
 	return pool.find((s) => !taken.has(s)) ?? pool[0];
+}
+
+export function pickFirstAvailableSeat(
+	members: ReadonlyArray<{ team?: string; slot?: number; role?: string }>,
+	preferredTeam: 'west' | 'east',
+	config?: Partial<RoomConfig>
+): { team: 'west' | 'east'; slot: number } {
+	const taken = new Set(
+		members.filter((m) => typeof m.slot === 'number').map((m) => m.slot as number)
+	);
+	const slots = normalizeRoomSlots(config);
+	const order: ('west' | 'east')[] = preferredTeam === 'east' ? ['east', 'west'] : ['west', 'east'];
+
+	for (const team of order) {
+		for (let i = 1; i <= MAX_PLAYERS_PER_TEAM; i++) {
+			const slotNum = getSlotNumber(team, i);
+			if (slots[getSlotKey(team, i)].kind === 'open' && !taken.has(slotNum)) {
+				return { team, slot: slotNum };
+			}
+		}
+	}
+
+	return {
+		team: preferredTeam,
+		slot: pickNextTeamSlot(members, preferredTeam)
+	};
+}
+
+function buildCustomSlotsFromRoom(
+	info: RoomInfo,
+	members: readonly Member[]
+): SimCustomSlot[] | undefined {
+	const hasExplicitSlots = Boolean(info.config?.slots);
+	const westCount = info.config?.teamSizeWest ?? info.config?.teamSize ?? 1;
+	const eastCount = info.config?.teamSizeEast ?? info.config?.teamSize ?? 1;
+	if (!hasExplicitSlots && westCount <= 3 && eastCount <= 3) {
+		return undefined;
+	}
+
+	const slotsMap = normalizeRoomSlots(info.config);
+	const participants =
+		info.roster && info.roster.length > 0
+			? info.roster.map((r) => ({
+					uid: r.uid,
+					name: r.name,
+					team: r.team ?? 'west',
+					race: r.race,
+					slot: r.slot
+				}))
+			: [...members]
+					.filter((m) => m.role === 'player')
+					.sort((a, b) => a.order - b.order)
+					.map((m) => ({
+						uid: m.uid,
+						name: m.name,
+						team: m.team ?? 'west',
+						race: m.race,
+						slot: m.slot
+					}));
+
+	const occupiedSlots = new Map<number, (typeof participants)[number]>();
+	const unassigned: (typeof participants)[number][] = [];
+	for (const p of participants) {
+		if (typeof p.slot === 'number' && !occupiedSlots.has(p.slot)) {
+			occupiedSlots.set(p.slot, p);
+		} else {
+			unassigned.push(p);
+		}
+	}
+
+	// Place any legacy entries without explicit slot into the first open slots on their team
+	for (const p of unassigned) {
+		const pTeam: 'west' | 'east' = p.team === 'east' ? 'east' : 'west';
+		for (let i = 1; i <= MAX_PLAYERS_PER_TEAM; i++) {
+			const sn = getSlotNumber(pTeam, i);
+			if (!occupiedSlots.has(sn) && slotsMap[getSlotKey(pTeam, i)].kind === 'open') {
+				occupiedSlots.set(sn, p);
+				break;
+			}
+		}
+	}
+
+	const custom: SimCustomSlot[] = [];
+	for (const team of ['west', 'east'] as const) {
+		let teamHasAny = false;
+		for (let i = 1; i <= MAX_PLAYERS_PER_TEAM; i++) {
+			const sn = getSlotNumber(team, i);
+			const cfg = slotsMap[getSlotKey(team, i)];
+			const occupant = occupiedSlots.get(sn);
+			if (occupant) {
+				teamHasAny = true;
+				custom.push({
+					slot: sn,
+					team,
+					isBot: false,
+					name: occupant.name,
+					race: occupant.race
+				});
+			} else if (cfg.kind === 'bot') {
+				teamHasAny = true;
+				const diff = typeof cfg.botDifficulty === 'number' ? cfg.botDifficulty : 15;
+				custom.push({
+					slot: sn,
+					team,
+					isBot: true,
+					botDifficulty: diff,
+					name: `${team === 'west' ? 'Бот-Захід' : 'Бот-Схід'} #${i}`,
+					race: cfg.race ?? 'random'
+				});
+			}
+		}
+		// Lobby preview safety: keep at least one team representative if side has no active slots yet
+		if (!teamHasAny) {
+			const sn = getSlotNumber(team, 1);
+			custom.push({
+				slot: sn,
+				team,
+				isBot: true,
+				botDifficulty: 0,
+				name: team === 'west' ? 'Очікування (Захід)' : 'Очікування (Схід)',
+				race: 'random'
+			});
+		}
+	}
+
+	return custom;
 }
 
 /**
  * Builds deterministic SimulationConfig from authoritative RTDB RoomInfo.
  */
 export function buildOnlineSimulationConfig(info: RoomInfo): SimulationConfig {
-	const teamSize = (
-		info.config?.teamSize === 2 || info.config?.teamSize === 3 ? info.config.teamSize : 1
-	) as 1 | 2 | 3;
+	const teamSize = Math.max(
+		1,
+		Math.min(MAX_PLAYERS_PER_TEAM, Math.round(info.config?.teamSize ?? 1))
+	);
+	const teamSizeWest = Math.max(
+		1,
+		Math.min(MAX_PLAYERS_PER_TEAM, Math.round(info.config?.teamSizeWest ?? teamSize))
+	);
+	const teamSizeEast = Math.max(
+		1,
+		Math.min(MAX_PLAYERS_PER_TEAM, Math.round(info.config?.teamSizeEast ?? teamSize))
+	);
 
 	return {
 		modeId: typeof info.config?.modeId === 'string' ? info.config.modeId : 'standard',
 		teamSize,
-		teamSizeWest: teamSize,
-		teamSizeEast: teamSize,
+		teamSizeWest,
+		teamSizeEast,
 		targetWins: typeof info.config?.targetWins === 'number' ? info.config.targetWins : 2,
 		allRandom: Boolean(info.config?.allRandom),
 		uniqueRaces: Boolean(info.config?.uniqueRaces),
@@ -60,6 +282,7 @@ export function buildOnlineSimulationConfig(info: RoomInfo): SimulationConfig {
 				: 'normal',
 		botDifficulty: 0,
 		botVsBot: false,
+		autoStepBots: true,
 		fogOfWar: info.config?.fogOfWar !== false,
 		startGold: typeof info.config?.startGold === 'number' ? info.config.startGold : 500,
 		seed: info.seed,
@@ -84,7 +307,8 @@ export function applyOnlineRosterToSimulation(
 					uid: r.uid,
 					name: r.name,
 					team: r.team ?? 'west',
-					race: r.race
+					race: r.race,
+					slot: r.slot
 				}))
 			: [...members]
 					.filter((m) => m.role === 'player')
@@ -93,10 +317,12 @@ export function applyOnlineRosterToSimulation(
 						uid: m.uid,
 						name: m.name,
 						team: m.team ?? 'west',
-						race: m.race
+						race: m.race,
+						slot: m.slot
 					}));
 
 	const usedIndices = { west: 0, east: 0 };
+	const usedSlotNumbers = new Set<number>();
 	const uidToSlot: Record<string, number> = {};
 	let localTeam: 'west' | 'east' = 'west';
 	let localSlot = 1;
@@ -109,9 +335,25 @@ export function applyOnlineRosterToSimulation(
 	for (const entry of participants) {
 		const team: 'west' | 'east' = entry.team === 'east' ? 'east' : 'west';
 		const teamSlotPool = TEAM_SLOTS[team];
-		const idx = usedIndices[team];
-		usedIndices[team] += 1;
-		const slot = teamSlotPool[idx] ?? teamSlotPool[0];
+		let slot: number;
+		if (
+			typeof entry.slot === 'number' &&
+			resolvePlayerBySlot(entry.slot) &&
+			!usedSlotNumbers.has(entry.slot)
+		) {
+			slot = entry.slot;
+		} else {
+			while (
+				usedIndices[team] < teamSlotPool.length &&
+				usedSlotNumbers.has(teamSlotPool[usedIndices[team]])
+			) {
+				usedIndices[team] += 1;
+			}
+			const idx = usedIndices[team];
+			usedIndices[team] += 1;
+			slot = teamSlotPool[idx] ?? teamSlotPool[0];
+		}
+		usedSlotNumbers.add(slot);
 		uidToSlot[entry.uid] = slot;
 
 		const targetPlayer = resolvePlayerBySlot(slot);
@@ -154,7 +396,7 @@ export function applyOnlineRosterToSimulation(
 	if (!(localUid in uidToSlot)) {
 		const selfMember = members.find((m) => m.uid === localUid);
 		localTeam = selfMember?.team === 'east' ? 'east' : 'west';
-		localSlot = TEAM_SLOTS[localTeam][0];
+		localSlot = selfMember?.slot ?? TEAM_SLOTS[localTeam][0];
 	}
 
 	return { uidToSlot, localTeam, localSlot };
@@ -169,6 +411,10 @@ export function createOnlineSimulation(
 	localUid: string
 ): OnlineSimInitResult {
 	const simConfig = buildOnlineSimulationConfig(info);
+	const customSlots = buildCustomSlotsFromRoom(info, members);
+	if (customSlots && customSlots.length > 0) {
+		simConfig.customSlots = customSlots;
+	}
 	const sim = new Simulation(simConfig);
 	const { uidToSlot, localTeam, localSlot } = applyOnlineRosterToSimulation(
 		sim,
@@ -176,6 +422,14 @@ export function createOnlineSimulation(
 		members,
 		localUid
 	);
+	// Rebuild active BotAI controllers cleanly after human slots took over from any initial placeholder
+	sim.bots = sim.allPlayers
+		.filter((p) => p.isBot && !p.name.startsWith('Очікування ('))
+		.map((p) => {
+			const existing = sim.bots.find((b) => b.getPlayer() === p);
+			return existing;
+		})
+		.filter((b): b is NonNullable<typeof b> => Boolean(b));
 	sim.isRunning = info.status === 'playing';
 	return { sim, uidToSlot, localTeam, localSlot };
 }

@@ -15,7 +15,8 @@
 		RULES_VERSION
 	} from '$lib/net/lobby';
 	import { liveNet } from '$lib/net/roomNet';
-	import { seekMatch } from '$lib/net/seek';
+	import { seekMatch, type SeekFormat } from '$lib/net/seek';
+	import { buildRoomSlots, countOpenHumanCapacity } from '$lib/net/onlineMatchSetup';
 	import type { LobbyRoom } from '$lib/net/roomTypes';
 
 	import PlayerBar from '$lib/components/online/PlayerBar.svelte';
@@ -27,6 +28,7 @@
 	const player = new PlayerIdentity();
 
 	let openWindow = $state<'hub' | 'search' | 'create' | 'join'>('hub');
+	let searchFormat = $state<SeekFormat>('1v1');
 	let busy = $state(false);
 	let errorMessage = $state<string | null>(null);
 	let rooms = $state<LobbyRoom[]>([]);
@@ -56,11 +58,16 @@
 		};
 	});
 
-	async function handleQuickSearch() {
+	async function handleQuickSearch(nextFormat: SeekFormat = searchFormat) {
+		searchFormat = nextFormat;
+		if (searchController) {
+			searchController.abort();
+		}
 		openWindow = 'search';
 		busy = true;
 		errorMessage = null;
-		searchController = new AbortController();
+		const controller = new AbortController();
+		searchController = controller;
 
 		try {
 			const { db, uid } = await connect();
@@ -73,20 +80,24 @@
 					country: player.country,
 					avatar: player.avatar
 				},
-				searchController.signal
+				controller.signal,
+				{},
+				{ format: nextFormat }
 			);
 
 			await goto(
 				`${resolve('/play/battle')}?room=${encodeURIComponent(result.code)}${result.isHost ? '&host=1' : ''}`
 			);
 		} catch (err) {
-			if (!searchController?.signal.aborted) {
+			if (!controller.signal.aborted) {
 				errorMessage =
 					err instanceof Error ? err.message : 'Не вдалося підключитися до пошуку матчів';
+				openWindow = 'hub';
 			}
-			openWindow = 'hub';
 		} finally {
-			busy = false;
+			if (searchController === controller) {
+				busy = false;
+			}
 		}
 	}
 
@@ -101,7 +112,8 @@
 
 	async function handleCreate(config: {
 		modeId: string;
-		teamSize: 1 | 2 | 3;
+		teamSizeWest: number;
+		teamSizeEast: number;
 		isPrivate: boolean;
 		fogOfWar: boolean;
 	}) {
@@ -111,18 +123,25 @@
 			const { db, uid } = await connect();
 			const entryName = player.forEntry(settings.locale);
 			const seed = Math.floor(Math.random() * 1_000_000);
+			const teamSize = Math.max(config.teamSizeWest, config.teamSizeEast);
+			const slots = buildRoomSlots(config.teamSizeWest, config.teamSizeEast);
+			const roomConfig = {
+				modeId: config.modeId,
+				teamSize,
+				teamSizeWest: config.teamSizeWest,
+				teamSizeEast: config.teamSizeEast,
+				slots,
+				allRandom: config.modeId === 'allRandom',
+				targetWins: 2,
+				fogOfWar: config.fogOfWar,
+				isPrivate: config.isPrivate
+			};
+			const maxPlayers = countOpenHumanCapacity(roomConfig);
 			const code = await liveNet.createRoom({
 				gameId: GAME_ID,
 				rulesVersion: RULES_VERSION,
 				seed,
-				config: {
-					modeId: config.modeId,
-					teamSize: config.teamSize,
-					allRandom: config.modeId === 'allRandom',
-					targetWins: 2,
-					fogOfWar: config.fogOfWar,
-					isPrivate: config.isPrivate
-				},
+				config: roomConfig,
 				name: entryName,
 				country: player.country,
 				avatar: player.avatar,
@@ -140,7 +159,7 @@
 					gameId: GAME_ID,
 					rulesVersion: RULES_VERSION,
 					players: 1,
-					maxPlayers: config.teamSize * 2,
+					maxPlayers,
 					modeId: config.modeId
 				});
 			}
@@ -164,8 +183,11 @@
 				return;
 			}
 			const members = (await liveNet.peekMembers(normalizedCode)) ?? [];
-			const maxPlayers = (info.config?.teamSize ?? 1) * 2;
-			if (members.length >= maxPlayers && info.status !== 'playing') {
+			const maxPlayers = countOpenHumanCapacity(info.config);
+			if (
+				members.filter((m) => m.role === 'player').length >= maxPlayers &&
+				info.status !== 'playing'
+			) {
 				errorMessage = `Кімната ${normalizedCode} вже заповнена`;
 				return;
 			}
@@ -175,8 +197,7 @@
 				name: entryName,
 				role,
 				country: player.country,
-				avatar: player.avatar,
-				team: members.length % 2 === 0 ? 'west' : 'east'
+				avatar: player.avatar
 			});
 
 			const { db } = await connect();
@@ -213,7 +234,11 @@
 		</div>
 	{/if}
 	{#if openWindow === 'search'}
-		<SearchWindow onCancel={cancelSearch} />
+		<SearchWindow
+			format={searchFormat}
+			onChangeFormat={(fmt) => void handleQuickSearch(fmt)}
+			onCancel={cancelSearch}
+		/>
 	{:else if openWindow === 'create'}
 		<CreateWindow {busy} onCreate={handleCreate} onBack={() => (openWindow = 'hub')} />
 	{:else if openWindow === 'join'}
@@ -242,7 +267,7 @@
 			<button
 				type="button"
 				class="menu-btn menu-btn--game menu-tile anim-stagger-1 text-left"
-				onclick={handleQuickSearch}
+				onclick={() => void handleQuickSearch()}
 				data-testid="online-quick-search-btn"
 			>
 				<Swords class="menu-tile__icon text-amber-400" />
