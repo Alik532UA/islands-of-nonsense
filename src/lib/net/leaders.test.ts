@@ -4,6 +4,7 @@ import {
 	BOARD_MIN_SCORE,
 	filterLeadersByCountry,
 	findLeaderRank,
+	mergeLeaderRows,
 	sortLeaders,
 	type Leader
 } from './leaders';
@@ -69,5 +70,19 @@ describe('leaders', () => {
 		expect(sortLeaders(rows, 'winRate').map((r) => r.uid)).toEqual(['u2', 'u3', 'u1']);
 		expect(filterLeadersByCountry(rows, 'UA').map((r) => r.uid)).toEqual(['u1', 'u3']);
 		expect(findLeaderRank(sortLeaders(rows, 'score'), 'u1')).toBe(2);
+	});
+
+	it('merges extra friend rows without duplicating existing entries', () => {
+		const top: Leader[] = [
+			{ uid: 'u1', name: 'Top1', handle: 'top1', score: 900 },
+			{ uid: 'u2', name: 'Top2', handle: 'top2', score: 700 }
+		];
+		const friends: Leader[] = [
+			{ uid: 'u2', name: 'Top2 Dup', handle: 'top2', score: 10 },
+			{ uid: 'u3', name: 'Friend', handle: 'friend', score: 120 }
+		];
+		const merged = mergeLeaderRows(top, friends);
+		expect(merged.map((r) => r.uid)).toEqual(['u1', 'u2', 'u3']);
+		expect(merged[1]?.score).toBe(700);
 	});
 });

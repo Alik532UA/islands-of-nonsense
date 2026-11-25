@@ -10,7 +10,14 @@ import {
 	type Profile
 } from '$lib/net/account';
 import { readPlay, mergePlay, writePlay, EMPTY_PLAY, type PlayData } from '$lib/net/play';
-import { publishLeader, topLeaders, withdrawLeader, type Leader } from '$lib/net/leaders';
+import {
+	leadersByUids,
+	mergeLeaderRows,
+	publishLeader,
+	topLeaders,
+	withdrawLeader,
+	type Leader
+} from '$lib/net/leaders';
 import {
 	buildLeaderStats,
 	getLocalPlayData,
@@ -67,9 +74,17 @@ export class AccountController {
 		}
 	}
 
-	async loadLeaders() {
+	async loadLeaders(extraUids: readonly string[] = []) {
 		try {
-			this.leaders = await topLeaders();
+			const top = await topLeaders();
+			const existing = new Set(top.map((r) => r.uid));
+			const missing = extraUids.filter((id) => id && !existing.has(id));
+			if (missing.length > 0) {
+				const extra = await leadersByUids(missing);
+				this.leaders = mergeLeaderRows(top, extra);
+			} else {
+				this.leaders = top;
+			}
 		} catch (err) {
 			logService.warn('account', 'Load leaders failed', { err: String(err) });
 		}

@@ -25,7 +25,7 @@
 	let replayJsonInput = $state('');
 	let replayStatus = $state<'idle' | 'valid' | 'invalid'>('idle');
 	let parsedReplay = $state<MatchReplayData | null>(null);
-	let historyFilter = $state<'all' | 'online' | 'solo'>('all');
+	let historyFilter = $state<'all' | 'online' | 'solo' | 'daily'>('all');
 	const savedReplays = $derived(listSavedReplays());
 
 	function watchSerializedReplay(json: string) {
@@ -192,10 +192,10 @@
 				<span>{t('account.history.title')}</span>
 			</h3>
 			<div class="flex flex-wrap items-center gap-1.5">
-				{#each ['all', 'online', 'solo'] as modeKey (modeKey)}
+				{#each ['all', 'online', 'solo', 'daily'] as modeKey (modeKey)}
 					<button
 						type="button"
-						onclick={() => (historyFilter = modeKey as 'all' | 'online' | 'solo')}
+						onclick={() => (historyFilter = modeKey as 'all' | 'online' | 'solo' | 'daily')}
 						class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer {historyFilter ===
 						modeKey
 							? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
@@ -261,7 +261,7 @@
 								<span
 									class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-sky-300 font-semibold uppercase"
 								>
-									{item.mode}
+									{t(`account.history.filter.${item.mode}`)}
 								</span>
 								{#if item.race}
 									<span class="font-bold text-slate-200 truncate">

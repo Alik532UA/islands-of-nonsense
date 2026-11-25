@@ -99,6 +99,35 @@ export async function topLeaders(): Promise<Leader[]> {
 	}
 }
 
+export async function leadersByUids(uids: readonly string[]): Promise<Leader[]> {
+	const unique = [...new Set(uids.map((id) => id.trim()).filter(Boolean))].slice(0, BOARD_LIMIT);
+	if (unique.length === 0) return [];
+	try {
+		const { db } = await connect();
+		const { get, ref } = await import('firebase/database');
+		const snaps = await Promise.all(unique.map((uid) => get(ref(db, `leaders/${uid}`))));
+		const rows: Leader[] = [];
+		snaps.forEach((snap, idx) => {
+			if (snap.exists()) {
+				rows.push({ uid: unique[idx], ...(snap.val() as Omit<Leader, 'uid'>) });
+			}
+		});
+		return rows;
+	} catch (error) {
+		logService.warn('network', 'friend leaders not read', { reason: String(error) });
+		return [];
+	}
+}
+
+export function mergeLeaderRows(base: readonly Leader[], extra: readonly Leader[]): Leader[] {
+	const byUid = new Map<string, Leader>();
+	for (const row of base) byUid.set(row.uid, row);
+	for (const row of extra) {
+		if (!byUid.has(row.uid)) byUid.set(row.uid, row);
+	}
+	return [...byUid.values()];
+}
+
 export function sortLeaders(rows: readonly Leader[], sortBy: LeaderSort = 'score'): Leader[] {
 	return [...rows].sort((a, b) => {
 		if (sortBy === 'wins') {

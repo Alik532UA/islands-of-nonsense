@@ -103,6 +103,7 @@
 			if (controller.state === 'linked') {
 				void loadSocialLists().then((res) => {
 					friendUids = res.following.map((u) => u.uid);
+					void controller.loadLeaders(friendUids);
 				});
 			}
 		});
@@ -258,10 +259,11 @@
 				data-testid="tab-leaders"
 				onclick={() => {
 					activeTab = 'leaders';
-					void controller.loadLeaders();
+					void controller.loadLeaders(friendUids);
 					if (controller.state === 'linked') {
 						void loadSocialLists().then((res) => {
 							friendUids = res.following.map((u) => u.uid);
+							void controller.loadLeaders(friendUids);
 						});
 					}
 				}}
@@ -705,7 +707,7 @@
 				myCountry={formCountry || controller.profile?.country || ''}
 				{friendUids}
 				onOpenDm={(peer) => (dmPeer = peer)}
-				onRefresh={() => controller.loadLeaders()}
+				onRefresh={() => controller.loadLeaders(friendUids)}
 				onPublish={() => controller.publishToLeaderboard()}
 				onWithdraw={() => controller.withdrawFromLeaderboard()}
 			/>

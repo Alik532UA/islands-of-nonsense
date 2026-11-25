@@ -11,6 +11,8 @@
 	import { followUser, unfollowUser } from '$lib/net/social';
 	import type { AccountState, Profile } from '$lib/net/account';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
+	import { titleLabel } from '$lib/config/rewards';
+	import { settings } from '$lib/services/settings.svelte';
 	import PublicProfileModal from './PublicProfileModal.svelte';
 
 	interface Props {
@@ -245,13 +247,20 @@
 							? 'cursor-default'
 							: 'cursor-pointer hover:opacity-90'}"
 					>
-						<div class="flex items-center gap-2">
+						<div class="flex items-center gap-2 flex-wrap">
 							<span class="font-bold text-xs text-slate-100 truncate">{leader.name}</span>
 							{#if leader.level}
 								<span
 									class="text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-mono font-bold"
 								>
 									Lv.{leader.level}
+								</span>
+							{/if}
+							{#if leader.title}
+								<span
+									class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-200 border border-amber-500/25 font-semibold"
+								>
+									{titleLabel(leader.title, settings.locale)}
 								</span>
 							{/if}
 							{#if isMe}
