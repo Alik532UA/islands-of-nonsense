@@ -7,6 +7,7 @@ import { PLAYABLE_RACES } from '$lib/engine/gameData';
 import {
 	getWorkerVoiceSlug,
 	SoundService,
+	UNIT_VOICE_VARIANTS,
 	WORKER_VOICE_COOLDOWN_MS,
 	WORKER_VOICE_VARIANTS,
 	sound
@@ -20,7 +21,7 @@ describe('Unit & Worker Edge TTS Voice Lines', () => {
 		vi.useRealTimers();
 	});
 
-	it('provides 5 non-empty voice line entries and MP3 files for all 12 canonical workers', () => {
+	it('provides 5 unique non-empty voice line entries and MP3 files for all 12 canonical workers', () => {
 		const workers = voiceLines.workers as Record<
 			string,
 			{ slug: string; texts: string[]; voice: string; pitch: string; rate: string }
@@ -30,6 +31,7 @@ describe('Unit & Worker Edge TTS Voice Lines', () => {
 			const entry = workers[race];
 			expect(entry, `Missing worker voice entry for ${race}`).toBeDefined();
 			expect(entry.texts.length).toBe(WORKER_VOICE_VARIANTS);
+			expect(new Set(entry.texts).size).toBe(WORKER_VOICE_VARIANTS);
 			expect(getWorkerVoiceSlug(race)).toBe(entry.slug);
 
 			for (let idx = 1; idx <= WORKER_VOICE_VARIANTS; idx++) {
@@ -58,21 +60,34 @@ describe('Unit & Worker Edge TTS Voice Lines', () => {
 		expect(getWorkerVoiceSlug('Збирачі')).toBe('mech');
 	});
 
-	it('provides non-empty voice line entries and MP3 files for all 144 units', () => {
+	it('provides 3 unique non-empty voice line entries and MP3 files for all 144 units', () => {
 		const units = voiceLines.units as Record<
 			string,
-			{ text: string; voice: string; pitch: string; rate: string }
+			{ texts: string[]; voice: string; pitch: string; rate: string }
 		>;
 
 		expect(unitsData.length).toBe(144);
 		for (const unit of unitsData) {
 			const entry = units[unit.id];
 			expect(entry, `Missing unit voice entry for ${unit.id} (${unit.name})`).toBeDefined();
-			expect(entry.text.trim().length).toBeGreaterThan(0);
+			expect(entry.texts.length).toBe(UNIT_VOICE_VARIANTS);
+			expect(new Set(entry.texts).size, `Duplicate lines for ${unit.id}`).toBe(UNIT_VOICE_VARIANTS);
 
-			const mp3Path = resolve(ROOT, 'static', 'audio', 'voices', 'units', `${unit.id}.mp3`);
-			expect(existsSync(mp3Path), `Missing MP3 for unit ${unit.id}: ${mp3Path}`).toBe(true);
-			expect(statSync(mp3Path).size).toBeGreaterThan(0);
+			for (let idx = 1; idx <= UNIT_VOICE_VARIANTS; idx++) {
+				expect(entry.texts[idx - 1].trim().length).toBeGreaterThan(0);
+				const mp3Path = resolve(
+					ROOT,
+					'static',
+					'audio',
+					'voices',
+					'units',
+					`${unit.id}_${idx}.mp3`
+				);
+				expect(existsSync(mp3Path), `Missing MP3 for unit ${unit.id} #${idx}: ${mp3Path}`).toBe(
+					true
+				);
+				expect(statSync(mp3Path).size).toBeGreaterThan(0);
+			}
 		}
 	});
 
@@ -99,6 +114,27 @@ describe('Unit & Worker Edge TTS Voice Lines', () => {
 		svc.playWorkerVoice('Альянс');
 		expect(playSpy).toHaveBeenCalledTimes(2);
 		expect(playSpy.mock.calls[0][0]).not.toBe(playSpy.mock.calls[1][0]);
+	});
+
+	it('rotates among 3 variants without repeating consecutive unit voice lines', () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-11-26T20:00:00Z'));
+
+		const svc = new SoundService();
+		const playSpy = vi.spyOn(
+			svc as unknown as { playVoiceUrl: (url: string) => void },
+			'playVoiceUrl'
+		);
+
+		svc.playUnitVoice('h03C');
+		vi.advanceTimersByTime(600);
+		svc.playUnitVoice('h03C');
+		vi.advanceTimersByTime(600);
+		svc.playUnitVoice('h03C');
+
+		expect(playSpy).toHaveBeenCalledTimes(3);
+		expect(playSpy.mock.calls[0][0]).not.toBe(playSpy.mock.calls[1][0]);
+		expect(playSpy.mock.calls[1][0]).not.toBe(playSpy.mock.calls[2][0]);
 	});
 
 	it('exposes safe playWorkerVoice and playUnitVoice methods on sound service', () => {

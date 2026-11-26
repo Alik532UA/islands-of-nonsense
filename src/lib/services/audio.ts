@@ -45,6 +45,7 @@ export function getWorkerVoiceSlug(race: string): string {
 }
 
 export const WORKER_VOICE_VARIANTS = 5;
+export const UNIT_VOICE_VARIANTS = 3;
 export const WORKER_VOICE_COOLDOWN_MS = 60_000;
 
 type SfxSampleKey =
@@ -92,6 +93,7 @@ export class SoundService {
 	private lastVoicePlayedAt = 0;
 	private lastWorkerVoiceAt = 0;
 	private lastWorkerVariantBySlug = new Map<string, number>();
+	private lastUnitVariantById = new Map<string, number>();
 
 	constructor() {
 		// AudioContext will be initialized on user interaction
@@ -1104,11 +1106,18 @@ export class SoundService {
 	}
 
 	/**
-	 * Озвучена репліка юніта за його defId (при виборі на арені).
+	 * Озвучена репліка юніта за його defId (при виборі на арені),
+	 * випадковий вибір із 3 унікальних варіантів без повторів поспіль.
 	 */
 	public playUnitVoice(unitId: string): void {
-		if (!unitId) return;
-		this.playVoiceUrl(`/audio/voices/units/${unitId}.mp3`);
+		if (!unitId || !this.enabled || this.volume <= 0) return;
+		const prev = this.lastUnitVariantById.get(unitId);
+		let variant = Math.floor(Math.random() * UNIT_VOICE_VARIANTS) + 1;
+		if (UNIT_VOICE_VARIANTS > 1 && variant === prev) {
+			variant = (variant % UNIT_VOICE_VARIANTS) + 1;
+		}
+		this.lastUnitVariantById.set(unitId, variant);
+		this.playVoiceUrl(`/audio/voices/units/${unitId}_${variant}.mp3`);
 	}
 }
 

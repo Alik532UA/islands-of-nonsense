@@ -73,18 +73,20 @@ async def main() -> int:
             )
 
     for unit_id, entry in data.get("units", {}).items():
-        out_path = OUT_UNITS_DIR / f"{unit_id}.mp3"
-        tasks.append(
-            generate_one(
-                sem,
-                entry["text"],
-                entry["voice"],
-                entry["pitch"],
-                entry["rate"],
-                out_path,
-                args.force,
+        texts = entry.get("texts") or ([entry["text"]] if "text" in entry else [])
+        for idx, text in enumerate(texts, start=1):
+            out_path = OUT_UNITS_DIR / f"{unit_id}_{idx}.mp3"
+            tasks.append(
+                generate_one(
+                    sem,
+                    text,
+                    entry["voice"],
+                    entry["pitch"],
+                    entry["rate"],
+                    out_path,
+                    args.force,
+                )
             )
-        )
 
     print(f"Generating {len(tasks)} voice files (concurrency={args.concurrency})...")
     results = await asyncio.gather(*tasks)
