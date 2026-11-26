@@ -169,25 +169,69 @@ export class MatchSync {
 
 	getForensicLog(): string {
 		const sig = computeSimStateSignature(this.sim);
-		const historyLines = this.appliedHistory.slice(-60).map((m) =>
-			JSON.stringify({
+		const allSeqs = this.appliedHistory.map((m) => m.seq);
+		const historyDigestRaw = this.appliedHistory
+			.map((m) => {
+				const p = m.payload ?? {};
+				return `${m.seq}:${m.type}:${p.tick ?? ''}:${p.playerSlot ?? ''}:${p.race ?? ''}:${p.buildingType ?? ''}:${p.x ?? ''},${p.y ?? ''}:${p.worldX ?? ''},${p.worldY ?? ''}:${p.targetId ?? ''}:${p.commanderId ?? ''}:${p.itemId ?? ''}:${p.forgeType ?? ''}:${p.shiftKey ? 1 : 0}`;
+			})
+			.join('|');
+		let historyHash = 5381;
+		for (let i = 0; i < historyDigestRaw.length; i++) {
+			historyHash =
+				((historyHash << 5) + historyHash + historyDigestRaw.charCodeAt(i)) & 0xffffffff;
+		}
+		const workersSummary = (this.sim.allPlayers ?? [])
+			.filter((pl) => pl.worker)
+			.map((pl) => {
+				const w = pl.worker!;
+				const wMode = w.isBuilding
+					? 'build'
+					: w.isRepairing
+						? 'repair'
+						: w.targetBuildingId
+							? 'to_bld'
+							: 'idle';
+				return `${pl.slot ?? 0}:(${Math.round(w.x)},${Math.round(w.y)}):${wMode}${w.targetBuildingId ? `->${w.targetBuildingId}` : ''}`;
+			})
+			.join('|');
+		const buildingsSummary = (this.sim.buildings ?? [])
+			.map(
+				(b) =>
+					`${b.defId}@(${b.tileX},${b.tileY}):${Math.round(b.hp)}/${b.maxHp}${b.hp < b.maxHp ? ':wip' : ''}`
+			)
+			.join('|');
+		const historyLines = this.appliedHistory.slice(-60).map((m) => {
+			const p = m.payload ?? {};
+			const entry: Record<string, unknown> = {
 				seq: m.seq,
 				by: m.by.slice(0, 8),
 				type: m.type,
 				at: m.at ?? null,
-				tick: m.payload?.tick ?? null,
-				slot: m.payload?.playerSlot ?? null,
-				team: m.payload?.team ?? null,
-				race: m.payload?.race ?? null,
-				bld: m.payload?.buildingType ?? null,
-				x: m.payload?.x ?? null,
-				y: m.payload?.y ?? null
-			})
-		);
+				tick: p.tick ?? null,
+				slot: p.playerSlot ?? null,
+				team: p.team ?? null
+			};
+			if (p.race !== undefined) entry.race = p.race;
+			if (p.buildingType !== undefined) entry.bld = p.buildingType;
+			if (p.x !== undefined) entry.x = p.x;
+			if (p.y !== undefined) entry.y = p.y;
+			if (p.worldX !== undefined) entry.wx = Math.round(p.worldX);
+			if (p.worldY !== undefined) entry.wy = Math.round(p.worldY);
+			if (p.targetId !== undefined) entry.target = p.targetId;
+			if (p.commanderId !== undefined) entry.cmd = p.commanderId;
+			if (p.itemId !== undefined) entry.item = p.itemId;
+			if (p.forgeType !== undefined) entry.forge = p.forgeType;
+			if (p.shiftKey) entry.shift = true;
+			return JSON.stringify(entry);
+		});
 		return [
 			`localUid=${this.localUid} team=${this.localTeam} slot=${this.localSlot} running=${this.sim.isRunning}`,
 			`uidToSlot=${JSON.stringify(Object.fromEntries(this.uidToSlot))}`,
+			`historyCount=${this.appliedHistory.length} historyHash=${(historyHash >>> 0).toString(16)} seqs=${JSON.stringify(allSeqs)}`,
 			`currentSig=${sig.checksum} raw=${sig.raw}`,
+			`workers=${workersSummary}`,
+			`buildings=${buildingsSummary}`,
 			`--- SYNC EVENTS (${this.syncLog.length}) ---`,
 			...this.syncLog,
 			`--- APPLIED HISTORY (last ${historyLines.length}/${this.appliedHistory.length}) ---`,

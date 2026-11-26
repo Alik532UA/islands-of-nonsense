@@ -372,6 +372,7 @@ export async function startOnlineBattleSession(
 				}));
 				return [
 					`=== ONLINE DESYNC DIAGNOSTIC LOG ===`,
+					`purpose=Forensic log for finding & fixing online lockstep desync (compare both players' logs: historyHash, seqs, workers, buildings, raw)`,
 					`date=${new Date().toISOString()} room=${roomCode} isHostHint=${isHostHint} isSpectator=${isSpectator}`,
 					`seed=${latestRoomInfo?.seed ?? 'none'} status=${latestRoomInfo?.status ?? 'none'} startedAt=${latestRoomInfo?.startedAt ?? 'none'}`,
 					`epochAnchor=${epochAnchorServerMs} pausedAt=${pausedAtServerMs} targetTick=${targetTick} simTick=${activeSim.tick}`,

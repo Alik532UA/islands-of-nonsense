@@ -104,6 +104,9 @@ interface RoomSubscriber {
 
 interface SharedRoomChannel {
 	highestSeq: number;
+	inFlightSeqs: Set<number>;
+	confirmSeq: (seq: number) => void;
+	rejectSeq: (seq: number) => void;
 	subscribe: (sub: RoomSubscriber) => () => void;
 }
 
@@ -128,10 +131,25 @@ async function acquireSharedChannel(code: string): Promise<SharedRoomChannel> {
 	let unsubFns: (() => void)[] = [];
 	let disposed = false;
 
-	const getSortedMoves = () => [...movesBySeq.values()].sort((a, b) => a.seq - b.seq);
+	const getSortedMoves = () =>
+		[...movesBySeq.values()]
+			.filter((m) => !channel.inFlightSeqs.has(m.seq))
+			.sort((a, b) => a.seq - b.seq);
 
 	const channel: SharedRoomChannel = {
 		highestSeq: 0,
+		inFlightSeqs: new Set<number>(),
+		confirmSeq(seq: number) {
+			if (channel.inFlightSeqs.delete(seq) && movesBySeq.has(seq)) {
+				if (seq > channel.highestSeq) {
+					channel.highestSeq = seq;
+				}
+				scheduleEmit();
+			}
+		},
+		rejectSeq(seq: number) {
+			channel.inFlightSeqs.delete(seq);
+		},
 		subscribe(sub: RoomSubscriber) {
 			if (unsubFns.length === 0 && !disposed) {
 				startListeners();
@@ -228,10 +246,12 @@ async function acquireSharedChannel(code: string): Promise<SharedRoomChannel> {
 				if (!Number.isInteger(seq) || !val) return;
 				const move: Move = { ...val, seq };
 				movesBySeq.set(seq, move);
-				if (seq > channel.highestSeq) {
-					channel.highestSeq = seq;
+				if (!channel.inFlightSeqs.has(seq)) {
+					if (seq > channel.highestSeq) {
+						channel.highestSeq = seq;
+					}
+					scheduleEmit();
 				}
-				scheduleEmit();
 			},
 			(error) => {
 				logService.warn('network', 'room moves listener cancelled', {
@@ -582,18 +602,25 @@ export async function roomTransport(code: string): Promise<RoomTransport> {
 					initialSeq: move.seq,
 					getHighestSeq: () => channel.highestSeq,
 					attemptWrite: async (seq) => {
-						const stamp = serverTimestamp();
-						await update(ref(db, `rooms/${code}`), {
-							[`moves/${moveKey(seq)}`]: {
-								...move,
-								by: uid,
-								seq,
-								at: stamp
-							},
-							[`members/${uid}/lastMoveAt`]: stamp
-						});
-						if (seq > channel.highestSeq) {
-							channel.highestSeq = seq;
+						channel.inFlightSeqs.add(seq);
+						try {
+							const stamp = serverTimestamp();
+							await update(ref(db, `rooms/${code}`), {
+								[`moves/${moveKey(seq)}`]: {
+									...move,
+									by: uid,
+									seq,
+									at: stamp
+								},
+								[`members/${uid}/lastMoveAt`]: stamp
+							});
+							if (seq > channel.highestSeq) {
+								channel.highestSeq = seq;
+							}
+							channel.confirmSeq(seq);
+						} catch (error) {
+							channel.rejectSeq(seq);
+							throw error;
 						}
 					},
 					doesSeqExist: async (seq) => {
@@ -638,21 +665,28 @@ export async function roomTransport(code: string): Promise<RoomTransport> {
 				getHighestSeq: () => channel.highestSeq,
 				attemptWrite: async (seq) => {
 					const key = moveKey(seq);
-					const stamp = serverTimestamp();
-					await update(ref(db, `rooms/${code}`), {
-						'info/hostUid': uid,
-						'info/leadSeq': key,
-						[`moves/${key}`]: {
-							...move,
-							type: 'lead',
-							by: uid,
-							seq,
-							at: stamp
-						},
-						[`members/${uid}/lastMoveAt`]: stamp
-					});
-					if (seq > channel.highestSeq) {
-						channel.highestSeq = seq;
+					channel.inFlightSeqs.add(seq);
+					try {
+						const stamp = serverTimestamp();
+						await update(ref(db, `rooms/${code}`), {
+							'info/hostUid': uid,
+							'info/leadSeq': key,
+							[`moves/${key}`]: {
+								...move,
+								type: 'lead',
+								by: uid,
+								seq,
+								at: stamp
+							},
+							[`members/${uid}/lastMoveAt`]: stamp
+						});
+						if (seq > channel.highestSeq) {
+							channel.highestSeq = seq;
+						}
+						channel.confirmSeq(seq);
+					} catch (error) {
+						channel.rejectSeq(seq);
+						throw error;
 					}
 				},
 				doesSeqExist: async (seq) => {
