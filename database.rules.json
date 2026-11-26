@@ -962,50 +962,6 @@
 					}
 				}
 			}
-		},
-		"desyncLogs": {
-			".read": "auth != null",
-			"$date": {
-				"$matchKey": {
-					"$uid": {
-						".write": "auth != null && $date.matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/) && $matchKey.matches(/^[0-9A-Z]{2,6}_[0-9]{1,15}$/) && $uid === auth.uid",
-						".validate": "newData.hasChildren(['uid', 'room', 'tick', 'log', 'at'])",
-						"uid": {
-							".validate": "newData.val() === auth.uid"
-						},
-						"name": {
-							".validate": "newData.isString() && newData.val().length <= 48"
-						},
-						"room": {
-							".validate": "newData.isString() && newData.val().matches(/^[0-9A-Z]{2,6}$/)"
-						},
-						"tick": {
-							".validate": "newData.isNumber() && newData.val() >= 0"
-						},
-						"localChecksum": {
-							".validate": "newData.isString() && newData.val().length <= 16"
-						},
-						"remoteChecksum": {
-							".validate": "newData.isString() && newData.val().length <= 16"
-						},
-						"historyHash": {
-							".validate": "newData.isString() && newData.val().length <= 16"
-						},
-						"historyCount": {
-							".validate": "newData.isNumber() && newData.val() >= 0"
-						},
-						"log": {
-							".validate": "newData.isString() && newData.val().length <= 32768"
-						},
-						"at": {
-							".validate": "newData.isNumber() && newData.val() <= now && newData.val() > now - 60000"
-						},
-						"$other": {
-							".validate": false
-						}
-					}
-				}
-			}
 		}
 	}
 }
