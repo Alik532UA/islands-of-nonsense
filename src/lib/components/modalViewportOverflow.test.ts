@@ -60,12 +60,13 @@ describe('Modal Viewport Constraints, Multi-Column Layout & Scroll Overflow Inva
 			'SettingsModal interface settings must be organized in multiple columns (at least 2)'
 		).toBe(true);
 
-		// Must use widened modal wrapper (max-w-4xl or larger) to avoid cramped single column
+		// Must use widened modal wrapper (max-w-4xl or larger, or max-w-none for full width)
 		expect(
 			content.includes('max-w-4xl') ||
 				content.includes('max-w-5xl') ||
-				content.includes('max-w-6xl'),
-			'SettingsModal must declare widened max-w (e.g. max-w-4xl) to utilize screen width'
+				content.includes('max-w-6xl') ||
+				content.includes('max-w-none'),
+			'SettingsModal must declare widened max-w (e.g. max-w-4xl or max-w-none) to utilize screen width'
 		).toBe(true);
 	});
 
@@ -78,9 +79,11 @@ describe('Modal Viewport Constraints, Multi-Column Layout & Scroll Overflow Inva
 			'SettingsModal content container must specify overflow-y-auto'
 		).toBe(true);
 
-		// Container must be bound to viewport (e.g. max-h-[90vh])
+		// Container must be bound to viewport (e.g. max-h-[90vh] or max-h-[92vh])
 		expect(
-			content.includes('max-h-[90vh]') || content.includes('max-h-screen'),
+			content.includes('max-h-[90vh]') ||
+				content.includes('max-h-[92vh]') ||
+				content.includes('max-h-screen'),
 			'SettingsModal dialog container must be bounded by viewport height constraint'
 		).toBe(true);
 

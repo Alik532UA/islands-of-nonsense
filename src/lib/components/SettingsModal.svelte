@@ -49,16 +49,14 @@
 
 {#if isOpen}
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 select-none animate-in fade-in duration-150"
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-0 py-4 select-none animate-in fade-in duration-150"
 		role="dialog"
 		aria-modal="true"
 		aria-label={t('settings.title')}
 		data-testid="settings-modal"
 	>
 		<div
-			class="relative w-full {activeTab === 'interface'
-				? 'max-w-6xl'
-				: 'max-w-4xl'} max-h-[90vh] flex flex-col bg-gradient-to-b from-[#181d28] to-[#0d1017] border-2 border-[#8c7456] rounded-2xl shadow-2xl overflow-hidden p-5 sm:p-6 text-white transition-[max-width] duration-200"
+			class="relative w-full max-w-none max-h-[92vh] flex flex-col bg-gradient-to-b from-[#181d28] to-[#0d1017] border-y-2 border-x-0 border-[#8c7456] rounded-none shadow-2xl overflow-hidden p-5 sm:px-8 sm:py-5 text-white"
 			style="box-shadow: 0 0 35px rgba(0,0,0,0.9), inset 0 0 20px rgba(140,116,86,0.15);"
 		>
 			<!-- Header -->
@@ -558,7 +556,7 @@
 
 						<!-- Fullscreen Option -->
 						<div
-							class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 flex items-center justify-between gap-4"
+							class="lg:col-span-3 bg-[#121622] border border-slate-800/80 rounded-xl py-2.5 px-4 flex items-center justify-between gap-4"
 						>
 							<div class="space-y-0.5">
 								<div class="text-xs font-bold text-slate-200">{t('settings.fullscreen')}</div>
