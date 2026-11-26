@@ -84,4 +84,43 @@ describe('audioBridge service', () => {
 		unlisten();
 		expect(sim.onSoundEffect).toBeUndefined();
 	});
+
+	it('resolves victory/defeat and castle alerts relative to localTeam when getLocalTeam is provided', () => {
+		const sim = new Simulation();
+		const mockSound = {
+			playCastleUnderAttack: vi.fn(),
+			playVictory: vi.fn(),
+			playDefeat: vi.fn(),
+			playLowCastleHp: vi.fn()
+		} as unknown as SoundService;
+
+		const unlisten = attachAudioBridge(sim, mockSound, () => 'east');
+
+		// East wins -> East hears victory even though simulation emits 'victory' for west / 'defeat' for east
+		sim.winner = 'east';
+		sim.onSoundEffect!('defeat');
+		expect(mockSound.playVictory).toHaveBeenCalledTimes(1);
+		expect(mockSound.playDefeat).not.toHaveBeenCalled();
+
+		// West wins -> East hears defeat
+		sim.winner = 'west';
+		sim.onSoundEffect!('victory');
+		expect(mockSound.playDefeat).toHaveBeenCalledTimes(1);
+
+		// Castle under attack & low HP alerts only fire for localTeam ('east')
+		sim.onCastleUnderAttack?.('west', 0.5);
+		sim.onCastleLowHp?.('west');
+		expect(mockSound.playCastleUnderAttack).not.toHaveBeenCalled();
+		expect(mockSound.playLowCastleHp).not.toHaveBeenCalled();
+
+		sim.onCastleUnderAttack?.('east', 0.5);
+		sim.onCastleLowHp?.('east');
+		expect(mockSound.playCastleUnderAttack).toHaveBeenCalledTimes(1);
+		expect(mockSound.playLowCastleHp).toHaveBeenCalledTimes(1);
+
+		unlisten();
+		expect(sim.onSoundEffect).toBeUndefined();
+		expect(sim.onCastleUnderAttack).toBeUndefined();
+		expect(sim.onCastleLowHp).toBeUndefined();
+	});
 });

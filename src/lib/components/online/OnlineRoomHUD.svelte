@@ -1704,12 +1704,18 @@
 	{/if}
 {/if}
 
-<div class="fixed top-14 right-3 z-30 flex flex-col items-end gap-2">
+<div
+	class="fixed top-0 right-2.5 sm:right-3 z-30 flex flex-col items-end gap-2 pointer-events-none"
+>
 	<div
-		class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-700/80 shadow-lg text-xs text-slate-200"
+		class="pointer-events-auto flex items-center gap-2 px-2.5 py-1.5 rounded-b-xl rounded-t-none bg-[#131722]/95 backdrop-blur-md border-b-2 border-x-2 border-t-0 border-[#544738] shadow-2xl text-xs text-slate-200"
+		data-testid="online-room-hud-pill"
 	>
 		{#if isPlaying && members.length > 0}
-			<div class="hidden sm:flex items-center -space-x-1 mr-1" data-testid="battle-member-avatars">
+			<div
+				class="hidden sm:flex items-center -space-x-1 mr-0.5"
+				data-testid="battle-member-avatars"
+			>
 				{#each members.filter((m) => m.role === 'player').slice(0, 6) as m (m.uid)}
 					<span title="{m.name} ({m.team ?? 'west'})" class="rounded-md ring-1 ring-slate-900">
 						<Avatar avatar={resolvedAvatars.get(m.uid) ?? m.avatar} size={20} showDefault />
@@ -1723,7 +1729,7 @@
 		{:else}
 			<UiIcon name="wifiOff" class="w-3.5 h-3.5 text-slate-400" />
 		{/if}
-		<span>
+		<span class="whitespace-nowrap">
 			{isPlaying
 				? t('online.hud.inBattle', { count: members.length })
 				: t('online.hud.lobbyStatus')}
@@ -1731,7 +1737,7 @@
 		<button
 			type="button"
 			onclick={() => (chatOpen = !chatOpen)}
-			class="relative min-h-[44px] min-w-[44px] p-2 rounded hover:bg-slate-800 text-sky-300 cursor-pointer flex items-center justify-center"
+			class="relative w-9 h-9 [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] rounded-lg bg-[#181d28] hover:bg-[#242c3d] border border-[#3b3226] hover:border-amber-500/70 text-sky-300 cursor-pointer flex items-center justify-center transition-colors"
 			aria-label={t('online.hud.roomChatLabel')}
 		>
 			<UiIcon name="messageSquare" class="w-4 h-4" />
@@ -1746,7 +1752,7 @@
 		<button
 			type="button"
 			onclick={handleLeaveRoom}
-			class="min-h-[44px] min-w-[44px] p-2 rounded hover:bg-rose-900/60 text-slate-400 hover:text-rose-200 cursor-pointer flex items-center justify-center"
+			class="w-9 h-9 [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] rounded-lg bg-[#181d28] hover:bg-rose-900/60 border border-[#3b3226] hover:border-rose-500/60 text-slate-400 hover:text-rose-200 cursor-pointer flex items-center justify-center transition-colors"
 			aria-label={t('online.hud.leaveRoom')}
 		>
 			<UiIcon name="logOut" class="w-4 h-4" />
@@ -1756,7 +1762,7 @@
 	{#if roomError}
 		<div
 			role="alert"
-			class="px-3 py-2 rounded-lg bg-rose-950/95 border border-rose-500/60 text-xs text-rose-200"
+			class="pointer-events-auto px-3 py-2 rounded-lg bg-rose-950/95 border border-rose-500/60 text-xs text-rose-200"
 		>
 			{roomError}
 		</div>
@@ -1764,7 +1770,7 @@
 
 	{#if floatingEmote}
 		<div
-			class="px-3 py-1.5 rounded-xl bg-slate-900/95 border border-amber-400/60 shadow-xl text-xs flex items-center gap-2 animate-bounce"
+			class="pointer-events-auto px-3 py-1.5 rounded-xl bg-slate-900/95 border border-amber-400/60 shadow-xl text-xs flex items-center gap-2 animate-bounce"
 			data-testid="floating-emote-bubble"
 		>
 			<span class="font-bold text-amber-300">{floatingEmote.senderName}:</span>
@@ -1774,7 +1780,7 @@
 
 	{#if chatOpen}
 		<div
-			class="w-72 rounded-xl bg-slate-900/95 border border-slate-700 shadow-2xl p-3 flex flex-col gap-2"
+			class="pointer-events-auto w-72 rounded-xl bg-slate-900/95 border border-slate-700 shadow-2xl p-3 flex flex-col gap-2"
 		>
 			{@render roomChatBody('max-h-40', 'bg-slate-800 border-slate-600')}
 		</div>

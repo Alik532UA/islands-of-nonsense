@@ -140,7 +140,9 @@
 
 <!-- Floating Modular Top HUD Docks (Mirrors BottomBar modular architecture) -->
 <header
-	class="absolute top-0 left-0 right-0 px-2.5 sm:px-3 flex flex-wrap xl:flex-nowrap items-start justify-between gap-2 text-white select-none z-30 pointer-events-none min-w-0 overflow-visible"
+	class="absolute top-0 left-0 right-0 px-2.5 sm:px-3 {isOnline
+		? 'pr-[245px] sm:pr-[315px]'
+		: ''} flex flex-wrap xl:flex-nowrap items-start justify-between gap-2 text-white select-none z-30 pointer-events-none min-w-0 overflow-visible"
 	style:z-index={speedMenu.isOpen
 		? speedMenu.zIndex
 		: soundMenu.isOpen

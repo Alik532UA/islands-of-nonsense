@@ -139,6 +139,8 @@ describe('MatchSync', () => {
 
 		expect(simA.castles.west.hp).toBe(0);
 		expect(simB.castles.west.hp).toBe(0);
+		expect(simA.winner).toBe('east');
+		expect(simB.winner).toBe('east');
 
 		syncA.dispose();
 		syncB.dispose();

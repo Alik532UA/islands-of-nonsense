@@ -150,7 +150,7 @@
 		controlledPlayerSlot = sim.players.west?.slot ?? 1;
 		perfMonitor.attachSim(sim);
 		if (unlistenAudio) unlistenAudio();
-		unlistenAudio = attachAudioBridge(sim, sound);
+		unlistenAudio = attachAudioBridge(sim, sound, () => localTeam);
 		renderer?.setSimulation(sim);
 		renderer?.resetCastleVisuals();
 		uiTick = sim.stateVersion;
@@ -467,11 +467,8 @@
 	function handleSurrender() {
 		isPauseMenuOpen = false;
 		dispatchCommand('SURRENDER', {}, () => {
-			const loseTeam = isBotVsBot ? controlledPlayer.team : 'west';
-			sim.castles[loseTeam].hp = 0;
-			sim.isRunning = true;
-			sim.step(0.05);
-			sim.isRunning = false;
+			const loseTeam = isBotVsBot ? controlledPlayer.team : localTeam;
+			sim.forfeitTeam(loseTeam);
 			return true;
 		});
 		uiTick = sim.stateVersion;
@@ -928,7 +925,7 @@
 	onMount(async () => {
 		perfMonitor.attachSim(sim);
 		botAI = new BotAI(sim);
-		unlistenAudio = attachAudioBridge(sim, sound);
+		unlistenAudio = attachAudioBridge(sim, sound, () => localTeam);
 		const searchParams =
 			typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
 		const urlMode = searchParams?.get('mode');
@@ -961,7 +958,7 @@
 					if (!init.isSpectator) attachReplayRecorder(sim);
 					perfMonitor.attachSim(sim);
 					if (unlistenAudio) unlistenAudio();
-					unlistenAudio = attachAudioBridge(sim, sound);
+					unlistenAudio = attachAudioBridge(sim, sound, () => localTeam);
 					if (init.isPlaying && nextSim.allPlayers.some((p) => !p.isBot && p.pendingRacePick)) {
 						startOnlineCountdown();
 					} else {
@@ -975,7 +972,7 @@
 					if (!isOnlineSpectator) attachReplayRecorder(sim);
 					perfMonitor.attachSim(sim);
 					if (unlistenAudio) unlistenAudio();
-					unlistenAudio = attachAudioBridge(sim, sound);
+					unlistenAudio = attachAudioBridge(sim, sound, () => localTeam);
 					renderer?.setSimulation(sim);
 					if (networkNotice?.includes('розсинхронізація')) {
 						networkNotice = null;
@@ -1074,7 +1071,7 @@
 					if (!isSpectator) attachReplayRecorder(sim);
 					perfMonitor.attachSim(sim);
 					if (unlistenAudio) unlistenAudio();
-					unlistenAudio = attachAudioBridge(sim, sound);
+					unlistenAudio = attachAudioBridge(sim, sound, () => localTeam);
 					renderer?.setSimulation(sim);
 					renderer?.resetCastleVisuals();
 					if (nextSim.allPlayers.some((p) => !p.isBot && p.pendingRacePick)) {
@@ -1383,7 +1380,7 @@
 					}
 				}
 				if (stepsCount > 0) {
-					battleAnnouncer.updateFromSimulation(sim);
+					battleAnnouncer.updateFromSimulation(sim, localTeam);
 					const stateChanged = sim.stateVersion !== lastStateVersion;
 					if (stateChanged || now - lastUiTickTime >= 80) {
 						lastUiTickTime = now;
@@ -1589,7 +1586,7 @@
 		sim.isRunning = false;
 		perfMonitor.attachSim(sim);
 		if (unlistenAudio) unlistenAudio();
-		unlistenAudio = attachAudioBridge(sim, sound);
+		unlistenAudio = attachAudioBridge(sim, sound, () => localTeam);
 		botAI = new BotAI(sim);
 		renderer?.setSimulation(sim);
 		renderer?.resetCastleVisuals();
@@ -1938,7 +1935,7 @@
 						}}
 						disabled={!canUseRescue}
 						data-testid="hud-rescue-strike-btn"
-						aria-label="Прицільний Рятівний Удар на своєму острові (-2850 хаос-шкоди по наземних і повітряних ворогах у 750px, 500px від робітника, КД 180с, клавіша X)"
+						aria-label="Прицільний Рятівний Удар на своєму острові (-7000 звичайної шкоди по наземних і повітряних ворогах у 750px, 500px від робітника, КД 180с, клавіша X)"
 						aria-keyshortcuts="x"
 						aria-pressed={isRescueTargeting}
 						class="relative w-11 h-11 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md {isRescueTargeting
@@ -1968,7 +1965,7 @@
 							</span>
 						</div>
 						<span class="text-[10px] text-slate-300 font-normal">
-							2850 шкоди у 750px на своєму острові • 2× золото • КД: 180с
+							7000 шкоди у 750px на своєму острові • 2× золото • КД: 180с
 						</span>
 					</div>
 				</div>
@@ -3005,6 +3002,7 @@
 	<VictoryModal
 		{sim}
 		{uiTick}
+		{localTeam}
 		isOnline={Boolean(matchSync)}
 		{isOnlineHost}
 		earnedScore={lastEarnedScore}

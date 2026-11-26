@@ -202,7 +202,7 @@ describe('Point 5: Rescue Strike (Emergency Castle Defense)', () => {
 				lane: 'top',
 				x: westCastle.x + 250 + i * 40,
 				y: westCastle.y,
-				hp: 4000,
+				hp: 10000,
 				damage: 55,
 				attackCooldown: 1.0
 			});
@@ -313,7 +313,7 @@ describe('Point 5: Rescue Strike (Emergency Castle Defense)', () => {
 		expect(sim.canUseRescueStrike('west', player)).toBe(true);
 	});
 
-	it('damages all enemy ground and flying units (including medium armor and banished flyers) uniformly', () => {
+	it('damages all enemy ground and flying units with normal damage (ethereal/banished units are immune to physical)', () => {
 		const westCastle = sim.castles.west;
 
 		const groundEnemy = sim.spawnUnitDirectly({
@@ -354,6 +354,6 @@ describe('Point 5: Rescue Strike (Emergency Castle Defense)', () => {
 		expect(outcome?.hitCount).toBe(3);
 		expect(groundEnemy.state).toBe('DEAD');
 		expect(mediumArmorFlyer.state).toBe('DEAD');
-		expect(banishedFlyer.state).toBe('DEAD');
+		expect(banishedFlyer.state).toBe('WALKING');
 	});
 });

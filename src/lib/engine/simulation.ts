@@ -275,6 +275,7 @@ export class Simulation {
 	public onRoundStart?: (roundNumber: number) => void;
 	public onSoundEffect?: (sound: SoundEffectType) => void;
 	public onCastleUnderAttack?: (team: MatchTeam, hpPercent: number) => void;
+	public onCastleLowHp?: (team: MatchTeam) => void;
 	public onBuildingComplete?: (building: Building) => void;
 	public onBossSpawn?: (unit: Unit) => void;
 	public onReplayAction?: (action: ReplayAction) => void;
@@ -1476,11 +1477,17 @@ export class Simulation {
 		this.combatSystem.updateCastles(dt);
 		this.combatSystem.updateTowers(dt);
 
-		// Critical Castle HP alarm heartbeat (< 30% HP for player team)
-		if (this.castles.west.hp > 0 && this.castles.west.hp < this.castles.west.maxHp * 0.3) {
-			if (this.gameTime - this.lastLowCastleHpAlert.west >= 8.0) {
-				this.lastLowCastleHpAlert.west = this.gameTime;
-				this.onSoundEffect?.('lowCastleHp');
+		// Critical Castle HP alarm heartbeat (< 30% HP for either team)
+		for (const team of ['west', 'east'] as const) {
+			const castle = this.castles[team];
+			if (castle.hp > 0 && castle.hp < castle.maxHp * 0.3) {
+				if (this.gameTime - this.lastLowCastleHpAlert[team] >= 8.0) {
+					this.lastLowCastleHpAlert[team] = this.gameTime;
+					this.onCastleLowHp?.(team);
+					if (team === 'west') {
+						this.onSoundEffect?.('lowCastleHp');
+					}
+				}
 			}
 		}
 
@@ -1504,6 +1511,19 @@ export class Simulation {
 		}
 
 		// 13. Check Win Condition
+		this.resolveRoundWinnerIfCastleDestroyed();
+	}
+
+	/**
+	 * Forfeits the current round/match for the specified losing team.
+	 */
+	public forfeitTeam(losingTeam: MatchTeam): void {
+		this.castles[losingTeam].hp = 0;
+		this.resolveRoundWinnerIfCastleDestroyed();
+		this.isRunning = false;
+	}
+
+	private resolveRoundWinnerIfCastleDestroyed(): void {
 		if (this.castles.west.hp <= 0 && !this.winner) {
 			this.winner = 'east';
 			this.roundWinner = 'east';

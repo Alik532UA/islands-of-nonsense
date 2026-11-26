@@ -84,4 +84,21 @@ describe('battleAnnouncer service', () => {
 		battleAnnouncer.updateFromSimulation(mockSim);
 		expect(battleAnnouncer.polite).toBe('Розпочався раунд 2');
 	});
+
+	it('announces East castle as own critical castle and West as enemy when localTeam is east', () => {
+		const mockSim = {
+			castles: {
+				west: { hp: 200, maxHp: 1000 },
+				east: { hp: 200, maxHp: 1000 }
+			},
+			activeBossInstanceId: null,
+			dayNightPhase: 'day',
+			round: 1,
+			isRunning: true
+		};
+
+		battleAnnouncer.updateFromSimulation(mockSim, 'east');
+		expect(battleAnnouncer.assertive).toContain('Східний замок у критичному стані');
+		expect(battleAnnouncer.polite).toContain('Ворожий замок майже знищено');
+	});
 });

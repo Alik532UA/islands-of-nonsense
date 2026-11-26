@@ -143,6 +143,11 @@ export class SoundService {
 		}
 	}
 
+	private playByPack(variants: Record<SoundPack, () => void>): void {
+		const fn = variants[this.pack] ?? variants['8-bit'];
+		fn();
+	}
+
 	private playSampleOrSynthPro(
 		sampleKey: SfxSampleKey,
 		synthProFn: () => void,
@@ -574,6 +579,27 @@ export class SoundService {
 	 */
 	public playForgeUpgrade(): void {
 		if (!this.enabled) return;
+		if (this.pack !== '8-bit') {
+			this.playByPack({
+				'8-bit': () => {},
+				'synth-pro': () => {
+					this.playSynthProNoise(0.06, 2600, 'bandpass', 0.14);
+					this.playSynthProTone(520, 780, 0.18, 'triangle', 0.22);
+					this.playSynthProTone(780, 1040, 0.22, 'sine', 0.2);
+				},
+				'fantasy-rpg': () => {
+					this.playSynthProNoise(0.05, 3400, 'highpass', 0.16);
+					this.playSynthProTone(660, 880, 0.14, 'triangle', 0.22);
+					this.playSynthProTone(880, 1320, 0.24, 'sine', 0.22);
+				},
+				'dark-siege': () => {
+					this.playSynthProNoise(0.1, 1400, 'bandpass', 0.24);
+					this.playSynthProTone(310, 440, 0.22, 'sawtooth', 0.18);
+					this.playSynthProTone(155, 220, 0.26, 'triangle', 0.24);
+				}
+			});
+			return;
+		}
 		const ctx = this.getContext();
 		if (!ctx) return;
 
@@ -602,6 +628,27 @@ export class SoundService {
 	 */
 	public playRescueStrike(): void {
 		if (!this.enabled) return;
+		if (this.pack !== '8-bit') {
+			this.playByPack({
+				'8-bit': () => {},
+				'synth-pro': () => {
+					this.playSynthProNoise(0.38, 900, 'lowpass', 0.48);
+					this.playSynthProTone(180, 42, 0.42, 'triangle', 0.36);
+					this.playSynthProTone(420, 110, 0.26, 'sine', 0.24);
+				},
+				'fantasy-rpg': () => {
+					this.playSynthProNoise(0.32, 1600, 'bandpass', 0.42);
+					this.playSynthProTone(320, 88, 0.36, 'sawtooth', 0.26);
+					this.playSynthProTone(640, 220, 0.28, 'triangle', 0.22);
+				},
+				'dark-siege': () => {
+					this.playSynthProNoise(0.5, 520, 'lowpass', 0.58);
+					this.playSynthProTone(95, 22, 0.52, 'sawtooth', 0.34);
+					this.playSynthProTone(52, 20, 0.55, 'sine', 0.42);
+				}
+			});
+			return;
+		}
 		const ctx = this.getContext();
 		if (!ctx) return;
 
@@ -668,6 +715,22 @@ export class SoundService {
 	 */
 	public playWorkerAck(): void {
 		if (!this.enabled) return;
+		if (this.pack !== '8-bit') {
+			this.playByPack({
+				'8-bit': () => {},
+				'synth-pro': () => {
+					this.playSynthProTone(560, 760, 0.09, 'triangle', 0.18);
+				},
+				'fantasy-rpg': () => {
+					this.playSynthProTone(680, 920, 0.08, 'sine', 0.18);
+					this.playSynthProNoise(0.03, 2400, 'bandpass', 0.08);
+				},
+				'dark-siege': () => {
+					this.playSynthProTone(280, 390, 0.11, 'triangle', 0.22);
+				}
+			});
+			return;
+		}
 		const ctx = this.getContext();
 		if (!ctx) return;
 
@@ -693,6 +756,24 @@ export class SoundService {
 	 */
 	public playSiegeHit(): void {
 		if (!this.enabled) return;
+		if (this.pack !== '8-bit') {
+			this.playByPack({
+				'8-bit': () => {},
+				'synth-pro': () => {
+					this.playSynthProNoise(0.28, 520, 'lowpass', 0.44);
+					this.playSynthProTone(110, 28, 0.3, 'triangle', 0.34);
+				},
+				'fantasy-rpg': () => {
+					this.playSynthProNoise(0.24, 950, 'lowpass', 0.38);
+					this.playSynthProTone(145, 40, 0.24, 'triangle', 0.3);
+				},
+				'dark-siege': () => {
+					this.playSynthProNoise(0.4, 340, 'lowpass', 0.56);
+					this.playSynthProTone(72, 18, 0.42, 'sawtooth', 0.34);
+				}
+			});
+			return;
+		}
 		const ctx = this.getContext();
 		if (!ctx) return;
 
@@ -778,6 +859,26 @@ export class SoundService {
 	 */
 	public playCastleUnderAttack(): void {
 		if (!this.enabled) return;
+		if (this.pack !== '8-bit') {
+			this.playByPack({
+				'8-bit': () => {},
+				'synth-pro': () => {
+					this.playSynthProTone(290, 210, 0.26, 'triangle', 0.28);
+					this.playSynthProTone(340, 240, 0.34, 'sawtooth', 0.2);
+				},
+				'fantasy-rpg': () => {
+					this.playSynthProTone(392, 311, 0.24, 'triangle', 0.26);
+					this.playSynthProTone(493.88, 392, 0.34, 'triangle', 0.24);
+					this.playSynthProNoise(0.08, 1800, 'bandpass', 0.14);
+				},
+				'dark-siege': () => {
+					this.playSynthProTone(146.83, 110, 0.36, 'sawtooth', 0.28);
+					this.playSynthProTone(110, 82.41, 0.45, 'triangle', 0.34);
+					this.playSynthProNoise(0.25, 420, 'lowpass', 0.28);
+				}
+			});
+			return;
+		}
 		const ctx = this.getContext();
 		if (!ctx) return;
 
@@ -819,6 +920,27 @@ export class SoundService {
 	 */
 	public playBossSpawn(): void {
 		if (!this.enabled) return;
+		if (this.pack !== '8-bit') {
+			this.playByPack({
+				'8-bit': () => {},
+				'synth-pro': () => {
+					this.playSynthProNoise(0.45, 580, 'lowpass', 0.36);
+					this.playSynthProTone(92, 38, 0.75, 'triangle', 0.36);
+					this.playSynthProTone(185, 110, 0.65, 'sine', 0.26);
+				},
+				'fantasy-rpg': () => {
+					this.playSynthProNoise(0.35, 1100, 'bandpass', 0.32);
+					this.playSynthProTone(196, 146.83, 0.6, 'triangle', 0.3);
+					this.playSynthProTone(293.66, 220, 0.75, 'sine', 0.24);
+				},
+				'dark-siege': () => {
+					this.playSynthProNoise(0.65, 320, 'lowpass', 0.52);
+					this.playSynthProTone(62, 24, 0.9, 'sawtooth', 0.34);
+					this.playSynthProTone(98, 49, 0.85, 'triangle', 0.38);
+				}
+			});
+			return;
+		}
 		const ctx = this.getContext();
 		if (!ctx) return;
 
@@ -871,6 +993,25 @@ export class SoundService {
 	 */
 	public playVictory(): void {
 		if (!this.enabled) return;
+		if (this.pack !== '8-bit') {
+			this.playByPack({
+				'8-bit': () => {},
+				'synth-pro': () => {
+					this.playSynthProTone(392, 523.25, 0.28, 'triangle', 0.26);
+					this.playSynthProTone(523.25, 783.99, 0.55, 'sine', 0.28);
+				},
+				'fantasy-rpg': () => {
+					this.playSynthProTone(440, 587.33, 0.26, 'triangle', 0.28);
+					this.playSynthProTone(587.33, 880, 0.6, 'triangle', 0.28);
+					this.playSynthProNoise(0.08, 3200, 'highpass', 0.1);
+				},
+				'dark-siege': () => {
+					this.playSynthProTone(220, 329.63, 0.34, 'sawtooth', 0.2);
+					this.playSynthProTone(329.63, 440, 0.65, 'triangle', 0.28);
+				}
+			});
+			return;
+		}
 		const ctx = this.getContext();
 		if (!ctx) return;
 
@@ -905,6 +1046,24 @@ export class SoundService {
 	 */
 	public playDefeat(): void {
 		if (!this.enabled) return;
+		if (this.pack !== '8-bit') {
+			this.playByPack({
+				'8-bit': () => {},
+				'synth-pro': () => {
+					this.playSynthProTone(261.63, 196, 0.38, 'triangle', 0.26);
+					this.playSynthProTone(196, 130.81, 0.6, 'sine', 0.26);
+				},
+				'fantasy-rpg': () => {
+					this.playSynthProTone(293.66, 220, 0.35, 'triangle', 0.26);
+					this.playSynthProTone(220, 146.83, 0.62, 'triangle', 0.24);
+				},
+				'dark-siege': () => {
+					this.playSynthProTone(146.83, 98, 0.5, 'sawtooth', 0.24);
+					this.playSynthProTone(98, 65.41, 0.75, 'triangle', 0.32);
+				}
+			});
+			return;
+		}
 		const ctx = this.getContext();
 		if (!ctx) return;
 
@@ -976,6 +1135,23 @@ export class SoundService {
 	 */
 	public playLowCastleHp(): void {
 		if (!this.enabled) return;
+		if (this.pack !== '8-bit') {
+			this.playByPack({
+				'8-bit': () => {},
+				'synth-pro': () => {
+					this.playSynthProTone(88, 44, 0.22, 'sine', 0.34);
+				},
+				'fantasy-rpg': () => {
+					this.playSynthProTone(110, 55, 0.2, 'triangle', 0.3);
+					this.playSynthProNoise(0.06, 800, 'lowpass', 0.16);
+				},
+				'dark-siege': () => {
+					this.playSynthProTone(58, 28, 0.32, 'sine', 0.42);
+					this.playSynthProNoise(0.14, 300, 'lowpass', 0.28);
+				}
+			});
+			return;
+		}
 		const ctx = this.getContext();
 		if (!ctx) return;
 
@@ -1127,6 +1303,63 @@ export class SoundService {
 		this.lastWorkerVariantBySlug.set(slug, variant);
 		this.lastWorkerVoiceAt = now;
 		this.playVoiceUrl(`/audio/voices/workers/${slug}_${variant}.mp3`);
+	}
+
+	public stopVoicePlayback(): void {
+		this.stopActiveVoice();
+	}
+
+	/**
+	 * Відтворює конкретний аудіофайл репліки та повертає Promise, який завершується
+	 * після закінчення програвання (для послідовного прослуховування в showcase).
+	 */
+	public async playVoiceClip(urlPath: string): Promise<boolean> {
+		if (typeof window === 'undefined' || typeof fetch !== 'function') return false;
+		const ctx = this.getContext();
+		if (!ctx) return false;
+		if (ctx.state === 'suspended') {
+			await ctx.resume().catch(() => {});
+		}
+
+		let cached = this.voiceCache.get(urlPath);
+		if (!cached || cached === 'loading') {
+			this.voiceCache.set(urlPath, 'loading');
+			try {
+				const res = await fetch(audioUrl(urlPath));
+				if (!res.ok) {
+					this.voiceCache.set(urlPath, 'failed');
+					return false;
+				}
+				const arr = await res.arrayBuffer();
+				const decoded = await ctx.decodeAudioData(arr);
+				this.voiceCache.set(urlPath, decoded);
+				cached = decoded;
+			} catch {
+				this.voiceCache.set(urlPath, 'failed');
+				return false;
+			}
+		}
+
+		if (!cached || typeof cached === 'string') return false;
+
+		return new Promise<boolean>((resolveClip) => {
+			this.stopActiveVoice();
+			const src = ctx.createBufferSource();
+			src.buffer = cached;
+			const gain = ctx.createGain();
+			const vol = this.voiceVolume > 0 ? this.voiceVolume : 0.25;
+			gain.gain.setValueAtTime(Math.min(1, vol), ctx.currentTime);
+			src.connect(gain);
+			gain.connect(ctx.destination);
+			src.onended = () => {
+				if (this.activeVoiceSource === src) {
+					this.activeVoiceSource = null;
+				}
+				resolveClip(true);
+			};
+			this.activeVoiceSource = src;
+			src.start();
+		});
 	}
 
 	/**

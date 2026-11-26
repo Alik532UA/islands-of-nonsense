@@ -934,8 +934,7 @@ export class MatchSync {
 				break;
 
 			case 'SURRENDER':
-				this.sim.castles[team].hp = 0;
-				this.sim.isRunning = false;
+				this.sim.forfeitTeam(team);
 				break;
 
 			case 'PAUSE':

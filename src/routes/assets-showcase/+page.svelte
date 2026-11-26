@@ -1,6 +1,6 @@
 <script lang="ts">
 	import 'pixi.js/unsafe-eval';
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, untrack } from 'svelte';
 	import { Application, Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
 	import { resolve } from '$app/paths';
 	import {
@@ -24,6 +24,12 @@
 		type UnitAbilityType
 	} from '$lib/engine/types';
 	import type { DecorationObstacle } from '$lib/engine/constants';
+	import {
+		sound,
+		getWorkerVoiceSlug,
+		UNIT_VOICE_VARIANTS,
+		WORKER_VOICE_VARIANTS
+	} from '$lib/services/audio';
 	import { Simulation } from '$lib/engine/simulation';
 	import { BuildingRenderer } from '$lib/renderer/buildingRenderer';
 	import { TerrainRenderer } from '$lib/renderer/terrainRenderer';
@@ -102,6 +108,86 @@
 		castleHpByDefId = { ...castleHpByDefId, [defId]: Math.max(0, Math.min(100, pct)) };
 	}
 	let selectedItem = $state<ShowcaseItem | null>(null);
+	let autoPlayVoices = $state(true);
+	let activeVoiceVariant = $state<number | null>(null);
+	let isPlayingVoiceSequence = $state(false);
+	let voiceSeqToken = 0;
+
+	function getVoiceUrlsForItem(item: ShowcaseItem | null): string[] {
+		if (!item) return [];
+		if (item.kind === 'unit') {
+			return Array.from(
+				{ length: UNIT_VOICE_VARIANTS },
+				(_, idx) => `/audio/voices/units/${item.defId}_${idx + 1}.mp3`
+			);
+		}
+		if (item.kind === 'worker') {
+			const slug = getWorkerVoiceSlug(item.race);
+			return Array.from(
+				{ length: WORKER_VOICE_VARIANTS },
+				(_, idx) => `/audio/voices/workers/${slug}_${idx + 1}.mp3`
+			);
+		}
+		return [];
+	}
+
+	function stopShowcaseVoices(): void {
+		voiceSeqToken++;
+		sound.stopVoicePlayback();
+		activeVoiceVariant = null;
+		isPlayingVoiceSequence = false;
+	}
+
+	async function playVoiceSequenceForItem(item: ShowcaseItem | null): Promise<void> {
+		const urls = getVoiceUrlsForItem(item);
+		if (urls.length === 0) {
+			stopShowcaseVoices();
+			return;
+		}
+		const myToken = ++voiceSeqToken;
+		isPlayingVoiceSequence = true;
+		for (let i = 0; i < urls.length; i++) {
+			if (myToken !== voiceSeqToken) return;
+			activeVoiceVariant = i + 1;
+			await sound.playVoiceClip(urls[i]);
+			if (myToken !== voiceSeqToken) return;
+		}
+		if (myToken === voiceSeqToken) {
+			activeVoiceVariant = null;
+			isPlayingVoiceSequence = false;
+		}
+	}
+
+	async function playSingleVoiceVariant(item: ShowcaseItem, variant: number): Promise<void> {
+		const urls = getVoiceUrlsForItem(item);
+		const url = urls[variant - 1];
+		if (!url) return;
+		const myToken = ++voiceSeqToken;
+		isPlayingVoiceSequence = false;
+		activeVoiceVariant = variant;
+		await sound.playVoiceClip(url);
+		if (myToken === voiceSeqToken) {
+			activeVoiceVariant = null;
+		}
+	}
+
+	$effect(() => {
+		const item = selectedItem;
+		const shouldAuto = untrack(() => autoPlayVoices);
+		if (!item) {
+			stopShowcaseVoices();
+			return;
+		}
+		if (shouldAuto && (item.kind === 'unit' || item.kind === 'worker')) {
+			void playVoiceSequenceForItem(item);
+		} else {
+			stopShowcaseVoices();
+		}
+	});
+
+	onDestroy(() => {
+		stopShowcaseVoices();
+	});
 	let copiedLabel = $state<string | null>(null);
 	let copyFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
 	let searchQuery = $state('');
@@ -2409,6 +2495,29 @@
 			>
 				{animateUnits ? 'Анімація' : 'Пауза'}
 			</button>
+
+			<button
+				type="button"
+				onclick={() => {
+					autoPlayVoices = !autoPlayVoices;
+					if (!autoPlayVoices) stopShowcaseVoices();
+				}}
+				data-testid="assets-showcase-autoplay-voices-btn"
+				class="px-2.5 py-1 rounded-lg border text-xs font-bold cursor-pointer transition {autoPlayVoices
+					? 'bg-sky-950/80 border-sky-500/70 text-sky-200'
+					: 'bg-slate-900 border-slate-700 text-slate-400'}"
+				title="Автоматично програвати всі репліки підряд при виборі юніта чи робітника"
+			>
+				{autoPlayVoices ? '🔊 Репліки: Авто' : '🔇 Репліки: Вимк'}
+			</button>
+
+			<a
+				href={resolve('/audio-showcase')}
+				data-testid="assets-showcase-audio-link"
+				class="px-2.5 py-1 rounded-lg border border-amber-500/60 bg-amber-950/50 hover:bg-amber-900/60 text-xs font-bold text-amber-200 transition"
+			>
+				🎵 Звуки
+			</a>
 		</div>
 	</header>
 
@@ -2651,6 +2760,48 @@
 							<div class="text-[11px] font-mono text-slate-300 mt-1">{selectedItem.stats}</div>
 						{/if}
 					</div>
+					{#if selectedItem.kind === 'unit' || selectedItem.kind === 'worker'}
+						{@const voiceCount =
+							selectedItem.kind === 'worker' ? WORKER_VOICE_VARIANTS : UNIT_VOICE_VARIANTS}
+						<div
+							class="bg-[#0c1017] rounded-lg border border-sky-900/60 p-2.5 text-[11px] space-y-2"
+							data-testid="assets-showcase-voice-panel"
+						>
+							<div class="flex items-center justify-between gap-2">
+								<span class="font-bold text-sky-300">Репліки ({voiceCount})</span>
+								<button
+									type="button"
+									onclick={() => {
+										if (isPlayingVoiceSequence) {
+											stopShowcaseVoices();
+										} else if (selectedItem) {
+											void playVoiceSequenceForItem(selectedItem);
+										}
+									}}
+									data-testid="assets-showcase-play-all-voices-btn"
+									class="px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer {isPlayingVoiceSequence
+										? 'bg-rose-950 hover:bg-rose-900 border border-rose-500/60 text-rose-200'
+										: 'bg-sky-600 hover:bg-sky-500 text-white'}"
+								>
+									{isPlayingVoiceSequence ? 'Зупинити' : 'Слухати всі підряд'}
+								</button>
+							</div>
+							<div class="flex flex-wrap gap-1.5">
+								{#each Array.from({ length: voiceCount }, (_, i) => i + 1) as v}
+									<button
+										type="button"
+										onclick={() => selectedItem && void playSingleVoiceVariant(selectedItem, v)}
+										class="px-2 py-1 rounded border text-[11px] font-mono font-bold cursor-pointer transition {activeVoiceVariant ===
+										v
+											? 'bg-sky-500 text-slate-950 border-sky-300'
+											: 'bg-slate-900 border-slate-700 text-sky-300 hover:bg-slate-800'}"
+									>
+										#{v}
+									</button>
+								{/each}
+							</div>
+						</div>
+					{/if}
 					{#if selectedItem.unitSpec}
 						<div
 							class="bg-[#0c1017] rounded-lg border border-slate-800 p-2.5 text-[11px] space-y-1 font-mono"

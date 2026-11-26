@@ -1,12 +1,18 @@
 import type { Simulation } from '../engine/simulation';
-import type { SoundEffectType } from '../engine/types';
+import type { MatchTeam, SoundEffectType } from '../engine/types';
 import { sound, type SoundService } from './audio';
 
 /**
  * Connects simulation sound events to the procedural audio service.
+ * When `getLocalTeam` is provided, team-scoped alerts (`victory`, `defeat`,
+ * `castleUnderAttack`, `lowCastleHp`) are resolved relative to the local team.
  * Returns an unlisten/cleanup function to disconnect the handlers.
  */
-export function attachAudioBridge(sim: Simulation, audioService: SoundService = sound): () => void {
+export function attachAudioBridge(
+	sim: Simulation,
+	audioService: SoundService = sound,
+	getLocalTeam?: () => MatchTeam
+): () => void {
 	const handler = (type: SoundEffectType) => {
 		switch (type) {
 			case 'sword':
@@ -46,22 +52,36 @@ export function attachAudioBridge(sim: Simulation, audioService: SoundService = 
 				audioService.playBuildingComplete();
 				break;
 			case 'castleUnderAttack':
-				audioService.playCastleUnderAttack();
+				if (!getLocalTeam) {
+					audioService.playCastleUnderAttack();
+				}
 				break;
 			case 'bossSpawn':
 				audioService.playBossSpawn();
 				break;
 			case 'victory':
-				audioService.playVictory();
+			case 'defeat': {
+				if (sim.winner) {
+					const localTeam = getLocalTeam ? getLocalTeam() : 'west';
+					if (sim.winner === localTeam) {
+						audioService.playVictory();
+					} else {
+						audioService.playDefeat();
+					}
+				} else if (type === 'victory') {
+					audioService.playVictory();
+				} else {
+					audioService.playDefeat();
+				}
 				break;
-			case 'defeat':
-				audioService.playDefeat();
-				break;
+			}
 			case 'errorResource':
 				audioService.playErrorResource();
 				break;
 			case 'lowCastleHp':
-				audioService.playLowCastleHp();
+				if (!getLocalTeam) {
+					audioService.playLowCastleHp();
+				}
 				break;
 			case 'horn':
 				audioService.playHorn();
@@ -72,11 +92,33 @@ export function attachAudioBridge(sim: Simulation, audioService: SoundService = 
 		}
 	};
 
+	const underAttackHandler = (team: MatchTeam) => {
+		if (!getLocalTeam || team === getLocalTeam()) {
+			audioService.playCastleUnderAttack();
+		}
+	};
+
+	const lowHpHandler = (team: MatchTeam) => {
+		if (!getLocalTeam || team === getLocalTeam()) {
+			audioService.playLowCastleHp();
+		}
+	};
+
 	sim.onSoundEffect = handler;
+	if (getLocalTeam) {
+		sim.onCastleUnderAttack = underAttackHandler;
+		sim.onCastleLowHp = lowHpHandler;
+	}
 
 	return () => {
 		if (sim.onSoundEffect === handler) {
 			sim.onSoundEffect = undefined;
+		}
+		if (sim.onCastleUnderAttack === underAttackHandler) {
+			sim.onCastleUnderAttack = undefined;
+		}
+		if (sim.onCastleLowHp === lowHpHandler) {
+			sim.onCastleLowHp = undefined;
 		}
 	};
 }

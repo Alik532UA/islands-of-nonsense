@@ -21,6 +21,9 @@ describe('Assets Showcase Route (/assets-showcase)', () => {
 		expect(src).toContain('renderUniqueUnitModel');
 		expect(src).toContain('WEST_CASTLE_STAGE_URLS');
 		expect(src).toContain('EAST_CASTLE_STAGE_URLS');
+		expect(src).toContain('data-testid="assets-showcase-autoplay-voices-btn"');
+		expect(src).toContain('data-testid="assets-showcase-voice-panel"');
+		expect(src).toContain('playVoiceSequenceForItem');
 	});
 
 	it('draws all 12 workers, all race buildings, and all units onto Pixi Graphics without throwing', () => {

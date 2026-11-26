@@ -38,35 +38,42 @@ class BattleAnnouncer {
 		}
 	}
 
-	updateFromSimulation(sim: {
-		castles: { west: { hp: number; maxHp: number }; east: { hp: number; maxHp: number } };
-		activeBossInstanceId?: string | null;
-		dayNightPhase?: string;
-		round?: number;
-		isRunning?: boolean;
-	}) {
+	updateFromSimulation(
+		sim: {
+			castles: { west: { hp: number; maxHp: number }; east: { hp: number; maxHp: number } };
+			activeBossInstanceId?: string | null;
+			dayNightPhase?: string;
+			round?: number;
+			isRunning?: boolean;
+		},
+		localTeam: 'west' | 'east' = 'west'
+	) {
 		if (!sim || !sim.castles) return;
 
-		// Castle low health warning (< 25%)
-		const westCastle = sim.castles.west;
-		if (westCastle) {
-			const westRatio = westCastle.hp / Math.max(1, westCastle.maxHp);
-			if (westRatio <= 0.25 && westRatio > 0 && !this.lastCastleLowWest) {
+		const ownTeam = localTeam;
+		const enemyTeam = localTeam === 'west' ? 'east' : 'west';
+
+		// Own castle low health warning (< 25%)
+		const ownCastle = sim.castles[ownTeam];
+		if (ownCastle) {
+			const ownRatio = ownCastle.hp / Math.max(1, ownCastle.maxHp);
+			if (ownRatio <= 0.25 && ownRatio > 0 && !this.lastCastleLowWest) {
 				this.lastCastleLowWest = true;
-				this.announce("Увага: Західний замок у критичному стані! Здоров'я менше 25%!", 'assertive');
-			} else if (westRatio > 0.35) {
+				const castleLabel = ownTeam === 'west' ? 'Західний замок' : 'Східний замок';
+				this.announce(`Увага: ${castleLabel} у критичному стані! Здоров'я менше 25%!`, 'assertive');
+			} else if (ownRatio > 0.35) {
 				this.lastCastleLowWest = false;
 			}
 		}
 
 		// Enemy castle low health
-		const eastCastle = sim.castles.east;
-		if (eastCastle) {
-			const eastRatio = eastCastle.hp / Math.max(1, eastCastle.maxHp);
-			if (eastRatio <= 0.25 && eastRatio > 0 && !this.lastCastleLowEast) {
+		const enemyCastle = sim.castles[enemyTeam];
+		if (enemyCastle) {
+			const enemyRatio = enemyCastle.hp / Math.max(1, enemyCastle.maxHp);
+			if (enemyRatio <= 0.25 && enemyRatio > 0 && !this.lastCastleLowEast) {
 				this.lastCastleLowEast = true;
 				this.announce("Ворожий замок майже знищено! Здоров'я менше 25%!", 'polite');
-			} else if (eastRatio > 0.35) {
+			} else if (enemyRatio > 0.35) {
 				this.lastCastleLowEast = false;
 			}
 		}

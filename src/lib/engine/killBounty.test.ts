@@ -106,7 +106,7 @@ describe('Enemy Unit Kill Bounty & 2x Rescue Strike Comeback', () => {
 	it('awards 2x gold bounty for every enemy unit killed by Rescue Strike', () => {
 		const goldBefore = sim.players.west.gold;
 
-		// Two enemy units inside 750px Rescue Strike radius that will die to 2850 chaos dmg
+		// Two enemy units inside 750px Rescue Strike radius that will die to 7000 normal dmg
 		const victim1 = sim.spawnUnitDirectly({
 			team: 'east',
 			lane: 'mid',
@@ -129,13 +129,13 @@ describe('Enemy Unit Kill Bounty & 2x Rescue Strike Comeback', () => {
 		});
 		victim2.bounty = 15;
 
-		// Tough enemy that survives 2850 chaos dmg (must not grant kill bounty)
+		// Tough enemy that survives 7000 normal dmg (must not grant kill bounty)
 		const survivor = sim.spawnUnitDirectly({
 			team: 'east',
 			lane: 'mid',
 			x: WEST_CASTLE_X + 400,
 			y: WEST_CASTLE_Y,
-			hp: 3000,
+			hp: 10000,
 			armor: 0,
 			armorType: 'none'
 		});
