@@ -8,7 +8,7 @@ import {
 	RESCUE_STRIKE_DAMAGE,
 	RESCUE_STRIKE_COOLDOWN
 } from './constants';
-import type { MatchTeam, Lane, GoldCoin, PlayerState, Building } from './types';
+import type { MatchTeam, Lane, GoldCoin, PlayerState, Building, InventoryItem } from './types';
 import { getRaceAbility } from './raceAbilities';
 import { getCommanderIncomeBonus, getCommanderForgeDiscount } from './commanders';
 import { CASTLE_ITEMS } from './items';
@@ -689,6 +689,37 @@ export class EconomySystem {
 		return true;
 	}
 
+	private giveWorkerItem(
+		player: PlayerState,
+		item: InventoryItem,
+		pickupText: string,
+		color: string
+	): void {
+		const w = player.worker;
+		const myCastle = this.sim.castles[player.team];
+		if (!w) {
+			if (item.foodBonus) player.maxFood += item.foodBonus;
+			this.sim.addFloatingText(pickupText, myCastle.x, myCastle.y - 60, color);
+			return;
+		}
+		if (!w.inventory) w.inventory = [null, null, null, null, null, null];
+		const emptySlot = w.inventory.findIndex((s) => s === null);
+		if (emptySlot !== -1) {
+			w.inventory[emptySlot] = item;
+			if (item.foodBonus) player.maxFood += item.foodBonus;
+			this.sim.addFloatingText(pickupText, myCastle.x, myCastle.y - 60, color);
+		} else {
+			this.sim.groundItems.push({
+				instanceId: this.sim.nextGroundItemId(),
+				item,
+				x: w.x,
+				y: w.y + 24,
+				droppedBySlot: player.slot
+			});
+			this.sim.addFloatingText(`Торба повна! ${item.name} на землі`, w.x, w.y - 30, color);
+		}
+	}
+
 	public buyCastleItem(team: MatchTeam, itemId: string, playerInput?: PlayerState): boolean {
 		if (!this.canBuyCastleItem(team, itemId, playerInput)) return false;
 		const item = CASTLE_ITEMS[itemId];
@@ -703,30 +734,49 @@ export class EconomySystem {
 
 		switch (itemId) {
 			case 'I001': {
-				// Battle Drums: +25% attack speed to all friendly troops for 15s
-				for (const u of this.sim.units) {
-					if (u.team === team && u.state !== 'DEAD') {
-						u.buffs = u.buffs || [];
-						u.buffs.push({ type: 'as', timer: 15, value: 0.25 });
-					}
-				}
-				this.sim.addFloatingText(
-					'Бойові Барабани! (+25% Шв. атаки)',
-					myCastle.x,
-					myCastle.y - 60,
-					'#f97316'
+				// Magic Wand: passive auto-attack in worker inventory (60 magic dmg, 300 range, 1.0s interval)
+				this.giveWorkerItem(
+					player,
+					{
+						id: 'I001',
+						name: 'Чарівний жезл',
+						description: 'Автоатака 60 магічної шкоди в радіусі 300 (раз на 1 с)',
+						autoAttack: { damage: 60, range: 300, interval: 1.0, timer: 0 }
+					},
+					'Чарівний жезл отримано!',
+					'#c084fc'
+				);
+				break;
+			}
+			case 'I002': {
+				// Improved Magic Wand: passive auto-attack in worker inventory (120 magic dmg, 300 range, 0.4s interval)
+				this.giveWorkerItem(
+					player,
+					{
+						id: 'I002',
+						name: 'Покращений Магічний жезл',
+						description: 'Автоатака 120 магічної шкоди в радіусі 300 (раз на 0.4 с)',
+						autoAttack: { damage: 120, range: 300, interval: 0.4, timer: 0 }
+					},
+					'Покращений жезл отримано!',
+					'#e879f9'
 				);
 				break;
 			}
 			case 'I003': {
-				// Battle Horn: +4 armor to all friendly troops for 20s
+				// Battle Drums: +33% damage to all friendly troops for 20s
 				for (const u of this.sim.units) {
 					if (u.team === team && u.state !== 'DEAD') {
 						u.buffs = u.buffs || [];
-						u.buffs.push({ type: 'shield', timer: 20, value: 4 });
+						u.buffs.push({ type: 'dmg', timer: 20, value: 0.33 });
 					}
 				}
-				this.sim.addFloatingText('Бойовий Ріг! (+4 Броні)', myCastle.x, myCastle.y - 60, '#38bdf8');
+				this.sim.addFloatingText(
+					'Бойові Барабани! (+33% Шкоди)',
+					myCastle.x,
+					myCastle.y - 60,
+					'#f97316'
+				);
 				break;
 			}
 			case 'I005': {
@@ -740,59 +790,48 @@ export class EconomySystem {
 				);
 				break;
 			}
+			case 'I006': {
+				// Lightning Orb: permanent clickable inventory item (60s CD, Chain Lightning 10 targets, 1000 dmg)
+				this.giveWorkerItem(
+					player,
+					{
+						id: 'I006',
+						name: 'Куля блискавок',
+						description: 'Активне: Ланцюг блискавок (10 цілей, 1000 шкоди, КД 60 с)',
+						cooldown: 60,
+						cooldownRemaining: 0,
+						activeAbility: 'chain_lightning'
+					},
+					'Куля блискавок у торбі!',
+					'#38bdf8'
+				);
+				break;
+			}
 			case 'I007': {
-				// Magic Wand: cleanses friendly debuffs and curses enemies (-30% dmg for 12s)
+				// Quad Damage: +300% damage to all friendly units for 30s
 				for (const u of this.sim.units) {
-					if (u.state === 'DEAD') continue;
-					if (u.team === team) {
-						if (u.buffs) {
-							u.buffs = u.buffs.filter(
-								(b) => b.type !== 'weakness' && b.type !== 'slow' && b.type !== 'infect'
-							);
-						}
-					} else if (u.team === enemyTeam) {
+					if (u.team === team && u.state !== 'DEAD') {
 						u.buffs = u.buffs || [];
-						u.buffs.push({ type: 'dmg', timer: 12, value: -0.3 });
+						u.buffs.push({ type: 'dmg', timer: 30, value: 3.0 });
 					}
 				}
 				this.sim.addFloatingText(
-					'Чарівний Жезл! (Очищення та Прокляття)',
+					'Почетверена шкода! (+300%)',
 					myCastle.x,
 					myCastle.y - 60,
-					'#a855f7'
+					'#f43f5e'
 				);
 				break;
 			}
 			case 'I008': {
-				// Scroll of Stone: summons Stone Golem at castle gate
-				const lane: Lane =
-					this.sim.spatialGrid.queryRadius(myCastle.x, 220, 400).length >=
-					this.sim.spatialGrid.queryRadius(myCastle.x, 580, 400).length
-						? 'top'
-						: 'bottom';
-				const golem = this.sim.spawnUnitDirectly({
-					team,
-					lane,
-					x: team === 'west' ? 300 : ARENA_WIDTH - 300,
-					y: lane === 'top' ? 220 : 580,
-					hp: 1800,
-					maxHp: 1800,
-					armor: 12,
-					damage: 65,
-					range: 110,
-					attackCooldown: 1.1,
-					speed: 80
-				});
-				golem.name = 'Кам’яний Голем';
-				golem.armorType = 'large';
-				golem.attackType = 'normal';
-				this.sim.addFloatingText(
-					'Кам’яний Голем покликаний!',
-					myCastle.x,
-					myCastle.y - 60,
-					'#78716c'
-				);
-				this.sim.onSoundEffect?.('bossSpawn');
+				// Double Damage: +100% damage to all friendly units for 30s
+				for (const u of this.sim.units) {
+					if (u.team === team && u.state !== 'DEAD') {
+						u.buffs = u.buffs || [];
+						u.buffs.push({ type: 'dmg', timer: 30, value: 1.0 });
+					}
+				}
+				this.sim.addFloatingText('Подвійна шкода! (+100%)', myCastle.x, myCastle.y - 60, '#fb923c');
 				break;
 			}
 			case 'I009': {
@@ -802,26 +841,16 @@ export class EconomySystem {
 				break;
 			}
 			case 'I00A': {
-				// Lightning Orb: strikes up to 6 enemies within 1000 range of castle for 350 magic damage each
-				const rangeSq = 1000 * 1000;
-				const candidates = this.sim.units.filter((u) => u.team === enemyTeam && u.state !== 'DEAD');
-				candidates.sort((a, b) => {
-					const distA = Math.hypot(a.x - myCastle.x, a.y - myCastle.y);
-					const distB = Math.hypot(b.x - myCastle.x, b.y - myCastle.y);
-					return distA - distB;
-				});
-				let struck = 0;
-				for (const u of candidates) {
-					const dx = u.x - myCastle.x;
-					const dy = u.y - myCastle.y;
-					if (dx * dx + dy * dy <= rangeSq) {
-						this.sim.combatSystem.applyUnitDamage(u, 350, 'magic', team, false);
-						struck++;
-						if (struck >= 6) break;
+				// Battle Horn: +15% move speed & +30% attack speed to all friendly units for 20s
+				for (const u of this.sim.units) {
+					if (u.team === team && u.state !== 'DEAD') {
+						u.buffs = u.buffs || [];
+						u.buffs.push({ type: 'ms', timer: 20, value: 0.15 });
+						u.buffs.push({ type: 'as', timer: 20, value: 0.3 });
 					}
 				}
 				this.sim.addFloatingText(
-					`Куля Блискавок! (${struck} цілей)`,
+					'Бойовий Ріг! (+15% Біг, +30% Атака)',
 					myCastle.x,
 					myCastle.y - 60,
 					'#38bdf8'
@@ -879,8 +908,17 @@ export class EconomySystem {
 				break;
 			}
 			case 'I004': {
-				player.maxFood += 1;
-				this.sim.addFloatingText('+1 Їжа! (Сир)', myCastle.x, myCastle.y - 60, '#eab308');
+				this.giveWorkerItem(
+					player,
+					{
+						id: 'I004',
+						name: 'Золотий Сир',
+						description: '+1 Ліміт їжі',
+						foodBonus: 1
+					},
+					'+1 Їжа! (Сир)',
+					'#eab308'
+				);
 				break;
 			}
 			case 'I00B':

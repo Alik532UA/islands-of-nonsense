@@ -71,7 +71,44 @@
 	let activeBossInstanceId = $derived(uiTick >= 0 ? sim.activeBossInstanceId : null);
 	let isRunning = $derived(uiTick >= 0 ? sim.isRunning : false);
 	let simSpeed = $derived(uiTick >= 0 ? sim.speed : 1);
+	let isSandbox = $derived(uiTick >= 0 ? sim.config.modeId === 'sandbox' : false);
 	let westLumber = $derived(uiTick >= 0 ? Math.floor(player.lumber ?? 0) : 0);
+
+	let westTeamIncome = $derived(
+		uiTick >= 0
+			? sim.teamMembers.west.reduce(
+					(sum, p) => sum + sim.economySystem.calculateIncome('west', p),
+					0
+				)
+			: 0
+	);
+	let eastTeamIncome = $derived(
+		uiTick >= 0
+			? sim.teamMembers.east.reduce(
+					(sum, p) => sum + sim.economySystem.calculateIncome('east', p),
+					0
+				)
+			: 0
+	);
+	let isNoRescueStrike = $derived(
+		uiTick >= 0 ? Boolean(sim.gameModeConfig?.noRescueStrike) : false
+	);
+	let westRescueTotal = $derived(
+		uiTick >= 0 ? (isNoRescueStrike ? 0 : sim.teamMembers.west.length) : 0
+	);
+	let eastRescueTotal = $derived(
+		uiTick >= 0 ? (isNoRescueStrike ? 0 : sim.teamMembers.east.length) : 0
+	);
+	let westRescueReady = $derived(
+		uiTick >= 0 && !isNoRescueStrike
+			? sim.teamMembers.west.filter((p) => sim.canUseRescueStrike('west', p)).length
+			: 0
+	);
+	let eastRescueReady = $derived(
+		uiTick >= 0 && !isNoRescueStrike
+			? sim.teamMembers.east.filter((p) => sim.canUseRescueStrike('east', p)).length
+			: 0
+	);
 
 	// Day/Night Cycle calculation (every 120s full day/night cycle)
 	let isDay = $derived(uiTick >= 0 ? sim.dayNightCycle === 'day' : true);
@@ -287,21 +324,25 @@
 					title="Золото гравця • Дохід: +{periodicGold}g кожні {incomeEvery}с (наступне через {incomeIn}с)"
 				>
 					<UiIcon name="coins" class="w-4 h-4 text-amber-400 shrink-0" />
-					<span class="text-sm font-mono tracking-tight tabular-nums">{playerGold}</span>
+					<span class="text-sm font-mono tracking-tight tabular-nums">
+						{isSandbox ? '∞' : playerGold}
+					</span>
 				</div>
 
 				<!-- Lumber (Wood) Reserve -->
 				<div
-					class="flex items-center gap-1.5 text-xs {westLumber > 0
+					class="flex items-center gap-1.5 text-xs {isSandbox || westLumber > 0
 						? 'text-emerald-300'
 						: 'text-slate-500'} border-l border-[#3b3226] pl-2.5 shrink-0"
 					title="Запас деревини для вдосконалення технологій та будівель вищого тиру"
 				>
 					<UiIcon
 						name="treePine"
-						class="w-3.5 h-3.5 shrink-0 {westLumber > 0 ? 'text-emerald-400' : 'text-slate-500'}"
+						class="w-3.5 h-3.5 shrink-0 {isSandbox || westLumber > 0
+							? 'text-emerald-400'
+							: 'text-slate-500'}"
 					/>
-					<span class="font-mono font-bold tabular-nums">{westLumber}</span>
+					<span class="font-mono font-bold tabular-nums">{isSandbox ? '∞' : westLumber}</span>
 				</div>
 
 				<!-- Food Cap (Legendary Building Limit) -->
@@ -388,14 +429,42 @@
 
 				<!-- Series Score Pill (West vs East + Target Wins) -->
 				<div
-					class="flex items-center gap-1.5 px-2.5 h-7 rounded-lg bg-[#0a0d14] border border-[#544738]/80 shadow-inner"
-					title="Рахунок серії (до {sim.targetWins} перемог)"
+					class="relative group/tip flex items-center gap-1.5 px-2.5 h-7 rounded-lg bg-[#0a0d14] border border-[#544738]/80 shadow-inner cursor-help"
+					data-testid="series-score-pill"
 				>
 					<span class="text-xs font-mono font-black text-sky-400">{sim.score.west}</span>
 					<span class="text-[10px] font-bold text-slate-500">:</span>
 					<span class="text-xs font-mono font-black text-rose-400">{sim.score.east}</span>
 					<span class="h-3 w-px bg-[#3b3226] mx-0.5"></span>
 					<span class="text-[10px] font-medium text-slate-400">до {sim.targetWins}</span>
+					<div
+						class="{tipBoxClass} left-1/2 -translate-x-1/2 text-slate-200 min-w-[235px] p-2.5 space-y-1.5"
+						data-testid="series-score-tooltip"
+					>
+						<div class="text-[11px] font-bold text-amber-300 border-b border-[#3b3226] pb-1">
+							Рахунок серії (до {sim.targetWins} перемог)
+						</div>
+						<div class="flex items-center justify-between gap-3 text-[11px]">
+							<span class="text-slate-400">Рятівні удари:</span>
+							{#if isNoRescueStrike}
+								<span class="font-mono text-slate-500">Вимкнено (-nr)</span>
+							{:else}
+								<span class="font-mono font-bold tabular-nums">
+									<span class="text-sky-400">{westRescueReady}/{westRescueTotal}</span>
+									<span class="text-slate-500 mx-0.5">vs</span>
+									<span class="text-rose-400">{eastRescueReady}/{eastRescueTotal}</span>
+								</span>
+							{/if}
+						</div>
+						<div class="flex items-center justify-between gap-3 text-[11px]">
+							<span class="text-slate-400">Дохід ({incomeEvery}с):</span>
+							<span class="font-mono font-bold tabular-nums">
+								<span class="text-sky-400">+{westTeamIncome}g</span>
+								<span class="text-slate-500 mx-0.5">vs</span>
+								<span class="text-rose-400">+{eastTeamIncome}g</span>
+							</span>
+						</div>
+					</div>
 				</div>
 
 				<!-- Team Size Format Badge -->

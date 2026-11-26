@@ -64,6 +64,14 @@
 	);
 </script>
 
+<svelte:window
+	oncontextmenu={(e) => {
+		if (!(e.shiftKey && e.ctrlKey && e.altKey)) {
+			e.preventDefault();
+		}
+	}}
+/>
+
 <svelte:head>
 	<link rel="icon" href={favicon} />
 </svelte:head>

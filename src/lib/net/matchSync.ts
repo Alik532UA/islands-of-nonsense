@@ -849,6 +849,40 @@ export class MatchSync {
 				}
 				break;
 
+			case 'DROP_ITEM':
+				if (
+					typeof p.slotIdx === 'number' &&
+					typeof p.worldX === 'number' &&
+					typeof p.worldY === 'number'
+				) {
+					this.sim.dropWorkerItem(team, p.slotIdx, p.worldX, p.worldY, player);
+				}
+				break;
+
+			case 'PICKUP_ITEM':
+				if (typeof p.targetId === 'string') {
+					this.sim.pickupGroundItem(team, p.targetId, player);
+				}
+				break;
+
+			case 'TRANSFER_ITEM':
+				if (typeof p.slotIdx === 'number' && typeof p.targetPlayerSlot === 'number') {
+					this.sim.transferWorkerItem(team, p.slotIdx, p.targetPlayerSlot, player);
+				}
+				break;
+
+			case 'SWAP_ITEM':
+				if (typeof p.slotIdx === 'number' && typeof p.toSlotIdx === 'number') {
+					this.sim.swapWorkerInventorySlots(team, p.slotIdx, p.toSlotIdx, player);
+				}
+				break;
+
+			case 'USE_ITEM':
+				if (typeof p.slotIdx === 'number') {
+					this.sim.useWorkerItem(team, p.slotIdx, player);
+				}
+				break;
+
 			case 'UPGRADE_FORGE':
 				if (p.forgeType === 'attack' || p.forgeType === 'armor' || p.forgeType === 'econ') {
 					this.sim.upgradeForge(team, p.forgeType, player);

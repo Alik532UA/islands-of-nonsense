@@ -226,4 +226,14 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 		expect(updatedContent).toContain('aria-label="Здоров\'я Західного Замку (Гравець)"');
 		expect(updatedContent).toContain('aria-label="Здоров\'я Східного Замку (Ворог)"');
 	});
+
+	it('series score pill exposes hover tooltip with both teams rescue strikes and gold income', () => {
+		expect(topBarContent).toContain('data-testid="series-score-pill"');
+		expect(topBarContent).toContain('data-testid="series-score-tooltip"');
+		expect(topBarContent).toContain('Рятівні удари:');
+		expect(topBarContent).toContain('westRescueReady');
+		expect(topBarContent).toContain('eastRescueReady');
+		expect(topBarContent).toContain('westTeamIncome');
+		expect(topBarContent).toContain('eastTeamIncome');
+	});
 });

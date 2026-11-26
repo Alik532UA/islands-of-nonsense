@@ -60,16 +60,19 @@
 		I00E: { icon: 'scroll', badgeClass: 'bg-purple-500/15 border-purple-500/40 text-purple-300' },
 		I00F: { icon: 'shield', badgeClass: 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300' },
 		I004: { icon: 'crown', badgeClass: 'bg-amber-500/15 border-amber-500/40 text-amber-300' },
-		I001: { icon: 'swords', badgeClass: 'bg-orange-500/15 border-orange-500/40 text-orange-300' },
+		I001: { icon: 'wand2', badgeClass: 'bg-violet-500/15 border-violet-500/40 text-violet-300' },
+		I002: { icon: 'wand2', badgeClass: 'bg-fuchsia-500/15 border-fuchsia-500/40 text-fuchsia-300' },
 		I000: { icon: 'wand2', badgeClass: 'bg-indigo-500/15 border-indigo-500/40 text-indigo-300' },
 		I005: { icon: 'zap', badgeClass: 'bg-rose-500/15 border-rose-500/40 text-rose-300' },
+		I006: { icon: 'sparkles', badgeClass: 'bg-sky-500/15 border-sky-500/40 text-sky-300' },
 		I009: {
 			icon: 'wrench',
 			badgeClass: 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
 		},
-		I00A: { icon: 'sparkles', badgeClass: 'bg-sky-500/15 border-sky-500/40 text-sky-300' },
-		I008: { icon: 'shieldAlert', badgeClass: 'bg-stone-500/15 border-stone-400/40 text-stone-200' },
-		I003: { icon: 'volume2', badgeClass: 'bg-blue-500/15 border-blue-500/40 text-blue-300' }
+		I00A: { icon: 'volume2', badgeClass: 'bg-blue-500/15 border-blue-500/40 text-blue-300' },
+		I008: { icon: 'swords', badgeClass: 'bg-orange-500/15 border-orange-500/40 text-orange-300' },
+		I007: { icon: 'flame', badgeClass: 'bg-rose-500/15 border-rose-500/40 text-rose-300' },
+		I003: { icon: 'swords', badgeClass: 'bg-amber-500/15 border-amber-500/40 text-amber-300' }
 	};
 
 	function getItemTheme(id: string) {

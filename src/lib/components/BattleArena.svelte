@@ -243,6 +243,7 @@
 	let uiTick = $state(0);
 	let selectedBuildingId = $state<string | null>(null);
 	let selectedPlacedBuildingId = $state<string | null>(null);
+	let itemTargetingSlot = $state<number | null>(null);
 	let selectedUnitId = $state<string | null>(null);
 	let selectedEntity = $state<SelectedEntity>(null);
 	let controlledPlayerSlot = $state<number>(1);
@@ -623,6 +624,7 @@
 				selectedPlacedBuildingId !== null ||
 				selectedUnitId !== null ||
 				selectedEntity !== null ||
+				itemTargetingSlot !== null ||
 				isForgeOpen ||
 				isCommanderOpen ||
 				isGuideOpen ||
@@ -634,6 +636,7 @@
 			selectedPlacedBuildingId = null;
 			selectedUnitId = null;
 			selectedEntity = null;
+			itemTargetingSlot = null;
 			isForgeOpen = false;
 			isCommanderOpen = false;
 			isGuideOpen = false;
@@ -1232,6 +1235,43 @@
 			},
 			onCancelBlinkTargeting: () => {
 				isBlinkTargeting = false;
+			},
+			getIsItemTargeting: () => itemTargetingSlot !== null,
+			onItemTargetClick: (worldX: number, worldY: number, alliedWorkerSlot: number | null) => {
+				if (isSpectatorView || itemTargetingSlot === null) return;
+				const slotIdx = itemTargetingSlot;
+				itemTargetingSlot = null;
+				const activeP = controlledPlayer;
+				if (alliedWorkerSlot !== null) {
+					dispatchCommand(
+						'TRANSFER_ITEM',
+						{
+							team: activeP.team,
+							playerSlot: activeP.slot,
+							slotIdx,
+							targetPlayerSlot: alliedWorkerSlot
+						},
+						() => sim.transferWorkerItem(activeP.team, slotIdx, alliedWorkerSlot, activeP),
+						() => sound.playWorkerAck()
+					);
+				} else {
+					dispatchCommand(
+						'DROP_ITEM',
+						{ team: activeP.team, playerSlot: activeP.slot, slotIdx, worldX, worldY },
+						() => sim.dropWorkerItem(activeP.team, slotIdx, worldX, worldY, activeP),
+						() => sound.playWorkerAck()
+					);
+				}
+			},
+			onGroundItemClick: (groundItemId: string) => {
+				if (isSpectatorView) return;
+				const activeP = controlledPlayer;
+				dispatchCommand(
+					'PICKUP_ITEM',
+					{ team: activeP.team, playerSlot: activeP.slot, targetId: groundItemId },
+					() => sim.pickupGroundItem(activeP.team, groundItemId, activeP),
+					() => sound.playWorkerAck()
+				);
 			}
 		});
 
@@ -2295,6 +2335,22 @@
 				</button>
 			</div>
 		{/if}
+		{#if itemTargetingSlot !== null}
+			<div
+				data-testid="item-targeting-banner"
+				class="absolute top-16 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-amber-950/90 border border-amber-400/75 text-amber-100 text-xs font-bold shadow-xl backdrop-blur-md"
+			>
+				<UiIcon name="coins" class="w-4 h-4 text-amber-300 animate-pulse shrink-0" />
+				<span>Клікніть на землю — викласти предмет, або на союзного робітника — передати</span>
+				<button
+					type="button"
+					onclick={() => (itemTargetingSlot = null)}
+					class="px-2 py-0.5 rounded bg-slate-900/90 hover:bg-slate-800 border border-slate-600 text-[11px] text-slate-200 cursor-pointer"
+				>
+					{t('online.cancel')}
+				</button>
+			</div>
+		{/if}
 
 		{#if isRescueTargeting && !isSpectatorView}
 			<div
@@ -2689,7 +2745,38 @@
 			onContinueConstruction={handleContinueConstruction}
 			onOpenCommander={() => (isCommanderOpen = true)}
 			{isBlinkTargeting}
+			bind:itemTargetingSlot
 			onStartBlinkTargeting={() => activateBlinkTargeting()}
+			onQuickDropItem={(slotIdx: number) => {
+				if (isSpectatorView) return;
+				const activeP = controlledPlayer;
+				const w = activeP.worker;
+				if (!w) return;
+				const wx = Math.round(w.x);
+				const wy = Math.round(w.y + 24);
+				dispatchCommand(
+					'DROP_ITEM',
+					{ team: activeP.team, playerSlot: activeP.slot, slotIdx, worldX: wx, worldY: wy },
+					() => sim.dropWorkerItem(activeP.team, slotIdx, wx, wy, activeP),
+					() => sound.playWorkerAck()
+				);
+			}}
+			onSwapInventorySlots={(fromSlot: number, toSlot: number) => {
+				if (isSpectatorView) return;
+				const activeP = controlledPlayer;
+				dispatchCommand(
+					'SWAP_ITEM',
+					{ team: activeP.team, playerSlot: activeP.slot, slotIdx: fromSlot, toSlotIdx: toSlot },
+					() => sim.swapWorkerInventorySlots(activeP.team, fromSlot, toSlot, activeP)
+				);
+			}}
+			onUseWorkerItem={(slotIdx: number) => {
+				if (isSpectatorView) return;
+				const activeP = controlledPlayer;
+				dispatchCommand('USE_ITEM', { team: activeP.team, playerSlot: activeP.slot, slotIdx }, () =>
+					sim.useWorkerItem(activeP.team, slotIdx, activeP)
+				);
+			}}
 			onMinimapClick={(ax: number, ay: number) => renderer?.setCamera(ax, ay)}
 			onHoverCastleRange={(mode: 'short' | 'long' | null) =>
 				renderer?.setHoveredCastleCannonMode(mode)}

@@ -77,6 +77,26 @@ export class VfxRenderer {
 			g.fill({ color: 0xfef08a });
 		}
 
+		// 2b. Ground Inventory Items (dropped by workers, WC3 style)
+		for (const gi of this.sim.groundItems ?? []) {
+			if (enableFog && !this.sim.isPointRevealed(viewerTeam, gi.x, gi.y)) continue;
+			const bob = Math.sin(this.sim.gameTime * 4 + gi.x * 0.03) * 2;
+			const iy = gi.y + bob;
+
+			g.beginPath();
+			g.circle(gi.x, iy, 15);
+			g.fill({ color: 0xf59e0b, alpha: 0.22 });
+
+			g.beginPath();
+			g.roundRect(gi.x - 10, iy - 8, 20, 16, 4);
+			g.fill({ color: 0x78350f });
+			g.stroke({ color: 0xfbbf24, width: 2 });
+
+			g.beginPath();
+			g.roundRect(gi.x - 6, iy - 4, 12, 8, 2);
+			g.fill({ color: 0xfbbf24 });
+		}
+
 		// 3. Battlefield corpses (skeletons / decaying remains for Necromancy)
 		if (this.sim.corpses) {
 			for (const corpse of this.sim.corpses) {

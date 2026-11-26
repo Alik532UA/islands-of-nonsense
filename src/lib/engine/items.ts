@@ -24,13 +24,27 @@ export const CASTLE_ITEMS: Record<string, CastleItem> = {
 	},
 	I001: {
 		id: 'I001',
-		nameUk: 'Бойові Барабани',
-		nameEn: 'Battle Drums',
+		nameUk: 'Чарівний жезл',
+		nameEn: 'Magic Wand',
 		cost: 150,
-		descriptionUk: 'Надихає союзне військо: +25% до швидкості атаки всім дружнім бійцям на 15 с.',
-		descriptionEn: 'Inspires allies: +25% attack speed to all friendly troops for 15s.',
-		icon: 'Drums',
+		descriptionUk:
+			'Предмет у торбу робітника: раз на 1 с автоматично б’є найближчого ворога у радіусі 300 магічним снарядом (60 шкоди).',
+		descriptionEn:
+			'Worker inventory item: automatically strikes the nearest enemy within 300 range every 1s for 60 magic damage.',
+		icon: 'Wand2',
 		cooldown: 30
+	},
+	I002: {
+		id: 'I002',
+		nameUk: 'Покращений Магічний жезл',
+		nameEn: 'Improved Magic Wand',
+		cost: 520,
+		descriptionUk:
+			'Предмет у торбу робітника: раз на 0.4 с автоматично б’є найближчого ворога у радіусі 300 магічним снарядом (120 шкоди).',
+		descriptionEn:
+			'Worker inventory item: automatically strikes the nearest enemy within 300 range every 0.4s for 120 magic damage.',
+		icon: 'Wand2',
+		cooldown: 45
 	},
 	I005: {
 		id: 'I005',
@@ -65,37 +79,48 @@ export const CASTLE_ITEMS: Record<string, CastleItem> = {
 		icon: 'Wrench',
 		cooldown: 40
 	},
+	I006: {
+		id: 'I006',
+		nameUk: 'Куля блискавок',
+		nameEn: 'Lightning Orb',
+		cost: 550,
+		descriptionUk:
+			'Предмет у торбу робітника (КД 60 с): натискайте для Ланцюга блискавок по 10 ворогах (1000 магічної шкоди першій цілі).',
+		descriptionEn:
+			'Worker inventory item (60s CD): click to cast Chain Lightning hitting up to 10 enemies (1000 magic damage to first target).',
+		icon: 'Sparkles',
+		cooldown: 45
+	},
 	I00A: {
 		id: 'I00A',
-		nameUk: 'Куля Блискавок',
-		nameEn: 'Lightning Orb',
+		nameUk: 'Бойовий Ріг',
+		nameEn: 'Battle Horn',
 		cost: 575,
 		descriptionUk:
-			'Ланцюгова блискавка вражає до 6 ворогів біля замку, завдаючи по 350 магічної шкоди.',
-		descriptionEn: 'Chain lightning strikes up to 6 enemies near castle for 350 magic damage each.',
-		icon: 'Sparkles',
+			'Збільшує швидкість пересування всіх дружніх юнітів на 15% і швидкість їхньої атаки на 30% протягом 20 с.',
+		descriptionEn:
+			'Increases move speed by 15% and attack speed by 30% for all friendly units for 20s.',
+		icon: 'Volume2',
 		cooldown: 45
 	},
 	I008: {
 		id: 'I008',
-		nameUk: 'Сувій Каменю',
-		nameEn: 'Scroll of Stone',
+		nameUk: 'Подвійна шкода',
+		nameEn: 'Double Damage',
 		cost: 600,
-		descriptionUk:
-			'Викликає могутнього Кам’яного Голема (1800 HP, 12 броні, 65 шкоди) на захист замку.',
-		descriptionEn: 'Summons a Stone Golem (1800 HP, 12 armor, 65 dmg) to defend the castle lane.',
-		icon: 'ShieldAlert',
+		descriptionUk: 'Збільшує шкоду всіх дружніх юнітів на +100% протягом 30 секунд.',
+		descriptionEn: 'Increases damage of all friendly units by +100% for 30 seconds.',
+		icon: 'Swords',
 		cooldown: 60
 	},
 	I003: {
 		id: 'I003',
-		nameUk: 'Бойовий Ріг',
-		nameEn: 'Battle Horn',
+		nameUk: 'Бойові Барабани',
+		nameEn: 'Battle Drums',
 		cost: 650,
-		descriptionUk:
-			'Залізний гарт: додає +4 до броні всім дружнім бійцям на полі бою протягом 20 с.',
-		descriptionEn: 'Iron resolve: grants +4 armor bonus to all friendly units for 20s.',
-		icon: 'Volume2',
+		descriptionUk: 'Додає всім дружнім юнітам +33% до шкоди протягом 20 с.',
+		descriptionEn: 'Grants +33% damage to all friendly units for 20s.',
+		icon: 'Drums',
 		cooldown: 50
 	},
 	I00F: {
@@ -111,13 +136,12 @@ export const CASTLE_ITEMS: Record<string, CastleItem> = {
 	},
 	I007: {
 		id: 'I007',
-		nameUk: 'Чарівний Жезл',
-		nameEn: 'Magic Wand',
+		nameUk: 'Почетверена шкода',
+		nameEn: 'Quad Damage',
 		cost: 1400,
-		descriptionUk:
-			'Розсіює негативні ефекти з союзників і проклинає всіх ворогів на лініях (-30% шкоди на 12 с).',
-		descriptionEn: 'Dispels debuffs on allies and curses all enemies on lanes (-30% dmg for 12s).',
-		icon: 'Wand2',
+		descriptionUk: 'Збільшує шкоду всіх дружніх юнітів на +300% протягом 30 секунд.',
+		descriptionEn: 'Increases damage of all friendly units by +300% for 30 seconds.',
+		icon: 'Flame',
 		cooldown: 75
 	},
 	I004: {
@@ -154,9 +178,11 @@ Object.defineProperty(CASTLE_ITEMS, 'I00B', {
 
 export const CASTLE_ITEMS_LIST: CastleItem[] = [
 	CASTLE_ITEMS.I001,
+	CASTLE_ITEMS.I002,
 	CASTLE_ITEMS.I005,
 	CASTLE_ITEMS.I00E,
 	CASTLE_ITEMS.I009,
+	CASTLE_ITEMS.I006,
 	CASTLE_ITEMS.I00A,
 	CASTLE_ITEMS.I008,
 	CASTLE_ITEMS.I003,

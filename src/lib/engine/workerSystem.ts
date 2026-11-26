@@ -11,7 +11,7 @@ import {
 	WORKER_BLINK_RANGE,
 	WORKER_BLINK_COOLDOWN
 } from './constants';
-import type { MatchTeam, WorkerState, PlayerState } from './types';
+import type { MatchTeam, WorkerState, PlayerState, InventoryItem } from './types';
 import { GroundNavigation } from './groundNavigation';
 import { getBuilding, getUnit, isSpecialBuilding, isTowerBuilding } from './gameData';
 import { logService } from '../services/logService.svelte';
@@ -211,6 +211,7 @@ export class WorkerSystem {
 				);
 			}
 			w.buildQueue = []; // Clear queued orders on manual move order
+			w.pendingItemOrder = null;
 			// If worker was en route to an unstarted building, cancel the ghost foundation (100% refund)
 			if (w.targetBuildingId) {
 				const unstarted = this.sim.buildings.find(
@@ -520,6 +521,50 @@ export class WorkerSystem {
 			}
 			const team = p.team;
 
+			// Tick worker inventory cooldowns & passive auto-attack wands (e.g. I001/I002, range 300)
+			if (w.inventory) {
+				for (const item of w.inventory) {
+					if (!item) continue;
+					if (item.cooldownRemaining && item.cooldownRemaining > 0) {
+						item.cooldownRemaining = Math.max(0, item.cooldownRemaining - dt);
+					}
+					if (item.autoAttack) {
+						item.autoAttack.timer = Math.max(0, item.autoAttack.timer - dt);
+						if (item.autoAttack.timer <= 0) {
+							const rangeSq = item.autoAttack.range * item.autoAttack.range;
+							let nearestEnemy = null;
+							let bestDistSq = Infinity;
+							for (const u of this.sim.units) {
+								if (u.team === team || u.state === 'DEAD') continue;
+								const dx = u.x - w.x;
+								const dy = u.y - w.y;
+								const dSq = dx * dx + dy * dy;
+								if (dSq <= rangeSq && dSq < bestDistSq) {
+									bestDistSq = dSq;
+									nearestEnemy = u;
+								}
+							}
+							if (nearestEnemy) {
+								item.autoAttack.timer = item.autoAttack.interval;
+								this.sim.combatSystem.applyUnitDamage(
+									nearestEnemy,
+									item.autoAttack.damage,
+									'magic',
+									team,
+									false
+								);
+								this.sim.addFloatingText(
+									`-${item.autoAttack.damage}`,
+									nearestEnemy.x,
+									nearestEnemy.y - 18,
+									'#c084fc'
+								);
+							}
+						}
+					}
+				}
+			}
+
 			if (w.pendingRescueStrike) {
 				if (!this.sim.canUseRescueStrike(team, p)) {
 					w.pendingRescueStrike = null;
@@ -543,6 +588,12 @@ export class WorkerSystem {
 							this.sim.economySystem.executeRescueStrikeAt(team, target.x, target.y, p);
 						}
 					}
+					continue;
+				}
+			}
+
+			if (w.pendingItemOrder) {
+				if (this.processPendingItemOrder(p, w, dt)) {
 					continue;
 				}
 			}
@@ -769,12 +820,390 @@ export class WorkerSystem {
 						w.targetRepairBuildingId = null;
 					}
 				} else {
-					const dist = Math.hypot(w.targetX - w.x, w.targetY - w.y);
+					const dist = Math.hypot(w.targetX - w.x, w.y - w.targetY ? w.targetY - w.y : 0);
 					if (dist > 3) {
 						this.advanceWorkerAlongPath(w, team, w.targetX, w.targetY, dt, 3);
 					}
 				}
 			}
 		}
+	}
+
+	private ensureInventory(w: WorkerState): (InventoryItem | null)[] {
+		if (!w.inventory || w.inventory.length !== 6) {
+			const next: (InventoryItem | null)[] = [null, null, null, null, null, null];
+			if (w.inventory) {
+				for (let i = 0; i < Math.min(6, w.inventory.length); i++) {
+					next[i] = w.inventory[i] ?? null;
+				}
+			}
+			w.inventory = next;
+		}
+		return w.inventory;
+	}
+
+	private executeDropNow(
+		player: PlayerState,
+		w: WorkerState,
+		slotIdx: number,
+		dropX: number,
+		dropY: number
+	): boolean {
+		const inv = this.ensureInventory(w);
+		const item = inv[slotIdx];
+		if (!item) return false;
+		inv[slotIdx] = null;
+		if (item.foodBonus) {
+			player.maxFood = Math.max(0, player.maxFood - item.foodBonus);
+		}
+		this.sim.groundItems.push({
+			instanceId: this.sim.nextGroundItemId(),
+			item,
+			x: Math.round(dropX),
+			y: Math.round(dropY),
+			droppedBySlot: player.slot
+		});
+		this.sim.addFloatingText(`${item.name} викладено`, dropX, dropY - 24, '#fbbf24');
+		this.sim.notifyStateChanged();
+		return true;
+	}
+
+	private executePickupNow(player: PlayerState, w: WorkerState, groundItemId: string): boolean {
+		const idx = this.sim.groundItems.findIndex((g) => g.instanceId === groundItemId);
+		if (idx === -1) return false;
+		const inv = this.ensureInventory(w);
+		const emptySlot = inv.findIndex((s) => s === null);
+		if (emptySlot === -1) {
+			this.sim.addFloatingText('Торба заповнена!', w.x, w.y - 24, '#ef4444');
+			return false;
+		}
+		const [ground] = this.sim.groundItems.splice(idx, 1);
+		inv[emptySlot] = ground.item;
+		if (ground.item.foodBonus) {
+			player.maxFood += ground.item.foodBonus;
+		}
+		this.sim.addFloatingText(`Підібрано: ${ground.item.name}`, w.x, w.y - 24, '#fbbf24');
+		this.sim.onSoundEffect?.('coin');
+		this.sim.notifyStateChanged();
+		return true;
+	}
+
+	private executeTransferNow(
+		sourcePlayer: PlayerState,
+		sourceWorker: WorkerState,
+		slotIdx: number,
+		targetPlayer: PlayerState
+	): boolean {
+		const targetWorker = targetPlayer.worker;
+		if (!targetWorker) return false;
+		const sourceInv = this.ensureInventory(sourceWorker);
+		const item = sourceInv[slotIdx];
+		if (!item) return false;
+		const targetInv = this.ensureInventory(targetWorker);
+		const emptySlot = targetInv.findIndex((s) => s === null);
+		if (emptySlot === -1) {
+			this.sim.addFloatingText(
+				'Інвентар союзника заповнений!',
+				targetWorker.x,
+				targetWorker.y - 24,
+				'#ef4444'
+			);
+			return false;
+		}
+		sourceInv[slotIdx] = null;
+		targetInv[emptySlot] = item;
+		if (item.foodBonus) {
+			sourcePlayer.maxFood = Math.max(0, sourcePlayer.maxFood - item.foodBonus);
+			targetPlayer.maxFood += item.foodBonus;
+		}
+		this.sim.addFloatingText(
+			`Передано: ${item.name}`,
+			targetWorker.x,
+			targetWorker.y - 24,
+			'#34d399'
+		);
+		this.sim.onSoundEffect?.('coin');
+		this.sim.notifyStateChanged();
+		return true;
+	}
+
+	private processPendingItemOrder(p: PlayerState, w: WorkerState, dt: number): boolean {
+		const order = w.pendingItemOrder;
+		if (!order) return false;
+		const REACH = 95;
+
+		if (order.kind === 'drop') {
+			const dist = Math.hypot(w.x - order.targetX, w.y - order.targetY);
+			if (dist <= REACH) {
+				w.pendingItemOrder = null;
+				w.targetX = w.x;
+				w.targetY = w.y;
+				w.path = [];
+				this.executeDropNow(p, w, order.slotIdx, order.targetX, order.targetY);
+				return false;
+			}
+			this.advanceWorkerAlongPath(w, p.team, order.targetX, order.targetY, dt, 10);
+			if (Math.hypot(w.x - order.targetX, w.y - order.targetY) <= REACH) {
+				w.pendingItemOrder = null;
+				w.targetX = w.x;
+				w.targetY = w.y;
+				w.path = [];
+				this.executeDropNow(p, w, order.slotIdx, order.targetX, order.targetY);
+			}
+			return true;
+		}
+
+		if (order.kind === 'pickup') {
+			const ground = this.sim.groundItems.find((g) => g.instanceId === order.groundItemId);
+			if (!ground) {
+				w.pendingItemOrder = null;
+				return false;
+			}
+			if (Math.hypot(w.x - ground.x, w.y - ground.y) <= REACH) {
+				w.pendingItemOrder = null;
+				w.targetX = w.x;
+				w.targetY = w.y;
+				w.path = [];
+				this.executePickupNow(p, w, ground.instanceId);
+				return false;
+			}
+			this.advanceWorkerAlongPath(w, p.team, ground.x, ground.y, dt, 10);
+			if (Math.hypot(w.x - ground.x, w.y - ground.y) <= REACH) {
+				w.pendingItemOrder = null;
+				w.targetX = w.x;
+				w.targetY = w.y;
+				w.path = [];
+				this.executePickupNow(p, w, ground.instanceId);
+			}
+			return true;
+		}
+
+		if (order.kind === 'transfer') {
+			const targetPlayer = this.sim.allPlayers.find(
+				(pl) => pl.team === p.team && pl.slot === order.targetPlayerSlot && pl !== p
+			);
+			const tw = targetPlayer?.worker;
+			if (!targetPlayer || !tw) {
+				w.pendingItemOrder = null;
+				return false;
+			}
+			if (Math.hypot(w.x - tw.x, w.y - tw.y) <= REACH + 15) {
+				w.pendingItemOrder = null;
+				w.targetX = w.x;
+				w.targetY = w.y;
+				w.path = [];
+				this.executeTransferNow(p, w, order.slotIdx, targetPlayer);
+				return false;
+			}
+			this.advanceWorkerAlongPath(w, p.team, tw.x, tw.y, dt, 10);
+			if (Math.hypot(w.x - tw.x, w.y - tw.y) <= REACH + 15) {
+				w.pendingItemOrder = null;
+				w.targetX = w.x;
+				w.targetY = w.y;
+				w.path = [];
+				this.executeTransferNow(p, w, order.slotIdx, targetPlayer);
+			}
+			return true;
+		}
+
+		return false;
+	}
+
+	public dropItem(
+		team: MatchTeam,
+		slotIdx: number,
+		worldX: number,
+		worldY: number,
+		playerInput?: PlayerState
+	): boolean {
+		const player = playerInput || this.sim.players[team];
+		const w = player?.worker;
+		if (!w || slotIdx < 0 || slotIdx >= 6) return false;
+		const inv = this.ensureInventory(w);
+		if (!inv[slotIdx]) return false;
+
+		const clamped = this.clampPointToOwnIsland(team, worldX, worldY, 12, w.x, w.y);
+		if (Math.hypot(w.x - clamped.x, w.y - clamped.y) <= 95) {
+			w.pendingItemOrder = null;
+			return this.executeDropNow(player, w, slotIdx, clamped.x, clamped.y);
+		}
+		w.isBuilding = false;
+		w.isRepairing = false;
+		w.targetBuildingId = null;
+		w.targetRepairBuildingId = null;
+		w.pendingRescueStrike = null;
+		w.buildQueue = [];
+		w.pendingItemOrder = { kind: 'drop', slotIdx, targetX: clamped.x, targetY: clamped.y };
+		w.targetX = clamped.x;
+		w.targetY = clamped.y;
+		w.path = this.findGroundPath(team, w.x, w.y, clamped.x, clamped.y);
+		return true;
+	}
+
+	public pickupGroundItem(
+		team: MatchTeam,
+		groundItemId: string,
+		playerInput?: PlayerState
+	): boolean {
+		const player = playerInput || this.sim.players[team];
+		const w = player?.worker;
+		if (!w) return false;
+		const ground = this.sim.groundItems.find((g) => g.instanceId === groundItemId);
+		if (!ground) return false;
+		const inv = this.ensureInventory(w);
+		if (inv.every((s) => s !== null)) {
+			this.sim.addFloatingText('Торба заповнена!', w.x, w.y - 24, '#ef4444');
+			return false;
+		}
+		if (Math.hypot(w.x - ground.x, w.y - ground.y) <= 95) {
+			w.pendingItemOrder = null;
+			return this.executePickupNow(player, w, groundItemId);
+		}
+		w.isBuilding = false;
+		w.isRepairing = false;
+		w.targetBuildingId = null;
+		w.targetRepairBuildingId = null;
+		w.pendingRescueStrike = null;
+		w.buildQueue = [];
+		w.pendingItemOrder = { kind: 'pickup', groundItemId };
+		w.targetX = ground.x;
+		w.targetY = ground.y;
+		w.path = this.findGroundPath(team, w.x, w.y, ground.x, ground.y);
+		return true;
+	}
+
+	public transferItem(
+		team: MatchTeam,
+		slotIdx: number,
+		targetPlayerSlot: number,
+		playerInput?: PlayerState
+	): boolean {
+		const player = playerInput || this.sim.players[team];
+		const w = player?.worker;
+		if (!w || slotIdx < 0 || slotIdx >= 6) return false;
+		const inv = this.ensureInventory(w);
+		if (!inv[slotIdx]) return false;
+
+		const targetPlayer = this.sim.allPlayers.find(
+			(pl) => pl.team === player.team && pl.slot === targetPlayerSlot && pl !== player
+		);
+		const tw = targetPlayer?.worker;
+		if (!targetPlayer || !tw) return false;
+
+		if (Math.hypot(w.x - tw.x, w.y - tw.y) <= 110) {
+			w.pendingItemOrder = null;
+			return this.executeTransferNow(player, w, slotIdx, targetPlayer);
+		}
+		w.isBuilding = false;
+		w.isRepairing = false;
+		w.targetBuildingId = null;
+		w.targetRepairBuildingId = null;
+		w.pendingRescueStrike = null;
+		w.buildQueue = [];
+		w.pendingItemOrder = { kind: 'transfer', slotIdx, targetPlayerSlot };
+		w.targetX = tw.x;
+		w.targetY = tw.y;
+		w.path = this.findGroundPath(team, w.x, w.y, tw.x, tw.y);
+		return true;
+	}
+
+	public swapInventorySlots(
+		team: MatchTeam,
+		fromSlot: number,
+		toSlot: number,
+		playerInput?: PlayerState
+	): boolean {
+		const player = playerInput || this.sim.players[team];
+		const w = player?.worker;
+		if (!w || fromSlot < 0 || fromSlot >= 6 || toSlot < 0 || toSlot >= 6 || fromSlot === toSlot) {
+			return false;
+		}
+		const inv = this.ensureInventory(w);
+		if (!inv[fromSlot] && !inv[toSlot]) return false;
+		const tmp = inv[fromSlot];
+		inv[fromSlot] = inv[toSlot];
+		inv[toSlot] = tmp;
+		this.sim.notifyStateChanged();
+		return true;
+	}
+
+	public useItem(team: MatchTeam, slotIdx: number, playerInput?: PlayerState): boolean {
+		const player = playerInput || this.sim.players[team];
+		const w = player?.worker;
+		if (!w || slotIdx < 0 || slotIdx >= 6) return false;
+		const inv = this.ensureInventory(w);
+		const item = inv[slotIdx];
+		if (!item || !item.activeAbility) return false;
+
+		if ((item.cooldownRemaining ?? 0) > 0) {
+			if (!player.isBot) this.sim.onSoundEffect?.('errorResource');
+			this.sim.addFloatingText(
+				`Перезарядка: ${Math.ceil(item.cooldownRemaining ?? 0)}с`,
+				w.x,
+				w.y - 30,
+				'#94a3b8'
+			);
+			return false;
+		}
+
+		if (item.activeAbility === 'chain_lightning') {
+			const castRangeSq = 1200 * 1200;
+			const bounceRangeSq = 600 * 600;
+			const enemies = this.sim.units.filter((u) => u.team !== team && u.state !== 'DEAD');
+			let primary = null;
+			let bestDistSq = Infinity;
+			for (const u of enemies) {
+				const dx = u.x - w.x;
+				const dy = u.y - w.y;
+				const dSq = dx * dx + dy * dy;
+				if (dSq <= castRangeSq && dSq < bestDistSq) {
+					bestDistSq = dSq;
+					primary = u;
+				}
+			}
+
+			if (!primary) {
+				if (!player.isBot) this.sim.onSoundEffect?.('errorResource');
+				this.sim.addFloatingText('Немає ворогів поруч!', w.x, w.y - 30, '#ef4444');
+				return false;
+			}
+
+			const hitIds = new Set<string>();
+			let current = primary;
+			let damage = 1000;
+			for (let bounce = 0; bounce < 10; bounce++) {
+				hitIds.add(current.instanceId);
+				this.sim.combatSystem.applyUnitDamage(current, Math.round(damage), 'magic', team, false);
+				damage *= 0.85;
+
+				let nextTarget = null;
+				let nextBestSq = Infinity;
+				for (const u of enemies) {
+					if (u.state === 'DEAD' || hitIds.has(u.instanceId)) continue;
+					const dx = u.x - current.x;
+					const dy = u.y - current.y;
+					const dSq = dx * dx + dy * dy;
+					if (dSq <= bounceRangeSq && dSq < nextBestSq) {
+						nextBestSq = dSq;
+						nextTarget = u;
+					}
+				}
+				if (!nextTarget) break;
+				current = nextTarget;
+			}
+
+			item.cooldownRemaining = item.cooldown ?? 60;
+			this.sim.addFloatingText(
+				`Куля блискавок! (${hitIds.size} цілей)`,
+				primary.x,
+				primary.y - 30,
+				'#38bdf8'
+			);
+			this.sim.onSoundEffect?.('magic');
+			this.sim.notifyStateChanged();
+			return true;
+		}
+
+		return false;
 	}
 }

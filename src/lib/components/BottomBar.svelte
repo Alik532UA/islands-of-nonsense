@@ -41,7 +41,11 @@
 		onContinueConstruction,
 		onOpenCommander,
 		isBlinkTargeting = false,
+		itemTargetingSlot = $bindable(null),
 		onStartBlinkTargeting,
+		onQuickDropItem,
+		onSwapInventorySlots,
+		onUseWorkerItem,
 		onMinimapClick,
 		onClearSelection,
 		onHoverCastleRange,
@@ -62,12 +66,16 @@
 		allowAllTeamsControl?: boolean;
 		isSpectator?: boolean;
 		isBlinkTargeting?: boolean;
+		itemTargetingSlot?: number | null;
 		onSelectBuilding: (id: string | null) => void;
 		onUpgradeBuilding?: (instanceId: string, targetDefId: string) => void;
 		onSellBuilding?: (instanceId: string) => void;
 		onContinueConstruction?: (instanceId: string) => void;
 		onOpenCommander?: () => void;
 		onStartBlinkTargeting?: () => void;
+		onQuickDropItem?: (slotIdx: number) => void;
+		onSwapInventorySlots?: (fromSlot: number, toSlot: number) => void;
+		onUseWorkerItem?: (slotIdx: number) => void;
 		onMinimapClick?: (arenaX: number, arenaY: number) => void;
 		onClearSelection?: () => void;
 		onHoverCastleRange?: (mode: 'short' | 'long' | null) => void;
@@ -450,39 +458,92 @@
 		<!-- 2 columns x 3 rows grid of enlarged authentic Warcraft III leather inventory pouches -->
 		<div class="grid grid-cols-2 gap-1.5 my-auto">
 			{#each [0, 1, 2, 3, 4, 5] as slotIdx}
-				{@const hasCheese = slotIdx === 0 && player.maxFood > 0}
-				<div
+				{@const slotItem = uiTick >= 0 ? (worker?.inventory?.[slotIdx] ?? null) : null}
+				{@const isTargetingThis = itemTargetingSlot === slotIdx}
+				<button
+					type="button"
 					data-testid="hud-inventory-slot-{slotIdx}"
-					class="relative group/tip w-[44px] h-[39px] rounded-[3px] bg-gradient-to-b from-[#18130d] to-[#0d0a07] border border-[#5c4934] flex items-center justify-center text-xs shadow-inner cursor-pointer hover:border-[#8c7456] transition"
-					aria-label={hasCheese ? 'Золотий Сир (+1 Ліміт їжі)' : 'Порожній слот торби'}
+					onclick={(e) => {
+						if (isSpectator) return;
+						if (itemTargetingSlot !== null) {
+							if (itemTargetingSlot === slotIdx) {
+								itemTargetingSlot = null;
+							} else {
+								onSwapInventorySlots?.(itemTargetingSlot, slotIdx);
+								itemTargetingSlot = null;
+							}
+						} else if (slotItem) {
+							if (slotItem.activeAbility && !e.shiftKey) {
+								onUseWorkerItem?.(slotIdx);
+							} else {
+								itemTargetingSlot = slotIdx;
+							}
+						}
+					}}
+					oncontextmenu={(e) => {
+						e.preventDefault();
+						if (isSpectator || !slotItem) return;
+						itemTargetingSlot = null;
+						onQuickDropItem?.(slotIdx);
+					}}
+					class="relative group/tip w-[44px] h-[39px] rounded-[3px] bg-gradient-to-b from-[#18130d] to-[#0d0a07] border flex items-center justify-center text-xs shadow-inner cursor-pointer transition touch-manipulation {isTargetingThis
+						? 'border-amber-400 ring-2 ring-amber-400/50 bg-amber-950/40'
+						: slotItem
+							? 'border-[#8c7456] hover:border-amber-400'
+							: 'border-[#5c4934] hover:border-[#8c7456]'}"
+					aria-label={slotItem
+						? `${slotItem.name} (${slotItem.description})`
+						: 'Порожній слот торби'}
 				>
 					<div
 						class="pointer-events-none absolute bottom-full mb-2 {slotIdx % 2 === 1
 							? 'right-0'
 							: 'left-1/2 -translate-x-1/2'} z-50 whitespace-nowrap rounded-md border border-[#544738] bg-[#0f141f]/95 px-2.5 py-1 text-[11px] text-amber-100 shadow-2xl opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150"
 					>
-						{hasCheese ? 'Золотий Сир (+1 Ліміт їжі)' : 'Порожній слот торби'}
+						{#if slotItem}
+							{slotItem.name} ({slotItem.description}) · ЛКМ: передати/викласти · ПКМ: скинути
+						{:else if itemTargetingSlot !== null}
+							Перемістити предмет у слот {slotIdx + 1}
+						{:else}
+							Порожній слот торби
+						{/if}
 					</div>
-					{#if hasCheese}
-						<!-- Golden Cheese SVG Icon (Food Cap Item) -->
-						<svg
-							class="w-5.5 h-5.5 text-amber-400 drop-shadow"
-							viewBox="0 0 24 24"
-							fill="currentColor"
-						>
-							<path d="M2.5 12.5c4-2 15-4 19-2v6c0 1.1-.9 2-2 2H4.5c-1.1 0-2-.9-2-2v-4z" />
-							<path
-								d="M11 6c-2 0-3 1.5-3 2.5 0 1 .5 1.5 1.5 2 2.5-1 6.5-1.5 9-1.5C18 7.5 15.5 6 11 6z"
-								opacity="0.8"
-							/>
-							<circle cx="8" cy="15" r="1.2" fill="#18130d" />
-							<circle cx="14" cy="14" r="1.5" fill="#18130d" />
-							<circle cx="17" cy="16.5" r="1" fill="#18130d" />
-						</svg>
+					{#if slotItem}
+						{@const itemCd = Math.ceil(slotItem.cooldownRemaining ?? 0)}
+						{#if slotItem.id === 'I006'}
+							<UiIcon name="sparkles" class="w-5 h-5 text-sky-400 drop-shadow" />
+						{:else if slotItem.id === 'I001'}
+							<UiIcon name="wand2" class="w-5 h-5 text-violet-400 drop-shadow" />
+						{:else if slotItem.id === 'I002'}
+							<UiIcon name="wand2" class="w-5 h-5 text-fuchsia-400 drop-shadow" />
+						{:else}
+							<!-- Golden Cheese SVG Icon (Food Cap Item) -->
+							<svg
+								class="w-5.5 h-5.5 text-amber-400 drop-shadow"
+								viewBox="0 0 24 24"
+								fill="currentColor"
+							>
+								<path d="M2.5 12.5c4-2 15-4 19-2v6c0 1.1-.9 2-2 2H4.5c-1.1 0-2-.9-2-2v-4z" />
+								<path
+									d="M11 6c-2 0-3 1.5-3 2.5 0 1 .5 1.5 1.5 2 2.5-1 6.5-1.5 9-1.5C18 7.5 15.5 6 11 6z"
+									opacity="0.8"
+								/>
+								<circle cx="8" cy="15" r="1.2" fill="#18130d" />
+								<circle cx="14" cy="14" r="1.5" fill="#18130d" />
+								<circle cx="17" cy="16.5" r="1" fill="#18130d" />
+							</svg>
+						{/if}
+						{#if itemCd > 0}
+							<div
+								class="absolute inset-0 bg-black/75 flex items-center justify-center text-[11px] font-mono font-bold text-sky-300 rounded-[2px]"
+							>
+								{itemCd}
+							</div>
+						{/if}
 					{:else}
 						<UiIcon name="lock" class="w-5 h-5 text-[#5c4934] opacity-80" />
 					{/if}
-				</div>
+				</button>
 			{/each}
 		</div>
 	</div>

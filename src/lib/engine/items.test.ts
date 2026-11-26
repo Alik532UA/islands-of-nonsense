@@ -33,13 +33,15 @@ describe('Point 1: Castle Shop & Complete Consumables Roster', () => {
 		});
 	});
 
-	it('defines complete 12-item WC3 castle shop roster with correct costs and cooldowns', () => {
+	it('defines complete 14-item WC3 castle shop roster with correct costs and cooldowns', () => {
 		const expectedItems: Record<string, { cost: number; cooldown: number }> = {
 			I001: { cost: 150, cooldown: 30 },
+			I002: { cost: 520, cooldown: 45 },
 			I005: { cost: 150, cooldown: 35 },
 			I00E: { cost: 300, cooldown: 45 },
 			I000: { cost: 350, cooldown: 35 },
 			I009: { cost: 500, cooldown: 40 },
+			I006: { cost: 550, cooldown: 45 },
 			I00A: { cost: 575, cooldown: 45 },
 			I008: { cost: 600, cooldown: 60 },
 			I003: { cost: 650, cooldown: 50 },
@@ -49,7 +51,7 @@ describe('Point 1: Castle Shop & Complete Consumables Roster', () => {
 			I004: { cost: 1500, cooldown: 120 }
 		};
 
-		expect(Object.keys(CASTLE_ITEMS).length).toBe(12);
+		expect(Object.keys(CASTLE_ITEMS).length).toBe(14);
 		for (const [id, stats] of Object.entries(expectedItems)) {
 			expect(CASTLE_ITEMS[id]).toBeDefined();
 			expect(CASTLE_ITEMS[id].cost).toBe(stats.cost);
@@ -97,25 +99,37 @@ describe('Point 1: Castle Shop & Complete Consumables Roster', () => {
 		expect(sim.canBuyCastleItem('west', 'I00E')).toBe(true);
 	});
 
-	it('Battle Drums (I001) buffs all friendly units with +25% attack speed', () => {
-		const friendly = sim.spawnUnitDirectly({
-			team: 'west',
+	it('Magic Wand (I001) and Improved Magic Wand (I002) enter worker inventory and auto-attack enemies within 300 range', () => {
+		const w = sim.players.west.worker!;
+		const enemyNear = sim.spawnUnitDirectly({
+			team: 'east',
 			lane: 'top',
-			x: 500,
-			y: 220,
-			hp: 500
+			x: w.x + 250,
+			y: w.y,
+			hp: 1000
+		});
+		const enemyFar = sim.spawnUnitDirectly({
+			team: 'east',
+			lane: 'top',
+			x: w.x + 450,
+			y: w.y,
+			hp: 1000
 		});
 
-		const bought = sim.buyCastleItem('west', 'I001');
-		expect(bought).toBe(true);
+		expect(sim.buyCastleItem('west', 'I001')).toBe(true);
+		expect(w.inventory?.[1]?.id).toBe('I001');
+		sim.workerSystem.updateWorkers(0.1);
+		expect(enemyNear.hp).toBeLessThan(1000); // took magic damage within 300 range
+		expect(enemyFar.hp).toBe(1000); // out of 300 range
 
-		const buff = friendly.buffs?.find((b: ActiveBuff) => b.type === 'as');
-		expect(buff).toBeDefined();
-		expect(buff?.value).toBe(0.25);
-		expect(buff?.timer).toBe(15);
+		const hpAfterFirstWand = enemyNear.hp;
+		expect(sim.buyCastleItem('west', 'I002')).toBe(true);
+		expect(w.inventory?.[2]?.id).toBe('I002');
+		sim.workerSystem.updateWorkers(0.1);
+		expect(enemyNear.hp).toBeLessThan(hpAfterFirstWand); // improved wand also deals magic damage
 	});
 
-	it('Battle Horn (I003) buffs all friendly units with +4 armor', () => {
+	it('Battle Drums (I003) buffs all friendly units with +33% damage', () => {
 		const friendly = sim.spawnUnitDirectly({
 			team: 'west',
 			lane: 'bottom',
@@ -127,9 +141,9 @@ describe('Point 1: Castle Shop & Complete Consumables Roster', () => {
 		const bought = sim.buyCastleItem('west', 'I003');
 		expect(bought).toBe(true);
 
-		const buff = friendly.buffs?.find((b: ActiveBuff) => b.type === 'shield');
+		const buff = friendly.buffs?.find((b: ActiveBuff) => b.type === 'dmg');
 		expect(buff).toBeDefined();
-		expect(buff?.value).toBe(4);
+		expect(buff?.value).toBe(0.33);
 		expect(buff?.timer).toBe(20);
 	});
 
@@ -142,17 +156,20 @@ describe('Point 1: Castle Shop & Complete Consumables Roster', () => {
 		expect(sim.castleOverchargeTimer.west).toBe(19.0);
 	});
 
-	it('Scroll of Stone (I008) summons a tough Stone Golem defender', () => {
-		const initialCount = sim.units.length;
+	it('Double Damage (I008) buffs all friendly units with +100% damage for 30s', () => {
+		const friendly = sim.spawnUnitDirectly({
+			team: 'west',
+			lane: 'top',
+			x: 500,
+			y: 220,
+			hp: 500
+		});
 		const bought = sim.buyCastleItem('west', 'I008');
 		expect(bought).toBe(true);
-		expect(sim.units.length).toBe(initialCount + 1);
-
-		const golem = sim.units.find((u) => u.name === 'Кам’яний Голем');
-		expect(golem).toBeDefined();
-		expect(golem?.hp).toBe(1800);
-		expect(golem?.armor).toBe(12);
-		expect(golem?.team).toBe('west');
+		const buff = friendly.buffs?.find((b: ActiveBuff) => b.type === 'dmg');
+		expect(buff).toBeDefined();
+		expect(buff?.value).toBe(1.0);
+		expect(buff?.timer).toBe(30);
 	});
 
 	it('Rune of Repair (I009) instantly restores 1200 HP to castle', () => {
@@ -164,21 +181,39 @@ describe('Point 1: Castle Shop & Complete Consumables Roster', () => {
 		expect(westCastle.hp).toBe(9200);
 	});
 
-	it('Lightning Orb (I00A) damages enemy units near castle', () => {
+	it('Lightning Orb (I006) enters worker inventory as reusable active item with 60s cooldown', () => {
+		const w = sim.players.west.worker!;
 		const enemy = sim.spawnUnitDirectly({
 			team: 'east',
 			lane: 'top',
-			x: sim.castles.west.x + 300,
-			y: sim.castles.west.y,
-			hp: 1000
+			x: w.x + 300,
+			y: w.y,
+			hp: 1500
 		});
 
-		const bought = sim.buyCastleItem('west', 'I00A');
-		expect(bought).toBe(true);
-		expect(enemy.hp).toBeLessThan(1000);
+		expect(sim.buyCastleItem('west', 'I006')).toBe(true);
+		expect(w.inventory?.[1]?.id).toBe('I006');
+
+		// Activate from inventory
+		expect(sim.useWorkerItem('west', 1)).toBe(true);
+		expect(enemy.hp).toBeLessThan(1500); // took magic lightning damage
+		const hpAfterFirstBolt = enemy.hp;
+		expect(w.inventory?.[1]?.id).toBe('I006'); // Permanent, stays in inventory
+		expect(w.inventory?.[1]?.cooldownRemaining).toBe(60);
+
+		// Cannot activate while on cooldown
+		expect(sim.useWorkerItem('west', 1)).toBe(false);
+
+		// Advance 60s -> ready again
+		for (let i = 0; i < 60; i++) {
+			sim.workerSystem.updateWorkers(1.0);
+		}
+		expect(w.inventory?.[1]?.cooldownRemaining).toBe(0);
+		expect(sim.useWorkerItem('west', 1)).toBe(true);
+		expect(enemy.hp).toBeLessThan(hpAfterFirstBolt);
 	});
 
-	it('Magic Wand (I007) cleanses friendly debuffs and curses enemies with -30% damage', () => {
+	it('Battle Horn (I00A) buffs all friendly units with +15% move speed and +30% attack speed', () => {
 		const friendly = sim.spawnUnitDirectly({
 			team: 'west',
 			lane: 'top',
@@ -186,12 +221,17 @@ describe('Point 1: Castle Shop & Complete Consumables Roster', () => {
 			y: 220,
 			hp: 500
 		});
-		friendly.buffs = [{ type: 'weakness', timer: 10, value: 0.4 }];
+		const bought = sim.buyCastleItem('west', 'I00A');
+		expect(bought).toBe(true);
+		expect(friendly.buffs?.find((b: ActiveBuff) => b.type === 'ms')?.value).toBe(0.15);
+		expect(friendly.buffs?.find((b: ActiveBuff) => b.type === 'as')?.value).toBe(0.3);
+	});
 
-		const enemy = sim.spawnUnitDirectly({
-			team: 'east',
+	it('Quad Damage (I007) buffs all friendly units with +300% damage for 30s', () => {
+		const friendly = sim.spawnUnitDirectly({
+			team: 'west',
 			lane: 'top',
-			x: 1200,
+			x: 500,
 			y: 220,
 			hp: 500
 		});
@@ -199,13 +239,10 @@ describe('Point 1: Castle Shop & Complete Consumables Roster', () => {
 		const bought = sim.buyCastleItem('west', 'I007');
 		expect(bought).toBe(true);
 
-		// Friendly cleansed of weakness
-		expect(friendly.buffs.some((b) => b.type === 'weakness')).toBe(false);
-
-		// Enemy cursed with -30% damage
-		const curse = enemy.buffs?.find((b) => b.type === 'dmg');
-		expect(curse).toBeDefined();
-		expect(curse?.value).toBe(-0.3);
+		const buff = friendly.buffs?.find((b: ActiveBuff) => b.type === 'dmg');
+		expect(buff).toBeDefined();
+		expect(buff?.value).toBe(3.0);
+		expect(buff?.timer).toBe(30);
 	});
 
 	it('Scroll of Weakness (I00E) applies weakness debuff to enemy units near castle', () => {

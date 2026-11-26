@@ -103,6 +103,9 @@ export interface RendererOptions {
 	getIsBlinkTargeting?: () => boolean;
 	onBlinkTargetClick?: (worldX: number, worldY: number) => void;
 	onCancelBlinkTargeting?: () => void;
+	getIsItemTargeting?: () => boolean;
+	onItemTargetClick?: (worldX: number, worldY: number, alliedWorkerSlot: number | null) => void;
+	onGroundItemClick?: (groundItemId: string) => void;
 	onCameraChange?: (camX: number, camY: number, zoom: number) => void;
 }
 
@@ -125,6 +128,13 @@ export class ArenaRenderer {
 	private getIsBlinkTargeting?: () => boolean;
 	private onBlinkTargetClick?: (worldX: number, worldY: number) => void;
 	private onCancelBlinkTargeting?: () => void;
+	private getIsItemTargeting?: () => boolean;
+	private onItemTargetClick?: (
+		worldX: number,
+		worldY: number,
+		alliedWorkerSlot: number | null
+	) => void;
+	private onGroundItemClick?: (groundItemId: string) => void;
 	public onCameraChange?: (camX: number, camY: number, zoom: number) => void;
 
 	// Viewport & RTS Camera Navigation
@@ -238,6 +248,9 @@ export class ArenaRenderer {
 		this.getIsBlinkTargeting = options.getIsBlinkTargeting;
 		this.onBlinkTargetClick = options.onBlinkTargetClick;
 		this.onCancelBlinkTargeting = options.onCancelBlinkTargeting;
+		this.getIsItemTargeting = options.getIsItemTargeting;
+		this.onItemTargetClick = options.onItemTargetClick;
+		this.onGroundItemClick = options.onGroundItemClick;
 		this.onCameraChange = options.onCameraChange;
 		this.graphicsStyle = options.graphicsStyle ?? '2.5d';
 
@@ -600,7 +613,9 @@ export class ArenaRenderer {
 
 	private setupInteraction(canvas: HTMLCanvasElement): void {
 		canvas.addEventListener('contextmenu', (e) => {
-			e.preventDefault();
+			if (!(e.shiftKey && e.ctrlKey && e.altKey)) {
+				e.preventDefault();
+			}
 		});
 
 		// 1. Zoom with mouse wheel
@@ -694,6 +709,15 @@ export class ArenaRenderer {
 					) {
 						this.sim.orderWorkerMove(activeTeam, clickedCoin.x, clickedCoin.y, activePlayer);
 					}
+					return;
+				}
+
+				// Check if RMB clicked a ground inventory item (command active worker to pick it up)
+				const clickedGroundItem = (this.sim.groundItems ?? []).find(
+					(g) => Math.hypot(world.x - g.x, world.y - g.y) <= 32
+				);
+				if (clickedGroundItem) {
+					this.onGroundItemClick?.(clickedGroundItem.instanceId);
 					return;
 				}
 
@@ -939,9 +963,37 @@ export class ArenaRenderer {
 				this.onRescueTargetClick?.(Math.round(world.x), Math.round(world.y));
 				return;
 			}
+			if (this.getIsItemTargeting?.()) {
+				const activePlayer = this.getActiveControlPlayer?.() ?? this.sim.players.west;
+				const activeTeam: MatchTeam = activePlayer.team;
+				const targetAlly = this.sim.allPlayers.find(
+					(p) =>
+						p.team === activeTeam &&
+						p !== activePlayer &&
+						p.worker &&
+						Math.hypot(world.x - p.worker.x, world.y - p.worker.y) <= 38
+				);
+				this.onItemTargetClick?.(
+					Math.round(world.x),
+					Math.round(world.y),
+					targetAlly?.slot ?? null
+				);
+				return;
+			}
 
 			const activePlayer = this.getActiveControlPlayer?.() ?? this.sim.players.west;
 			const activeTeam: MatchTeam = activePlayer.team;
+
+			// Ground Item pickup on Left Click
+			const clickedGroundItem = (this.sim.groundItems ?? []).find(
+				(g) =>
+					(!this.enableFog || this.sim.isPointRevealed(activeTeam, g.x, g.y)) &&
+					Math.hypot(world.x - g.x, world.y - g.y) <= 32
+			);
+			if (clickedGroundItem) {
+				this.onGroundItemClick?.(clickedGroundItem.instanceId);
+				return;
+			}
 
 			// A. Command active worker to run to Gold Coin (Warcraft 3: worker runs to coin)
 			for (const coin of this.sim.goldCoins) {

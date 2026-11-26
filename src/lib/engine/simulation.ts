@@ -10,6 +10,7 @@ import type {
 	Lane,
 	FloatingText,
 	GoldCoin,
+	GroundItem,
 	AttackType,
 	ArmorType,
 	BuildingPerformance,
@@ -249,6 +250,8 @@ export class Simulation {
 
 	// Battlefield Gold Coins (Spawn every 40s along neutral zone, I000)
 	public goldCoins: GoldCoin[] = [];
+	public groundItems: GroundItem[] = [];
+	private nextGroundItemSeq = 1;
 	public coinSpawnTimer = 40.0;
 	public coinSpawnInterval = 40.0;
 	public coinMode: CoinMode = 'normal';
@@ -518,6 +521,7 @@ export class Simulation {
 		const eastRace = eastChoice.race;
 		const eastIsRandom = eastChoice.isRandom;
 
+		const isSandbox = this.config.modeId === 'sandbox';
 		const startingMaxFood =
 			this.gameModeConfig?.noSpecialBuildings || this.gameModeConfig?.noLegendaries ? 0 : 1;
 
@@ -558,8 +562,8 @@ export class Simulation {
 				...(opts.pendingRacePick ? { pendingRacePick: true } : {}),
 				isRandomRace: opts.isRandomRace,
 				randomGoldGranted: opts.randomGoldGranted,
-				gold: opts.gold,
-				lumber: 125,
+				gold: isSandbox ? 999999 : opts.gold,
+				lumber: isSandbox ? 999999 : 125,
 				food: 0,
 				maxFood: startingMaxFood,
 				commander: 0, // Must build "Дім командира" to choose
@@ -579,7 +583,23 @@ export class Simulation {
 					armor: 'Неуразливий',
 					speed: WORKER_MOVE_SPEED,
 					isBuilding: false,
-					buildTimer: 0
+					buildTimer: 0,
+					inventory:
+						startingMaxFood > 0
+							? [
+									{
+										id: 'I004',
+										name: 'Золотий Сир',
+										description: '+1 Ліміт їжі',
+										foodBonus: 1
+									},
+									null,
+									null,
+									null,
+									null,
+									null
+								]
+							: [null, null, null, null, null, null]
 				},
 				stats: {
 					unitsSpawned: 0,
@@ -1235,6 +1255,8 @@ export class Simulation {
 		this.lastBossId = -1;
 		this.activeBossInstanceId = null;
 		this.goldCoins = [];
+		this.groundItems = [];
+		this.nextGroundItemSeq = 1;
 		this.debris = [];
 		this.coinSpawnTimer = this.coinSpawnInterval;
 		const bridges: ('top' | 'mid' | 'bottom')[] = ['top', 'mid', 'bottom'];
@@ -1257,16 +1279,22 @@ export class Simulation {
 		}
 		this.assignCastleColors();
 
+		const isSandbox = this.config.modeId === 'sandbox';
+		const roundMaxFood =
+			this.gameModeConfig?.noSpecialBuildings || this.gameModeConfig?.noLegendaries ? 0 : 1;
 		for (const p of this.allPlayers) {
 			p.forge = { attack: 0, armor: 0, econ: 0 };
 			p.rescueStrikeCooldown = 0;
 			const baseStartGold = this.config.startGold ?? 500;
-			p.gold = !p.isBot && p.isRandomRace ? Math.round(baseStartGold * 1.3) : baseStartGold;
+			p.gold = isSandbox
+				? 999999
+				: !p.isBot && p.isRandomRace
+					? Math.round(baseStartGold * 1.3)
+					: baseStartGold;
 			p.randomGoldGranted = !p.isBot && !!p.isRandomRace;
-			p.lumber = 125;
+			p.lumber = isSandbox ? 999999 : 125;
 			p.food = 0;
-			p.maxFood =
-				this.gameModeConfig?.noSpecialBuildings || this.gameModeConfig?.noLegendaries ? 0 : 1;
+			p.maxFood = roundMaxFood;
 			p.stats = {
 				unitsSpawned: 0,
 				unitsKilled: 0,
@@ -1310,6 +1338,23 @@ export class Simulation {
 				p.worker.buildQueue = [];
 				p.worker.pendingRescueStrike = null;
 				p.worker.path = [];
+				p.worker.pendingItemOrder = null;
+				p.worker.inventory =
+					roundMaxFood > 0
+						? [
+								{
+									id: 'I004',
+									name: 'Золотий Сир',
+									description: '+1 Ліміт їжі',
+									foodBonus: 1
+								},
+								null,
+								null,
+								null,
+								null,
+								null
+							]
+						: [null, null, null, null, null, null];
 			}
 		}
 
@@ -1326,6 +1371,13 @@ export class Simulation {
 
 		this.tick++;
 		this.gameTime += dt;
+
+		if (this.config.modeId === 'sandbox') {
+			for (const p of this.allPlayers) {
+				if (p.gold < 999999) p.gold = 999999;
+				if ((p.lumber ?? 0) < 999999) p.lumber = 999999;
+			}
+		}
 
 		this.raceSkillCooldown.west = Math.max(0, this.raceSkillCooldown.west - dt);
 		this.raceSkillCooldown.east = Math.max(0, this.raceSkillCooldown.east - dt);
@@ -1951,6 +2003,46 @@ export class Simulation {
 
 	public buyCastleItem(team: MatchTeam, itemId: string, player?: PlayerState): boolean {
 		return this.economySystem.buyCastleItem(team, itemId, player);
+	}
+
+	public nextGroundItemId(): string {
+		return `itm_${this.nextGroundItemSeq++}`;
+	}
+
+	public dropWorkerItem(
+		team: MatchTeam,
+		slotIdx: number,
+		worldX: number,
+		worldY: number,
+		player?: PlayerState
+	): boolean {
+		return this.workerSystem.dropItem(team, slotIdx, worldX, worldY, player);
+	}
+
+	public pickupGroundItem(team: MatchTeam, groundItemId: string, player?: PlayerState): boolean {
+		return this.workerSystem.pickupGroundItem(team, groundItemId, player);
+	}
+
+	public transferWorkerItem(
+		team: MatchTeam,
+		slotIdx: number,
+		targetPlayerSlot: number,
+		player?: PlayerState
+	): boolean {
+		return this.workerSystem.transferItem(team, slotIdx, targetPlayerSlot, player);
+	}
+
+	public swapWorkerInventorySlots(
+		team: MatchTeam,
+		fromSlot: number,
+		toSlot: number,
+		player?: PlayerState
+	): boolean {
+		return this.workerSystem.swapInventorySlots(team, fromSlot, toSlot, player);
+	}
+
+	public useWorkerItem(team: MatchTeam, slotIdx: number, player?: PlayerState): boolean {
+		return this.workerSystem.useItem(team, slotIdx, player);
 	}
 
 	public getRescueStrikeCooldown(team: MatchTeam, player?: PlayerState): number {

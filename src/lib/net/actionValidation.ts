@@ -10,6 +10,11 @@ export const VALID_ACTION_TYPES = [
 	'ORDER_WORKER_MOVE',
 	'USE_ABILITY',
 	'BUY_ITEM',
+	'DROP_ITEM',
+	'PICKUP_ITEM',
+	'TRANSFER_ITEM',
+	'SWAP_ITEM',
+	'USE_ITEM',
 	'UPGRADE_FORGE',
 	'SELECT_COMMANDER',
 	'SET_RACE',
@@ -211,6 +216,42 @@ export function validatePlayerMove(raw: unknown): ValidationResult {
 			return { valid: false, error: 'Invalid round value' };
 		}
 		sanitizedPayload.round = p.round;
+	}
+
+	if ('slotIdx' in p) {
+		if (
+			typeof p.slotIdx !== 'number' ||
+			!Number.isInteger(p.slotIdx) ||
+			p.slotIdx < 0 ||
+			p.slotIdx > 5
+		) {
+			return { valid: false, error: 'Invalid slotIdx value' };
+		}
+		sanitizedPayload.slotIdx = p.slotIdx;
+	}
+
+	if ('toSlotIdx' in p) {
+		if (
+			typeof p.toSlotIdx !== 'number' ||
+			!Number.isInteger(p.toSlotIdx) ||
+			p.toSlotIdx < 0 ||
+			p.toSlotIdx > 5
+		) {
+			return { valid: false, error: 'Invalid toSlotIdx value' };
+		}
+		sanitizedPayload.toSlotIdx = p.toSlotIdx;
+	}
+
+	if ('targetPlayerSlot' in p) {
+		if (
+			typeof p.targetPlayerSlot !== 'number' ||
+			!Number.isInteger(p.targetPlayerSlot) ||
+			p.targetPlayerSlot < 1 ||
+			p.targetPlayerSlot > 14
+		) {
+			return { valid: false, error: 'Invalid targetPlayerSlot value' };
+		}
+		sanitizedPayload.targetPlayerSlot = p.targetPlayerSlot;
 	}
 
 	return {

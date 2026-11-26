@@ -319,6 +319,10 @@ export class CombatSystem {
 			if (u.buffs?.some((b) => b.type === 'bloodlust')) {
 				currentSpeed *= 1.25;
 			}
+			const msBuff = u.buffs?.find((b) => b.type === 'ms');
+			if (msBuff) {
+				currentSpeed *= Math.max(0.2, 1 + (msBuff.value || 0.15));
+			}
 			if (u.buffs?.some((b) => b.type === 'weakness')) {
 				currentSpeed *= 0.75;
 			}
@@ -684,8 +688,13 @@ export class CombatSystem {
 			attacker.damageMin +
 			Math.floor(this.sim.nextRandom() * (attacker.damageMax - attacker.damageMin + 1));
 
-		if (attacker.buffs?.some((b) => b.type === 'dmg')) {
-			rawDmg = Math.round(rawDmg * 1.25);
+		const dmgBuff = attacker.buffs?.find((b) => b.type === 'dmg');
+		if (dmgBuff) {
+			const mult =
+				dmgBuff.value !== undefined && dmgBuff.value !== 0
+					? Math.max(0.1, 1 + dmgBuff.value)
+					: 1.25;
+			rawDmg = Math.round(rawDmg * mult);
 		}
 		if (attacker.buffs?.some((b) => b.type === 'inner_fire')) {
 			rawDmg = Math.round(rawDmg * 1.25);

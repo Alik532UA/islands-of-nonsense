@@ -151,8 +151,13 @@ export class DefenseSystem {
 		let rawDmg =
 			attacker.damageMin +
 			Math.floor(this.sim.nextRandom() * (attacker.damageMax - attacker.damageMin + 1));
-		if (attacker.buffs?.some((b) => b.type === 'dmg')) {
-			rawDmg = Math.round(rawDmg * 1.25);
+		const dmgBuff = attacker.buffs?.find((b) => b.type === 'dmg');
+		if (dmgBuff) {
+			const mult =
+				dmgBuff.value !== undefined && dmgBuff.value !== 0
+					? Math.max(0.1, 1 + dmgBuff.value)
+					: 1.25;
+			rawDmg = Math.round(rawDmg * mult);
 		}
 
 		if (attacker.range > 150) {

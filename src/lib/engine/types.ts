@@ -287,6 +287,7 @@ export interface ActiveBuff {
 	type:
 		| 'dmg'
 		| 'as'
+		| 'ms'
 		| 'shield'
 		| 'evade'
 		| 'slow'
@@ -510,6 +511,35 @@ export interface Commander {
 	baseBonusPct: number;
 }
 
+export interface InventoryItem {
+	id: string;
+	name: string;
+	description: string;
+	foodBonus?: number;
+	cooldown?: number;
+	cooldownRemaining?: number;
+	activeAbility?: 'chain_lightning';
+	autoAttack?: {
+		damage: number;
+		range: number;
+		interval: number;
+		timer: number;
+	};
+}
+
+export interface GroundItem {
+	instanceId: string;
+	item: InventoryItem;
+	x: number;
+	y: number;
+	droppedBySlot?: number;
+}
+
+export type WorkerItemOrder =
+	| { kind: 'drop'; slotIdx: number; targetX: number; targetY: number }
+	| { kind: 'pickup'; groundItemId: string }
+	| { kind: 'transfer'; slotIdx: number; targetPlayerSlot: number };
+
 export interface WorkerState {
 	name: string;
 	x: number;
@@ -534,6 +564,8 @@ export interface WorkerState {
 	lastMoveY?: number;
 	buildQueue?: string[];
 	pendingRescueStrike?: { x: number; y: number } | null;
+	inventory?: (InventoryItem | null)[];
+	pendingItemOrder?: WorkerItemOrder | null;
 }
 
 export interface PlayerState {
