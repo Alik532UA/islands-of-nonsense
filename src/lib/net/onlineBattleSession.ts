@@ -1,6 +1,7 @@
 import type { Simulation } from '$lib/engine/simulation';
 import { logService } from '$lib/services/logService.svelte';
 import type { MatchSync } from './matchSync';
+import { uploadDesyncLog } from './desyncLogs';
 import { createOnlineSimulation } from './onlineMatchSetup';
 import type { Member, Move, RoomInfo } from './roomTypes';
 
@@ -144,6 +145,8 @@ export async function startOnlineBattleSession(
 		let presencePeerOnline = false;
 		let handoverInFlight = false;
 		let currentDesyncNotice: string | null = null;
+		let desyncUploadCount = 0;
+		let lastUploadedDesyncTick = -1;
 		const initialAwaitingPick = activeSim.allPlayers.some((p) => !p.isBot && p.pendingRacePick);
 		let countdownAnchorServerMs: number | null =
 			roomInfo?.status === 'playing' && initialAwaitingPick
@@ -226,7 +229,9 @@ export async function startOnlineBattleSession(
 				latestRoomInfo ? createOnlineSimulation(latestRoomInfo, latestMembers, uid).sim : null,
 			onSimResynced: (nextSim) => {
 				activeSim = nextSim;
-				currentDesyncNotice = null;
+				if (!sync?.isPausedForDesync) {
+					currentDesyncNotice = null;
+				}
 				publishPeerOnline();
 				callbacks.onSimResynced?.(nextSim);
 			},
@@ -237,10 +242,66 @@ export async function startOnlineBattleSession(
 			onPeerPing: ({ rtt }) => {
 				callbacks.onPeerPing(rtt);
 			},
-			onDesync: ({ tick }) => {
-				currentDesyncNotice = `Увага: розсинхронізація на тіку ${tick}`;
+			onDesync: ({ tick, localChecksum, remoteChecksum }) => {
+				currentDesyncNotice = `Розсинхронізація на тіку ${tick} · пауза до повної синхронізації`;
 				logService.warn('network', 'Simulation checksum mismatch', { tick });
 				callbacks.onDesync(tick);
+				if (desyncUploadCount < 3 && tick !== lastUploadedDesyncTick && sync) {
+					desyncUploadCount++;
+					lastUploadedDesyncTick = tick;
+					const digest = sync.getHistoryDigest();
+					const localMember = latestMembers.find((m) => m.uid === uid);
+					const targetTick = getTargetTickInternal();
+					const membersSummary = latestMembers.map((m) => ({
+						uid: m.uid.slice(0, 8),
+						name: m.name,
+						role: m.role,
+						team: m.team ?? null,
+						slot: m.slot ?? null,
+						race: m.race ?? null,
+						order: m.order
+					}));
+					const fullLog = [
+						`=== ONLINE DESYNC DIAGNOSTIC LOG ===`,
+						`purpose=Forensic log for finding & fixing online lockstep desync (compare both players' logs: historyHash, seqs, workers, buildings, raw)`,
+						`date=${new Date().toISOString()} room=${roomCode} isHostHint=${isHostHint} isSpectator=${isSpectator}`,
+						`seed=${latestRoomInfo?.seed ?? 'none'} status=${latestRoomInfo?.status ?? 'none'} startedAt=${latestRoomInfo?.startedAt ?? 'none'}`,
+						`epochAnchor=${epochAnchorServerMs} pausedAt=${pausedAtServerMs} targetTick=${targetTick} simTick=${activeSim.tick}`,
+						`config=${JSON.stringify(latestRoomInfo?.config ?? null)}`,
+						`roster=${JSON.stringify(latestRoomInfo?.roster ?? null)}`,
+						`members=${JSON.stringify(membersSummary)}`,
+						sync.getForensicLog()
+					].join('\n');
+					void uploadDesyncLog({
+						roomCode,
+						startedAt: latestRoomInfo?.startedAt ?? null,
+						playerName: localMember?.name ?? uid.slice(0, 8),
+						tick,
+						localChecksum,
+						remoteChecksum,
+						historyHash: digest.hash,
+						historyCount: digest.count,
+						log: fullLog
+					});
+				}
+			},
+			onDesyncPauseChange: (paused) => {
+				if (paused) {
+					if (pausedAtServerMs === null) {
+						pausedAtServerMs = transport.now();
+					}
+					if (!currentDesyncNotice) {
+						currentDesyncNotice = 'Розсинхронізація · пауза до повної синхронізації';
+					}
+					publishPeerOnline();
+				} else {
+					if (pausedAtServerMs !== null && epochAnchorServerMs !== null) {
+						epochAnchorServerMs += Math.max(0, transport.now() - pausedAtServerMs);
+					}
+					pausedAtServerMs = null;
+					currentDesyncNotice = null;
+					publishPeerOnline();
+				}
 			},
 			onGone: (reason) => {
 				disposed = true;

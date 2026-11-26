@@ -19,6 +19,7 @@ export interface MatchSyncOptions {
 	onPeerStatusChange?: (status: { peerUid: string; online: boolean }) => void;
 	onPeerPing?: (ping: { peerUid: string; rtt: number }) => void;
 	onDesync?: (info: { tick: number; localChecksum: string; remoteChecksum: string }) => void;
+	onDesyncPauseChange?: (paused: boolean) => void;
 }
 
 const MAX_CHECKPOINT_HISTORY = 40;
@@ -107,6 +108,9 @@ export class MatchSync {
 		localChecksum: string;
 		remoteChecksum: string;
 	}) => void;
+	private onDesyncPauseChange?: (paused: boolean) => void;
+	public isPausedForDesync = false;
+	private serverRecoveryInFlight = false;
 	private peerSeen = new Map<string, number>();
 	private peerRtt = new Map<string, number>();
 	private checksumHistory = new Map<number, string>();
@@ -135,6 +139,7 @@ export class MatchSync {
 		this.onPeerStatusChange = options.onPeerStatusChange;
 		this.onPeerPing = options.onPeerPing;
 		this.onDesync = options.onDesync;
+		this.onDesyncPauseChange = options.onDesyncPauseChange;
 
 		this.unwatch = this.transport.watch(
 			(snapshot) => {
@@ -167,20 +172,54 @@ export class MatchSync {
 		}
 	}
 
-	getForensicLog(): string {
-		const sig = computeSimStateSignature(this.sim);
-		const allSeqs = this.appliedHistory.map((m) => m.seq);
-		const historyDigestRaw = this.appliedHistory
+	getHistoryDigest(): { count: number; hash: string } {
+		const digestRaw = this.appliedHistory
 			.map((m) => {
 				const p = m.payload ?? {};
 				return `${m.seq}:${m.type}:${p.tick ?? ''}:${p.playerSlot ?? ''}:${p.race ?? ''}:${p.buildingType ?? ''}:${p.x ?? ''},${p.y ?? ''}:${p.worldX ?? ''},${p.worldY ?? ''}:${p.targetId ?? ''}:${p.commanderId ?? ''}:${p.itemId ?? ''}:${p.forgeType ?? ''}:${p.shiftKey ? 1 : 0}`;
 			})
 			.join('|');
-		let historyHash = 5381;
-		for (let i = 0; i < historyDigestRaw.length; i++) {
-			historyHash =
-				((historyHash << 5) + historyHash + historyDigestRaw.charCodeAt(i)) & 0xffffffff;
+		let hash = 5381;
+		for (let i = 0; i < digestRaw.length; i++) {
+			hash = ((hash << 5) + hash + digestRaw.charCodeAt(i)) & 0xffffffff;
 		}
+		return { count: this.appliedHistory.length, hash: (hash >>> 0).toString(16) };
+	}
+
+	private setPausedForDesync(paused: boolean) {
+		if (this.isPausedForDesync === paused) return;
+		this.isPausedForDesync = paused;
+		this.sim.isRunning = !paused;
+		this.logSyncEvent(paused ? 'DESYNC_PAUSE' : 'DESYNC_RESUME', { tick: this.sim.tick });
+		this.onDesyncPauseChange?.(paused);
+	}
+
+	private async attemptServerMovesRecovery(targetTick: number): Promise<void> {
+		if (this.serverRecoveryInFlight || !this.transport.fetchMoves) return;
+		this.serverRecoveryInFlight = true;
+		try {
+			const serverMoves = await this.transport.fetchMoves();
+			if (serverMoves.length > 0) {
+				const beforeCount = this.appliedHistory.length;
+				this.processMoves(serverMoves);
+				if (this.appliedHistory.length !== beforeCount) {
+					this.logSyncEvent('SERVER_MOVES_RECOVERED', {
+						added: this.appliedHistory.length - beforeCount,
+						targetTick
+					});
+				}
+			}
+			this.resyncSimulationToTick(targetTick);
+			await this.broadcastChecksum();
+		} finally {
+			this.serverRecoveryInFlight = false;
+		}
+	}
+
+	getForensicLog(): string {
+		const sig = computeSimStateSignature(this.sim);
+		const allSeqs = this.appliedHistory.map((m) => m.seq);
+		const { hash: historyHash } = this.getHistoryDigest();
 		const workersSummary = (this.sim.allPlayers ?? [])
 			.filter((pl) => pl.worker)
 			.map((pl) => {
@@ -228,7 +267,7 @@ export class MatchSync {
 		return [
 			`localUid=${this.localUid} team=${this.localTeam} slot=${this.localSlot} running=${this.sim.isRunning}`,
 			`uidToSlot=${JSON.stringify(Object.fromEntries(this.uidToSlot))}`,
-			`historyCount=${this.appliedHistory.length} historyHash=${(historyHash >>> 0).toString(16)} seqs=${JSON.stringify(allSeqs)}`,
+			`historyCount=${this.appliedHistory.length} historyHash=${historyHash} seqs=${JSON.stringify(allSeqs)}`,
 			`currentSig=${sig.checksum} raw=${sig.raw}`,
 			`workers=${workersSummary}`,
 			`buildings=${buildingsSummary}`,
@@ -553,6 +592,8 @@ export class MatchSync {
 				localChecksum: postResyncChecksum,
 				remoteChecksum
 			});
+			this.setPausedForDesync(true);
+			void this.attemptServerMovesRecovery(targetTick);
 		}
 	}
 
@@ -572,6 +613,9 @@ export class MatchSync {
 			this.rawHistory.clear();
 			this.pendingRemoteChecksums.clear();
 			this.replayMovesThroughCurrentSim(this.appliedHistory, targetTick, false, verifyCheckpoint);
+			if (this.isPausedForDesync) {
+				this.sim.isRunning = false;
+			}
 			this.logSyncEvent('RESYNC_DONE', {
 				targetTick,
 				raw: computeSimStateSignature(this.sim).raw
@@ -854,11 +898,15 @@ export class MatchSync {
 						const localChecksum = this.recordCheckpointChecksum();
 						if (localChecksum !== p.checksum) {
 							this.handleChecksumMismatch(p.tick, localChecksum, p.checksum);
+						} else if (this.isPausedForDesync) {
+							this.setPausedForDesync(false);
 						}
 					} else if (p.tick < this.sim.tick) {
 						const historical = this.checksumHistory.get(p.tick);
 						if (historical && historical !== p.checksum) {
 							this.handleChecksumMismatch(p.tick, historical, p.checksum);
+						} else if (historical && historical === p.checksum && this.isPausedForDesync) {
+							this.setPausedForDesync(false);
 						}
 					} else {
 						// Remote peer is slightly ahead; verify when local sim reaches `p.tick`

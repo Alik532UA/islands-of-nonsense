@@ -107,6 +107,7 @@ interface SharedRoomChannel {
 	inFlightSeqs: Set<number>;
 	confirmSeq: (seq: number) => void;
 	rejectSeq: (seq: number) => void;
+	mergeServerMoves: (rawMoves: Record<string, Move> | null) => Move[];
 	subscribe: (sub: RoomSubscriber) => () => void;
 }
 
@@ -149,6 +150,26 @@ async function acquireSharedChannel(code: string): Promise<SharedRoomChannel> {
 		},
 		rejectSeq(seq: number) {
 			channel.inFlightSeqs.delete(seq);
+		},
+		mergeServerMoves(rawMoves: Record<string, Move> | null) {
+			if (rawMoves) {
+				let added = false;
+				for (const [key, val] of Object.entries(rawMoves)) {
+					const seq = Number(key);
+					if (!Number.isInteger(seq) || !val) continue;
+					if (!movesBySeq.has(seq)) {
+						movesBySeq.set(seq, { ...val, seq });
+						if (seq > channel.highestSeq) {
+							channel.highestSeq = seq;
+						}
+						added = true;
+					}
+				}
+				if (added) {
+					scheduleEmit();
+				}
+			}
+			return getSortedMoves();
 		},
 		subscribe(sub: RoomSubscriber) {
 			if (unsubFns.length === 0 && !disposed) {
@@ -594,6 +615,11 @@ export async function roomTransport(code: string): Promise<RoomTransport> {
 
 		watch(onSnapshot, onGone) {
 			return channel.subscribe({ onSnapshot, onGone });
+		},
+
+		async fetchMoves() {
+			const snap = await get(ref(db, `rooms/${code}/moves`));
+			return channel.mergeServerMoves((snap.val() as Record<string, Move> | null) ?? null);
 		},
 
 		async append(move: Move) {

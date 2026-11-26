@@ -189,6 +189,7 @@ export interface RoomTransport {
 		onGone?: (why: GoneReason) => void
 	): () => void;
 	append(move: Move): Promise<boolean>;
+	fetchMoves?: () => Promise<Move[]>;
 	setStatus(status: RoomStatus, roster?: RosterEntry[], config?: RoomConfig): Promise<void>;
 	touch(): Promise<void>;
 	setAutoStart?(on: boolean): Promise<void>;
