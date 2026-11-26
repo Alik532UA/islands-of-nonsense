@@ -16,7 +16,7 @@
 	import type { PlayerState } from '$lib/engine/types';
 	import { BotAI } from '$lib/engine/botAI';
 	import { ArenaRenderer, type SelectedEntity } from '$lib/renderer/ArenaRenderer';
-	import { sound } from '$lib/services/audio';
+	import { sound, music } from '$lib/services/audio';
 	import { attachAudioBridge } from '$lib/services/audioBridge';
 	import {
 		RACES_LIST,
@@ -1322,9 +1322,11 @@
 				onComplete: handleCopyEntityLog
 			})
 		);
+		music.setScene('battle');
 	});
 
 	onDestroy(() => {
+		music.setScene('menu');
 		perfMonitor.detachSim();
 		onlineSession?.dispose();
 		onlineSession = null;

@@ -33,9 +33,12 @@ describe('SettingsService & Header Claiming', () => {
 		expect(settings.headerBack).toBeNull();
 	});
 
-	it('defaults master volume to 10% (0.1) and synchronizes sound bounds', () => {
-		expect(settings.volume).toBe(0.1);
-		expect(sound.getVolume()).toBe(0.1);
+	it('defaults SFX volume to 7% (0.07), music volume to 2% (0.02), and soundPack to fantasy-rpg', () => {
+		expect(settings.volume).toBe(0.07);
+		expect(sound.getVolume()).toBe(0.07);
+		expect(settings.musicVolume).toBe(0.02);
+		expect(settings.soundPack).toBe('fantasy-rpg');
+		expect(sound.getPack()).toBe('fantasy-rpg');
 
 		settings.setSound(false);
 		expect(settings.sound).toBe(false);
@@ -58,7 +61,7 @@ describe('SettingsService & Header Claiming', () => {
 		expect(settings.volume).toBe(0.0);
 		expect(sound.getVolume()).toBe(0.0);
 
-		settings.setVolume(0.1);
+		settings.setVolume(0.07);
 	});
 
 	it('toggles locale reactively between uk and en', () => {

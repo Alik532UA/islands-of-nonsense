@@ -1,7 +1,8 @@
 import { untrack } from 'svelte';
 import { storage } from './storage';
 import { bindReactiveLocale, getLocale, setLocale, type Locale } from '$lib/i18n';
-import { sound } from './audio';
+import { sound, music, SOUND_PACKS, MUSIC_TRACKS, type SoundPack, type MusicTrack } from './audio';
+export { SOUND_PACKS, MUSIC_TRACKS, type SoundPack, type MusicTrack };
 export { contrast, luminance, parseColor, AA_NORMAL, AA_LARGE } from '$lib/utils/contrast';
 
 export type UiScale = 0.85 | 1 | 1.15 | 1.3;
@@ -65,6 +66,22 @@ function detectInitialGraphicsStyle(): GraphicsStyle {
 	return '2.5d';
 }
 
+function detectInitialSoundPack(): SoundPack {
+	const saved = storage.getJSON<SoundPack>('settings_sound_pack', 'fantasy-rpg');
+	if (SOUND_PACKS.includes(saved)) {
+		return saved;
+	}
+	return 'fantasy-rpg';
+}
+
+function detectInitialMusicTrack(): MusicTrack {
+	const saved = storage.getJSON<MusicTrack>('settings_music_track', 'auto');
+	if (MUSIC_TRACKS.includes(saved)) {
+		return saved;
+	}
+	return 'auto';
+}
+
 function detectInitialLocale(): Locale {
 	if (typeof window !== 'undefined') {
 		const param = new URLSearchParams(window.location.search).get('lang');
@@ -119,7 +136,11 @@ class SettingsService {
 	#headerTitle = $state<string | null>(null);
 	#headerBack = $state<(() => void) | null>(null);
 	#sound = $state(storage.getJSON<boolean>('settings_sound_fx', true));
-	#volume = $state(storage.getJSON<number>('settings_volume', 0.1));
+	#volume = $state(storage.getJSON<number>('settings_volume', 0.07));
+	#soundPack = $state<SoundPack>(detectInitialSoundPack());
+	#musicEnabled = $state(storage.getJSON<boolean>('settings_music_enabled', true));
+	#musicVolume = $state(storage.getJSON<number>('settings_music_volume', 0.02));
+	#musicTrack = $state<MusicTrack>(detectInitialMusicTrack());
 	#locale = $state<Locale>(detectInitialLocale());
 	#uiScale = $state<UiScale>(detectInitialUiScale());
 	#theme = $state<AppTheme>(detectInitialTheme());
@@ -133,6 +154,10 @@ class SettingsService {
 		// Synchronize procedural sound engine & reactive i18n with saved state
 		sound.setEnabled(this.#sound);
 		sound.setVolume(this.#volume);
+		sound.setPack(this.#soundPack);
+		music.setEnabled(this.#musicEnabled);
+		music.setVolume(this.#musicVolume);
+		music.setTrack(this.#musicTrack);
 		applyUiScale(this.#uiScale);
 		applyTheme(this.#theme);
 		bindReactiveLocale(
@@ -160,6 +185,22 @@ class SettingsService {
 
 	get volume(): number {
 		return this.#volume;
+	}
+
+	get soundPack(): SoundPack {
+		return this.#soundPack;
+	}
+
+	get musicEnabled(): boolean {
+		return this.#musicEnabled;
+	}
+
+	get musicVolume(): number {
+		return this.#musicVolume;
+	}
+
+	get musicTrack(): MusicTrack {
+		return this.#musicTrack;
 	}
 
 	get locale(): Locale {
@@ -205,6 +246,35 @@ class SettingsService {
 		this.#volume = clamped;
 		storage.setJSON('settings_volume', clamped);
 		sound.setVolume(clamped);
+	}
+
+	setSoundPack(pack: SoundPack): void {
+		if (SOUND_PACKS.includes(pack)) {
+			this.#soundPack = pack;
+			storage.setJSON('settings_sound_pack', pack);
+			sound.setPack(pack);
+		}
+	}
+
+	setMusicEnabled(enabled: boolean): void {
+		this.#musicEnabled = enabled;
+		storage.setJSON('settings_music_enabled', enabled);
+		music.setEnabled(enabled);
+	}
+
+	setMusicVolume(vol: number): void {
+		const clamped = Math.max(0, Math.min(1, vol));
+		this.#musicVolume = clamped;
+		storage.setJSON('settings_music_volume', clamped);
+		music.setVolume(clamped);
+	}
+
+	setMusicTrack(track: MusicTrack): void {
+		if (MUSIC_TRACKS.includes(track)) {
+			this.#musicTrack = track;
+			storage.setJSON('settings_music_track', track);
+			music.setTrack(track);
+		}
 	}
 
 	setLocale(loc: Locale): void {

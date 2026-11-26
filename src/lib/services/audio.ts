@@ -1,14 +1,205 @@
+import { resolve } from '$app/paths';
+
+function audioUrl(path: string): string {
+	return `${resolve('/').replace(/\/$/, '')}${path}`;
+}
+
+export type SoundPack = '8-bit' | 'synth-pro' | 'fantasy-rpg' | 'dark-siege';
+export const SOUND_PACKS: readonly SoundPack[] = [
+	'8-bit',
+	'synth-pro',
+	'fantasy-rpg',
+	'dark-siege'
+] as const;
+
+export type MusicTrack = 'auto' | 'minstrel' | 'exploration' | 'tavern';
+export const MUSIC_TRACKS: readonly MusicTrack[] = [
+	'auto',
+	'minstrel',
+	'exploration',
+	'tavern'
+] as const;
+
+type SfxSampleKey =
+	| 'build'
+	| 'upgrade'
+	| 'coin'
+	| 'hit'
+	| 'sword'
+	| 'bow'
+	| 'magic'
+	| 'death'
+	| 'destroy'
+	| 'complete'
+	| 'error'
+	| 'horn';
+
+const SAMPLE_KEYS: readonly SfxSampleKey[] = [
+	'build',
+	'upgrade',
+	'coin',
+	'hit',
+	'sword',
+	'bow',
+	'magic',
+	'death',
+	'destroy',
+	'complete',
+	'error',
+	'horn'
+] as const;
+
 /**
- * Procedural Web Audio Sound Synthesizer (ADR 0002 style).
- * Generates all game sound effects procedurally with zero external asset latency.
+ * Procedural Web Audio Sound Synthesizer (ADR 0002 style) + Sample Pack Player.
+ * Supports 8-bit classic synthesis, Synth Pro, and CC0 Fantasy/Siege sample packs.
  */
 export class SoundService {
 	private ctx: AudioContext | null = null;
 	private enabled = true;
 	private volume = 0.5;
+	private pack: SoundPack = '8-bit';
+	private sampleCache = new Map<string, AudioBuffer | 'loading' | 'failed'>();
 
 	constructor() {
 		// AudioContext will be initialized on user interaction
+	}
+
+	public setPack(pack: SoundPack): void {
+		if (!SOUND_PACKS.includes(pack)) return;
+		this.pack = pack;
+		if (pack === 'fantasy-rpg' || pack === 'dark-siege') {
+			this.preloadPack(pack);
+		}
+	}
+
+	public getPack(): SoundPack {
+		return this.pack;
+	}
+
+	private preloadPack(pack: 'fantasy-rpg' | 'dark-siege'): void {
+		if (typeof window === 'undefined' || typeof fetch !== 'function') return;
+		for (const key of SAMPLE_KEYS) {
+			void this.loadSample(pack, key);
+		}
+	}
+
+	private async loadSample(pack: 'fantasy-rpg' | 'dark-siege', key: SfxSampleKey): Promise<void> {
+		const cacheKey = `${pack}:${key}`;
+		if (this.sampleCache.has(cacheKey)) return;
+		this.sampleCache.set(cacheKey, 'loading');
+		try {
+			const res = await fetch(audioUrl(`/audio/sfx/${pack}/${key}.mp3`));
+			if (!res.ok) {
+				this.sampleCache.set(cacheKey, 'failed');
+				return;
+			}
+			const arr = await res.arrayBuffer();
+			const ctx = this.getContext();
+			if (!ctx) {
+				this.sampleCache.delete(cacheKey);
+				return;
+			}
+			const decoded = await ctx.decodeAudioData(arr);
+			this.sampleCache.set(cacheKey, decoded);
+		} catch {
+			this.sampleCache.set(cacheKey, 'failed');
+		}
+	}
+
+	private playSampleOrSynthPro(
+		sampleKey: SfxSampleKey,
+		synthProFn: () => void,
+		gainScale = 0.72
+	): boolean {
+		if (this.pack === '8-bit') return false;
+		if (this.pack === 'synth-pro') {
+			synthProFn();
+			return true;
+		}
+		const cacheKey = `${this.pack}:${sampleKey}`;
+		const cached = this.sampleCache.get(cacheKey);
+		if (cached && cached !== 'loading' && cached !== 'failed') {
+			const ctx = this.getContext();
+			if (ctx) {
+				const src = ctx.createBufferSource();
+				src.buffer = cached;
+				const gain = ctx.createGain();
+				gain.gain.setValueAtTime(Math.min(1, this.volume * gainScale), ctx.currentTime);
+				src.connect(gain);
+				gain.connect(ctx.destination);
+				src.start();
+				return true;
+			}
+		}
+		if (!cached) {
+			void this.loadSample(this.pack, sampleKey);
+		}
+		synthProFn();
+		return true;
+	}
+
+	private playSynthProTone(
+		freqStart: number,
+		freqEnd: number,
+		duration: number,
+		type: OscillatorType,
+		gainScale = 0.32
+	): void {
+		const ctx = this.getContext();
+		if (!ctx) return;
+		const now = ctx.currentTime;
+		const osc = ctx.createOscillator();
+		const gain = ctx.createGain();
+		osc.type = type;
+		osc.frequency.setValueAtTime(freqStart, now);
+		osc.frequency.exponentialRampToValueAtTime(Math.max(20, freqEnd), now + duration);
+		gain.gain.setValueAtTime(this.volume * gainScale, now);
+		gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+		if (typeof ctx.createBiquadFilter === 'function') {
+			const filter = ctx.createBiquadFilter();
+			filter.type = 'lowpass';
+			filter.frequency.setValueAtTime(2400, now);
+			osc.connect(filter);
+			filter.connect(gain);
+		} else {
+			osc.connect(gain);
+		}
+		gain.connect(ctx.destination);
+		osc.start(now);
+		osc.stop(now + duration + 0.02);
+	}
+
+	private playSynthProNoise(
+		duration: number,
+		filterFreq: number,
+		filterType: BiquadFilterType,
+		gainScale = 0.28
+	): void {
+		const ctx = this.getContext();
+		if (!ctx || typeof ctx.createBuffer !== 'function') return;
+		const now = ctx.currentTime;
+		const bufferSize = Math.max(1, Math.floor(ctx.sampleRate * duration));
+		const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+		const data = buffer.getChannelData(0);
+		for (let i = 0; i < bufferSize; i++) {
+			data[i] = Math.random() * 2 - 1;
+		}
+		const src = ctx.createBufferSource();
+		src.buffer = buffer;
+		const gain = ctx.createGain();
+		gain.gain.setValueAtTime(this.volume * gainScale, now);
+		gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+		if (typeof ctx.createBiquadFilter === 'function') {
+			const filter = ctx.createBiquadFilter();
+			filter.type = filterType;
+			filter.frequency.setValueAtTime(filterFreq, now);
+			src.connect(filter);
+			filter.connect(gain);
+		} else {
+			src.connect(gain);
+		}
+		gain.connect(ctx.destination);
+		src.start(now);
 	}
 
 	private getContext(): AudioContext | null {
@@ -48,6 +239,13 @@ export class SoundService {
 	 */
 	public playBuild(): void {
 		if (!this.enabled) return;
+		if (
+			this.playSampleOrSynthPro('build', () => {
+				this.playSynthProNoise(0.09, 1400, 'bandpass', 0.35);
+				this.playSynthProTone(210, 95, 0.14, 'triangle', 0.38);
+			})
+		)
+			return;
 		const ctx = this.getContext();
 		if (!ctx) return;
 
@@ -73,6 +271,13 @@ export class SoundService {
 	 */
 	public playUpgrade(): void {
 		if (!this.enabled) return;
+		if (
+			this.playSampleOrSynthPro('upgrade', () => {
+				this.playSynthProTone(440, 660, 0.18, 'triangle', 0.28);
+				this.playSynthProTone(660, 880, 0.24, 'sine', 0.25);
+			})
+		)
+			return;
 		const ctx = this.getContext();
 		if (!ctx) return;
 
@@ -98,6 +303,13 @@ export class SoundService {
 	 */
 	public playCoin(): void {
 		if (!this.enabled) return;
+		if (
+			this.playSampleOrSynthPro('coin', () => {
+				this.playSynthProTone(1180, 1480, 0.12, 'sine', 0.24);
+				this.playSynthProTone(1760, 1760, 0.16, 'triangle', 0.18);
+			})
+		)
+			return;
 		const ctx = this.getContext();
 		if (!ctx) return;
 
@@ -123,6 +335,13 @@ export class SoundService {
 	 */
 	public playHit(): void {
 		if (!this.enabled) return;
+		if (
+			this.playSampleOrSynthPro('hit', () => {
+				this.playSynthProNoise(0.07, 900, 'lowpass', 0.3);
+				this.playSynthProTone(150, 55, 0.09, 'triangle', 0.3);
+			})
+		)
+			return;
 		const ctx = this.getContext();
 		if (!ctx) return;
 
@@ -148,6 +367,13 @@ export class SoundService {
 	 */
 	public playSwordClash(): void {
 		if (!this.enabled) return;
+		if (
+			this.playSampleOrSynthPro('sword', () => {
+				this.playSynthProNoise(0.08, 3200, 'bandpass', 0.3);
+				this.playSynthProTone(920, 480, 0.1, 'triangle', 0.22);
+			})
+		)
+			return;
 		const ctx = this.getContext();
 		if (!ctx) return;
 
@@ -173,6 +399,13 @@ export class SoundService {
 	 */
 	public playBowShot(): void {
 		if (!this.enabled) return;
+		if (
+			this.playSampleOrSynthPro('bow', () => {
+				this.playSynthProNoise(0.09, 2600, 'highpass', 0.24);
+				this.playSynthProTone(520, 190, 0.09, 'sine', 0.18);
+			})
+		)
+			return;
 		const ctx = this.getContext();
 		if (!ctx) return;
 
@@ -198,6 +431,13 @@ export class SoundService {
 	 */
 	public playMagicCast(): void {
 		if (!this.enabled) return;
+		if (
+			this.playSampleOrSynthPro('magic', () => {
+				this.playSynthProTone(540, 1080, 0.22, 'sine', 0.24);
+				this.playSynthProNoise(0.18, 1800, 'bandpass', 0.16);
+			})
+		)
+			return;
 		const ctx = this.getContext();
 		if (!ctx) return;
 
@@ -223,6 +463,13 @@ export class SoundService {
 	 */
 	public playUnitDeath(): void {
 		if (!this.enabled) return;
+		if (
+			this.playSampleOrSynthPro('death', () => {
+				this.playSynthProNoise(0.14, 700, 'lowpass', 0.26);
+				this.playSynthProTone(180, 52, 0.18, 'sawtooth', 0.2);
+			})
+		)
+			return;
 		const ctx = this.getContext();
 		if (!ctx) return;
 
@@ -255,6 +502,13 @@ export class SoundService {
 	 */
 	public playBuildingDestroyed(): void {
 		if (!this.enabled) return;
+		if (
+			this.playSampleOrSynthPro('destroy', () => {
+				this.playSynthProNoise(0.32, 480, 'lowpass', 0.42);
+				this.playSynthProTone(120, 34, 0.34, 'triangle', 0.35);
+			})
+		)
+			return;
 		const ctx = this.getContext();
 		if (!ctx) return;
 
@@ -333,6 +587,13 @@ export class SoundService {
 	 */
 	public playHorn(): void {
 		if (!this.enabled) return;
+		if (
+			this.playSampleOrSynthPro('horn', () => {
+				this.playSynthProTone(220, 293.66, 0.36, 'sawtooth', 0.24);
+				this.playSynthProTone(110, 146.83, 0.42, 'triangle', 0.26);
+			})
+		)
+			return;
 		const ctx = this.getContext();
 		if (!ctx) return;
 
@@ -417,6 +678,13 @@ export class SoundService {
 	 */
 	public playBuildingComplete(): void {
 		if (!this.enabled) return;
+		if (
+			this.playSampleOrSynthPro('complete', () => {
+				this.playSynthProTone(392, 523.25, 0.18, 'triangle', 0.26);
+				this.playSynthProTone(523.25, 783.99, 0.24, 'sine', 0.24);
+			})
+		)
+			return;
 		const ctx = this.getContext();
 		if (!ctx) return;
 
@@ -631,6 +899,12 @@ export class SoundService {
 	 */
 	public playErrorResource(): void {
 		if (!this.enabled) return;
+		if (
+			this.playSampleOrSynthPro('error', () => {
+				this.playSynthProTone(190, 120, 0.16, 'sawtooth', 0.22);
+			})
+		)
+			return;
 		const ctx = this.getContext();
 		if (!ctx) return;
 
@@ -699,3 +973,110 @@ export class SoundService {
 }
 
 export const sound = new SoundService();
+
+const MUSIC_FILE_MAP: Record<Exclude<MusicTrack, 'auto'>, string> = {
+	minstrel: 'medieval_minstrel.mp3',
+	exploration: 'medieval_exploration.mp3',
+	tavern: 'medieval_tavern.mp3'
+};
+
+/**
+ * Background medieval music player with independent enable/volume/track controls
+ * and automatic unlock on first user interaction.
+ */
+export class MusicService {
+	private audio: HTMLAudioElement | null = null;
+	private enabled = true;
+	private volume = 0.02;
+	private track: MusicTrack = 'auto';
+	private scene: 'menu' | 'battle' = 'menu';
+	private currentFile: string | null = null;
+	private unlockBound = false;
+
+	private bindUnlock(): void {
+		if (this.unlockBound || typeof window === 'undefined') return;
+		this.unlockBound = true;
+		const resume = () => {
+			if (this.enabled && this.audio && this.audio.paused) {
+				this.audio.play().catch(() => {});
+			}
+		};
+		window.addEventListener('pointerdown', resume, { passive: true });
+		window.addEventListener('keydown', resume, { passive: true });
+	}
+
+	private resolveFile(): string {
+		if (this.track !== 'auto') {
+			return MUSIC_FILE_MAP[this.track];
+		}
+		return this.scene === 'battle' ? MUSIC_FILE_MAP.exploration : MUSIC_FILE_MAP.minstrel;
+	}
+
+	private syncPlayback(): void {
+		if (typeof window === 'undefined' || typeof Audio === 'undefined') return;
+		this.bindUnlock();
+
+		if (!this.enabled || this.volume <= 0) {
+			if (this.audio && !this.audio.paused) {
+				this.audio.pause();
+			}
+			return;
+		}
+
+		const nextFile = this.resolveFile();
+		const nextSrc = audioUrl(`/audio/music/${nextFile}`);
+		if (!this.audio || this.currentFile !== nextFile) {
+			if (this.audio) {
+				this.audio.pause();
+			}
+			this.audio = new Audio(nextSrc);
+			this.audio.loop = true;
+			this.currentFile = nextFile;
+		}
+		this.audio.volume = Math.max(0, Math.min(1, this.volume * 0.45));
+		if (this.audio.paused) {
+			this.audio.play().catch(() => {});
+		}
+	}
+
+	public setEnabled(flag: boolean): void {
+		this.enabled = flag;
+		this.syncPlayback();
+	}
+
+	public setVolume(val: number): void {
+		this.volume = Math.max(0, Math.min(1, val));
+		if (this.audio) {
+			this.audio.volume = Math.max(0, Math.min(1, this.volume * 0.45));
+		}
+		this.syncPlayback();
+	}
+
+	public setTrack(track: MusicTrack): void {
+		if (!MUSIC_TRACKS.includes(track)) return;
+		this.track = track;
+		this.syncPlayback();
+	}
+
+	public setScene(scene: 'menu' | 'battle'): void {
+		if (this.scene === scene) return;
+		this.scene = scene;
+		if (this.track === 'auto') {
+			this.syncPlayback();
+		}
+	}
+
+	public isEnabled(): boolean {
+		return this.enabled;
+	}
+
+	public getVolume(): number {
+		return this.volume;
+	}
+
+	public getTrack(): MusicTrack {
+		return this.track;
+	}
+}
+
+export const music = new MusicService();

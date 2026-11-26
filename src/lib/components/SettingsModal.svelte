@@ -7,11 +7,14 @@
 		GRAPHICS_STYLES,
 		BUILD_QUEUE_MODES,
 		CONTROL_PRESETS,
-		UI_LAYOUT_PRESETS
+		UI_LAYOUT_PRESETS,
+		type SoundPack,
+		type MusicTrack
 	} from '$lib/services/settings.svelte';
 	import { fullscreen, canFullscreen, isStandalone } from '$lib/services/fullscreen.svelte';
 	import { sound } from '$lib/services/audio';
 	import { t } from '$lib/i18n';
+	import GameSelect from '$lib/components/ui/GameSelect.svelte';
 
 	let {
 		isOpen = false,
@@ -25,11 +28,32 @@
 	let activeTab = $state<Tab>('audio');
 
 	let volumePercent = $derived(Math.round(settings.volume * 100));
+	let musicVolumePercent = $derived(Math.round(settings.musicVolume * 100));
+
+	const soundPackOptions = $derived([
+		{ value: '8-bit', label: t('settings.soundPack.8bit') },
+		{ value: 'synth-pro', label: t('settings.soundPack.synthPro') },
+		{ value: 'fantasy-rpg', label: t('settings.soundPack.fantasyRpg') },
+		{ value: 'dark-siege', label: t('settings.soundPack.darkSiege') }
+	]);
+
+	const musicTrackOptions = $derived([
+		{ value: 'auto', label: t('settings.musicTrack.auto') },
+		{ value: 'minstrel', label: t('settings.musicTrack.minstrel') },
+		{ value: 'exploration', label: t('settings.musicTrack.exploration') },
+		{ value: 'tavern', label: t('settings.musicTrack.tavern') }
+	]);
 
 	function handleVolumeChange(e: Event) {
 		const target = e.target as HTMLInputElement;
 		const val = parseFloat(target.value) / 100;
 		settings.setVolume(val);
+	}
+
+	function handleMusicVolumeChange(e: Event) {
+		const target = e.target as HTMLInputElement;
+		const val = parseFloat(target.value) / 100;
+		settings.setMusicVolume(val);
 	}
 
 	function handleTestSound() {
@@ -138,68 +162,140 @@
 			>
 				{#if activeTab === 'audio'}
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in duration-100">
-						<!-- Master Volume Slider -->
-						<div class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 space-y-2">
-							<div class="flex items-center justify-between text-xs font-semibold">
-								<span class="text-slate-200 flex items-center gap-2">
-									<UiIcon name="volume2" class="w-4 h-4 text-amber-400" />
-									{t('settings.masterVolume')}
-								</span>
-								<span
-									class="font-mono text-amber-300 font-bold bg-[#1a2130] px-2 py-0.5 rounded border border-amber-500/20"
-								>
-									{volumePercent}%
-								</span>
+						<!-- SFX Section -->
+						<div class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 space-y-3">
+							<div class="flex items-center justify-between gap-2">
+								<div class="space-y-0.5 min-w-0">
+									<div class="text-xs font-bold text-slate-200">{t('settings.soundFx')}</div>
+									<div class="text-[11px] text-slate-400">{t('settings.soundFxDesc')}</div>
+								</div>
+								<div class="flex items-center gap-1.5 shrink-0">
+									<button
+										type="button"
+										onclick={() => settings.setSound(!settings.sound)}
+										class="py-1.5 px-2.5 rounded-lg border text-xs font-bold transition flex items-center gap-1 cursor-pointer {settings.sound
+											? 'bg-emerald-950/60 border-emerald-500/60 text-emerald-300 hover:bg-emerald-900/60'
+											: 'bg-slate-900/60 border-slate-700 text-slate-400 hover:bg-slate-800'}"
+										data-testid="settings-sound-toggle"
+									>
+										{#if settings.sound}
+											<UiIcon name="volume2" class="w-3.5 h-3.5 text-emerald-400" />
+											<span>{t('settings.enabled')}</span>
+										{:else}
+											<UiIcon name="volumeX" class="w-3.5 h-3.5 text-slate-500" />
+											<span>{t('settings.disabled')}</span>
+										{/if}
+									</button>
+									<button
+										type="button"
+										onclick={handleTestSound}
+										class="py-1.5 px-2 rounded-lg border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+										title={t('settings.testSound')}
+										data-testid="settings-test-sound-btn"
+									>
+										<UiIcon name="sparkles" class="w-3.5 h-3.5" />
+									</button>
+								</div>
 							</div>
-							<input
-								type="range"
-								min="0"
-								max="100"
-								step="1"
-								value={volumePercent}
-								oninput={handleVolumeChange}
-								class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-400"
-								data-testid="settings-volume-slider"
-								aria-label={t('settings.masterVolume')}
-							/>
+
+							<div class="space-y-1.5">
+								<div class="flex items-center justify-between text-xs font-semibold">
+									<span class="text-slate-300">{t('settings.masterVolume')}</span>
+									<span
+										class="font-mono text-amber-300 font-bold bg-[#1a2130] px-2 py-0.5 rounded border border-amber-500/20"
+									>
+										{volumePercent}%
+									</span>
+								</div>
+								<input
+									type="range"
+									min="0"
+									max="100"
+									step="1"
+									value={volumePercent}
+									oninput={handleVolumeChange}
+									class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-400"
+									data-testid="settings-volume-slider"
+									aria-label={t('settings.masterVolume')}
+								/>
+							</div>
+
+							<div class="flex items-center justify-between gap-2 pt-1">
+								<span class="text-xs font-semibold text-slate-300">
+									{t('settings.soundPack')}
+								</span>
+								<GameSelect
+									value={settings.soundPack}
+									options={soundPackOptions}
+									onchange={(val) => settings.setSoundPack(val as SoundPack)}
+									ariaLabel={t('settings.soundPack')}
+									testId="settings-sound-pack-select"
+									align="right"
+									minMenuWidth={184}
+								/>
+							</div>
 						</div>
 
-						<!-- Sound Effects Toggle & Test Row -->
-						<div
-							class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 flex items-center justify-between gap-4"
-						>
-							<div class="space-y-0.5">
-								<div class="text-xs font-bold text-slate-200">{t('settings.soundFx')}</div>
-								<div class="text-[11px] text-slate-400">{t('settings.soundFxDesc')}</div>
-							</div>
-							<div class="flex items-center gap-2 shrink-0">
+						<!-- Music Section -->
+						<div class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 space-y-3">
+							<div class="flex items-center justify-between gap-2">
+								<div class="space-y-0.5 min-w-0">
+									<div class="text-xs font-bold text-slate-200">{t('settings.music')}</div>
+									<div class="text-[11px] text-slate-400">{t('settings.musicDesc')}</div>
+								</div>
 								<button
 									type="button"
-									onclick={() => settings.setSound(!settings.sound)}
-									class="py-1.5 px-3 rounded-lg border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer {settings.sound
+									onclick={() => settings.setMusicEnabled(!settings.musicEnabled)}
+									class="py-1.5 px-2.5 rounded-lg border text-xs font-bold transition flex items-center gap-1 shrink-0 cursor-pointer {settings.musicEnabled
 										? 'bg-emerald-950/60 border-emerald-500/60 text-emerald-300 hover:bg-emerald-900/60'
 										: 'bg-slate-900/60 border-slate-700 text-slate-400 hover:bg-slate-800'}"
-									data-testid="settings-sound-toggle"
+									data-testid="settings-music-toggle"
 								>
-									{#if settings.sound}
-										<UiIcon name="volume2" class="w-4 h-4 text-emerald-400" />
+									{#if settings.musicEnabled}
+										<UiIcon name="volume2" class="w-3.5 h-3.5 text-emerald-400" />
 										<span>{t('settings.enabled')}</span>
 									{:else}
-										<UiIcon name="volumeX" class="w-4 h-4 text-slate-500" />
+										<UiIcon name="volumeX" class="w-3.5 h-3.5 text-slate-500" />
 										<span>{t('settings.disabled')}</span>
 									{/if}
 								</button>
+							</div>
 
-								<button
-									type="button"
-									onclick={handleTestSound}
-									class="py-1.5 px-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-bold transition flex items-center gap-1 cursor-pointer"
-									title={t('settings.testSound')}
-									data-testid="settings-test-sound-btn"
-								>
-									<UiIcon name="sparkles" class="w-3.5 h-3.5" />
-									<span class="hidden sm:inline">{t('settings.testSound')}</span>
-								</button>
+							<div class="space-y-1.5">
+								<div class="flex items-center justify-between text-xs font-semibold">
+									<span class="text-slate-300">{t('settings.musicVolume')}</span>
+									<span
+										class="font-mono text-amber-300 font-bold bg-[#1a2130] px-2 py-0.5 rounded border border-amber-500/20"
+									>
+										{musicVolumePercent}%
+									</span>
+								</div>
+								<input
+									type="range"
+									min="0"
+									max="100"
+									step="1"
+									value={musicVolumePercent}
+									oninput={handleMusicVolumeChange}
+									class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-400"
+									data-testid="settings-music-volume-slider"
+									aria-label={t('settings.musicVolume')}
+								/>
+							</div>
+
+							<div class="flex items-center justify-between gap-2 pt-1">
+								<span class="text-xs font-semibold text-slate-300">
+									{t('settings.musicTrack')}
+								</span>
+								<GameSelect
+									value={settings.musicTrack}
+									options={musicTrackOptions}
+									onchange={(val) => settings.setMusicTrack(val as MusicTrack)}
+									ariaLabel={t('settings.musicTrack')}
+									testId="settings-music-track-select"
+									align="right"
+									minMenuWidth={196}
+								/>
 							</div>
 						</div>
 					</div>
