@@ -1490,6 +1490,10 @@
 			sim.isRunning = true;
 			sound.playHorn();
 		} else {
+			if (sim.players.west && !sim.players.west.isBot) {
+				sim.players.west.pendingRacePick = true;
+				sim.syncCastleRaces();
+			}
 			matchPhase = 'COUNTDOWN';
 			chosenWestRace = null;
 			countdownSeconds = 15;

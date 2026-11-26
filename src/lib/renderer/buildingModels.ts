@@ -379,9 +379,10 @@ export function drawIndividualBuildingModel(
 	const name = (b.name || '').toLowerCase();
 	const unitDef = b.spawnUnitId ? UNITS_MAP.get(b.spawnUnitId) : null;
 
-	if (name.includes('вулкан')) drawVolcanoModel(ctx);
-	else if (name.includes('око скверни')) drawCorruptEyeModel(ctx);
-	else if (name.includes('забутий')) drawEldritchHorrorModel(ctx);
+	if (hasAny(name, ['вулкан', 'магмовий розлом']) && !name.includes('гніздо'))
+		drawVolcanoModel(ctx);
+	else if (hasAny(name, ['око скверни', 'око бурі'])) drawCorruptEyeModel(ctx);
+	else if (hasAny(name, ['забутий', 'серце стихій'])) drawEldritchHorrorModel(ctx);
 	else if (name.includes('морозний гриб')) drawFrostMushroomsModel(ctx);
 	else if (name.includes('іглу')) drawIglooModel(ctx);
 	else if (
@@ -394,7 +395,7 @@ export function drawIndividualBuildingModel(
 		])
 	)
 		drawIceOrCrystalSpireModel(ctx, name);
-	else if (hasAny(name, ['фонтан', 'колодязь', 'нерестилище', 'басейн']))
+	else if (hasAny(name, ['фонтан', 'колодязь', 'нерестилище', 'басейн', 'джерело', 'вир']))
 		drawBasinPoolModel(ctx, name);
 	else if (hasAny(name, ['брама', 'портал']))
 		drawMagicPortalModel(ctx, name, unitDef?.flying ?? false);
@@ -406,12 +407,15 @@ export function drawIndividualBuildingModel(
 	else if (hasAny(name, ["м'ясорубка", 'заражена комора']))
 		drawSlaughterOrBarnModel(ctx, name.includes('комора'));
 	else if (hasAny(name, ['склеп', 'могильник'])) drawCryptMausoleumModel(ctx);
-	else if (name.includes('ферма кодо')) drawKodoCorralModel(ctx, name);
+	else if (name.includes('кодо')) drawKodoCorralModel(ctx, name);
+	else if (hasAny(name, ['хатинка крижаного троля', 'шатро троля-знахаря']))
+		drawMurlocOrStiltHutModel(ctx, name);
 	else if (hasAny(name, ['шатро', 'намет'])) drawWarTentModel(ctx, name);
 	else if (hasAny(name, ['хатина', 'мурлоків'])) drawMurlocOrStiltHutModel(ctx, name);
-	else if (hasAny(name, ['давній', 'срібна галявина'])) drawAncientGroveModel(ctx, name);
+	else if (hasAny(name, ['давній', 'древній', 'срібна галявина'])) drawAncientGroveModel(ctx, name);
 	else if (hasAny(name, ['тотем', 'ріг героїв', 'статуя'])) drawRelicOrStatueModel(ctx, name);
-	else if (hasAny(name, ['обез', 'обеліск', 'заморожувач'])) drawObeliskMonolithModel(ctx, name);
+	else if (hasAny(name, ['обез', 'обеліск', 'заморожувач', 'моноліт', 'кристальний бастіон']))
+		drawObeliskMonolithModel(ctx, name);
 	else if (hasAny(name, ['електростанція', 'генератор', 'склад запчастин', 'ка-бум', 'лісопилка']))
 		drawTechSpecialtyModel(ctx, name);
 	else if (
@@ -433,11 +437,12 @@ export function drawIndividualBuildingModel(
 	else if (hasAny(name, ['мортирня', 'камнеметня', 'артилерія']))
 		drawArtilleryEmplacementModel(ctx, name);
 	else if (
-		b.specialType === 'tower' ||
-		hasAny(name, ['вежа', 'ліхтар', 'вартовий', 'захисник', 'стирач', 'руїни', 'знищений'])
+		(b.specialType === 'tower' ||
+			hasAny(name, ['вежа', 'ліхтар', 'вартовий', 'захисник', 'стирач', 'руїни', 'знищений'])) &&
+		!name.includes('лучників')
 	)
 		drawTowerOrRuinsModel(ctx, name);
-	else if (hasAny(name, ['гніздо', 'зміїна скеля']) || unitDef?.flying)
+	else if (hasAny(name, ['гніздо', 'зміїна скеля', 'вогняний шпиль']) || unitDef?.flying)
 		drawRoostOrCliffModel(ctx, name);
 	else if (hasAny(name, ['церква', 'собор', 'піраміда', 'храм', 'вівтар', 'правосуддя']))
 		drawTempleOrCathedralModel(ctx, name);
@@ -761,11 +766,35 @@ function drawIceOrCrystalSpireModel(ctx: BuildingModelContext, name: string): vo
 		}
 		return;
 	}
-	for (const s of [
-		{ x: cx - 12, y: cy + 5, w: 8, h: 19, col: 0x0284c7 },
-		{ x: cx + 12, y: cy + 4, w: 8, h: 20, col: 0x0ea5e9 },
-		{ x: cx, y: cy + 7, w: 11, h: 28, col: isUpgraded ? playerColor : 0x38bdf8 }
-	]) {
+	if (name.includes('кришталевий замок')) {
+		for (const sx of [cx - 15, cx + 15]) {
+			rr(g, sx - 5, cy - 12, 10, 26, 2, 0x0284c7, 0xe0f2fe, 1.3);
+			pp(g, [sx, cy - 22, sx + 6, cy - 12, sx - 6, cy - 12], 0x38bdf8, 0xe0f2fe, 1.2);
+		}
+		rr(g, cx - 10, cy - 16, 20, 32, 3, isUpgraded ? playerColor : 0x0ea5e9, 0xe0f2fe, 1.5);
+		pp(g, [cx, cy - 28, cx + 9, cy - 16, cx - 9, cy - 16], 0x7dd3fc, 0xe0f2fe, 1.3);
+		doorway(g, cx - 4, cy + 4, 8, 12, 0x0c4a6e);
+		return;
+	}
+	const spikes =
+		name.includes('піки') || isUpgraded
+			? [
+					{ x: cx - 18, y: cy + 8, w: 6, h: 16, col: 0x0369a1 },
+					{ x: cx + 18, y: cy + 8, w: 6, h: 16, col: 0x0369a1 },
+					{ x: cx - 10, y: cy + 5, w: 8, h: 24, col: 0x0284c7 },
+					{ x: cx + 10, y: cy + 4, w: 8, h: 25, col: 0x0ea5e9 },
+					{ x: cx, y: cy + 8, w: 12, h: 34, col: 0x38bdf8 }
+				]
+			: [
+					{ x: cx - 12, y: cy + 5, w: 8, h: 19, col: 0x0284c7 },
+					{ x: cx + 12, y: cy + 4, w: 8, h: 20, col: 0x0ea5e9 },
+					{ x: cx, y: cy + 7, w: 11, h: 28, col: isUpgraded ? playerColor : 0x38bdf8 }
+				];
+	if (name.includes('піки') || isUpgraded) {
+		g.ellipse(cx, cy + 5, 29, 22);
+		g.stroke({ color: 0xbae6fd, width: 1.5, alpha: 0.65 });
+	}
+	for (const s of spikes) {
 		pp(
 			g,
 			[s.x, s.y - s.h, s.x + s.w, s.y - 5, s.x, s.y + 5, s.x - s.w, s.y - 5],
@@ -782,8 +811,82 @@ function drawBasinPoolModel(ctx: BuildingModelContext, name: string): void {
 	const isBlood = name.includes('кров');
 	const isPain = name.includes('болю');
 	const isNaga = pal.style === 'Наги';
-	const rim = isBlood ? 0x450a0a : isPain ? 0x4c1d95 : isNaga ? 0x0f766e : 0x94a3b8;
-	const water = isBlood ? 0xb91c1c : isPain ? 0x7e22ce : isNaga ? 0x0d9488 : 0x0284c7;
+	const isSpawning = name.includes('нерестилище');
+	const isReptilePool = name.includes('басейн рептил');
+	const isSwamp = name.includes('заболоч');
+
+	if (isSpawning) {
+		apron(g, cx, cy + 2, 27, 22, 0x0f3d3e, 0x14b8a6);
+		cc(g, cx, cy + 1, 21, 0x115e59, 0x042f2e, 2);
+		cc(g, cx, cy + 1, 15, 0x0d9488);
+		for (const [ex, ey, er] of [
+			[cx - 6, cy + 2, 4.2],
+			[cx + 6, cy + 1, 4.2],
+			[cx, cy - 5, 4.8],
+			[cx - 1, cy + 6, 3.6]
+		]) {
+			cc(g, ex, ey, er, 0xf59e0b, 0x78350f, 1.2);
+			cc(g, ex - 1, ey - 1, er * 0.4, 0xfef08a);
+		}
+		return;
+	}
+	if (isReptilePool) {
+		rr(g, cx - 23, cy - 18, 46, 38, 10, 0x0f766e, 0x134e4a, 2);
+		rr(g, cx - 18, cy - 13, 36, 28, 7, 0x06b6d4);
+		pp(
+			g,
+			[cx + 4, cy - 10, cx + 16, cy - 6, cx + 14, cy + 8, cx + 2, cy + 5],
+			0x64748b,
+			0x1e293b,
+			1.4
+		);
+		cc(g, cx - 8, cy + 3, 5 + Math.sin(time * 4) * 1.2, undefined, 0xa5f3fc, 1.4);
+		return;
+	}
+	if (isSwamp) {
+		cc(g, cx, cy + 2, 23, 0x365314, 0x1a2e05, 2);
+		cc(g, cx, cy + 2, 17, 0x4d7c0f);
+		for (const [lx, ly] of [
+			[cx - 10, cy + 7],
+			[cx + 10, cy - 4],
+			[cx + 6, cy + 9]
+		])
+			cc(g, lx, ly, 3.6, 0x84cc16, 0x365314, 1);
+		ln(g, cx - 14, cy - 16, cx + 14, cy - 16, 0x78350f, 3.5);
+		ln(g, cx - 12, cy - 16, cx - 12, cy + 2, 0x451a03, 2.5);
+		ln(g, cx + 12, cy - 16, cx + 12, cy + 2, 0x451a03, 2.5);
+		cc(g, cx, cy - 10, 4, 0x92400e, 0x451a03, 1.2);
+		return;
+	}
+
+	if (name.includes('джерело') || name.includes('вир')) {
+		const isWhirl = name.includes('вир');
+		cc(g, cx, cy + 1, 23, 0x0c4a6e, 0x38bdf8, 1.8);
+		cc(g, cx, cy + 1, 17, 0x0284c7);
+		cc(g, cx, cy + 1, 11, 0x22d3ee, 0xe0f2fe, 1.2);
+		cc(g, cx, cy, 5, 0xe0f2fe);
+		if (isWhirl) {
+			for (const [wx, wy] of [
+				[cx - 12, cy - 8],
+				[cx + 12, cy + 9],
+				[cx + 11, cy - 9]
+			]) {
+				cc(g, wx, wy, 3, 0x67e8f9);
+			}
+		}
+		return;
+	}
+
+	if (isNaga && name.includes('фонтан')) {
+		cc(g, cx, cy + 1, 24, 0x0f766e, 0xfbbf24, 2);
+		cc(g, cx, cy + 1, 17, 0x0d9488);
+		pp(g, [cx, cy - 12, cx + 6, cy + 2, cx - 6, cy + 2], 0xfbbf24, 0x78350f, 1.3);
+		cc(g, cx, cy - 13, 3.5, 0x22d3ee);
+		return;
+	}
+
+	const rim = isBlood ? 0x450a0a : isPain ? 0x4c1d95 : isNaga ? 0xd97706 : 0x94a3b8;
+	const water = isBlood ? 0xb91c1c : isPain ? 0x7e22ce : isNaga ? 0x06b6d4 : 0x0284c7;
 	const ripple = isBlood ? 0xfca5a5 : isPain ? 0xe879f9 : 0xbae6fd;
 	cc(g, cx, cy + 1, 24, rim, 0x0f172a, 2);
 	cc(g, cx, cy + 1, 18.5, water);
@@ -793,12 +896,11 @@ function drawBasinPoolModel(ctx: BuildingModelContext, name: string): void {
 	g.stroke({ color: ripple, width: 1, alpha: 0.4 });
 	cc(g, cx, cy, 5.5, isNaga ? 0xfbbf24 : 0xe2e8f0);
 	cc(g, cx, cy - 1, 2.5, ripple);
-	if (name.includes('заболоч')) {
-		for (const [lx, ly] of [
-			[cx - 11, cy + 7],
-			[cx + 10, cy - 5]
-		])
-			cc(g, lx, ly, 3.2, 0x4ade80);
+	if (isNaga) {
+		for (const sx of [cx - 18, cx + 18]) {
+			rr(g, sx - 3.5, cy - 14, 7, 22, 2, 0xfbbf24, 0x78350f, 1.3);
+			cc(g, sx, cy - 15, 3, 0x22d3ee);
+		}
 	}
 }
 
@@ -953,31 +1055,63 @@ function drawCryptMausoleumModel(ctx: BuildingModelContext): void {
 
 function drawKodoCorralModel(ctx: BuildingModelContext, name: string): void {
 	const { g, px, py, cx, cy, pal, playerColor } = ctx;
-	apron(g, cx, cy + 3, 29, 23, 0x5c4033, pal.woodDark);
-	rr(g, px + 8, py + 12, CELL_SIZE - 16, CELL_SIZE - 22, 4, undefined, 0x92400e, 3.2);
+	const isAggressive = name.includes('агрес');
+	const isDefensive = name.includes('захис');
+	apron(g, cx, cy + 3, 29, 23, isDefensive ? 0x334155 : 0x5c4033, pal.woodDark);
+	rr(
+		g,
+		px + 8,
+		py + 12,
+		CELL_SIZE - 16,
+		CELL_SIZE - 22,
+		4,
+		undefined,
+		isDefensive ? 0x64748b : 0x92400e,
+		isDefensive ? 3.8 : 3.2
+	);
 	for (const [fx, fy] of [
 		[px + 8, py + 12],
 		[px + CELL_SIZE - 8, py + 12],
 		[px + 8, py + CELL_SIZE - 10],
 		[px + CELL_SIZE - 8, py + CELL_SIZE - 10]
 	]) {
-		cc(g, fx, fy, 3.2, 0x451a03);
+		cc(g, fx, fy, isDefensive ? 4.2 : 3.2, isDefensive ? 0x94a3b8 : 0x451a03, 0x0f172a, 1);
 	}
-	rr(g, px + 13, py + 17, 12, 9, 2, 0xfacc15);
-	ee(g, cx + 3, cy + 3, 13, 9, 0x78716c, 0x1c1917, 1.5);
-	rr(
-		g,
-		cx - 2,
-		cy - 3,
-		10,
-		11,
-		2,
-		name.includes('агрес') ? 0xef4444 : name.includes('захис') ? 0x38bdf8 : playerColor
-	);
+	if (isAggressive) {
+		for (const sx of [cx - 12, cx - 2]) {
+			cc(g, sx, cy - 5, 5.5, 0xdc2626, 0x450a0a, 1.4);
+			cc(g, sx, cy - 5, 2.2, 0xfbbf24);
+		}
+		pp(g, [cx + 12, cy - 16, cx + 22, cy - 10, cx + 12, cy - 4], 0xef4444, 0x450a0a, 1.2);
+	} else if (isDefensive) {
+		rr(g, cx - 14, cy - 8, 12, 16, 3, 0x38bdf8, 0x0f172a, 1.4);
+		cc(g, cx - 8, cy, 3, 0xfef08a);
+		rr(g, cx + 2, cy + 4, 16, 8, 2, 0x475569, 0x0f172a, 1.2);
+	} else {
+		rr(g, px + 13, py + 17, 12, 9, 2, 0xfacc15);
+		ee(g, cx + 3, cy + 3, 13, 9, 0x78716c, 0x1c1917, 1.5);
+		rr(g, cx - 2, cy - 3, 10, 11, 2, playerColor);
+	}
 }
 
 function drawWarTentModel(ctx: BuildingModelContext, name: string): void {
-	const { g, cx, cy, roofDark, roofMid, roofLight, pal } = ctx;
+	const { g, cx, cy, roofDark, roofMid, roofLight, pal, time } = ctx;
+	const isShaman = name.includes('шаман') || name.includes('знахар');
+	const isTrapper = name.includes('капкан');
+
+	if (isShaman) {
+		apron(g, cx, cy + 4, 28, 22, 0x2e1065, 0x38bdf8);
+		cc(g, cx, cy - 1, 20, 0x4c1d95, 0x1e1b4b, 1.8);
+		cc(g, cx, cy - 3, 14, roofMid, 0x0f172a, 1.4);
+		cc(g, cx, cy - 6, 6.5, 0x38bdf8, 0xe0f2fe, 1.2);
+		const pulse = 0.7 + Math.sin(time * 5) * 0.3;
+		cc(g, cx - 14, cy + 12, 4, 0xf97316, 0x7c2d12, 1.2);
+		cc(g, cx - 14, cy + 11, 2.2, 0xfef08a, undefined, 0, pulse);
+		cc(g, cx + 14, cy + 12, 3.5, 0xa855f7, undefined, 0, pulse);
+		doorway(g, cx - 4, cy + 6, 8, 11, 0x0f172a);
+		return;
+	}
+
 	apron(g, cx, cy + 4, 27, 21, pal.ground, pal.woodDark);
 	ln(g, cx - 8, cy - 26, cx + 7, cy - 10, 0xfef3c7, 2.2);
 	ln(g, cx + 8, cy - 26, cx - 7, cy - 10, 0xfef3c7, 2.2);
@@ -998,12 +1132,36 @@ function drawWarTentModel(ctx: BuildingModelContext, name: string): void {
 	);
 	pp(g, [cx, cy - 22, cx + 10, cy + 17, cx - 10, cy + 17], roofMid, undefined, 0, 0.78);
 	doorway(g, cx - 5, cy + 4, 10, 13, 0x451a03);
-	if (name.includes('шаман') || name.includes('знахар')) cc(g, cx, cy - 9, 4.5, 0x38bdf8);
-	else if (name.includes('капкан')) cc(g, cx + 11, cy + 9, 4.5, undefined, 0xe2e8f0, 2);
+	if (isTrapper) {
+		cc(g, cx + 12, cy + 9, 5, undefined, 0xe2e8f0, 2);
+		ln(g, cx - 16, cy + 6, cx - 12, cy + 15, 0xfef3c7, 2);
+	} else {
+		cc(g, cx - 13, cy + 10, 4.5, 0xd97706, 0x451a03, 1.4);
+		cc(g, cx - 13, cy + 10, 2, 0xfef3c7);
+	}
 }
 
 function drawMurlocOrStiltHutModel(ctx: BuildingModelContext, name: string): void {
-	const { g, cx, cy, roofLight, playerColor } = ctx;
+	const { g, cx, cy, roofLight, playerColor, pal, isUpgraded, time } = ctx;
+	const isFrostTroll = pal.style === 'Північ' || name.includes('крижан') || name.includes('знахар');
+	if (isFrostTroll) {
+		const isShamanUpgrade = name.includes('шатро') || name.includes('знахар') || isUpgraded;
+		apron(g, cx, cy + 4, 28, 22, 0x1e293b, isShamanUpgrade ? 0x38bdf8 : 0x7dd3fc);
+		cc(g, cx, cy + 1, 18, 0x334155, 0x0f172a, 1.6);
+		cc(g, cx, cy - 1, 14, 0x0284c7, 0xbae6fd, 1.3);
+		doorway(g, cx - 4, cy + 4, 8, 12, 0x0f172a);
+		if (isShamanUpgrade) {
+			for (const sx of [cx - 18, cx + 18]) {
+				rr(g, sx - 3, cy - 16, 6, 24, 2, 0x78350f, 0x0f172a, 1.2);
+				cc(g, sx, cy - 17, 3.4, 0x38bdf8);
+			}
+			const pulse = 0.75 + Math.sin(time * 4.5) * 0.25;
+			cc(g, cx, cy - 8, 5, 0x22d3ee, 0xffffff, 1.2, pulse);
+		} else {
+			cc(g, cx, cy - 6, 3.5, 0xbae6fd);
+		}
+		return;
+	}
 	apron(g, cx, cy + 4, 28, 22, 0x0c4a6e, 0x2dd4bf);
 	const huts =
 		name.includes('селище') || name.includes('фортеця')
@@ -1024,10 +1182,11 @@ function drawMurlocOrStiltHutModel(ctx: BuildingModelContext, name: string): voi
 
 function drawAncientGroveModel(ctx: BuildingModelContext, name: string): void {
 	const { g, cx, cy, pal, time } = ctx;
-	const corrupt = name.includes('оскверн') || name.includes('примарн');
-	const leafMain = corrupt ? 0x581c87 : 0x15803d;
-	const leafLight = corrupt ? 0xa855f7 : 0x4ade80;
-	const trunk = corrupt ? 0x2e1065 : 0x78350f;
+	const isCorrupt = name.includes('оскверн');
+	const isSpectral = name.includes('примарн');
+	const leafMain = isCorrupt ? 0x7f1d1d : isSpectral ? 0x3b0764 : 0x15803d;
+	const leafLight = isCorrupt ? 0xf97316 : isSpectral ? 0x67e8f9 : 0x4ade80;
+	const trunk = isCorrupt ? 0x450a0a : isSpectral ? 0x1e1b4b : 0x78350f;
 	apron(g, cx, cy + 5, 27, 21, pal.ground, leafLight);
 	for (const [rx, ry] of [
 		[cx - 14, cy + 16],
@@ -1041,12 +1200,31 @@ function drawAncientGroveModel(ctx: BuildingModelContext, name: string): void {
 		[cx, cy - 13, 14],
 		[cx, cy + 2, 13]
 	]) {
-		cc(g, fx, fy, fr, leafMain, 0x0f172a, 1.4);
+		cc(g, fx, fy, fr, leafMain, 0x0f172a, 1.4, isSpectral ? 0.8 : 1);
 	}
-	cc(g, cx - 4, cy - 8, 9, leafLight, undefined, 0, 0.75);
+	cc(g, cx - 4, cy - 8, 9, leafLight, undefined, 0, isSpectral ? 0.55 : 0.75);
 	const pulse = 0.75 + Math.sin(time * 3.5) * 0.25;
-	cc(g, cx - 4, cy + 4, 2.1, corrupt ? 0xf97316 : 0x67e8f9, undefined, 0, pulse);
-	cc(g, cx + 4, cy + 4, 2.1, corrupt ? 0xf97316 : 0x67e8f9, undefined, 0, pulse);
+	cc(
+		g,
+		cx - 4,
+		cy + 4,
+		2.3,
+		isCorrupt ? 0xfef08a : isSpectral ? 0xa5f3fc : 0x67e8f9,
+		undefined,
+		0,
+		pulse
+	);
+	cc(
+		g,
+		cx + 4,
+		cy + 4,
+		2.3,
+		isCorrupt ? 0xfef08a : isSpectral ? 0xa5f3fc : 0x67e8f9,
+		undefined,
+		0,
+		pulse
+	);
+	if (isSpectral) cc(g, cx, cy - 2, 16, undefined, 0x67e8f9, 1.3, 0.65);
 }
 
 function drawRelicOrStatueModel(ctx: BuildingModelContext, name: string): void {
@@ -1077,21 +1255,37 @@ function drawRelicOrStatueModel(ctx: BuildingModelContext, name: string): void {
 
 function drawObeliskMonolithModel(ctx: BuildingModelContext, name: string): void {
 	const { g, cx, cy, pal, time } = ctx;
-	const glowCol = name.includes('світл')
-		? 0xfef08a
-		: name.includes('заморожувач')
-			? 0x7dd3fc
-			: 0x38bdf8;
+	const isPlague = name.includes('чумн');
+	const isElemental = name.includes('стихій');
+	const glowCol = isPlague
+		? 0x4ade80
+		: name.includes('світл')
+			? 0xfef08a
+			: name.includes('заморожувач')
+				? 0x7dd3fc
+				: 0x38bdf8;
 	apron(g, cx, cy + 5, 25, 19, pal.wallDark, glowCol);
 	const pulse = Math.sin(time * 3.5 + cx) * 2;
 	pp(
 		g,
 		[cx, cy - 23 + pulse, cx + 11, cy + 4, cx, cy + 16, cx - 11, cy + 4],
-		pal.wall,
+		isPlague ? 0x1e293b : pal.wall,
 		glowCol,
 		1.8
 	);
 	cc(g, cx, cy - 3 + pulse, 4.5, glowCol);
+	if (isPlague) {
+		cc(g, cx - 10, cy + 11, 5, 0x22c55e, 0x14532d, 1.2);
+		cc(g, cx + 10, cy + 10, 4, 0x84cc16, 0x14532d, 1.2);
+	} else if (isElemental) {
+		for (const [ox, oy, col] of [
+			[cx - 15, cy - 6, 0xf97316],
+			[cx + 15, cy - 6, 0x38bdf8],
+			[cx, cy + 15, 0xfef08a]
+		]) {
+			cc(g, ox, oy, 3.6, col, 0x0f172a, 1);
+		}
+	}
 }
 
 function drawTechSpecialtyModel(ctx: BuildingModelContext, name: string): void {
@@ -1167,9 +1361,19 @@ function drawFoundryOrTankBayModel(ctx: BuildingModelContext, name: string): voi
 	if (name.includes('голем') || name.includes('кузня')) {
 		cc(g, cx, cy + 8, 7.5, 0x1c1917);
 		cc(g, cx, cy + 8, 4.8, 0xf97316, undefined, 0, 0.8 + Math.sin(time * 8) * 0.2);
+	} else if (name.includes('мінер')) {
+		rr(g, px + 14, py + 38, CELL_SIZE - 28, 8, 0, 0xfacc15, undefined, 0, 0.85);
+		for (const dx of [cx - 8, cx, cx + 8]) {
+			rr(g, dx - 3, cy + 4, 6, 9, 1, 0xef4444, 0x450a0a, 1);
+		}
+	} else if (name.includes('штурм')) {
+		rr(g, px + 14, py + 38, CELL_SIZE - 28, 8, 0, 0x38bdf8, undefined, 0, 0.75);
+		ln(g, cx - 2, cy + 6, cx + dir * 15, cy + 6, 0xe2e8f0, 2.4);
+		ln(g, cx - 2, cy + 10, cx + dir * 15, cy + 10, 0xe2e8f0, 2.4);
 	} else {
 		rr(g, px + 14, py + 38, CELL_SIZE - 28, 8, 0, 0xfacc15, undefined, 0, 0.8);
-		ln(g, cx, cy + 8, cx + dir * 16, cy + 8, 0xe2e8f0, 3.5);
+		ln(g, cx, cy + 8, cx + dir * 16, cy + 8, 0xe2e8f0, 4.2);
+		cc(g, cx - 4, cy + 8, 5, 0x334155, 0x0f172a, 1.3);
 	}
 }
 
@@ -1244,6 +1448,33 @@ function drawTowerOrRuinsModel(ctx: BuildingModelContext, name: string): void {
 						: pal.style === 'Небожителі'
 							? 0xfef9c3
 							: 0xfef08a;
+	const isAbyssEye = name.includes('око');
+	const isEraser = name.includes('стирач');
+	const isGryphon = name.includes('грифон');
+	if (isGryphon) {
+		for (const s of [-1, 1]) {
+			pp(
+				g,
+				[cx + s * 10, cy - 6, cx + s * 25, cy - 16, cx + s * 21, cy + 4, cx + s * 11, cy + 4],
+				0xfef3c7,
+				0x78350f,
+				1.3
+			);
+		}
+		cc(g, cx, cy - 6, 6.5, 0xfbbf24, 0x78350f, 1.4);
+		cc(g, cx, cy - 6, 2.8, 0x38bdf8);
+		return;
+	}
+	if (isAbyssEye) {
+		cc(g, cx, cy - 6, 8, 0xf97316, 0x450a0a, 1.5);
+		ln(g, cx, cy - 11, cx, cy - 1, 0x090d16, 2.4);
+		return;
+	}
+	if (isEraser) {
+		cc(g, cx, cy - 6, 10, undefined, 0xd946ef, 1.6, 0.85);
+		pp(g, [cx, cy - 14, cx + 6, cy - 6, cx, cy + 2, cx - 6, cy - 6], 0xa855f7, 0xf5d0fe, 1.2);
+		return;
+	}
 	cc(g, cx, cy - 6, 4 + Math.sin(time * 6) * 0.7, beacon);
 }
 
@@ -1251,6 +1482,53 @@ function drawRoostOrCliffModel(ctx: BuildingModelContext, name: string): void {
 	const { g, cx, cy, pal, roofLight } = ctx;
 	const isIce = pal.style === 'Північ';
 	const isNaga = pal.style === 'Наги' || name.includes('зміїна');
+	const isDragonNest = name.includes('дракон') && !isIce;
+	const isWyvernCamp = name.includes('гострокрил') || name.includes('табір');
+
+	if (isDragonNest) {
+		pp(
+			g,
+			[
+				cx - 24,
+				cy + 14,
+				cx - 21,
+				cy - 10,
+				cx - 4,
+				cy - 22,
+				cx + 19,
+				cy - 15,
+				cx + 25,
+				cy + 9,
+				cx + 7,
+				cy + 22
+			],
+			0x450a0a,
+			0x0f172a,
+			1.8
+		);
+		cc(g, cx, cy - 1, 13, 0x7c2d12, 0xf97316, 1.6);
+		cc(g, cx - 4, cy - 2, 4.2, 0xef4444, 0x450a0a, 1.1);
+		cc(g, cx + 4, cy, 3.8, 0xfbbf24, 0x78350f, 1.1);
+		return;
+	}
+
+	if (isWyvernCamp) {
+		apron(g, cx, cy + 4, 27, 21, 0x44403c, 0x78350f);
+		for (const tx of [cx - 17, cx + 17]) {
+			rr(g, tx - 3, cy - 18, 6, 30, 2, 0x78350f, 0x1c1917, 1.3);
+			cc(g, tx, cy - 19, 3.2, 0x38bdf8);
+		}
+		pp(
+			g,
+			[cx - 14, cy + 4, cx - 10, cy - 14, cx + 10, cy - 14, cx + 14, cy + 4],
+			0xb45309,
+			0x451a03,
+			1.6
+		);
+		cc(g, cx, cy - 5, 4.5, 0x2563eb, 0xfef3c7, 1.2);
+		return;
+	}
+
 	pp(
 		g,
 		[
@@ -1344,6 +1622,13 @@ function drawArcaneAcademyModel(ctx: BuildingModelContext, name: string): void {
 	if (name.includes('тіней')) {
 		cc(g, cx, cy - 2, 6, 0xa855f7);
 		cc(g, cx + 2, cy - 3, 4.5, 0x0f172a);
+	} else if (name.includes('кривавих')) {
+		cc(g, cx, cy - 2, 5.5, 0xef4444, 0xfbbf24, 1.4);
+		pp(g, [cx - 14, cy - 6, cx - 5, cy - 2, cx - 12, cy + 4], 0xfbbf24);
+		pp(g, [cx + 14, cy - 6, cx + 5, cy - 2, cx + 12, cy + 4], 0xfbbf24);
+	} else if (name.includes('чарівництв')) {
+		cc(g, cx, cy - 2, 8.5, undefined, 0x38bdf8, 1.4);
+		cc(g, cx, cy - 2 + bob * 0.5, 4.5, 0x22d3ee, 0xffffff, 1);
 	} else {
 		pp(
 			g,
@@ -1357,6 +1642,18 @@ function drawArcaneAcademyModel(ctx: BuildingModelContext, name: string): void {
 		cc(g, px + 13, py + 20, 4.5, 0xfbbf24);
 		cc(g, px + CELL_SIZE - 13, py + 20, 4.5, 0xfbbf24);
 	}
+	if (isUpgraded) {
+		for (const [bx, by] of [
+			[px + 9, py + 10],
+			[px + CELL_SIZE - 9, py + 10],
+			[px + 9, py + CELL_SIZE - 12],
+			[px + CELL_SIZE - 9, py + CELL_SIZE - 12]
+		]) {
+			cc(g, bx, by, 4.5, pal.wallDark, 0xfbbf24, 1.3);
+		}
+		cc(g, cx, cy - 2, 7, 0xfbbf24, 0x451a03, 1.4);
+		cc(g, cx, cy - 2, 3.5, pal.glow);
+	}
 	drawRacialCrestAccent(ctx);
 }
 
@@ -1364,16 +1661,42 @@ function drawArcheryCampModel(ctx: BuildingModelContext, name: string): void {
 	const { g, px, py, cx, cy, isWest, pal, roofDark, roofLight, isUpgraded } = ctx;
 	const dir = isWest ? 1 : -1;
 	apron(g, cx, cy + 4, 29, 22, pal.ground);
+
+	if (name.includes('зала')) {
+		rr(g, px + 10, py + 14, CELL_SIZE - 20, CELL_SIZE - 24, 4, pal.wall, 0x1c1917, 1.7);
+		pp(g, [cx, py + 5, px + CELL_SIZE - 7, py + 20, px + 7, py + 20], roofDark, 0x0f172a, 1.5);
+		doorway(g, cx - 5, cy + 6, 10, 14, 0x451a03);
+		if (name.includes('зброяр')) {
+			rr(g, cx - 7, cy - 7, 14, 9, 2, 0x94a3b8, 0x0f172a, 1.2);
+		} else {
+			ln(g, cx - 7, cy - 8, cx - 2, cy - 3, 0xfbbf24, 2);
+			ln(g, cx + 7, cy - 8, cx + 2, cy - 3, 0xfbbf24, 2);
+		}
+		return;
+	}
+
 	const hx = isWest ? px + 8 : px + 26;
 	rr(g, hx, py + 11, 28, CELL_SIZE - 22, 4, pal.wood, 0x1c1917, 1.6);
 	rr(g, hx + 1, py + 10, 26, CELL_SIZE - 26, 4, roofDark);
 	rr(g, hx + 2, py + 11, 14, CELL_SIZE - 28, 3, roofLight, undefined, 0, 0.9);
-	if (isUpgraded || name.includes('вежа') || name.includes('зеніт'))
-		cc(g, hx + 14, py + 13, 6.5, pal.wall, pal.accent, 1.4);
+	if (name.includes('зеніт')) {
+		cc(g, cx + dir * 13, cy + 2, 8, 0x475569, 0x0f172a, 1.5);
+		ln(g, cx + dir * 11, cy, cx + dir * 21, cy - 9, 0xe2e8f0, 2.5);
+		ln(g, cx + dir * 15, cy + 3, cx + dir * 24, cy - 5, 0xe2e8f0, 2.5);
+		return;
+	}
+	if (isUpgraded || name.includes('вежа')) {
+		rr(g, hx - 2, py + 4, 32, 14, 3, pal.wall, 0xfbbf24, 1.5);
+		cc(g, hx + 14, py + 11, 6, roofDark, 0xfbbf24, 1.4);
+	}
 	const tx = cx + dir * 15;
 	cc(g, tx, cy + 2, 8.5, 0xfef3c7, 0x78350f, 1.5);
 	cc(g, tx, cy + 2, 5, 0xef4444);
 	cc(g, tx, cy + 2, 2.2, 0xfef08a);
+	if (isUpgraded || name.includes('вежа')) {
+		cc(g, tx - dir * 2, cy - 12, 5.5, 0xfef3c7, 0x78350f, 1.2);
+		cc(g, tx - dir * 2, cy - 12, 2.5, 0xef4444);
+	}
 }
 
 function drawSiegeWorkshopModel(ctx: BuildingModelContext): void {
@@ -1453,6 +1776,18 @@ function drawWingedHallOrBarracksModel(
 		ln(g, cx + 5, cy - 7, cx - 5, cy + 2, 0xe2e8f0, 1.8);
 		cc(g, cx + dir * 13, cy + 12, 3.2, pal.wood);
 	}
+	if (isUpgraded) {
+		for (const [bx, by] of [
+			[px + 9, py + 10],
+			[px + CELL_SIZE - 9, py + 10],
+			[px + 9, py + CELL_SIZE - 12],
+			[px + CELL_SIZE - 9, py + CELL_SIZE - 12]
+		]) {
+			cc(g, bx, by, 4.5, pal.wallDark, 0xfbbf24, 1.3);
+		}
+		cc(g, cx, cy - 2, 7, 0xfbbf24, 0x451a03, 1.4);
+		cc(g, cx, cy - 2, 3.5, pal.glow);
+	}
 	drawRacialCrestAccent(ctx);
 }
 
@@ -1496,4 +1831,119 @@ function drawRacialCrestAccent(ctx: BuildingModelContext): void {
 			cc(g, cx, py + 10, 3.5, 0x22c55e);
 			break;
 	}
+}
+
+export function drawRaceCastleModel(
+	g: Graphics,
+	cx: number,
+	cy: number,
+	race: string,
+	playerColor: number,
+	isSelected: boolean,
+	time: number
+): void {
+	const pal = getRacePalette(race);
+	const roofMid = playerColor;
+	const roofDark = shadeHexColor(playerColor, 0.52);
+	const roofLight = shadeHexColor(playerColor, 1.28);
+
+	apron(g, cx, cy + 4, 34, 27, pal.ground, pal.accent);
+	if (isSelected) {
+		g.ellipse(cx, cy + 2, 37, 31);
+		g.stroke({ color: 0xfbbf24, width: 2.2, alpha: 0.8 + Math.sin(time * 5) * 0.2 });
+	}
+
+	// Main keep walls
+	rr(g, cx - 22, cy - 20, 44, 42, 6, pal.wallDark, 0x0f172a, 1.8);
+	rr(g, cx - 18, cy - 16, 36, 34, 4, pal.wall, pal.wallTrim, 1.3);
+
+	// Four corner towers
+	const corners: Array<[number, number]> = [
+		[cx - 21, cy - 19],
+		[cx + 21, cy - 19],
+		[cx - 21, cy + 19],
+		[cx + 21, cy + 19]
+	];
+
+	if (pal.style === 'Нежить') {
+		for (const [tx, ty] of corners) {
+			pp(g, [tx, ty - 9, tx + 6, ty + 3, tx - 6, ty + 3], 0x1e1b4b, 0x22c55e, 1.3);
+		}
+		rr(g, cx - 10, cy - 10, 20, 20, 3, 0x0f172a, 0x22c55e, 1.4);
+		cc(g, cx, cy, 5.5, 0x22c55e);
+	} else if (pal.style === 'Орки') {
+		for (const [tx, ty] of corners) {
+			cc(g, tx, ty, 6, 0x78350f, 0x1c1917, 1.4);
+			pp(g, [tx - 3, ty - 2, tx, ty - 10, tx + 3, ty - 2], 0xfef3c7);
+		}
+		rr(g, cx - 11, cy - 9, 22, 18, 3, roofDark, 0xfef3c7, 1.4);
+		cc(g, cx, cy, 4.5, 0xef4444);
+	} else if (pal.style === 'Демони') {
+		for (const [tx, ty] of corners) {
+			pp(g, [tx, ty - 10, tx + 6, ty + 4, tx - 6, ty + 4], 0x450a0a, 0xf97316, 1.3);
+		}
+		cc(g, cx, cy, 9.5, 0x7c2d12, 0xf97316, 1.6);
+		cc(g, cx, cy, 5, 0xfef08a);
+	} else if (pal.style === 'Техніки') {
+		for (const [tx, ty] of corners) {
+			rr(g, tx - 5, ty - 5, 10, 10, 2, 0x475569, 0xd97706, 1.3);
+		}
+		cc(g, cx - 8, cy - 12, 3.5, 0x94a3b8);
+		cc(g, cx + 8, cy - 12, 3.5, 0x94a3b8);
+		cc(g, cx, cy, 8, 0x1e293b, 0x38bdf8, 1.6);
+		cc(g, cx, cy, 3.5, 0x38bdf8);
+	} else if (pal.style === 'Північ') {
+		for (const [tx, ty] of corners) {
+			pp(g, [tx, ty - 10, tx + 6, ty, tx, ty + 6, tx - 6, ty], 0x38bdf8, 0xe0f2fe, 1.2);
+		}
+		pp(g, [cx, cy - 13, cx + 11, cy + 2, cx, cy + 12, cx - 11, cy + 2], 0x0ea5e9, 0xe0f2fe, 1.5);
+	} else if (pal.style === 'Ельфи') {
+		for (const [tx, ty] of corners) {
+			cc(g, tx, ty, 6, 0x15803d, 0xfbbf24, 1.3);
+		}
+		cc(g, cx, cy, 9, 0x166534, 0xfbbf24, 1.5);
+		cc(g, cx, cy - 1, 4.5, 0x67e8f9);
+	} else if (pal.style === 'Небожителі') {
+		for (const [tx, ty] of corners) {
+			cc(g, tx, ty, 6, 0xfef3c7, 0xd97706, 1.3);
+		}
+		cc(g, cx, cy, 9, undefined, 0xfbbf24, 2);
+		cc(g, cx, cy, 5, 0xfef08a);
+	} else if (pal.style === 'Тролі') {
+		for (const [tx, ty] of corners) {
+			rr(g, tx - 4, ty - 7, 8, 14, 2, 0x78350f, 0x2dd4bf, 1.2);
+		}
+		pp(g, [cx, cy - 12, cx + 12, cy + 8, cx - 12, cy + 8], 0x0f766e, 0xfbbf24, 1.4);
+		cc(g, cx, cy + 1, 4, 0x2dd4bf);
+	} else if (pal.style === 'Елементалі') {
+		const elCols = [0x4ade80, 0xf97316, 0x38bdf8, 0xa855f7];
+		corners.forEach(([tx, ty], i) => {
+			cc(g, tx, ty, 5.8, elCols[i], 0x0f172a, 1.3);
+		});
+		cc(g, cx, cy, 8, 0x1e293b, 0x38bdf8, 1.6);
+		cc(g, cx, cy, 4, 0xfef08a);
+	} else if (pal.style === 'Тварини') {
+		for (const [tx, ty] of corners) {
+			cc(g, tx, ty, 6.2, 0x3f6212, 0x84cc16, 1.3);
+		}
+		ln(g, cx - 9, cy - 11, cx - 3, cy - 3, 0xfef3c7, 2.2);
+		ln(g, cx + 9, cy - 11, cx + 3, cy - 3, 0xfef3c7, 2.2);
+		cc(g, cx, cy + 2, 6, 0x15803d, 0xfbbf24, 1.3);
+	} else if (pal.style === 'Наги') {
+		cc(g, cx, cy, 24, undefined, 0x06b6d4, 2.5);
+		for (const [tx, ty] of corners) {
+			cc(g, tx, ty, 5.5, 0x0d9488, 0xfbbf24, 1.3);
+		}
+		rr(g, cx - 9, cy - 9, 18, 18, 4, 0x0f766e, 0xfbbf24, 1.5);
+		cc(g, cx, cy, 4.5, 0x22d3ee);
+	} else {
+		// Альянс
+		for (const [tx, ty] of corners) {
+			cc(g, tx, ty, 6, roofDark, 0x0f172a, 1.3);
+			cc(g, tx, ty, 2.5, roofLight);
+		}
+		rr(g, cx - 10, cy - 10, 20, 20, 3, roofMid, 0xfbbf24, 1.6);
+		cc(g, cx, cy, 4, 0xfef08a);
+	}
+	doorway(g, cx - 4, cy + 10, 8, 11, 0x1c1917);
 }

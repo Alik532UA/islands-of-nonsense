@@ -1217,64 +1217,89 @@ export class ArenaRenderer {
 
 		const westSelected = selectedEntity?.type === 'castle' && selectedEntity.team === 'west';
 		const eastSelected = selectedEntity?.type === 'castle' && selectedEntity.team === 'east';
+		const westReady = Boolean(westCastle.race);
+		const eastReady = Boolean(eastCastle.race);
 
 		if (this.graphicsStyle === '2.5d') {
 			this.hideCastleSprites();
-			this.entityRenderer.renderAuthenticCastle(
-				this.castleShadowGraphics,
-				westCastle,
-				true,
-				westSelected
-			);
-			this.entityRenderer.renderAuthenticCastle(
-				this.castleShadowGraphics,
-				eastCastle,
-				false,
-				eastSelected
-			);
+			if (westReady) {
+				this.entityRenderer.renderAuthenticCastle(
+					this.castleShadowGraphics,
+					westCastle,
+					true,
+					westSelected,
+					false,
+					westCastle.race
+				);
+			}
+			if (eastReady) {
+				this.entityRenderer.renderAuthenticCastle(
+					this.castleShadowGraphics,
+					eastCastle,
+					false,
+					eastSelected,
+					false,
+					eastCastle.race
+				);
+			}
 		} else {
 			const sun = computeSunShadow(this.sim.dayNightProgress);
-			el(
-				this.castleShadowGraphics,
-				WEST_CASTLE_X + sun.dx * 1.5,
-				WEST_CASTLE_Y + 66 + sun.dy * 1.2,
-				175 + Math.abs(sun.dx),
-				68,
-				0x000000,
-				undefined,
-				sun.alpha
-			);
-			el(
-				this.castleShadowGraphics,
-				EAST_CASTLE_X + sun.dx * 1.5,
-				EAST_CASTLE_Y + 60 + sun.dy * 1.2,
-				180 + Math.abs(sun.dx),
-				64,
-				0x000000,
-				undefined,
-				sun.alpha
-			);
+			if (westReady) {
+				el(
+					this.castleShadowGraphics,
+					WEST_CASTLE_X + sun.dx * 1.5,
+					WEST_CASTLE_Y + 66 + sun.dy * 1.2,
+					175 + Math.abs(sun.dx),
+					68,
+					0x000000,
+					undefined,
+					sun.alpha
+				);
+			}
+			if (eastReady) {
+				el(
+					this.castleShadowGraphics,
+					EAST_CASTLE_X + sun.dx * 1.5,
+					EAST_CASTLE_Y + 60 + sun.dy * 1.2,
+					180 + Math.abs(sun.dx),
+					64,
+					0x000000,
+					undefined,
+					sun.alpha
+				);
+			}
 
-			for (const [team, castle, isWest, sel] of [
-				['west', westCastle, true, westSelected],
-				['east', eastCastle, false, eastSelected]
+			for (const [team, castle, isWest, sel, ready] of [
+				['west', westCastle, true, westSelected, westReady],
+				['east', eastCastle, false, eastSelected, eastReady]
 			] as const) {
+				if (!ready) {
+					this.hideCastleSprites(this.castleVisuals[team]);
+					continue;
+				}
 				if (!this.updateCastleCrossfade(team, castle.hp, castle.maxHp)) {
 					this.hideCastleSprites(this.castleVisuals[team]);
-					this.entityRenderer.renderAuthenticCastle(this.castleShadowGraphics, castle, isWest, sel);
+					this.entityRenderer.renderAuthenticCastle(
+						this.castleShadowGraphics,
+						castle,
+						isWest,
+						sel,
+						false,
+						castle.race
+					);
 				}
 			}
 		}
 
 		this.castlesOverlayLayer.clear();
 		if (this.graphicsStyle !== '2.5d') {
-			if (westSelected)
+			if (westReady && westSelected)
 				el(this.castlesOverlayLayer, WEST_CASTLE_X, WEST_CASTLE_Y + 30, 195, 82, undefined, {
 					color: 0xfbbf24,
 					width: 3.5,
 					alpha: 0.95
 				});
-			if (eastSelected)
+			if (eastReady && eastSelected)
 				el(this.castlesOverlayLayer, EAST_CASTLE_X, EAST_CASTLE_Y + 25, 200, 78, undefined, {
 					color: 0xf43f5e,
 					width: 3.5,
@@ -1282,8 +1307,12 @@ export class ArenaRenderer {
 				});
 		}
 
-		this.drawCastleHealthBar(WEST_CASTLE_X, WEST_CASTLE_Y - 180, westCastle, true);
-		this.drawCastleHealthBar(EAST_CASTLE_X, EAST_CASTLE_Y - 170, eastCastle, false);
+		if (westReady) {
+			this.drawCastleHealthBar(WEST_CASTLE_X, WEST_CASTLE_Y - 180, westCastle, true);
+		}
+		if (eastReady) {
+			this.drawCastleHealthBar(EAST_CASTLE_X, EAST_CASTLE_Y - 170, eastCastle, false);
+		}
 	}
 
 	private drawCastleHealthBar(cx: number, cy: number, castle: Castle, isWest: boolean): void {

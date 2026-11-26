@@ -512,6 +512,7 @@ export class Simulation {
 				: undefined;
 		const eastChoice = takeRace(initialEastReq || undefined, eastIsRandomReq, 'east');
 
+		const westPendingPick = !isAllRandom && !isBotVsBot && config.westRace === 'in_game';
 		const westRace = westChoice.race;
 		const westIsRandom = westChoice.isRandom;
 		const eastRace = eastChoice.race;
@@ -682,6 +683,7 @@ export class Simulation {
 					botDifficulty: isBotVsBot ? config.botDifficulty : 0,
 					name: isBotVsBot ? 'Бот (Захід)' : 'Гравець',
 					race: westRace,
+					pendingRacePick: westPendingPick,
 					isRandomRace: westIsRandom,
 					randomGoldGranted: westIsRandom,
 					gold: westGold
@@ -771,6 +773,7 @@ export class Simulation {
 			this.randomizePlayerColors(config.randomColors === false);
 		}
 		this.assignCastleColors();
+		this.syncCastleRaces();
 		this.bots = [];
 		for (const p of this.allPlayers) {
 			if (p.isBot) {
@@ -826,6 +829,37 @@ export class Simulation {
 			this.castles.east.color = pickedEast.color;
 		} else if (this.players.east) {
 			this.castles.east.color = this.players.east.color;
+		}
+	}
+
+	/**
+	 * Resolves each team's castle race once all human players on that team (and any pending humans
+	 * blocking bot-only teams) have picked their races. Human players take priority over bots;
+	 * among multiple humans on the same team, one player's race is chosen at random.
+	 */
+	public syncCastleRaces(): void {
+		const hasAnyPendingHuman = this.allPlayers.some((p) => !p.isBot && p.pendingRacePick);
+		for (const team of ['west', 'east'] as const) {
+			const castle = this.castles[team];
+			if (!castle) continue;
+			const teamPlayers = this.allPlayers.filter((p) => p.team === team);
+			const humans = teamPlayers.filter((p) => !p.isBot);
+			const teamHasPendingHuman = humans.some((p) => p.pendingRacePick);
+
+			if (teamHasPendingHuman || (humans.length === 0 && hasAnyPendingHuman)) {
+				castle.race = undefined;
+				continue;
+			}
+
+			if (castle.race) continue;
+
+			const candidates = humans.length > 0 ? humans : teamPlayers;
+			if (candidates.length === 0) continue;
+			const picked =
+				candidates.length === 1
+					? candidates[0]
+					: candidates[Math.floor(this.nextRandom() * candidates.length)];
+			castle.race = formatRaceName(picked.race);
 		}
 	}
 
@@ -890,6 +924,7 @@ export class Simulation {
 					'#eab308'
 				);
 			}
+			this.syncCastleRaces();
 			this.notifyStateChanged();
 			return true;
 		}
@@ -936,6 +971,7 @@ export class Simulation {
 		if (player.worker) {
 			player.worker.name = getBuilderNameForRace(player.race);
 		}
+		this.syncCastleRaces();
 		this.notifyStateChanged();
 		return true;
 	}

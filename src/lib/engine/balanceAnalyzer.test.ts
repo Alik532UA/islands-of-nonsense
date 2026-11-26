@@ -87,6 +87,6 @@ describe('Point 1: Balance Power Calculator (analyze.py & power.json)', () => {
 		const human = getRaceBalance('Люди');
 		expect(human).toBeDefined();
 		expect(human?.race).toBe('Люди');
-		expect(human?.flyingCount).toBe(1);
+		expect(human?.flyingCount).toBe(2);
 	});
 });

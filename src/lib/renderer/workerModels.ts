@@ -454,22 +454,34 @@ function drawWorkerTool(
 	playerColor: number,
 	spec: WorkerVisualSpec
 ): void {
-	const swing = isSwinging ? Math.sin(time * 20 + slot) * 12 : 0;
-	const hx = wx + facing * 12;
-	const hy = wy + bob - 3 + swing;
 	const ts = spec.toolStyle;
 	const isStaff =
 		ts === 'wand' || ts === 'staff' || ts === 'scepter' || ts === 'voodoo' || ts === 'conduit';
 
+	const swingY = isSwinging
+		? isStaff
+			? Math.sin(time * 3.4 + slot) * 1.8
+			: Math.sin(time * 10 + slot) * 5
+		: 0;
+	const staffTilt = isStaff ? Math.sin(time * 2.8 + slot) * (isSwinging ? 2.6 : 0.9) : 0;
+	const hx = wx + facing * 12;
+	const hy = wy + bob - 3 + swingY;
+
 	ln(
 		g,
-		[hx - facing * 3, hy + 10, hx + facing * 4, hy - (isStaff ? 9 : 5)],
+		[hx - facing * 3, hy + 10, hx + facing * 4 + staffTilt, hy - (isStaff ? 9 : 5)],
 		ts === 'conduit' ? 0x38bdf8 : 0x92400e,
 		2.6
 	);
 
 	if (isStaff) {
-		ci(g, hx + facing * 4, hy - 10, 4, spec.sparkColor, { color: playerColor, width: 1.2 });
+		const orbX = hx + facing * 4 + staffTilt;
+		const orbY = hy - 10;
+		const pulse = Math.sin(time * 4 + slot) * 0.5;
+		if (isSwinging) {
+			ci(g, orbX, orbY, 6.8 + pulse, spec.sparkColor, undefined, 0.28);
+		}
+		ci(g, orbX, orbY, 3.8 + pulse * 0.4, spec.sparkColor, { color: playerColor, width: 1.2 });
 	} else if (ts === 'trident_fire' || ts === 'trident_sea') {
 		pg(
 			g,
@@ -493,13 +505,15 @@ function drawWorkerTool(
 		);
 	}
 
-	if (isSwinging) {
+	if (isSwinging && !isStaff) {
 		ci(
 			g,
-			hx + facing * 6 + Math.sin(time * 30) * 6,
-			hy - 3 + Math.cos(time * 30) * 6,
-			3.2,
-			spec.sparkColor
+			hx + facing * 6 + Math.sin(time * 12 + slot) * 3.5,
+			hy - 3 + Math.cos(time * 12 + slot) * 3.5,
+			2.6,
+			spec.sparkColor,
+			undefined,
+			0.8
 		);
 	}
 }

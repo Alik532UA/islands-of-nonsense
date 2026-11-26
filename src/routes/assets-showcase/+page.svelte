@@ -12,14 +12,15 @@
 		type PlayableRace
 	} from '$lib/engine/gameData';
 	import unitsJson from '$lib/data/units.json';
-	import type {
-		ArmorType,
-		AttackType,
-		Building,
-		Castle,
-		MatchTeam,
-		Unit,
-		UnitAbilityType
+	import {
+		ALL_PLAYER_COLORS,
+		type ArmorType,
+		type AttackType,
+		type Building,
+		type Castle,
+		type MatchTeam,
+		type Unit,
+		type UnitAbilityType
 	} from '$lib/engine/types';
 	import type { DecorationObstacle } from '$lib/engine/constants';
 	import { Simulation } from '$lib/engine/simulation';
@@ -34,6 +35,7 @@
 	} from '$lib/renderer/unitModels';
 	import { WEST_CASTLE_STAGE_URLS, EAST_CASTLE_STAGE_URLS } from '$lib/renderer/castleAssets';
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
+	import ShowcaseMinimap from '$lib/components/ShowcaseMinimap.svelte';
 
 	type ShowcaseCategory = 'all' | 'workers' | 'buildings' | 'units';
 	type ShowcaseViewMode = 'map' | 'menu';
@@ -72,6 +74,11 @@
 	let selectedRace = $state<PlayableRace | 'all'>('all');
 	let category = $state<ShowcaseCategory>('all');
 	let previewTeam = $state<MatchTeam>('west');
+	let selectedColorId = $state<number>(9); // 9 = Сірий за замовчуванням
+	let colorMenuOpen = $state(false);
+	const selectedPlayerColor = $derived(
+		ALL_PLAYER_COLORS.find((c) => c.id === selectedColorId) ?? ALL_PLAYER_COLORS[8]
+	);
 	let animateUnits = $state(true);
 	let selectedItem = $state<ShowcaseItem | null>(null);
 	let copiedLabel = $state<string | null>(null);
@@ -92,6 +99,8 @@
 	let camX = $state(-20);
 	let camY = $state(-10);
 	let camZoom = $state(0.85);
+	let hostW = $state(1200);
+	let hostH = $state(760);
 	let isDragging = false;
 	let dragMoved = false;
 	let dragStartX = 0;
@@ -343,6 +352,49 @@
 		};
 	}
 
+	const SHARED_BUILDING_IDS = new Set(['cg10_shop', 'cg11_forge', 'h008', 'cg12_commander']);
+
+	const EXTRA_UNIT_RACE_MAP: Record<string, PlayableRace> = {
+		n00J: 'Наги',
+		n00K: 'Наги',
+		u00D: 'Нежить',
+		u007: 'Нежить',
+		o005: 'Орки',
+		n016: 'Північ',
+		n027: 'Демони',
+		e004: 'Ельфи',
+		cg11: 'Техніки',
+		cg12: 'Техніки',
+		cg13: 'Техніки',
+		cg14: 'Техніки',
+		cg15: 'Техніки',
+		cg16: 'Техніки',
+		cg17: 'Техніки',
+		cg18: 'Техніки',
+		cg19: 'Техніки',
+		cg1a: 'Техніки',
+		cg1b: 'Техніки'
+	};
+
+	function getExtraUnitsForRace(race: PlayableRace, q: string): Array<[string, RawUnitData]> {
+		const raceUnitIds = new Set<string>();
+		for (const b of getBaseBuildingsForRace(race)) {
+			if (b.unit) raceUnitIds.add(b.unit);
+			for (const up of getUpgradesForBuilding(b.id)) {
+				if (up.unit) raceUnitIds.add(up.unit);
+			}
+		}
+		return allUnitEntries.filter(([id, raw]) => {
+			if (raceUnitIds.has(id)) return false;
+			if (EXTRA_UNIT_RACE_MAP[id] !== race) return false;
+			if (q) {
+				const n = String(raw.name ?? '').toLowerCase();
+				return n.includes(q) || id.toLowerCase().includes(q);
+			}
+			return true;
+		});
+	}
+
 	const BASE_MAP_H = 2600;
 
 	const CARD_W = 196;
@@ -351,13 +403,30 @@
 	const SPECIAL_W = 124;
 	const SPECIAL_STEP_X = 140;
 	const UPGRADE_STEP_Y = 170;
+	const CASTLE_BOX_W = 342;
+	const SHARED_BOX_W = 288;
 
 	interface RaceRowLayout {
 		race: PlayableRace;
 		rowY: number;
 		rowH: number;
-		rowW: number;
+		spawnersX: number;
+		spawnersW: number;
+		uniqueX: number;
+		uniqueW: number;
+		sharedX: number;
+		sharedW: number;
+		extraX: number;
+		extraW: number;
 		maxUpgrades: number;
+	}
+
+	interface BottomIslandLayout {
+		x: number;
+		y: number;
+		w: number;
+		h: number;
+		topH: number;
 	}
 
 	function computeRaceRowsLayout(): {
@@ -365,6 +434,7 @@
 		mapH: number;
 		westIslandW: number;
 		eastIslandX: number;
+		bottomIsland: BottomIslandLayout;
 		mapW: number;
 	} {
 		const q = searchQuery.trim().toLowerCase();
@@ -377,31 +447,74 @@
 			);
 			const spawners = baseBlds.filter((b) => Boolean(b.unit));
 			const specials = baseBlds.filter((b) => !b.unit);
-			let maxUpgrades = 0;
-			let rowEndX = 216;
+			const uniqueSpecials = specials.filter((b) => !SHARED_BUILDING_IDS.has(b.id));
+			const extraUnits = getExtraUnitsForRace(race, q);
+
+			let maxUpgrades = 1;
 			for (const b of spawners) {
 				const ups = getUpgradesForBuilding(b.id);
 				if (ups.length > maxUpgrades) maxUpgrades = ups.length;
-				rowEndX += CARD_STEP_X;
 			}
-			for (const b of specials) {
-				const ups = getUpgradesForBuilding(b.id);
-				if (ups.length > maxUpgrades) maxUpgrades = ups.length;
-				rowEndX += ups.length > 0 ? CARD_STEP_X : SPECIAL_STEP_X;
-			}
-			const rowW = Math.max(1900, rowEndX - 92 + 24);
-			if (92 + rowW > maxRowRight) maxRowRight = 92 + rowW;
+
+			const spawnersX = 92 + CASTLE_BOX_W + 16;
+			const extraCols = extraUnits.length > 0 ? Math.ceil(extraUnits.length / 2) : 0;
+			const spawnersW = Math.max(220, spawners.length * CARD_STEP_X + 12);
+			const uniqueX = spawnersX + spawnersW + 16;
+			const uniqueCols = Math.max(1, Math.ceil(uniqueSpecials.length / 2));
+			const uniqueW = uniqueCols * SPECIAL_STEP_X + 12;
+			const sharedX = uniqueX + uniqueW + 16;
+			const sharedW = SHARED_BOX_W;
+			const extraX = sharedX + sharedW + 16;
+			const extraW = extraCols > 0 ? extraCols * 124 + 20 : 0;
+
+			const rowRight = extraW > 0 ? extraX + extraW : sharedX + sharedW;
+			if (rowRight > maxRowRight) maxRowRight = rowRight;
 			const contentH = CARD_H + 16 + maxUpgrades * UPGRADE_STEP_Y;
-			const rowH = contentH + 16;
-			rows.push({ race, rowY: curY, rowH, rowW, maxUpgrades });
-			curY += rowH + 52;
+			const rowH = Math.max(350, contentH + 20);
+			rows.push({
+				race,
+				rowY: curY,
+				rowH,
+				spawnersX,
+				spawnersW,
+				uniqueX,
+				uniqueW,
+				sharedX,
+				sharedW,
+				extraX,
+				extraW,
+				maxUpgrades
+			});
+			curY += rowH + 56;
 		}
 		const westIslandW = Math.max(1980, maxRowRight - 60 + 44);
-		const eastIslandX = 60 + westIslandW + 180;
-		const mapW = eastIslandX + 1200;
-		const mapH = Math.max(BASE_MAP_H, curY + 70);
-		return { rows, mapH, westIslandW, eastIslandX, mapW };
+		const topIslandH = Math.max(460, curY - 60 + 20);
+		const bottomIsland: BottomIslandLayout = {
+			x: 60,
+			y: 60 + topIslandH + 160,
+			w: 1140,
+			h: 880,
+			topH: topIslandH
+		};
+		const eastIslandX = bottomIsland.x;
+		const mapW = 60 + westIslandW + 60;
+		const mapH = bottomIsland.y + bottomIsland.h + 60;
+		return { rows, mapH, westIslandW, eastIslandX, bottomIsland, mapW };
 	}
+
+	const showcaseLayout = $derived.by(() => {
+		if (graphicsTab === 'hd-webp') {
+			return {
+				rows: [] as RaceRowLayout[],
+				mapH: BASE_MAP_H,
+				westIslandW: 1960,
+				eastIslandX: 2200,
+				bottomIsland: null as BottomIslandLayout | null,
+				mapW: 3400
+			};
+		}
+		return computeRaceRowsLayout();
+	});
 
 	function getCastleTexture(url: string): Texture | null {
 		const cached = castleTextureCache.get(url);
@@ -420,7 +533,8 @@
 		mapH: number,
 		westIslandW: number,
 		eastIslandX: number,
-		mapW: number
+		mapW: number,
+		bottomIsland: BottomIslandLayout | null = null
 	) {
 		// Ocean background
 		g.rect(0, 0, mapW, mapH).fill(0x012e4a);
@@ -436,8 +550,8 @@
 			contentRect: { x: number; y: number; w: number; h: number }
 		) => {
 			g.roundRect(ix - 14, iy - 14, iw + 28, ih + 28, 42).fill({ color: 0x0b4f6c, alpha: 0.7 });
-			g.roundRect(ix - 6, iy - 6, iw + 12, ih + 12, 34).fill(0x5c4228);
-			g.roundRect(ix, iy, iw, ih, 28).fill(0x2d6a1e);
+			g.roundRect(ix - 6, iy - 6, iw + 12, ih + 12, 34).fill(0x334155);
+			g.roundRect(ix, iy, iw, ih, 28).fill(0x0f172a);
 			// Grass tufts, flowers, mushrooms & crystals only in border margins outside content rows
 			for (let gx = ix + 28; gx < ix + iw - 28; gx += 110) {
 				for (let gy = iy + 26; gy < iy + ih - 26; gy += 96) {
@@ -470,6 +584,42 @@
 				}
 			}
 		};
+
+		if (bottomIsland) {
+			drawIsland(60, 60, westIslandW, bottomIsland.topH, {
+				x: 84,
+				y: 66,
+				w: westIslandW - 44,
+				h: bottomIsland.topH - 20
+			});
+			drawIsland(bottomIsland.x, bottomIsland.y, bottomIsland.w, bottomIsland.h, {
+				x: bottomIsland.x + 24,
+				y: bottomIsland.y + 6,
+				w: bottomIsland.w - 48,
+				h: bottomIsland.h - 20
+			});
+
+			// Two wide vertical wooden bridges across the horizontal strait
+			const by = 60 + bottomIsland.topH - 40;
+			const bh = bottomIsland.y - by + 40;
+			const bw = 160;
+			for (const bx of [260, 760]) {
+				g.rect(bx + bw, by, 14, bh).fill({ color: 0x020617, alpha: 0.4 });
+				g.rect(bx, by, bw, bh).fill(0x6b3e1d);
+				for (let py = by + 16; py < by + bh; py += 22) {
+					g.moveTo(bx, py)
+						.lineTo(bx + bw, py)
+						.stroke({ color: 0x452611, width: 2 });
+				}
+				g.rect(bx - 8, by, 10, bh).fill(0x64748b);
+				g.rect(bx + bw - 2, by, 10, bh).fill(0x64748b);
+				for (let ly = by + 30; ly < by + bh; ly += 80) {
+					g.circle(bx - 3, ly, 5).fill(0xfbbf24);
+					g.circle(bx + bw + 3, ly, 5).fill(0xfbbf24);
+				}
+			}
+			return;
+		}
 
 		drawIsland(60, 60, westIslandW, islandH, {
 			x: 84,
@@ -595,8 +745,9 @@
 		const mapH = layoutInfo ? layoutInfo.mapH : BASE_MAP_H;
 		const westIslandW = layoutInfo ? layoutInfo.westIslandW : 1960;
 		const eastIslandX = layoutInfo ? layoutInfo.eastIslandX : 2200;
+		const bottomIsland = layoutInfo ? layoutInfo.bottomIsland : null;
 		const mapW = layoutInfo ? layoutInfo.mapW : 3400;
-		drawMapDecorations(terrainG, mapH, westIslandW, eastIslandX, mapW);
+		drawMapDecorations(terrainG, mapH, westIslandW, eastIslandX, mapW, bottomIsland);
 
 		if (graphicsTab === 'hd-webp') {
 			addMapLabel('HD ТЕКСТУРИ · ЗАХІДНИЙ ЗАМОК (8 СТАДІЙ)', 110, 96, 0x93c5fd);
@@ -651,41 +802,106 @@
 				}
 			});
 		} else {
-			// 2.5D Classic Tab: Structured Race Rows ([Worker] + [Building -> Unit], with Upgrades directly BELOW their parent building)
+			// 2.5D Classic Tab: 4 structured containers per race row
 			addMapLabel(
-				'2.5D КЛАСИКА · РАСИ: РОБІТНИК, БУДІВЛІ ТА ЇХ ПОКРАЩЕННЯ ПІД НИМИ',
-				100,
+				'2.5D КЛАСИКА · РАСИ: ЗАМОК+РОБІТНИК | БУДІВЛІ+ЮНІТИ | УНІКАЛЬНІ | СПІЛЬНІ',
+				92,
 				74,
 				0xfcd34d
 			);
-			addMapLabel('ІНШІ / ПРИЗОВНІ ЮНІТИ (2.5D КЛАСИКА)', eastIslandX + 50, 74, 0x38bdf8);
+			const secX = bottomIsland ? bottomIsland.x : eastIslandX;
+			const secTopY = bottomIsland ? bottomIsland.y : 60;
+			addMapLabel('2.5D ЗАМКИ ТА ДЕКОРАЦІЇ (НИЖНІЙ ОСТРІВ)', secX + 50, secTopY + 14, 0x38bdf8);
 
 			const q = searchQuery.trim().toLowerCase();
-			const shownUnitIds = new Set<string>();
 			const rows = layoutInfo?.rows ?? [];
 
 			for (let rIdx = 0; rIdx < rows.length; rIdx++) {
-				const { race, rowY, rowH, rowW } = rows[rIdx];
-				addMapLabel(race.toUpperCase(), 100, rowY - 38, 0xfcd34d);
-				addCenteredWrappedLabel('Робітник', 146, rowY + 78, 0x94a3b8, 84, 11);
-				terrainG.roundRect(92, rowY - 16, rowW, rowH, 12).fill({ color: 0x163812, alpha: 0.62 });
-				terrainG.roundRect(92, rowY - 16, rowW, rowH, 12).stroke({
-					color: 0x365314,
-					width: 1.5
-				});
+				const {
+					race,
+					rowY,
+					rowH,
+					spawnersX,
+					spawnersW,
+					uniqueX,
+					uniqueW,
+					sharedX,
+					sharedW,
+					extraX,
+					extraW
+				} = rows[rIdx];
+				addMapLabel(race.toUpperCase(), 92, rowY - 38, 0xfcd34d);
+
+				// Container 1: Castle + Worker
+				terrainG
+					.roundRect(92, rowY - 16, CASTLE_BOX_W, rowH, 12)
+					.fill({ color: 0x163812, alpha: 0.92 });
+				terrainG
+					.roundRect(92, rowY - 16, CASTLE_BOX_W, rowH, 12)
+					.stroke({ color: 0x4ade80, width: 1.5, alpha: 0.75 });
+				addCenteredWrappedLabel(
+					'ЗАМОК · РОБІТНИК',
+					92 + CASTLE_BOX_W / 2,
+					rowY - 11,
+					0x86efac,
+					160,
+					9.5
+				);
+				addCenteredWrappedLabel('Робітник', 92 + 50, rowY + 198, 0xe2e8f0, 88, 11);
+				addCenteredWrappedLabel(`Замок ${race}`, 92 + 216, rowY + 304, 0xfef08a, 180, 11);
+
+				// Container 2: Spawners + Upgrades + Extra units of this race
+				terrainG
+					.roundRect(spawnersX, rowY - 16, spawnersW, rowH, 12)
+					.fill({ color: 0x163812, alpha: 0.92 });
+				terrainG
+					.roundRect(spawnersX, rowY - 16, spawnersW, rowH, 12)
+					.stroke({ color: 0x38bdf8, width: 1.5, alpha: 0.65 });
+				addMapLabel('БУДІВЛІ ТА ЮНІТИ', spawnersX + 12, rowY - 11, 0x7dd3fc, 10);
+
+				// Container 3: Unique special buildings (2 rows)
+				terrainG
+					.roundRect(uniqueX, rowY - 16, uniqueW, rowH, 12)
+					.fill({ color: 0x163812, alpha: 0.92 });
+				terrainG
+					.roundRect(uniqueX, rowY - 16, uniqueW, rowH, 12)
+					.stroke({ color: 0x94a3b8, width: 1.5, alpha: 0.65 });
+				addMapLabel('УНІКАЛЬНІ БУДІВЛІ', uniqueX + 12, rowY - 11, 0xcbd5e1, 10);
+
+				// Container 4: Shared special buildings (2x2)
+				terrainG
+					.roundRect(sharedX, rowY - 16, sharedW, rowH, 12)
+					.fill({ color: 0x163812, alpha: 0.92 });
+				terrainG
+					.roundRect(sharedX, rowY - 16, sharedW, rowH, 12)
+					.stroke({ color: 0xfbbf24, width: 1.5, alpha: 0.65 });
+				addMapLabel('СПІЛЬНІ БУДІВЛІ', sharedX + 12, rowY - 11, 0xfcd34d, 10);
+
+				// Container 5: Extra / Summoned units of this race (after all buildings)
+				if (extraW > 0) {
+					terrainG
+						.roundRect(extraX, rowY - 16, extraW, rowH, 12)
+						.fill({ color: 0x163812, alpha: 0.92 });
+					terrainG
+						.roundRect(extraX, rowY - 16, extraW, rowH, 12)
+						.stroke({ color: 0x22d3ee, width: 1.5, alpha: 0.7 });
+					addMapLabel('ПРИЗОВНІ ЮНІТИ', extraX + 12, rowY - 11, 0x67e8f9, 10);
+				}
 
 				const baseBlds = getBaseBuildingsForRace(race).filter(
 					(b) => !q || b.name.toLowerCase().includes(q) || b.id.toLowerCase().includes(q)
 				);
 				const spawners = baseBlds.filter((b) => Boolean(b.unit));
 				const specials = baseBlds.filter((b) => !b.unit);
+				const uniqueSpecials = specials.filter((b) => !SHARED_BUILDING_IDS.has(b.id));
+				const sharedSpecials = specials.filter((b) => SHARED_BUILDING_IDS.has(b.id));
+				const extraUnits = getExtraUnitsForRace(race, q);
 
 				const drawUpgradesBelow = (baseBldId: string, colX: number) => {
 					const ups = getUpgradesForBuilding(baseBldId);
 					if (ups.length === 0) return;
 					const lastUpY = rowY + UPGRADE_STEP_Y + (ups.length - 1) * UPGRADE_STEP_Y;
 					const railX = colX - 13;
-					// Branch rail from bottom of parent building down the left edge of its upgrades
 					terrainG
 						?.moveTo(colX + 12, rowY + CARD_H - 8)
 						.lineTo(colX + 12, rowY + CARD_H)
@@ -696,7 +912,6 @@
 					for (let uIdx = 0; uIdx < ups.length; uIdx++) {
 						const up = ups[uIdx];
 						const upY = rowY + UPGRADE_STEP_Y + uIdx * UPGRADE_STEP_Y;
-						if (up.unit) shownUnitIds.add(up.unit);
 						const uName = up.unit ? (rawUnitsMap[up.unit]?.name ?? up.unit) : '';
 						const isMatch =
 							Boolean(q) &&
@@ -704,138 +919,161 @@
 								up.id.toLowerCase().includes(q) ||
 								uName.toLowerCase().includes(q));
 
-						// Branch tick into this upgrade card
 						terrainG
 							?.moveTo(railX, upY + 64)
 							.lineTo(colX - 8, upY + 64)
 							.stroke({ color: 0xc084fc, width: 2, alpha: 0.85 });
 
 						terrainG?.roundRect(colX - 8, upY - 8, CARD_W, CARD_H, 10).fill({
-							color: 0x1e1b4b,
-							alpha: 0.78
+							color: 0x2d6a1e,
+							alpha: 1
 						});
 						terrainG?.roundRect(colX - 8, upY - 8, CARD_W, CARD_H, 10).stroke({
-							color: isMatch ? 0xfbbf24 : 0xa855f7,
-							width: isMatch ? 2 : 1.2,
-							alpha: isMatch ? 0.95 : 0.7
+							color: isMatch ? 0xfbbf24 : 0xc084fc,
+							width: isMatch ? 2.2 : 1.6,
+							alpha: isMatch ? 0.98 : 0.85
 						});
-						// Subtle divider between visual preview and text
 						terrainG
 							?.moveTo(colX, upY + 86)
 							.lineTo(colX + CARD_W - 16, upY + 86)
-							.stroke({ color: 0xa855f7, width: 1, alpha: 0.25 });
-						addCenteredWrappedLabel(up.name, colX + 42, upY + 92, 0xe2e8f0, 86, 11);
-						if (uName) addCenteredWrappedLabel(uName, colX + 144, upY + 92, 0xf0abfc, 86, 11);
+							.stroke({ color: 0xc084fc, width: 1, alpha: 0.35 });
+						addCenteredWrappedLabel(up.name, colX + 42, upY + 92, 0xf8fafc, 86, 11);
+						if (uName) addCenteredWrappedLabel(uName, colX + 144, upY + 92, 0xf5d0fe, 86, 11);
 					}
 				};
 
-				let cursorX = 216;
+				let cursorX = spawnersX + 20;
 				for (const bld of spawners) {
-					if (bld.unit) shownUnitIds.add(bld.unit);
 					const uName = bld.unit ? (rawUnitsMap[bld.unit]?.name ?? bld.unit) : '';
 					const isMatch =
 						Boolean(q) &&
 						(bld.name.toLowerCase().includes(q) ||
 							bld.id.toLowerCase().includes(q) ||
 							uName.toLowerCase().includes(q));
-					// Draw pair card [Building -> Unit]
 					terrainG.roundRect(cursorX - 8, rowY - 8, CARD_W, CARD_H, 10).fill({
-						color: 0x0f172a,
-						alpha: 0.74
+						color: 0x2d6a1e,
+						alpha: 1
 					});
 					terrainG.roundRect(cursorX - 8, rowY - 8, CARD_W, CARD_H, 10).stroke({
 						color: isMatch ? 0xfbbf24 : 0x38bdf8,
-						width: isMatch ? 2 : 1,
-						alpha: isMatch ? 0.95 : 0.5
+						width: isMatch ? 2.2 : 1.3,
+						alpha: isMatch ? 0.98 : 0.72
 					});
-					// Subtle divider between visual preview and text
 					terrainG
 						.moveTo(cursorX, rowY + 86)
 						.lineTo(cursorX + CARD_W - 16, rowY + 86)
-						.stroke({ color: 0x38bdf8, width: 1, alpha: 0.22 });
-					addCenteredWrappedLabel(bld.name, cursorX + 42, rowY + 92, 0xe2e8f0, 86, 11);
-					if (uName) addCenteredWrappedLabel(uName, cursorX + 144, rowY + 92, 0x7dd3fc, 86, 11);
+						.stroke({ color: 0x38bdf8, width: 1, alpha: 0.3 });
+					addCenteredWrappedLabel(bld.name, cursorX + 42, rowY + 92, 0xf8fafc, 86, 11);
+					if (uName) addCenteredWrappedLabel(uName, cursorX + 144, rowY + 92, 0xbae6fd, 86, 11);
 					drawUpgradesBelow(bld.id, cursorX);
 					cursorX += CARD_STEP_X;
 				}
-				for (const bld of specials) {
-					const ups = getUpgradesForBuilding(bld.id);
-					const cardW = ups.length > 0 ? CARD_W : SPECIAL_W;
-					const stepX = ups.length > 0 ? CARD_STEP_X : SPECIAL_STEP_X;
+
+				// Extra / Summoned units belonging to this race (separate Container 5 after all buildings)
+				if (extraUnits.length > 0 && extraW > 0) {
+					const extraStartX = extraX + 16;
+					for (let i = 0; i < extraUnits.length; i++) {
+						const [, raw] = extraUnits[i];
+						const col = Math.floor(i / 2);
+						const row = i % 2;
+						const ex = extraStartX + col * 124 + 54;
+						const ey = rowY + 42 + row * UPGRADE_STEP_Y;
+						terrainG.roundRect(ex - 54, ey - 46, 108, 128, 10).fill({ color: 0x2d6a1e, alpha: 1 });
+						terrainG
+							.roundRect(ex - 54, ey - 46, 108, 128, 10)
+							.stroke({ color: 0x22d3ee, width: 1.3, alpha: 0.75 });
+						addCenteredWrappedLabel(String(raw.name ?? ''), ex, ey + 34, 0xf8fafc, 98, 10.5);
+					}
+				}
+
+				// Container 3: Unique special buildings (2 rows)
+				for (let i = 0; i < uniqueSpecials.length; i++) {
+					const bld = uniqueSpecials[i];
+					const col = Math.floor(i / 2);
+					const row = i % 2;
+					const sx = uniqueX + 16 + col * SPECIAL_STEP_X;
+					const sy = rowY + 4 + row * UPGRADE_STEP_Y;
 					const isMatch =
 						Boolean(q) && (bld.name.toLowerCase().includes(q) || bld.id.toLowerCase().includes(q));
-					terrainG.roundRect(cursorX - 8, rowY - 8, cardW, CARD_H, 10).fill({
-						color: 0x0f172a,
-						alpha: 0.6
+					terrainG.roundRect(sx - 8, sy - 8, SPECIAL_W, CARD_H, 10).fill({
+						color: 0x2d6a1e,
+						alpha: 1
 					});
-					terrainG.roundRect(cursorX - 8, rowY - 8, cardW, CARD_H, 10).stroke({
-						color: isMatch ? 0xfbbf24 : 0x475569,
-						width: isMatch ? 2 : 1,
-						alpha: isMatch ? 0.95 : 0.55
+					terrainG.roundRect(sx - 8, sy - 8, SPECIAL_W, CARD_H, 10).stroke({
+						color: isMatch ? 0xfbbf24 : 0x94a3b8,
+						width: isMatch ? 2.2 : 1.2,
+						alpha: isMatch ? 0.98 : 0.7
 					});
 					terrainG
-						.moveTo(cursorX, rowY + 86)
-						.lineTo(cursorX + cardW - 16, rowY + 86)
-						.stroke({ color: 0x64748b, width: 1, alpha: 0.22 });
+						.moveTo(sx, sy + 86)
+						.lineTo(sx + SPECIAL_W - 16, sy + 86)
+						.stroke({ color: 0x94a3b8, width: 1, alpha: 0.3 });
 					addCenteredWrappedLabel(
 						bld.name,
-						cursorX - 8 + cardW / 2,
-						rowY + 92,
-						0xcbd5e1,
-						cardW - 14,
+						sx - 8 + SPECIAL_W / 2,
+						sy + 92,
+						0xf8fafc,
+						SPECIAL_W - 14,
 						11
 					);
-					drawUpgradesBelow(bld.id, cursorX);
-					cursorX += stepX;
+				}
+
+				// Container 4: Shared special buildings (2x2 grid)
+				for (let i = 0; i < sharedSpecials.length; i++) {
+					const bld = sharedSpecials[i];
+					const col = i % 2;
+					const row = Math.floor(i / 2);
+					const sx = sharedX + 16 + col * SPECIAL_STEP_X;
+					const sy = rowY + 4 + row * UPGRADE_STEP_Y;
+					const isMatch =
+						Boolean(q) && (bld.name.toLowerCase().includes(q) || bld.id.toLowerCase().includes(q));
+					terrainG.roundRect(sx - 8, sy - 8, SPECIAL_W, CARD_H, 10).fill({
+						color: 0x2d6a1e,
+						alpha: 1
+					});
+					terrainG.roundRect(sx - 8, sy - 8, SPECIAL_W, CARD_H, 10).stroke({
+						color: isMatch ? 0xfbbf24 : 0xfbbf24,
+						width: isMatch ? 2.4 : 1.2,
+						alpha: isMatch ? 0.98 : 0.65
+					});
+					terrainG
+						.moveTo(sx, sy + 86)
+						.lineTo(sx + SPECIAL_W - 16, sy + 86)
+						.stroke({ color: 0xfbbf24, width: 1, alpha: 0.28 });
+					addCenteredWrappedLabel(
+						bld.name,
+						sx - 8 + SPECIAL_W / 2,
+						sy + 92,
+						0xf8fafc,
+						SPECIAL_W - 14,
+						11
+					);
 				}
 			}
 
-			// Extra / Summoned units not directly bound to a race building (at top of East Island)
-			const extraUnitsList = allUnitEntries.filter(([id]) => !shownUnitIds.has(id));
-			let eastCursorY = 120;
-			if (extraUnitsList.length > 0) {
-				const extraRows = Math.ceil(extraUnitsList.length / 8);
-				const panelH = Math.max(108, extraRows * 88 + 28);
-				addMapLabel(
-					`ІНШІ / ПРИЗОВНІ ЮНІТИ (${extraUnitsList.length})`,
-					eastIslandX + 50,
-					eastCursorY,
-					0x38bdf8
-				);
-				const boxY = eastCursorY + 26;
-				terrainG.roundRect(eastIslandX + 45, boxY, 1050, panelH, 12).fill({
-					color: 0x0f172a,
-					alpha: 0.62
-				});
-				terrainG.roundRect(eastIslandX + 45, boxY, 1050, panelH, 12).stroke({
-					color: 0x38bdf8,
-					width: 1.5,
-					alpha: 0.45
-				});
-				for (let i = 0; i < extraUnitsList.length; i++) {
-					const [, raw] = extraUnitsList[i];
-					const ex = eastIslandX + 114 + (i % 8) * 128;
-					const ey = boxY + 42 + Math.floor(i / 8) * 88;
-					addCenteredWrappedLabel(String(raw.name ?? ''), ex, ey + 26, 0xcbd5e1, 114, 11);
-				}
-				eastCursorY = boxY + panelH + 40;
-			}
+			let eastCursorY = secTopY + 60;
 
-			// 2.5D Castles (West & East procedural fortresses) on East Island
-			addMapLabel('2.5D ЗАМКИ (ЗАХІД ТА СХІД)', eastIslandX + 50, eastCursorY, 0xfbbf24);
+			// 2.5D Castles (West & East procedural fortresses) on Bottom Island
+			addMapLabel('2.5D ЗАМКИ (ЗАХІД ТА СХІД)', secX + 50, eastCursorY, 0xfbbf24);
 			const castleBoxY = eastCursorY + 26;
-			terrainG.roundRect(eastIslandX + 45, castleBoxY, 1050, 350, 12).fill({
-				color: 0x0f172a,
-				alpha: 0.58
+			terrainG.roundRect(secX + 45, castleBoxY, 1050, 350, 12).fill({
+				color: 0x163812,
+				alpha: 0.92
 			});
-			terrainG.roundRect(eastIslandX + 45, castleBoxY, 1050, 350, 12).stroke({
-				color: 0xfbbf24,
+			terrainG.roundRect(secX + 45, castleBoxY, 1050, 350, 12).stroke({
+				color: 0x365314,
 				width: 1.5,
-				alpha: 0.45
+				alpha: 0.85
 			});
+			terrainG
+				.roundRect(secX + 130, castleBoxY + 20, 360, 292, 12)
+				.fill({ color: 0x2d6a1e, alpha: 1 });
+			terrainG
+				.roundRect(secX + 630, castleBoxY + 20, 360, 292, 12)
+				.fill({ color: 0x2d6a1e, alpha: 1 });
 			addCenteredWrappedLabel(
 				'Західний замок (2.5D)',
-				eastIslandX + 310,
+				secX + 310,
 				castleBoxY + 320,
 				0x93c5fd,
 				180,
@@ -843,18 +1081,18 @@
 			);
 			addCenteredWrappedLabel(
 				'Східний замок (2.5D)',
-				eastIslandX + 810,
+				secX + 810,
 				castleBoxY + 320,
 				0xfda4af,
 				180,
 				12
 			);
 
-			// Procedural Map Decorations on East Island below 2.5D Castles
+			// Procedural Map Decorations on Bottom Island below 2.5D Castles
 			const decorTitleY = castleBoxY + 390;
 			addMapLabel(
 				`ДЕКОРАЦІЇ КАРТИ (ПРОЦЕДУРНІ · ${SHOWCASE_DECORATIONS.length})`,
-				eastIslandX + 50,
+				secX + 50,
 				decorTitleY,
 				0x4ade80
 			);
@@ -862,19 +1100,19 @@
 			const decorRows = Math.ceil(SHOWCASE_DECORATIONS.length / 6);
 			const decorPanelH = decorRows * 106 + 24;
 			terrainG
-				.roundRect(eastIslandX + 45, decorBoxY, 1050, decorPanelH, 12)
-				.fill({ color: 0x163812, alpha: 0.65 });
-			terrainG.roundRect(eastIslandX + 45, decorBoxY, 1050, decorPanelH, 12).stroke({
-				color: 0x4ade80,
+				.roundRect(secX + 45, decorBoxY, 1050, decorPanelH, 12)
+				.fill({ color: 0x163812, alpha: 0.92 });
+			terrainG.roundRect(secX + 45, decorBoxY, 1050, decorPanelH, 12).stroke({
+				color: 0x365314,
 				width: 1.5,
-				alpha: 0.45
+				alpha: 0.85
 			});
 			for (let i = 0; i < SHOWCASE_DECORATIONS.length; i++) {
 				const dec = SHOWCASE_DECORATIONS[i];
-				const dx = eastIslandX + 145 + (i % 6) * 168;
+				const dx = secX + 145 + (i % 6) * 168;
 				const dy = decorBoxY + 56 + Math.floor(i / 6) * 106;
-				terrainG.roundRect(dx - 70, dy - 42, 140, 92, 8).fill({ color: 0x0f172a, alpha: 0.42 });
-				addCenteredWrappedLabel(dec.label, dx, dy + 22, 0xcbd5e1, 130, 11);
+				terrainG.roundRect(dx - 70, dy - 42, 140, 92, 8).fill({ color: 0x2d6a1e, alpha: 1 });
+				addCenteredWrappedLabel(dec.label, dx, dy + 22, 0xf8fafc, 130, 11);
 			}
 		}
 		worldContainer.position.set(camX, camY);
@@ -887,7 +1125,7 @@
 		g.clear();
 		placedItems = [];
 
-		const teamColor = previewTeam === 'west' ? 0x2563eb : 0xdc2626;
+		const teamColor = selectedPlayerColor.num;
 
 		if (viewMode === 'map') {
 			worldContainer.position.set(camX, camY);
@@ -936,17 +1174,56 @@
 				return;
 			}
 
-			// 12 Race Rows: Worker + [Building -> Unit] pairs, with Upgrades directly BELOW their parent building
+			// 12 Race Rows: Castle+Worker | Buildings+Units+Extra | Unique Specials (2 rows) | Shared Specials (2x2)
 			const q = searchQuery.trim().toLowerCase();
-			const shownUnitIds = new Set<string>();
-			const { rows, eastIslandX } = computeRaceRowsLayout();
+			const { rows, bottomIsland } = computeRaceRowsLayout();
+			const eastIslandX = bottomIsland.x;
+			const eastCursorY = bottomIsland.y + 60;
 
 			for (let rIdx = 0; rIdx < rows.length; rIdx++) {
-				const { race, rowY } = rows[rIdx];
-				const wx = 146;
-				const wy = rowY + 34;
+				const { race, rowY, spawnersX, uniqueX, sharedX, extraX, extraW } = rows[rIdx];
+				const wx = 92 + 50;
+				const wy = rowY + 158;
+				const castleX = 92 + 216;
+				const castleY = rowY + 158;
 
-				g.roundRect(wx - 32, wy - 32, 64, 64, 10).fill({ color: 0x1e293b, alpha: 0.72 });
+				// 1. Unique Full-Size 2.5D Race Castle (204x260) + Worker (left of castle)
+				g.roundRect(castleX - 114, castleY - 140, 228, 280, 12).fill({
+					color: 0x2d6a1e,
+					alpha: 1
+				});
+				g.roundRect(castleX - 114, castleY - 140, 228, 280, 12).stroke({
+					color: 0xfbbf24,
+					width: 1.4
+				});
+				const mockRaceCastle: Castle = {
+					...showcaseSim.castles.west,
+					color: selectedPlayerColor,
+					x: castleX,
+					y: castleY
+				};
+				showcaseBuildingRenderer.renderAuthenticCastle(
+					g,
+					mockRaceCastle,
+					previewTeam === 'west',
+					selectedItem?.defId === `castle_${race}`,
+					false,
+					race
+				);
+				placedItems.push({
+					kind: 'building',
+					x: castleX,
+					y: castleY,
+					radius: 115,
+					title: `Замок · ${race}`,
+					subtitle: 'Повноцінна 2.5D фортеця раси',
+					race,
+					defId: `castle_${race}`,
+					stats: '5000 HP · 10 ARM (fort)'
+				});
+
+				g.roundRect(wx - 32, wy - 32, 64, 64, 10).fill({ color: 0x2d6a1e, alpha: 1 });
+				g.roundRect(wx - 32, wy - 32, 64, 64, 10).stroke({ color: 0x4ade80, width: 1.2 });
 				drawRaceWorkerModel({
 					g,
 					wx,
@@ -976,6 +1253,9 @@
 				);
 				const spawners = baseBlds.filter((b) => Boolean(b.unit));
 				const specials = baseBlds.filter((b) => !b.unit);
+				const uniqueSpecials = specials.filter((b) => !SHARED_BUILDING_IDS.has(b.id));
+				const sharedSpecials = specials.filter((b) => SHARED_BUILDING_IDS.has(b.id));
+				const extraUnits = getExtraUnitsForRace(race, q);
 
 				const drawUnitInPair = (
 					unitId: string,
@@ -986,7 +1266,6 @@
 				) => {
 					const raw = rawUnitsMap[unitId];
 					if (!raw) return;
-					shownUnitIds.add(unitId);
 					const mockU = buildMockUnit(unitId, raw, ux, uy);
 					const spec = getUnitVisualSpec(mockU);
 					const isSel = selectedItem?.kind === 'unit' && selectedItem.defId === unitId;
@@ -1058,7 +1337,7 @@
 					}
 				};
 
-				let cursorX = 216;
+				let cursorX = spawnersX + 20;
 				for (let sIdx = 0; sIdx < spawners.length; sIdx++) {
 					const bld = spawners[sIdx];
 					const bx = cursorX + 10;
@@ -1093,78 +1372,83 @@
 					cursorX += CARD_STEP_X;
 				}
 
-				for (const bld of specials) {
-					const ups = getUpgradesForBuilding(bld.id);
-					const cardW = ups.length > 0 ? CARD_W : SPECIAL_W;
-					const stepX = ups.length > 0 ? CARD_STEP_X : SPECIAL_STEP_X;
-					const bx = ups.length > 0 ? cursorX + 10 : cursorX - 8 + cardW / 2 - 32;
-					const by = rowY + 6;
-					const mockB = buildMockBuilding(race, bld, bx, by);
-					drawIndividualBuildingModel(
-						g,
-						mockB,
-						teamColor,
-						bld.specialType ? 3 : 1,
-						false,
-						isLegendaryBuilding(bld),
-						selectedItem?.defId === bld.id && selectedItem?.race === race,
-						animTime
-					);
-					placedItems.push({
-						kind: 'building',
-						x: bx + 32,
-						y: by + 32,
-						radius: 36,
-						title: bld.name,
-						subtitle: 'Спеціальна споруда',
-						race,
-						defId: bld.id,
-						stats: `${bld.gold_cost ?? 200}g${bld.lumber_cost ? ` / ${bld.lumber_cost}w` : ''}`
-					});
-					drawUpgradesEntitiesBelow(bld.id, bld.name, cursorX, rIdx * 30 + 17);
-					cursorX += stepX;
+				if (extraUnits.length > 0 && extraW > 0) {
+					const extraStartX = extraX + 16;
+					for (let i = 0; i < extraUnits.length; i++) {
+						const [defId, raw] = extraUnits[i];
+						const col = Math.floor(i / 2);
+						const row = i % 2;
+						const ux = extraStartX + col * 124 + 54;
+						const uy = rowY + 42 + row * UPGRADE_STEP_Y;
+						const mockU = buildMockUnit(defId, raw, ux, uy - 8);
+						const spec = getUnitVisualSpec(mockU);
+						const isSel = selectedItem?.kind === 'unit' && selectedItem.defId === defId;
+						renderUniqueUnitModel(
+							g,
+							mockU,
+							teamColor,
+							isSel,
+							uy - 8,
+							previewTeam === 'west' ? 1 : -1,
+							animateUnits ? animTime * 10 + i : 0,
+							animTime,
+							shadeHexColor
+						);
+						placedItems.push({
+							kind: 'unit',
+							x: ux,
+							y: uy - 8,
+							radius: 32,
+							title: mockU.name,
+							subtitle: `Призовний / додатковий · ${spec.archetype}`,
+							race,
+							defId,
+							unitSpec: spec,
+							stats: `${mockU.maxHp} HP · ${mockU.damageMin} ATK (${mockU.attackType}) · ${mockU.armor} ARM (${mockU.armorType})`
+						});
+					}
 				}
-			}
 
-			// Extra / Summoned units not directly bound to a race building (top of East Island)
-			const extraUnits = allUnitEntries.filter(([id]) => !shownUnitIds.has(id));
-			let eastCursorY = 120;
-			if (extraUnits.length > 0) {
-				const extraRows = Math.ceil(extraUnits.length / 8);
-				const panelH = Math.max(108, extraRows * 88 + 28);
-				const boxY = eastCursorY + 26;
-				for (let i = 0; i < extraUnits.length; i++) {
-					const [defId, raw] = extraUnits[i];
-					const ux = eastIslandX + 114 + (i % 8) * 128;
-					const uy = boxY + 42 + Math.floor(i / 8) * 88;
-					const mockU = buildMockUnit(defId, raw, ux, uy);
-					const spec = getUnitVisualSpec(mockU);
-					const isSel = selectedItem?.kind === 'unit' && selectedItem.defId === defId;
-					renderUniqueUnitModel(
-						g,
-						mockU,
-						teamColor,
-						isSel,
-						uy,
-						previewTeam === 'west' ? 1 : -1,
-						animateUnits ? animTime * 10 + i : 0,
-						animTime,
-						shadeHexColor
-					);
-					placedItems.push({
-						kind: 'unit',
-						x: ux,
-						y: uy,
-						radius: 32,
-						title: mockU.name,
-						subtitle: `Призовний / додатковий · ${spec.archetype}`,
-						race: 'База юнітів',
-						defId,
-						unitSpec: spec,
-						stats: `${mockU.maxHp} HP · ${mockU.damageMin} ATK (${mockU.attackType}) · ${mockU.armor} ARM (${mockU.armorType})`
-					});
-				}
-				eastCursorY = boxY + panelH + 40;
+				const drawSpecialPairGrid = (
+					list: typeof uniqueSpecials,
+					containerX: number,
+					twoByTwo: boolean
+				) => {
+					for (let i = 0; i < list.length; i++) {
+						const bld = list[i];
+						const col = twoByTwo ? i % 2 : Math.floor(i / 2);
+						const row = twoByTwo ? Math.floor(i / 2) : i % 2;
+						const sx = containerX + 16 + col * SPECIAL_STEP_X;
+						const sy = rowY + 4 + row * UPGRADE_STEP_Y;
+						const bx = sx - 8 + SPECIAL_W / 2 - 32;
+						const by = sy + 6;
+						const mockB = buildMockBuilding(race, bld, bx, by);
+						drawIndividualBuildingModel(
+							g,
+							mockB,
+							teamColor,
+							bld.specialType ? 3 : 1,
+							false,
+							isLegendaryBuilding(bld),
+							selectedItem?.defId === bld.id && selectedItem?.race === race,
+							animTime
+						);
+						placedItems.push({
+							kind: 'building',
+							x: bx + 32,
+							y: by + 32,
+							radius: 36,
+							title: bld.name,
+							subtitle: twoByTwo ? 'Спільна споруда' : 'Унікальна споруда раси',
+							race,
+							defId: bld.id,
+							stats: `${bld.gold_cost ?? 200}g${bld.lumber_cost ? ` / ${bld.lumber_cost}w` : ''}`
+						});
+					}
+				};
+
+				drawSpecialPairGrid(uniqueSpecials, uniqueX, false);
+				drawSpecialPairGrid(sharedSpecials, sharedX, true);
 			}
 
 			// 2.5D Castles (West & East)
@@ -1276,8 +1560,8 @@
 				const row = Math.floor(i / cols);
 				const x = 76 + col * cellW;
 				const y = cursorY + row * 104;
-				g.roundRect(x - 48, y - 36, 96, 92, 10).fill({ color: 0x1b3b18, alpha: 0.78 });
-				g.roundRect(x - 48, y - 36, 96, 92, 10).stroke({ color: 0x334155, width: 1 });
+				g.roundRect(x - 48, y - 36, 96, 92, 10).fill({ color: 0x2d6a1e, alpha: 1 });
+				g.roundRect(x - 48, y - 36, 96, 92, 10).stroke({ color: 0x4ade80, width: 1 });
 				drawRaceWorkerModel({
 					g,
 					wx: x,
@@ -1316,8 +1600,8 @@
 				const row = Math.floor(i / cols);
 				const cx = 76 + col * cellW;
 				const cy = cursorY + row * 124;
-				g.roundRect(cx - 48, cy - 28, 96, 114, 10).fill({ color: 0x1b3b18, alpha: 0.85 });
-				g.roundRect(cx - 48, cy - 28, 96, 114, 10).stroke({ color: 0x334155, width: 1 });
+				g.roundRect(cx - 48, cy - 28, 96, 114, 10).fill({ color: 0x2d6a1e, alpha: 1 });
+				g.roundRect(cx - 48, cy - 28, 96, 114, 10).stroke({ color: 0x38bdf8, width: 1 });
 				const mockB = buildMockBuilding(race, bld, cx - 32, cy - 22);
 				drawIndividualBuildingModel(
 					g,
@@ -1356,8 +1640,8 @@
 				const row = Math.floor(i / cols);
 				const x = 76 + col * cellW;
 				const y = cursorY + row * 112;
-				g.roundRect(x - 48, y - 36, 96, 100, 10).fill({ color: 0x4b3d2f, alpha: 0.78 });
-				g.roundRect(x - 48, y - 36, 96, 100, 10).stroke({ color: 0x645340, width: 1 });
+				g.roundRect(x - 48, y - 36, 96, 100, 10).fill({ color: 0x2d6a1e, alpha: 1 });
+				g.roundRect(x - 48, y - 36, 96, 100, 10).stroke({ color: 0x4ade80, width: 1 });
 				const mockU = buildMockUnit(defId, raw, x, y - 6);
 				const spec = getUnitVisualSpec(mockU);
 				const isSel = selectedItem?.kind === 'unit' && selectedItem.defId === defId;
@@ -1522,6 +1806,7 @@
 		void selectedRace;
 		void category;
 		void previewTeam;
+		void selectedColorId;
 		void animateUnits;
 		void searchQuery;
 		void selectedItem;
@@ -1539,6 +1824,19 @@
 		const onKeyUp = (e: KeyboardEvent) => keysPressed.delete(e.key.toLowerCase());
 		window.addEventListener('keydown', onKeyDown);
 		window.addEventListener('keyup', onKeyUp);
+
+		const updateHostSize = () => {
+			if (!canvasWrapEl) return;
+			hostW = Math.max(320, canvasWrapEl.clientWidth);
+			hostH = Math.max(240, canvasWrapEl.clientHeight);
+		};
+		updateHostSize();
+		const resizeObs =
+			typeof ResizeObserver !== 'undefined' && canvasWrapEl
+				? new ResizeObserver(() => updateHostSize())
+				: null;
+		if (resizeObs && canvasWrapEl) resizeObs.observe(canvasWrapEl);
+		window.addEventListener('resize', updateHostSize);
 
 		const initPixi = async () => {
 			if (!canvasEl) return;
@@ -1597,6 +1895,8 @@
 		return () => {
 			window.removeEventListener('keydown', onKeyDown);
 			window.removeEventListener('keyup', onKeyUp);
+			window.removeEventListener('resize', updateHostSize);
+			resizeObs?.disconnect();
 		};
 	});
 
@@ -1768,9 +2068,61 @@
 				'west'
 					? 'bg-blue-950/80 border-blue-500/70 text-blue-200'
 					: 'bg-rose-950/80 border-rose-500/70 text-rose-200'}"
+				title="Напрямок погляду юнітів (Захід / Схід)"
+				data-testid="assets-showcase-facing-btn"
 			>
 				{previewTeam === 'west' ? 'Захід' : 'Схід'}
 			</button>
+
+			<!-- Окреме меню зміни кольору (за замовчуванням — Сірий) -->
+			<div class="relative">
+				<button
+					type="button"
+					onclick={() => (colorMenuOpen = !colorMenuOpen)}
+					class="px-2.5 py-1 rounded-lg border border-slate-600/80 bg-[#121722] hover:bg-slate-800 text-xs font-bold text-slate-200 flex items-center gap-1.5 cursor-pointer transition"
+					title="Змінити колір юнітів та будівель"
+					data-testid="assets-showcase-color-btn"
+				>
+					<span
+						class="w-3 h-3 rounded-full border border-white/40 shrink-0"
+						style="background-color: {selectedPlayerColor.hex};"
+					></span>
+					<span>{selectedPlayerColor.nameUk}</span>
+				</button>
+
+				{#if colorMenuOpen}
+					<button
+						type="button"
+						class="fixed inset-0 z-40 cursor-default"
+						onclick={() => (colorMenuOpen = false)}
+						aria-label="Закрити меню кольорів"
+					></button>
+					<div
+						class="absolute right-0 mt-1.5 w-48 rounded-xl border border-[#544738] bg-[#131722]/95 backdrop-blur-md p-1.5 shadow-2xl z-50 grid grid-cols-1 gap-0.5 max-h-72 overflow-y-auto"
+						data-testid="assets-showcase-color-menu"
+					>
+						{#each ALL_PLAYER_COLORS as c (c.id)}
+							<button
+								type="button"
+								onclick={() => {
+									selectedColorId = c.id;
+									colorMenuOpen = false;
+								}}
+								class="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition text-left {selectedColorId ===
+								c.id
+									? 'bg-amber-500/20 text-amber-200 border border-amber-500/40'
+									: 'text-slate-200 hover:bg-slate-800/80 border border-transparent'}"
+							>
+								<span
+									class="w-3.5 h-3.5 rounded-full border border-white/40 shrink-0"
+									style="background-color: {c.hex};"
+								></span>
+								<span class="truncate">{c.nameUk}</span>
+							</button>
+						{/each}
+					</div>
+				{/if}
+			</div>
 
 			<button
 				type="button"
@@ -1893,18 +2245,41 @@
 					<button
 						type="button"
 						onclick={() => {
-							const eastX = graphicsTab === 'hd-webp' ? 2200 : computeRaceRowsLayout().eastIslandX;
-							focusWorldPoint(eastX + 560, 340, 0.9);
+							if (graphicsTab === 'hd-webp') {
+								focusWorldPoint(2760, 340, 0.9);
+							} else {
+								const { bottomIsland } = computeRaceRowsLayout();
+								focusWorldPoint(bottomIsland.x + 560, bottomIsland.y + 380, 0.9);
+							}
 						}}
 						class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 font-semibold cursor-pointer"
-						title="Перейти до призовних юнітів, замків та декорацій (Східний острів)"
+						title="Перейти до замків та декорацій (Нижній острів)"
 					>
-						Призовні й декор
+						Замки й декор
 					</button>
 					<span class="hidden md:inline text-[11px] text-slate-400 border-l border-slate-700 pl-2">
 						Миша / WASD — рух · Колесо — зум · Клік — деталі
 					</span>
 				</div>
+
+				<!-- Right-Edge Vertical Minimap -->
+				<ShowcaseMinimap
+					mapW={showcaseLayout.mapW}
+					mapH={showcaseLayout.mapH}
+					westIslandW={showcaseLayout.westIslandW}
+					eastIslandX={showcaseLayout.eastIslandX}
+					bottomIsland={showcaseLayout.bottomIsland}
+					rows={showcaseLayout.rows}
+					{graphicsTab}
+					{camX}
+					{camY}
+					{camZoom}
+					{hostW}
+					{hostH}
+					selectedPoint={selectedItem ? { x: selectedItem.x, y: selectedItem.y } : null}
+					onNavigate={(wx, wy) => focusWorldPoint(wx, wy, camZoom)}
+					onFitWholeMap={fitWholeMap}
+				/>
 			{/if}
 		</div>
 

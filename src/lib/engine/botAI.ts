@@ -484,6 +484,7 @@ export class BotAI {
 		const upgradeCandidates: { building: Building; upgrade: BuildingDefinition; cost: number }[] =
 			[];
 		for (const b of myBuildings) {
+			if (b.isUnderConstruction) continue;
 			const availableUpgrades = getUpgradesForBuilding(b.defId);
 			for (const up of availableUpgrades) {
 				if (!this.isBuildingAllowedByMode(up)) continue;

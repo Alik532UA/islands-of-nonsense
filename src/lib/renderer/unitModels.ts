@@ -39,6 +39,7 @@ export interface UnitVisualSpec {
 }
 
 interface RawUnitEntry {
+	id?: string;
 	name?: string;
 	attack_type?: string;
 	armor_type?: string;
@@ -108,16 +109,106 @@ function resolveBaseArchetype(raw: RawUnitEntry): UnitArchetype {
 	const hp = Number(raw.hp ?? 0);
 	const name = String(raw.name ?? '');
 	if (raw.flying) return 'flyer';
+	if (/машина|танк|катапульт|гармат|баліст|мортир|паров|віз|каменекидач|зорекидач/i.test(name)) {
+		return 'siege';
+	}
+	if (/голем|магнатор|аватар|броненосець|панцерник|^інфернал$/i.test(name)) {
+		return 'colossus';
+	}
 	if (raw.attack_type === 'siege') return 'siege';
-	if (raw.attack_type === 'magic' || ab.includes('heal') || ab.includes('slow')) return 'caster';
-	if (raw.attack_type === 'pierce' || range > 200) return 'ranger';
+	if (
+		raw.attack_type === 'magic' ||
+		ab.includes('heal') ||
+		ab.includes('slow') ||
+		/друїд|шаман|заклинач|маг|жрец|чарод|некромант|чорнокниж|оракул|архімаг|королев|відьм|сирен|банші|елементаль|хвиль/i.test(
+			name
+		)
+	) {
+		return 'caster';
+	}
+	if (
+		/вовк|лев|гонча|ведм|пантер|тигр|вандіго|вендіго|кодо|павук|скорпіон|звір|гідр|черепах|пес|дракон/i.test(
+			name
+		)
+	) {
+		return 'beast';
+	}
+	if (/вогнеметник|стрілець|лучник|рейнджер|зенітник|далекомір|навідник|мисливиця/i.test(name)) {
+		return 'ranger';
+	}
+	if (range > 180 || (raw.attack_type === 'pierce' && range > 120)) return 'ranger';
 	if (raw.armor_type === 'fort' || raw.armor_type === 'large' || hp >= 800) return 'colossus';
-	if (/вовк|лев|гонча|ведм|пантер|тигр/i.test(name)) return 'beast';
 	return 'warrior';
 }
 
+function pickPreferredWeapon(
+	name: string,
+	archetype: UnitArchetype,
+	weapons: readonly string[],
+	idx: number
+): string {
+	const n = name.toLowerCase();
+	if (archetype === 'flyer') {
+		if (/гірокоптер|ротор|планер|штурмовик/i.test(n)) return 'gyro_blades';
+		if (/дракон/i.test(n)) return idx % 2 === 0 ? 'dragon_fire' : 'phoenix_crest';
+		if (/лучник|яструб/i.test(n)) return 'hawk_beak';
+		if (/дух|вісп|фея/i.test(n)) return 'wisp_orbit';
+	}
+	if (archetype === 'ranger') {
+		if (/вогнеметник|стрілець|навідник|далекомір|зенітник/i.test(n)) {
+			return idx % 2 === 0 ? 'rifle' : 'crossbow';
+		}
+		if (/лучник|рейнджер|амазонка/i.test(n)) {
+			return idx % 2 === 0 ? 'longbow' : 'arcane_bow';
+		}
+		if (/мисливиця|убивц|капкан/i.test(n)) return 'twin_daggers';
+	}
+	if (archetype === 'siege') {
+		if (/мортир/i.test(n)) return 'mortar';
+		if (/танк|машина/i.test(n)) return idx % 2 === 0 ? 'steam_tank' : 'cannon';
+		if (/каменекидач|катапульт/i.test(n)) return 'catapult';
+		if (/баліст|зорекидач|лучниця/i.test(n)) return 'ballista';
+	}
+	if (archetype === 'caster') {
+		if (/водн|хвиль|криж|сніг|льод|сирен/i.test(n)) return 'crystal_spire';
+		if (/некромант|лич|банші|чум/i.test(n)) return 'skull_wand';
+		if (/друїд|місяц/i.test(n)) return 'moon_crescent';
+	}
+	if (archetype === 'beast') {
+		if (/вовк|пес|гонч/i.test(n)) return 'wolf';
+		if (/ведм|вандіго/i.test(n)) return 'bear';
+		if (/гідр/i.test(n)) return 'hydra';
+		if (/кодо|магнатор|черепах/i.test(n)) return 'boar';
+	}
+	return weapons[idx % weapons.length];
+}
+
+function pickPreferredHeadgear(name: string, idx: number, weaponsLen: number): HeadgearKind {
+	const n = name.toLowerCase();
+	if (/голем/i.test(n)) {
+		const golemHats: readonly HeadgearKind[] = ['visor', 'crest', 'knight', 'horned'];
+		return golemHats[idx % golemHats.length];
+	}
+	if (/водн|хвиль|сирен|морськ/i.test(n)) {
+		const waterHats: readonly HeadgearKind[] = ['crown', 'crest', 'hood', 'visor'];
+		return waterHats[idx % waterHats.length];
+	}
+	if (/лиц|паладин|світл|ангел/i.test(n)) {
+		const holyHats: readonly HeadgearKind[] = ['halo', 'crown', 'knight', 'crest'];
+		return holyHats[idx % holyHats.length];
+	}
+	if (/королев|король/i.test(n)) return 'crown';
+	return HEADGEARS[(idx + Math.floor(idx / weaponsLen)) % HEADGEARS.length];
+}
+
 function buildAllUnitVisualSpecs(): Record<string, UnitVisualSpec> {
-	const rawMap = unitsJson as unknown as Record<string, RawUnitEntry>;
+	const rawList = Array.isArray(unitsJson)
+		? (unitsJson as unknown as RawUnitEntry[])
+		: Object.values(unitsJson as unknown as Record<string, RawUnitEntry>);
+	const rawMap: Record<string, RawUnitEntry> = {};
+	for (const entry of rawList) {
+		if (entry?.id) rawMap[entry.id] = entry;
+	}
 	const sortedIds = Object.keys(rawMap).sort();
 	const usedSignatures = new Set<string>();
 	const specs: Record<string, UnitVisualSpec> = {};
@@ -125,6 +216,7 @@ function buildAllUnitVisualSpecs(): Record<string, UnitVisualSpec> {
 	for (let i = 0; i < sortedIds.length; i++) {
 		const defId = sortedIds[i];
 		const raw = rawMap[defId] ?? {};
+		const name = String(raw.name ?? '');
 		const archetype = resolveBaseArchetype(raw);
 		const weapons = ARCHETYPE_WEAPONS[archetype];
 
@@ -132,16 +224,18 @@ function buildAllUnitVisualSpecs(): Record<string, UnitVisualSpec> {
 		let spec: UnitVisualSpec | null = null;
 		while (!spec) {
 			const idx = i + offset;
-			const weapon = weapons[idx % weapons.length];
-			const headgear = HEADGEARS[(idx + Math.floor(idx / weapons.length)) % HEADGEARS.length];
-			const backgear = BACKGEARS[(idx * 3 + offset) % BACKGEARS.length];
-			const shield =
-				archetype === 'flyer' || archetype === 'siege' || archetype === 'beast'
-					? 'none'
-					: SHIELDS[(idx * 5 + offset) % SHIELDS.length];
+			const isHumanoid = archetype !== 'flyer' && archetype !== 'siege' && archetype !== 'beast';
+			const weapon =
+				offset < 3
+					? pickPreferredWeapon(name, archetype, weapons, idx)
+					: weapons[idx % weapons.length];
+			const headgear = isHumanoid ? pickPreferredHeadgear(name, idx, weapons.length) : 'none';
+			const backgear = isHumanoid ? BACKGEARS[(idx * 3 + offset) % BACKGEARS.length] : 'none';
+			const shield = isHumanoid ? SHIELDS[(idx * 5 + offset) % SHIELDS.length] : 'none';
 			const accentHex = ACCENT_PALETTE[(idx * 7 + offset) % ACCENT_PALETTE.length];
 			const trimHex = TRIM_PALETTE[(idx * 3 + offset) % TRIM_PALETTE.length];
-			const signature = `${archetype}:${weapon}:${headgear}:${backgear}:${shield}:0x${accentHex.toString(16)}`;
+			const bodyScale = +(0.94 + ((idx + offset) % 5) * 0.045).toFixed(3);
+			const signature = `${archetype}:${weapon}:${headgear}:${backgear}:${shield}:0x${accentHex.toString(16)}:0x${trimHex.toString(16)}:${bodyScale}`;
 			if (!usedSignatures.has(signature)) {
 				usedSignatures.add(signature);
 				spec = {
@@ -153,7 +247,7 @@ function buildAllUnitVisualSpecs(): Record<string, UnitVisualSpec> {
 					shield,
 					accentHex,
 					trimHex,
-					bodyScale: 0.94 + (idx % 5) * 0.045,
+					bodyScale,
 					signature
 				};
 			}
@@ -552,47 +646,78 @@ export function renderUniqueUnitModel(
 
 	if (spec.archetype === 'flyer') {
 		const flap = Math.sin(time * 14 + u.x * 0.05) * (r * 0.55);
-		pg(
-			g,
-			[
-				ux - dir * r * 0.35,
-				renderY + r * 0.15,
-				ux - dir * r * 1.35,
-				renderY + r * 0.45 + flap * 0.25,
-				ux - dir * r * 1.05,
-				renderY - r * 0.05
-			],
-			colorDark,
-			{ color: 0x0f172a, width: 1.4 }
-		);
-		for (const ws of [-1, 1]) {
+		if (spec.weapon === 'wisp_orbit') {
+			ci(g, ux, renderY, r * 0.62, spec.accentHex, { color: 0xffffff, width: 1.8 });
+			ci(g, ux, renderY, r * 0.34, spec.trimHex);
+			for (let wi = 0; wi < 3; wi++) {
+				const wa = time * 4 + (wi * Math.PI * 2) / 3;
+				ci(g, ux + Math.cos(wa) * r * 1.05, renderY + Math.sin(wa) * r * 0.85, 3.2, colorLight, {
+					color: spec.trimHex,
+					width: 1
+				});
+			}
+		} else {
 			pg(
 				g,
 				[
-					ux + ws * 2,
-					renderY - r * 0.15,
-					ux + ws * r * 1.55,
-					renderY - r * 0.95 + flap,
-					ux + ws * r * 1.2,
-					renderY + r * 0.25 + flap * 0.35,
-					ux + ws * 2,
-					renderY + r * 0.3
+					ux - dir * r * 0.35,
+					renderY + r * 0.15,
+					ux - dir * r * 1.35,
+					renderY + r * 0.45 + flap * 0.25,
+					ux - dir * r * 1.05,
+					renderY - r * 0.05
 				],
-				{ color: spec.weapon === 'gyro_blades' ? 0x94a3b8 : colorLight, alpha: 0.9 },
-				{ color: spec.accentHex, width: 1.6 }
+				spec.weapon === 'phoenix_crest' ? spec.accentHex : colorDark,
+				{ color: 0x0f172a, width: 1.4 }
 			);
-		}
-		el(g, ux, renderY, r * 0.72, r * 0.55, unitColor, {
-			color: isSelected ? 0xfbbf24 : 0x0f172a,
-			width: isSelected ? 2.4 : 1.6
-		});
-		el(g, ux, renderY + r * 0.15, r * 0.48, r * 0.28, spec.trimHex, undefined, 0.45);
-		const hx = ux + dir * r * 0.62;
-		const hy = renderY - r * 0.25;
-		ci(g, hx, hy, r * 0.34, colorDark, { color: 0x0f172a, width: 1.4 });
-		ci(g, hx + dir * r * 0.14, hy - r * 0.04, 2.2, spec.accentHex);
-		if (spec.weapon === 'dragon_fire' || spec.weapon === 'phoenix_crest') {
-			ci(g, hx + dir * r * 0.52, hy + r * 0.06, 3.4, spec.accentHex, undefined, 0.9);
+			for (const ws of [-1, 1]) {
+				pg(
+					g,
+					[
+						ux + ws * 2,
+						renderY - r * 0.15,
+						ux + ws * r * 1.55,
+						renderY - r * 0.95 + flap,
+						ux + ws * r * 1.2,
+						renderY + r * 0.25 + flap * 0.35,
+						ux + ws * 2,
+						renderY + r * 0.3
+					],
+					{ color: spec.weapon === 'gyro_blades' ? 0x94a3b8 : colorLight, alpha: 0.9 },
+					{ color: spec.accentHex, width: 1.6 }
+				);
+			}
+			el(g, ux, renderY, r * 0.72, r * 0.55, unitColor, {
+				color: isSelected ? 0xfbbf24 : 0x0f172a,
+				width: isSelected ? 2.4 : 1.6
+			});
+			el(g, ux, renderY + r * 0.15, r * 0.48, r * 0.28, spec.trimHex, undefined, 0.45);
+			const hx = ux + dir * r * 0.62;
+			const hy = renderY - r * 0.25;
+			ci(g, hx, hy, r * 0.34, colorDark, { color: 0x0f172a, width: 1.4 });
+			ci(g, hx + dir * r * 0.14, hy - r * 0.04, 2.2, spec.accentHex);
+			if (spec.weapon === 'dragon_fire' || spec.weapon === 'phoenix_crest') {
+				pg(
+					g,
+					[hx, hy - r * 0.2, hx - dir * 5, hy - r * 0.75, hx + dir * 2, hy - r * 0.3],
+					spec.accentHex
+				);
+				ci(g, hx + dir * r * 0.52, hy + r * 0.06, 3.4, spec.accentHex, undefined, 0.9);
+			} else if (spec.weapon === 'bat_fang') {
+				pg(g, [hx - 3, hy - 2, hx - 6, hy - 9, hx, hy - 4], colorDark);
+				pg(g, [hx + 3, hy - 2, hx + 6, hy - 9, hx, hy - 4], colorDark);
+				ci(g, hx + dir * 4, hy + 3, 1.5, 0xffffff);
+			} else if (spec.weapon === 'hawk_beak') {
+				pg(g, [hx + dir * 3, hy - 1, hx + dir * 10, hy + 1, hx + dir * 3, hy + 3], 0xfbbf24);
+				ci(g, ux - dir * 1, renderY - r * 0.42, r * 0.28, colorDark, {
+					color: 0x0f172a,
+					width: 1.2
+				});
+				ln(g, [ux + dir * 3, renderY - r * 0.65, ux + dir * 7, renderY - r * 0.15], 0xfef08a, 1.8);
+			} else if (spec.weapon === 'gyro_blades') {
+				ln(g, [ux - r, renderY - r * 0.75, ux + r, renderY - r * 0.75], 0xe2e8f0, 2.6);
+				ci(g, ux, renderY - r * 0.75, 2.5, spec.accentHex);
+			}
 		}
 	} else if (spec.archetype === 'siege') {
 		const recoil = u.attackAnimTimer && u.attackAnimTimer > 0 ? -dir * 4 : 0;
@@ -612,9 +737,33 @@ export function renderUniqueUnitModel(
 		});
 		const bStart = ux - dir * r * 0.15 + recoil;
 		const bEnd = ux + dir * r * 1.08 + recoil;
-		ln(g, [bStart, renderY, bEnd, renderY - 2], 0x0f172a, spec.weapon === 'mortar' ? 13 : 10);
-		ln(g, [bStart, renderY, bEnd, renderY - 2], 0x475569, spec.weapon === 'mortar' ? 9 : 6.5);
-		ci(g, bEnd, renderY - 2, 4.5, spec.accentHex, { color: 0x0f172a, width: 1.2 });
+		if (spec.weapon === 'ballista') {
+			ln(g, [ux + dir * 2, renderY - r * 0.65, ux + dir * r * 0.7, renderY], spec.accentHex, 2.5);
+			ln(g, [ux + dir * 2, renderY + r * 0.65, ux + dir * r * 0.7, renderY], spec.accentHex, 2.5);
+			ln(g, [bStart, renderY, bEnd + dir * 3, renderY], spec.trimHex, 2.4);
+		} else if (spec.weapon === 'catapult') {
+			ln(g, [ux - dir * r * 0.4, renderY + 2, ux + dir * r * 0.5, renderY - r * 0.65], 0x92400e, 4);
+			ci(g, ux + dir * r * 0.55, renderY - r * 0.68, 4.2, spec.accentHex, {
+				color: 0x0f172a,
+				width: 1.2
+			});
+		} else if (spec.weapon === 'rocket_rack') {
+			for (const ry of [-4, 0, 4]) {
+				ln(g, [bStart, renderY + ry, bEnd - dir * 2, renderY + ry - 1], 0x475569, 3);
+				ci(g, bEnd - dir * 2, renderY + ry - 1, 1.8, spec.accentHex);
+			}
+		} else if (spec.weapon === 'steam_tank') {
+			rr(g, ux - r * 0.6, renderY - r * 0.45, r * 1.2, r * 0.9, 3, 0x475569, {
+				color: spec.trimHex,
+				width: 1.4
+			});
+			ln(g, [bStart, renderY, bEnd, renderY], 0x1e293b, 7);
+			ci(g, ux - dir * r * 0.35, renderY - r * 0.25, 3.2, 0x94a3b8);
+		} else {
+			ln(g, [bStart, renderY, bEnd, renderY - 2], 0x0f172a, spec.weapon === 'mortar' ? 13 : 10);
+			ln(g, [bStart, renderY, bEnd, renderY - 2], 0x475569, spec.weapon === 'mortar' ? 9 : 6.5);
+			ci(g, bEnd, renderY - 2, 4.5, spec.accentHex, { color: 0x0f172a, width: 1.2 });
+		}
 	} else if (spec.archetype === 'caster') {
 		drawHumanoidBase(
 			g,
@@ -634,10 +783,23 @@ export function renderUniqueUnitModel(
 		const sx = ux + dir * r * 0.72 + atkLunge * 0.5;
 		const sy = renderY - r * 0.95;
 		ln(g, [sx - dir * 2, renderY + r * 0.72, sx, sy], 0x92400e, 2.6);
-		ci(g, sx, sy - 4, 5, spec.accentHex);
-		ci(g, sx, sy - 4, 2.5, spec.trimHex);
-		const orbA = time * 4.5;
-		ci(g, sx + Math.cos(orbA) * 6.5, sy - 4 + Math.sin(orbA) * 6.5, 2, spec.trimHex);
+		if (spec.weapon === 'moon_crescent') {
+			ci(g, sx, sy - 4, 5.5, spec.accentHex);
+			ci(g, sx + dir * 2.5, sy - 5, 4, 0x0f172a);
+		} else if (spec.weapon === 'crystal_spire') {
+			pg(g, [sx, sy - 11, sx + 4.5, sy - 3, sx, sy + 3, sx - 4.5, sy - 3], spec.accentHex, {
+				color: 0xffffff,
+				width: 1
+			});
+		} else if (spec.weapon === 'skull_wand') {
+			ci(g, sx, sy - 4, 4.8, 0xe2e8f0, { color: 0x0f172a, width: 1.2 });
+			ci(g, sx + dir * 1.5, sy - 4, 1.5, spec.accentHex);
+		} else {
+			ci(g, sx, sy - 4, 5, spec.accentHex);
+			ci(g, sx, sy - 4, 2.5, spec.trimHex);
+			const orbA = time * 4.5;
+			ci(g, sx + Math.cos(orbA) * 6.5, sy - 4 + Math.sin(orbA) * 6.5, 2, spec.trimHex);
+		}
 	} else if (spec.archetype === 'ranger') {
 		drawHumanoidBase(
 			g,
@@ -659,6 +821,14 @@ export function renderUniqueUnitModel(
 			const gx = ux + dir * r * 0.25 + atkLunge;
 			ln(g, [gx, renderY + 1, gx + dir * r * 0.95, renderY - 1], 0x475569, 3.2);
 			ci(g, gx + dir * r * 0.95, renderY - 1, 2.2, spec.accentHex);
+		} else if (spec.weapon === 'javelin' || spec.weapon === 'blowpipe') {
+			const sx = ux + dir * r * 0.2 + atkLunge;
+			ln(g, [sx - dir * 5, renderY + 5, sx + dir * (r + 7), renderY - 7], 0x78350f, 2.4);
+			ci(g, sx + dir * (r + 7), renderY - 7, 2.3, spec.trimHex);
+		} else if (spec.weapon === 'twin_daggers') {
+			const dx = ux + dir * r * 0.45 + atkLunge;
+			ln(g, [dx, renderY - 4, dx + dir * 9, renderY - 9], spec.trimHex, 2.2);
+			ln(g, [dx, renderY + 4, dx + dir * 9, renderY + 8], spec.accentHex, 2.2);
 		} else {
 			g.beginPath();
 			const bowR = r * 0.85;
@@ -670,6 +840,9 @@ export function renderUniqueUnitModel(
 			g.arc(bowCx, renderY, bowR, bowStart, bowEnd, false);
 			g.stroke({ color: spec.accentHex, width: 2.3 });
 			ln(g, [ux - dir * r * 0.2, renderY, ux + dir * (r + 8), renderY], spec.trimHex, 1.8);
+			if (spec.weapon === 'arcane_bow') {
+				ci(g, bowCx + dir * bowR, renderY, 2.8, spec.trimHex, { color: 0x0f172a, width: 1 });
+			}
 		}
 	} else if (spec.archetype === 'beast') {
 		const furColor = shadeHexColor(unitColor, 0.72);
@@ -678,7 +851,9 @@ export function renderUniqueUnitModel(
 		g.roundRect(ux - r * 0.58 - stride, renderY + r * 0.25, r * 0.26, r * 0.52, 2);
 		g.roundRect(ux + r * 0.32 + stride, renderY + r * 0.25, r * 0.26, r * 0.52, 2);
 		g.fill({ color: 0x1e293b });
-		el(g, ux, renderY + r * 0.05, r * 0.92, r * 0.52, furColor, {
+		const bodyRx = spec.weapon === 'bear' ? r * 1.02 : r * 0.9;
+		const bodyRy = spec.weapon === 'bear' ? r * 0.65 : r * 0.5;
+		el(g, ux, renderY + r * 0.05, bodyRx, bodyRy, furColor, {
 			color: isSelected ? 0xfbbf24 : 0x0f172a,
 			width: isSelected ? 2.4 : 1.6
 		});
@@ -687,6 +862,31 @@ export function renderUniqueUnitModel(
 		const hy = renderY - r * 0.16;
 		ci(g, hx, hy, r * 0.42, shadeHexColor(unitColor, 1.12), { color: 0x0f172a, width: 1.4 });
 		ci(g, hx + dir * r * 0.2, hy - r * 0.08, 2, spec.trimHex);
+		if (spec.weapon === 'wolf' || spec.weapon === 'panther') {
+			pg(g, [hx - 3, hy - r * 0.3, hx - 6, hy - r * 0.85, hx + 1, hy - r * 0.35], colorDark);
+			ln(
+				g,
+				[ux - dir * r * 0.75, renderY, ux - dir * r * 1.3, renderY - r * 0.4],
+				spec.accentHex,
+				3
+			);
+		} else if (spec.weapon === 'boar') {
+			pg(g, [hx + dir * 4, hy + 2, hx + dir * 11, hy - 3, hx + dir * 6, hy + 4], 0xfef3c7);
+		} else if (spec.weapon === 'scorpion') {
+			ln(
+				g,
+				[ux - dir * r * 0.7, renderY - 2, ux - dir * r * 1.1, renderY - r * 0.95],
+				spec.accentHex,
+				3
+			);
+			ci(g, ux - dir * r * 1.1, renderY - r * 0.95, 3, spec.trimHex);
+		} else if (spec.weapon === 'hydra') {
+			ci(g, hx - dir * 3, hy - r * 0.55, r * 0.3, colorLight, { color: 0x0f172a, width: 1.2 });
+			ci(g, hx - dir * 3, hy + r * 0.45, r * 0.3, colorLight, { color: 0x0f172a, width: 1.2 });
+		} else if (spec.weapon === 'bear') {
+			ci(g, hx - 3, hy - r * 0.38, 3.2, colorDark);
+			ci(g, hx + 3, hy - r * 0.38, 3.2, colorDark);
+		}
 	} else {
 		// colossus & warrior
 		const isCol = spec.archetype === 'colossus';
@@ -718,6 +918,15 @@ export function renderUniqueUnitModel(
 				color: spec.accentHex,
 				width: 1.5
 			});
+		} else if (spec.weapon === 'battleaxe' || spec.weapon === 'twin_axe') {
+			ln(g, [ux + dir * 2, renderY + 2, hx + dir * 7, hy - 5], 0x78350f, 3);
+			pg(g, [hx + dir * 2, hy - 9, hx + dir * 12, hy - 5, hx + dir * 6, hy + 2], spec.trimHex, {
+				color: spec.accentHex,
+				width: 1.2
+			});
+		} else if (spec.weapon === 'spear' || spec.weapon === 'halberd') {
+			ln(g, [ux - dir * 3, renderY + 5, hx + dir * 12, hy - 8], 0x78350f, 2.5);
+			pg(g, [hx + dir * 10, hy - 10, hx + dir * 17, hy - 11, hx + dir * 13, hy - 4], spec.trimHex);
 		} else {
 			ln(g, [ux + dir * 2, renderY + 2, hx + dir * r * 0.65, hy - r * 0.55], spec.trimHex, 3.2);
 			ln(g, [ux + dir * 2 - 2, renderY + 2, ux + dir * 2 + 4, renderY - 3], spec.accentHex, 3.4);

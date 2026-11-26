@@ -4,7 +4,10 @@ import { UNIT_VISUAL_SPECS, getUnitVisualSpec } from './unitModels';
 
 describe('UNIT-MODELS-UNIQUENESS: Every unit has a unique 2.5D visual model without repetitions', () => {
 	it('covers 100% of units in units.json', () => {
-		const allUnitIds = Object.keys(unitsJson);
+		const rawList = Array.isArray(unitsJson)
+			? (unitsJson as Array<{ id: string }>)
+			: Object.values(unitsJson as unknown as Record<string, { id: string }>);
+		const allUnitIds = rawList.map((u) => u.id);
 		expect(allUnitIds.length).toBeGreaterThanOrEqual(100);
 		expect(Object.keys(UNIT_VISUAL_SPECS).length).toBe(allUnitIds.length);
 		for (const id of allUnitIds) {
@@ -25,7 +28,7 @@ describe('UNIT-MODELS-UNIQUENESS: Every unit has a unique 2.5D visual model with
 
 	it('resolves unique specs via getUnitVisualSpec(unit)', () => {
 		const sampleA = getUnitVisualSpec({
-			defId: '0',
+			defId: 'h03C',
 			name: 'Паладин',
 			flying: false,
 			attackType: 'hero',
@@ -34,8 +37,8 @@ describe('UNIT-MODELS-UNIQUENESS: Every unit has a unique 2.5D visual model with
 			range: 100
 		});
 		const sampleB = getUnitVisualSpec({
-			defId: '1',
-			name: 'Зенітник',
+			defId: 'e001',
+			name: 'Мисливиця',
 			flying: false,
 			attackType: 'pierce',
 			armorType: 'medium',

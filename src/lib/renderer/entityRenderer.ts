@@ -56,9 +56,10 @@ export class EntityRenderer {
 		castle: Castle,
 		isWest: boolean,
 		isSelected = false,
-		drawHealthBar = false
+		drawHealthBar = false,
+		race?: string
 	): void {
-		this.buildingRenderer.renderAuthenticCastle(g, castle, isWest, isSelected, drawHealthBar);
+		this.buildingRenderer.renderAuthenticCastle(g, castle, isWest, isSelected, drawHealthBar, race);
 	}
 
 	// =========================================================================

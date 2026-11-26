@@ -491,6 +491,7 @@ export interface Castle {
 	hp: number;
 	maxHp: number;
 	color?: PlayerColorDef;
+	race?: string;
 }
 
 export interface ForgeLevels {
