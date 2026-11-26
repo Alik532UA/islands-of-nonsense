@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { settings } from './settings.svelte';
+import { existsSync, statSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { settings, RACE_CURSORS, CURSOR_STYLES } from './settings.svelte';
 import { sound, music } from './audio';
 import { t, setLocale } from '$lib/i18n';
 
@@ -37,8 +39,21 @@ describe('SettingsService & Header Claiming', () => {
 		expect(settings.volume).toBe(0.07);
 		expect(sound.getVolume()).toBe(0.07);
 		expect(settings.musicVolume).toBe(0.02);
+		expect(settings.voiceVolume).toBe(0.15);
+		expect(sound.getVoiceVolume()).toBe(0.15);
+		expect(settings.voiceEnabled).toBe(true);
+		expect(sound.isVoiceEnabled()).toBe(true);
 		expect(settings.soundPack).toBe('fantasy-rpg');
 		expect(sound.getPack()).toBe('fantasy-rpg');
+
+		settings.setVoiceVolume(0.4);
+		expect(settings.voiceVolume).toBe(0.4);
+		expect(sound.getVoiceVolume()).toBe(0.4);
+		settings.setVoiceVolume(1.5);
+		expect(settings.voiceVolume).toBe(1.0);
+		settings.setVoiceVolume(-0.1);
+		expect(settings.voiceVolume).toBe(0.0);
+		settings.setVoiceVolume(0.15);
 
 		settings.setSound(false);
 		expect(settings.sound).toBe(false);
@@ -153,5 +168,47 @@ describe('SettingsService & Header Claiming', () => {
 
 		settings.setBuildQueueMode('convenient');
 		expect(settings.buildQueueMode).toBe('convenient');
+	});
+
+	it('provides 12 race SVG cursors, defaults to adaptive, and allows random, static, or default selection', () => {
+		expect(RACE_CURSORS.length).toBe(12);
+		expect(CURSOR_STYLES).toContain('adaptive');
+		expect(CURSOR_STYLES).toContain('random');
+		expect(CURSOR_STYLES).toContain('default');
+
+		for (const race of RACE_CURSORS) {
+			const svgPath = resolve(process.cwd(), 'static', 'cursors', `${race}.svg`);
+			expect(existsSync(svgPath), `Missing cursor SVG: ${svgPath}`).toBe(true);
+			expect(statSync(svgPath).size).toBeGreaterThan(0);
+		}
+
+		expect(settings.cursorStyle).toBe('adaptive');
+		expect(RACE_CURSORS).toContain(settings.activeCursor);
+
+		settings.syncAdaptiveCursorRace('Нежить');
+		expect(settings.activeCursor).toBe('undead');
+
+		settings.syncAdaptiveCursorRace('Ельфи');
+		expect(settings.activeCursor).toBe('elf');
+
+		settings.setCursorStyle('default');
+		expect(settings.cursorStyle).toBe('default');
+		expect(settings.activeCursor).toBe('default');
+
+		// Adaptive race updates should not override static/default choice
+		settings.syncAdaptiveCursorRace('Демони');
+		expect(settings.activeCursor).toBe('default');
+
+		settings.setCursorStyle('orc');
+		expect(settings.cursorStyle).toBe('orc');
+		expect(settings.activeCursor).toBe('orc');
+
+		settings.setCursorStyle('random');
+		expect(settings.cursorStyle).toBe('random');
+		expect(RACE_CURSORS).toContain(settings.activeCursor);
+
+		settings.setCursorStyle('adaptive');
+		expect(settings.cursorStyle).toBe('adaptive');
+		expect(settings.activeCursor).toBe('demon');
 	});
 });

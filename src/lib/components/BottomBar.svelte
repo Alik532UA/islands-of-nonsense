@@ -15,12 +15,8 @@
 	import Minimap from './Minimap.svelte';
 	import CommandCard from './CommandCard.svelte';
 	import EntityInspectDetails from './EntityInspectDetails.svelte';
+	import EntityPortrait from './EntityPortrait.svelte';
 	import type { SelectedEntity } from '../renderer/entityRenderer';
-	import {
-		getCastleStageIndex,
-		WEST_CASTLE_STAGE_URLS,
-		EAST_CASTLE_STAGE_URLS
-	} from '../renderer/castleAssets';
 	import { shortcutLetter, shortcutDigit, isEditableTarget } from '../hotkeys/hotkeys';
 	import { settings } from '../services/settings.svelte';
 
@@ -302,119 +298,17 @@
 				? 'w-full h-full'
 				: 'w-full flex-1 min-h-0'} rounded-md border-2 border-[#8c7456] bg-[#0c1017] flex items-center justify-center overflow-hidden shadow-md"
 		>
-			{#if activeEntityType === 'castle' && selectedCastle}
-				<!-- Castle Keep Portrait matching active graphicsStyle preset -->
-				{@const isFriendly = selectedCastle.team === localTeam}
-				{#if settings.graphicsStyle === 'hd-webp'}
-					{@const cStage = getCastleStageIndex(selectedCastle.hp, selectedCastle.maxHp)}
-					{@const castleUrl =
-						selectedCastle.team === 'west'
-							? WEST_CASTLE_STAGE_URLS[cStage]
-							: EAST_CASTLE_STAGE_URLS[cStage]}
-					<img
-						src={castleUrl}
-						alt={isFriendly ? 'Ваш Замок' : 'Замок Ворога'}
-						class="w-full h-full object-contain drop-shadow"
-					/>
-				{:else}
-					<div
-						class="w-full h-full flex items-center justify-center bg-gradient-to-b {selectedCastle.team ===
-						'west'
-							? 'from-blue-950/60 to-[#0c1017]'
-							: 'from-rose-950/60 to-[#0c1017]'}"
-					>
-						<UiIcon
-							name="castle"
-							class="w-16 h-16 {selectedCastle.team === 'west'
-								? 'text-blue-400'
-								: 'text-rose-400'} drop-shadow"
-						/>
-					</div>
-				{/if}
-			{:else if activeEntityType === 'group'}
-				<!-- Group / Squad Portrait -->
-				<div class="flex flex-col items-center justify-center text-amber-300">
-					<UiIcon name="users" class="w-12 h-12 text-amber-400" />
-					<span class="text-[9px] font-bold uppercase truncate max-w-[90px]"> Загін </span>
-				</div>
-			{:else if activeEntityType === 'building' && placedBuilding}
-				<!-- Building Icon Portrait -->
-				{@const isEnemyBld = placedBuilding.team !== localTeam}
-				{@const buildingRace = resolveBuildingDisplayRace(
-					placedBuilding,
-					sim.allPlayers,
-					sim.players
-				)}
-				<div
-					class="relative group/tip flex flex-col items-center justify-center {isEnemyBld
-						? 'text-rose-400'
-						: 'text-amber-300'}"
-				>
-					<UiIcon
-						name="hammer"
-						class="w-12 h-12 {isEnemyBld ? 'text-rose-400' : 'text-amber-400'}"
-					/>
-					<span class="text-[9px] font-bold uppercase truncate max-w-[90px]">
-						{buildingRace}
-					</span>
-					<div
-						class="pointer-events-none absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-50 whitespace-nowrap rounded-md border border-[#544738] bg-[#0f141f]/95 px-2.5 py-1 text-[11px] text-amber-100 shadow-2xl opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150"
-					>
-						{placedBuilding.name} ({buildingRace})
-					</div>
-				</div>
-			{:else if activeEntityType === 'unit' && selectedUnit}
-				<!-- Soldier / Combatant Portrait -->
-				{@const isEnemy = selectedUnit.team !== localTeam && selectedUnit.team !== 'neutral'}
-				<div
-					class="flex flex-col items-center justify-center {isEnemy
-						? 'text-rose-400'
-						: selectedUnit.team === 'neutral'
-							? 'text-purple-300'
-							: 'text-blue-300'}"
-				>
-					<UiIcon
-						name="swords"
-						class="w-12 h-12 {isEnemy
-							? 'text-rose-400'
-							: selectedUnit.team === 'neutral'
-								? 'text-purple-400'
-								: 'text-blue-400'}"
-					/>
-					<span class="text-[9px] font-bold uppercase truncate max-w-[90px]">
-						{selectedUnit.team === 'neutral' ? 'Бос' : selectedUnit.attackType}
-					</span>
-				</div>
-			{:else if activeEntityType === 'none'}
-				<!-- Neutral Unselected Portrait -->
-				<div class="flex flex-col items-center justify-center text-slate-500 py-1">
-					<UiIcon name="shield" class="w-8 h-8 opacity-40 text-amber-500" />
-					<span class="text-[9px] uppercase tracking-wide opacity-60">Вибір</span>
-				</div>
-			{:else}
-				<!-- Worker Portrait reflecting controlled race & bot slot -->
-				{@const collarHex =
-					player.color?.lightHex ?? (player.team === 'east' ? '#ef4444' : '#2563eb')}
-				<div class="relative flex flex-col items-center justify-center scale-115">
-					<div
-						class="w-12 h-12 rounded-full bg-[#fcd34d] border-2 border-[#b45309] relative flex items-center justify-center overflow-hidden shadow-inner"
-					>
-						<div class="absolute top-0 left-0 right-0 h-4 bg-[#78350f]"></div>
-						<div class="flex gap-2.5 mt-2">
-							<div class="w-1.5 h-1.5 rounded-full bg-[#1e293b]"></div>
-							<div class="w-1.5 h-1.5 rounded-full bg-[#1e293b]"></div>
-						</div>
-					</div>
-					<div
-						class="w-16 h-5 border border-white/30 rounded-t-md mt-0.5 flex items-center justify-center"
-						style="background-color: {collarHex};"
-					>
-						<span class="text-[8px] font-bold text-white drop-shadow truncate max-w-[58px]">
-							{formatRaceName(player.race)}
-						</span>
-					</div>
-				</div>
-			{/if}
+			<EntityPortrait
+				entityType={activeEntityType}
+				{player}
+				{localTeam}
+				{selectedUnit}
+				{placedBuilding}
+				buildingRace={placedBuilding
+					? resolveBuildingDisplayRace(placedBuilding, sim.allPlayers, sim.players)
+					: player.race}
+				{selectedCastle}
+			/>
 
 			<!-- Level 1 Badge in corner -->
 			<div

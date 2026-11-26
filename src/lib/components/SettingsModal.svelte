@@ -8,9 +8,12 @@
 		BUILD_QUEUE_MODES,
 		CONTROL_PRESETS,
 		UI_LAYOUT_PRESETS,
+		CURSOR_STYLES,
 		type SoundPack,
-		type MusicTrack
+		type MusicTrack,
+		type CursorStyle
 	} from '$lib/services/settings.svelte';
+	import { resolve } from '$app/paths';
 	import { fullscreen, canFullscreen, isStandalone } from '$lib/services/fullscreen.svelte';
 	import { sound } from '$lib/services/audio';
 	import { t } from '$lib/i18n';
@@ -29,6 +32,7 @@
 
 	let volumePercent = $derived(Math.round(settings.volume * 100));
 	let musicVolumePercent = $derived(Math.round(settings.musicVolume * 100));
+	let voiceVolumePercent = $derived(Math.round(settings.voiceVolume * 100));
 
 	const soundPackOptions = $derived([
 		{ value: '8-bit', label: t('settings.soundPack.8bit') },
@@ -44,6 +48,19 @@
 		{ value: 'tavern', label: t('settings.musicTrack.tavern') }
 	]);
 
+	const cursorStyleOptions = $derived(
+		CURSOR_STYLES.map((style) => ({
+			value: style,
+			label: t(`settings.cursorStyle.${style}`)
+		}))
+	);
+
+	const activeCursorPreviewUrl = $derived(
+		settings.activeCursor === 'default'
+			? null
+			: `${resolve('/').replace(/\/$/, '')}/cursors/${settings.activeCursor}.svg`
+	);
+
 	function handleVolumeChange(e: Event) {
 		const target = e.target as HTMLInputElement;
 		const val = parseFloat(target.value) / 100;
@@ -54,6 +71,12 @@
 		const target = e.target as HTMLInputElement;
 		const val = parseFloat(target.value) / 100;
 		settings.setMusicVolume(val);
+	}
+
+	function handleVoiceVolumeChange(e: Event) {
+		const target = e.target as HTMLInputElement;
+		const val = parseFloat(target.value) / 100;
+		settings.setVoiceVolume(val);
 	}
 
 	function handleTestSound() {
@@ -298,6 +321,54 @@
 								/>
 							</div>
 						</div>
+
+						<!-- Voice Lines Section -->
+						<div class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 space-y-3">
+							<div class="flex items-center justify-between gap-2">
+								<div class="space-y-0.5 min-w-0">
+									<div class="text-xs font-bold text-slate-200">{t('settings.voice')}</div>
+									<div class="text-[11px] text-slate-400">{t('settings.voiceDesc')}</div>
+								</div>
+								<button
+									type="button"
+									onclick={() => settings.setVoiceEnabled(!settings.voiceEnabled)}
+									class="py-1.5 px-2.5 rounded-lg border text-xs font-bold transition flex items-center gap-1 shrink-0 cursor-pointer {settings.voiceEnabled
+										? 'bg-emerald-950/60 border-emerald-500/60 text-emerald-300 hover:bg-emerald-900/60'
+										: 'bg-slate-900/60 border-slate-700 text-slate-400 hover:bg-slate-800'}"
+									data-testid="settings-voice-toggle"
+								>
+									{#if settings.voiceEnabled}
+										<UiIcon name="volume2" class="w-3.5 h-3.5 text-emerald-400" />
+										<span>{t('settings.enabled')}</span>
+									{:else}
+										<UiIcon name="volumeX" class="w-3.5 h-3.5 text-slate-500" />
+										<span>{t('settings.disabled')}</span>
+									{/if}
+								</button>
+							</div>
+
+							<div class="space-y-1.5">
+								<div class="flex items-center justify-between text-xs font-semibold">
+									<span class="text-slate-300">{t('settings.voiceVolume')}</span>
+									<span
+										class="font-mono text-amber-300 font-bold bg-[#1a2130] px-2 py-0.5 rounded border border-amber-500/20"
+									>
+										{voiceVolumePercent}%
+									</span>
+								</div>
+								<input
+									type="range"
+									min="0"
+									max="100"
+									step="1"
+									value={voiceVolumePercent}
+									oninput={handleVoiceVolumeChange}
+									class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-400"
+									data-testid="settings-voice-volume-slider"
+									aria-label={t('settings.voiceVolume')}
+								/>
+							</div>
+						</div>
 					</div>
 				{:else if activeTab === 'language'}
 					<div class="space-y-3 animate-in fade-in duration-100">
@@ -513,6 +584,40 @@
 										{/if}
 									</button>
 								{/each}
+							</div>
+						</div>
+
+						<!-- Cursor Style Selector -->
+						<div class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 space-y-3">
+							<div class="flex items-center justify-between gap-3">
+								<div class="space-y-0.5 min-w-0">
+									<div class="text-xs font-bold text-slate-200">{t('settings.cursorStyle')}</div>
+									<div class="text-[11px] text-slate-400">{t('settings.cursorStyleDesc')}</div>
+								</div>
+								<div class="flex items-center gap-2.5 shrink-0">
+									{#if activeCursorPreviewUrl}
+										<div
+											class="w-9 h-9 rounded-lg bg-[#0f131d] border border-slate-700/80 flex items-center justify-center shrink-0"
+											title={t(`settings.cursorStyle.${settings.activeCursor}`)}
+											data-testid="settings-cursor-preview"
+										>
+											<img
+												src={activeCursorPreviewUrl}
+												alt={t(`settings.cursorStyle.${settings.activeCursor}`)}
+												class="w-6 h-6"
+											/>
+										</div>
+									{/if}
+									<GameSelect
+										value={settings.cursorStyle}
+										options={cursorStyleOptions}
+										onchange={(val) => settings.setCursorStyle(val as CursorStyle)}
+										ariaLabel={t('settings.cursorStyle')}
+										testId="settings-cursor-select"
+										align="right"
+										minMenuWidth={210}
+									/>
+								</div>
 							</div>
 						</div>
 

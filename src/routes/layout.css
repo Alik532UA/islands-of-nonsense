@@ -135,6 +135,15 @@ body {
 		sans-serif;
 }
 
+/* ===== Custom Race Cursor ===== */
+html[data-custom-cursor],
+html[data-custom-cursor] body,
+html[data-custom-cursor] button,
+html[data-custom-cursor] a,
+html[data-custom-cursor] canvas {
+	cursor: var(--game-cursor, auto) !important;
+}
+
 /* ===== Scalable UI Layer (SETTINGS-v10) ===== */
 .ui-scalable,
 .menu-page,

@@ -154,6 +154,7 @@
 		renderer?.setSimulation(sim);
 		renderer?.resetCastleVisuals();
 		uiTick = sim.stateVersion;
+		settings.syncAdaptiveCursorRace(controlledPlayer.race);
 	}
 
 	$effect(() => {
@@ -309,6 +310,13 @@
 		const fromSlot = getControllablePlayerBySlot(controlledPlayerSlot);
 		if (fromSlot) return fromSlot;
 		return localTeam === 'east' ? sim.players.east : sim.players.west;
+	});
+
+	$effect(() => {
+		const race = controlledPlayer?.race;
+		if (race) {
+			settings.syncAdaptiveCursorRace(race);
+		}
 	});
 
 	const routeOnlineCommand: BattleCommandRouter = (type, payload = {}) => {
@@ -1475,6 +1483,7 @@
 		isShopOpen = false;
 		renderer?.resetCastleVisuals();
 		uiTick = sim.stateVersion;
+		settings.syncAdaptiveCursorRace(controlledPlayer.race);
 	}
 
 	function handleStartNewMatch(newConfig: SimulationConfig) {
@@ -1693,11 +1702,12 @@
 			countdownTimer = null;
 		}
 		const finalRace = chosenWestRace || 'Альянс';
-		sim.setPlayerRace(controlledPlayer.team, finalRace);
+		sim.setPlayerRace(controlledPlayer.team, finalRace, controlledPlayer);
 		matchPhase = 'BATTLE';
 		sim.isRunning = true;
 		sound.playHorn();
 		uiTick = sim.stateVersion;
+		settings.syncAdaptiveCursorRace(controlledPlayer.race);
 	}
 </script>
 

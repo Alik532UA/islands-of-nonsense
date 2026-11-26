@@ -266,376 +266,399 @@
 >
 	{#if placedBuilding}
 		{#if placedBuilding.team === player.team}
-			<!-- Placed Building Commands: Upgrades, Continue Construction, Sell -->
-			<div class="grid grid-cols-4 gap-1.5 w-[280px]">
-				{#if buildingUnderConstruction}
-					<div class="relative group/tip col-span-2">
+			{#if buildingUnderConstruction}
+				<!-- Under Construction: Compact vertical stack -->
+				<div class="flex flex-col justify-center gap-2 min-w-[168px] w-full max-w-[210px] px-1">
+					<div class="relative group/tip w-full">
 						<button
 							onclick={() => onContinueConstruction?.(placedBuilding.instanceId)}
 							data-testid="hud-continue-construction-btn"
-							class="w-full h-10 rounded border border-amber-500 bg-amber-950/70 hover:bg-amber-900/90 text-amber-200 flex items-center justify-center gap-1.5 px-2 transition cursor-pointer shadow"
+							class="w-full h-11 rounded-lg border border-amber-400/80 bg-gradient-to-b from-amber-900/75 to-amber-950/90 hover:from-amber-800/85 hover:to-amber-900 text-amber-100 flex items-center justify-center gap-2 px-3 transition cursor-pointer touch-manipulation shadow-md"
+							style="box-shadow: inset 0 1px 0 rgba(251,191,36,0.25), 0 4px 10px rgba(0,0,0,0.4);"
 						>
-							<UiIcon name="hammer" class="w-4 h-4 text-amber-400" />
-							<span class="text-[10px] font-bold">Добудувати</span>
+							<UiIcon name="hammer" class="w-4 h-4 text-amber-300 shrink-0" />
+							<span class="text-[11px] font-bold tracking-wide">Добудувати</span>
 						</button>
-						<div class="{tipClass} left-0">Відправити робітника добудувати споруду</div>
+						<div class="{tipClass} left-1/2 -translate-x-1/2">
+							Відправити робітника добудувати споруду
+						</div>
 					</div>
-					<div class="relative group/tip">
+					<div class="relative group/tip w-full">
 						<button
 							onclick={() => onSellBuilding?.(placedBuilding.instanceId)}
 							data-testid="hud-cancel-construction-btn"
-							class="w-full h-10 rounded border border-rose-600/70 bg-rose-950/60 hover:bg-rose-900/80 text-rose-200 flex items-center justify-center gap-1 px-1 transition cursor-pointer"
+							class="w-full h-9 rounded-lg border border-rose-500/60 bg-gradient-to-b from-rose-950/80 to-[#1a0b11] hover:from-rose-900/85 hover:to-rose-950 text-rose-200 flex items-center justify-center gap-1.5 px-3 transition cursor-pointer touch-manipulation shadow"
 						>
-							<UiIcon name="trash2" class="w-3.5 h-3.5 text-rose-400" />
-							<span class="text-[9px] font-bold">Скасувати</span>
+							<UiIcon name="trash2" class="w-3.5 h-3.5 text-rose-400 shrink-0" />
+							<span class="text-[10.5px] font-bold">Скасувати</span>
 						</button>
 						<div class="{tipClass} left-1/2 -translate-x-1/2">Скасувати будівництво</div>
 					</div>
-				{:else if placedBuilding.specialType === 'shop'}
-					{@const shopItems = CASTLE_ITEMS_LIST.filter(
-						(it) => (it.id !== 'I00B' && it.id !== 'I00N') || sim.gameModeConfig?.nuclearWarheads
-					)}
-					<!-- Placed Shop Building: Consumables Roster -->
-					<div class="col-span-4 flex flex-col justify-between w-[280px] h-full py-0.5">
-						<div class="flex items-center justify-between border-b border-[#3b3226] pb-1 shrink-0">
-							<span class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
-								<UiIcon name="shoppingBag" class="w-3.5 h-3.5 text-amber-400" />
-								Товари
-							</span>
-							<div class="flex items-center gap-1">
-								{#if buildingHp < buildingMaxHp}
-									<button
-										onclick={() => dispatchRepair(placedBuilding.team, placedBuilding.instanceId)}
-										data-testid="hud-shop-repair-btn"
-										class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-emerald-950/80 hover:bg-emerald-900 border-emerald-500/70 text-emerald-200 cursor-pointer shadow flex items-center gap-0.5"
-									>
-										<UiIcon name="wrench" class="w-2.5 h-2.5 text-emerald-400" />
-										<span>Ремонт</span>
-										<span
-											class="px-1 py-0.2 rounded bg-black/60 border border-emerald-500/40 text-emerald-300 font-mono text-[8px] leading-none"
+				</div>
+			{:else if placedBuilding.specialType === 'shop' || placedBuilding.specialType === 'forge' || placedBuilding.specialType === 'commander'}
+				<!-- Special Placed Buildings (Shop, Forge, Commander): 4-col grid -->
+				<div class="grid grid-cols-4 gap-1.5 w-[280px]">
+					{#if placedBuilding.specialType === 'shop'}
+						{@const shopItems = CASTLE_ITEMS_LIST.filter(
+							(it) => (it.id !== 'I00B' && it.id !== 'I00N') || sim.gameModeConfig?.nuclearWarheads
+						)}
+						<!-- Placed Shop Building: Consumables Roster -->
+						<div class="col-span-4 flex flex-col justify-between w-[280px] h-full py-0.5">
+							<div
+								class="flex items-center justify-between border-b border-[#3b3226] pb-1 shrink-0"
+							>
+								<span class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
+									<UiIcon name="shoppingBag" class="w-3.5 h-3.5 text-amber-400" />
+									Товари
+								</span>
+								<div class="flex items-center gap-1">
+									{#if buildingHp < buildingMaxHp}
+										<button
+											onclick={() => dispatchRepair(placedBuilding.team, placedBuilding.instanceId)}
+											data-testid="hud-shop-repair-btn"
+											class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-emerald-950/80 hover:bg-emerald-900 border-emerald-500/70 text-emerald-200 cursor-pointer shadow flex items-center gap-0.5"
 										>
-											R
+											<UiIcon name="wrench" class="w-2.5 h-2.5 text-emerald-400" />
+											<span>Ремонт</span>
+											<span
+												class="px-1 py-0.2 rounded bg-black/60 border border-emerald-500/40 text-emerald-300 font-mono text-[8px] leading-none"
+											>
+												R
+											</span>
+										</button>
+									{/if}
+									<button
+										onclick={() => onSellBuilding?.(placedBuilding.instanceId)}
+										data-testid="hud-shop-sell-btn"
+										class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-rose-950/70 hover:bg-rose-900 border-rose-600/70 text-rose-200 cursor-pointer shadow flex items-center gap-0.5"
+									>
+										<UiIcon name="trash2" class="w-2.5 h-2.5 text-rose-400" />
+										<span>Знести (+25g)</span>
+									</button>
+								</div>
+							</div>
+							<div class="grid grid-cols-4 gap-1 max-h-[105px] overflow-y-auto pr-0.5 pt-0.5">
+								{#each shopItems as item}
+									{@const cd = sim.getItemCooldown(player.team, item.id)}
+									{@const canAfford = playerGold >= item.cost}
+									{@const canBuy = canAfford && cd <= 0}
+									<button
+										onclick={() => dispatchBuyItem(item.id)}
+										onmouseenter={() => (hoveredItem = item)}
+										onmouseleave={() => (hoveredItem = null)}
+										disabled={!canBuy}
+										data-testid="hud-shop-item-btn-{item.id}"
+										class="relative w-16 h-[32px] rounded border flex flex-col justify-between items-center p-0.5 transition cursor-pointer touch-manipulation {canBuy
+											? 'bg-[#1b263b] hover:bg-[#253959] border-amber-500/60 text-white shadow'
+											: cd > 0
+												? 'bg-[#151a24] border-cyan-800/60 text-cyan-400 cursor-not-allowed'
+												: 'bg-[#12161f] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
+										aria-label="{item.nameUk} ({item.cost}g) - {item.descriptionUk}"
+									>
+										<CooldownOverlay remaining={cd} max={item.cooldown} />
+										<span class="text-[8px] font-bold text-slate-200 truncate max-w-[55px]">
+											{item.nameUk}
+										</span>
+										<span
+											class="text-[8px] text-amber-300 font-mono font-bold flex items-center gap-0.5"
+										>
+											<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
+											<span>{item.cost}</span>
 										</span>
 									</button>
-								{/if}
-								<button
-									onclick={() => onSellBuilding?.(placedBuilding.instanceId)}
-									data-testid="hud-shop-sell-btn"
-									class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-rose-950/70 hover:bg-rose-900 border-rose-600/70 text-rose-200 cursor-pointer shadow flex items-center gap-0.5"
+								{/each}
+							</div>
+							{#if hoveredItem}
+								<div
+									class="absolute -top-14 left-2 right-2 bg-[#0c1017] border border-amber-500/80 rounded p-1.5 z-30 shadow-2xl text-[9px] pointer-events-none"
 								>
-									<UiIcon name="trash2" class="w-2.5 h-2.5 text-rose-400" />
-									<span>Знести (+25g)</span>
-								</button>
+									<div class="flex items-center justify-between font-bold text-amber-300">
+										<span>{hoveredItem.nameUk}</span>
+										<span class="font-mono flex items-center gap-1">
+											<UiIcon name="coins" class="w-3 h-3 text-amber-400 shrink-0" />
+											<span>{hoveredItem.cost}</span>
+											<span class="text-slate-400">|</span>
+											<span>КД: {hoveredItem.cooldown}с</span>
+										</span>
+									</div>
+									<p class="text-slate-300 text-[8.5px] mt-0.5">{hoveredItem.descriptionUk}</p>
+								</div>
+							{/if}
+						</div>
+					{:else if placedBuilding.specialType === 'forge'}
+						{@const atkLvl = player.forge.attack}
+						{@const armLvl = player.forge.armor}
+						{@const ecoLvl = player.forge.econ}
+						{@const atkCost = sim.getForgePrice(player.team, 'attack', player)}
+						{@const armCost = sim.getForgePrice(player.team, 'armor', player)}
+						{@const ecoCost = sim.getForgePrice(player.team, 'econ', player)}
+						{@const atkLum = sim.getForgeLumberPrice(player.team, 'attack', player)}
+						{@const armLum = sim.getForgeLumberPrice(player.team, 'armor', player)}
+						{@const ecoLum = sim.getForgeLumberPrice(player.team, 'econ', player)}
+						{@const canAtk = atkLvl < 5 && playerGold >= atkCost && (player.lumber ?? 0) >= atkLum}
+						{@const canArm = armLvl < 5 && playerGold >= armCost && (player.lumber ?? 0) >= armLum}
+						{@const canEco = ecoLvl < 3 && playerGold >= ecoCost && (player.lumber ?? 0) >= ecoLum}
+						<!-- Placed Forge Building: Upgrades -->
+						<div class="col-span-4 flex flex-col justify-between w-[280px] h-full py-0.5">
+							<div
+								class="flex items-center justify-between border-b border-[#3b3226] pb-1 shrink-0"
+							>
+								<span class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
+									<UiIcon name="hammer" class="w-3.5 h-3.5 text-amber-400" />
+									Покращення
+								</span>
+								<div class="flex items-center gap-1">
+									{#if buildingHp < buildingMaxHp}
+										<button
+											onclick={() => dispatchRepair(placedBuilding.team, placedBuilding.instanceId)}
+											data-testid="hud-forge-repair-btn"
+											class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-emerald-950/80 hover:bg-emerald-900 border-emerald-500/70 text-emerald-200 cursor-pointer shadow flex items-center gap-0.5"
+										>
+											<UiIcon name="wrench" class="w-2.5 h-2.5 text-emerald-400" />
+											<span>Ремонт</span>
+											<span
+												class="px-1 py-0.2 rounded bg-black/60 border border-emerald-500/40 text-emerald-300 font-mono text-[8px] leading-none"
+											>
+												R
+											</span>
+										</button>
+									{/if}
+									<button
+										onclick={() => onSellBuilding?.(placedBuilding.instanceId)}
+										data-testid="hud-forge-sell-btn"
+										class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-rose-950/70 hover:bg-rose-900 border-rose-600/70 text-rose-200 cursor-pointer shadow flex items-center gap-0.5"
+									>
+										<UiIcon name="trash2" class="w-2.5 h-2.5 text-rose-400" />
+										<span>Знести (+50g)</span>
+									</button>
+								</div>
+							</div>
+							<div class="grid grid-cols-3 gap-1.5 pt-1">
+								<div class="relative group/tip">
+									<button
+										onclick={() => dispatchUpgradeForge('attack')}
+										disabled={!canAtk}
+										class="w-full h-16 rounded border flex flex-col items-center justify-between p-1 transition cursor-pointer {canAtk
+											? 'bg-rose-950/60 hover:bg-rose-900/80 border-rose-500/70 text-white shadow'
+											: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
+									>
+										<span class="text-[9.5px] font-bold text-rose-300 flex items-center gap-1">
+											<UiIcon name="swords" class="w-3 h-3 text-rose-400 shrink-0" />
+											<span>Атака {atkLvl}/5</span>
+										</span>
+										<span class="text-[8px] text-slate-400">+8% шкоди</span>
+										<div
+											class="text-[8.5px] font-mono font-bold text-amber-300 flex items-center gap-1"
+										>
+											{#if atkLvl >= 5}
+												<span>МАКС</span>
+											{:else}
+												<span class="flex items-center gap-0.5">
+													<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
+													<span>{atkCost}</span>
+												</span>
+												{#if atkLum > 0}
+													<span class="flex items-center gap-0.5 text-emerald-400">
+														<UiIcon name="treePine" class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+														<span>{atkLum}</span>
+													</span>
+												{/if}
+											{/if}
+										</div>
+									</button>
+									<div class="{tipClass} left-0">Атака: +8% шкоди всім військам</div>
+								</div>
+
+								<div class="relative group/tip">
+									<button
+										onclick={() => dispatchUpgradeForge('armor')}
+										disabled={!canArm}
+										class="w-full h-16 rounded border flex flex-col items-center justify-between p-1 transition cursor-pointer {canArm
+											? 'bg-blue-950/60 hover:bg-blue-900/80 border-blue-500/70 text-white shadow'
+											: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
+									>
+										<span class="text-[9.5px] font-bold text-blue-300 flex items-center gap-1">
+											<UiIcon name="shield" class="w-3 h-3 text-blue-400 shrink-0" />
+											<span>Броня {armLvl}/5</span>
+										</span>
+										<span class="text-[8px] text-slate-400">+1 броня</span>
+										<div
+											class="text-[8.5px] font-mono font-bold text-amber-300 flex items-center gap-1"
+										>
+											{#if armLvl >= 5}
+												<span>МАКС</span>
+											{:else}
+												<span class="flex items-center gap-0.5">
+													<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
+													<span>{armCost}</span>
+												</span>
+												{#if armLum > 0}
+													<span class="flex items-center gap-0.5 text-emerald-400">
+														<UiIcon name="treePine" class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+														<span>{armLum}</span>
+													</span>
+												{/if}
+											{/if}
+										</div>
+									</button>
+									<div class="{tipClass} left-1/2 -translate-x-1/2">
+										Броня: +1 броні всім військам
+									</div>
+								</div>
+
+								<div class="relative group/tip">
+									<button
+										onclick={() => dispatchUpgradeForge('econ')}
+										disabled={!canEco}
+										class="w-full h-16 rounded border flex flex-col items-center justify-between p-1 transition cursor-pointer {canEco
+											? 'bg-emerald-950/60 hover:bg-emerald-900/80 border-emerald-500/70 text-white shadow'
+											: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
+									>
+										<span class="text-[9.5px] font-bold text-emerald-300 flex items-center gap-1">
+											<UiIcon name="coins" class="w-3 h-3 text-emerald-400 shrink-0" />
+											<span>Дохід {ecoLvl}/3</span>
+										</span>
+										<span class="text-[8px] text-slate-400">+10% доходу</span>
+										<div
+											class="text-[8.5px] font-mono font-bold text-amber-300 flex items-center gap-1"
+										>
+											{#if ecoLvl >= 3}
+												<span>МАКС</span>
+											{:else}
+												<span class="flex items-center gap-0.5">
+													<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
+													<span>{ecoCost}</span>
+												</span>
+												{#if ecoLum > 0}
+													<span class="flex items-center gap-0.5 text-emerald-400">
+														<UiIcon name="treePine" class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+														<span>{ecoLum}</span>
+													</span>
+												{/if}
+											{/if}
+										</div>
+									</button>
+									<div class="{tipClass} right-0">Економіка: +10% до доходу золота</div>
+								</div>
 							</div>
 						</div>
-						<div class="grid grid-cols-4 gap-1 max-h-[105px] overflow-y-auto pr-0.5 pt-0.5">
-							{#each shopItems as item}
-								{@const cd = sim.getItemCooldown(player.team, item.id)}
-								{@const canAfford = playerGold >= item.cost}
-								{@const canBuy = canAfford && cd <= 0}
-								<button
-									onclick={() => dispatchBuyItem(item.id)}
-									onmouseenter={() => (hoveredItem = item)}
-									onmouseleave={() => (hoveredItem = null)}
-									disabled={!canBuy}
-									data-testid="hud-shop-item-btn-{item.id}"
-									class="relative w-16 h-[32px] rounded border flex flex-col justify-between items-center p-0.5 transition cursor-pointer touch-manipulation {canBuy
-										? 'bg-[#1b263b] hover:bg-[#253959] border-amber-500/60 text-white shadow'
-										: cd > 0
-											? 'bg-[#151a24] border-cyan-800/60 text-cyan-400 cursor-not-allowed'
-											: 'bg-[#12161f] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
-									aria-label="{item.nameUk} ({item.cost}g) - {item.descriptionUk}"
+					{:else if placedBuilding.specialType === 'commander'}
+						{@const activeCmd = findCommander(player.commander)}
+						{@const cmdStatus = sim.canSelectOrChangeCommander(player.team, player)}
+						<!-- Placed Commander Hall: Status & Open Selection -->
+						<div class="col-span-4 flex flex-col justify-between w-[280px] h-full py-0.5">
+							<div
+								class="flex items-center justify-between border-b border-[#3b3226] pb-1 shrink-0"
+							>
+								<span class="text-[11px] font-bold text-indigo-300 flex items-center gap-1">
+									<UiIcon name="crown" class="w-3.5 h-3.5 text-indigo-400" />
+									Керування
+								</span>
+								<div class="flex items-center gap-1">
+									{#if buildingHp < buildingMaxHp}
+										<button
+											onclick={() => dispatchRepair(placedBuilding.team, placedBuilding.instanceId)}
+											data-testid="hud-commander-repair-btn"
+											class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-emerald-950/80 hover:bg-emerald-900 border-emerald-500/70 text-emerald-200 cursor-pointer shadow flex items-center gap-0.5"
+										>
+											<UiIcon name="wrench" class="w-2.5 h-2.5 text-emerald-400" />
+											<span>Ремонт</span>
+											<span
+												class="px-1 py-0.2 rounded bg-black/60 border border-emerald-500/40 text-emerald-300 font-mono text-[8px] leading-none"
+											>
+												R
+											</span>
+										</button>
+									{/if}
+									<button
+										onclick={() => onSellBuilding?.(placedBuilding.instanceId)}
+										data-testid="hud-commander-sell-btn"
+										class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-rose-950/70 hover:bg-rose-900 border-rose-600/70 text-rose-200 cursor-pointer shadow flex items-center gap-0.5"
+									>
+										<UiIcon name="trash2" class="w-2.5 h-2.5 text-rose-400" />
+										<span>Знести (+{Math.round(placedBuilding.goldCost * 0.5)}g)</span>
+									</button>
+								</div>
+							</div>
+							<div class="flex flex-col gap-1.5 pt-1">
+								<div
+									class="flex items-center justify-between text-[10px] bg-[#0c1017] px-2 py-1 rounded border border-[#2d3748]"
 								>
-									<CooldownOverlay remaining={cd} max={item.cooldown} />
-									<span class="text-[8px] font-bold text-slate-200 truncate max-w-[55px]">
-										{item.nameUk}
+									<span class="text-slate-400">
+										Командир:
+										<strong class="text-indigo-200 ml-1">
+											{#if activeCmd}
+												{activeCmd.name}{player.isRandomCommander ? ' ×2' : ''} ({activeCmd.id === 2
+													? `-${getCommanderEffectivePct(activeCmd.id, Boolean(player.isRandomCommander))}%`
+													: `+${getCommanderEffectivePct(activeCmd.id, Boolean(player.isRandomCommander))}%`})
+											{:else}
+												Не обрано
+											{/if}
+										</strong>
 									</span>
 									<span
-										class="text-[8px] text-amber-300 font-mono font-bold flex items-center gap-0.5"
+										class="text-[9px] font-mono {cmdStatus.isFree
+											? 'text-emerald-300'
+											: 'text-amber-300'}"
 									>
-										<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
-										<span>{item.cost}</span>
-									</span>
-								</button>
-							{/each}
-						</div>
-						{#if hoveredItem}
-							<div
-								class="absolute -top-14 left-2 right-2 bg-[#0c1017] border border-amber-500/80 rounded p-1.5 z-30 shadow-2xl text-[9px] pointer-events-none"
-							>
-								<div class="flex items-center justify-between font-bold text-amber-300">
-									<span>{hoveredItem.nameUk}</span>
-									<span class="font-mono flex items-center gap-1">
-										<UiIcon name="coins" class="w-3 h-3 text-amber-400 shrink-0" />
-										<span>{hoveredItem.cost}</span>
-										<span class="text-slate-400">|</span>
-										<span>КД: {hoveredItem.cooldown}с</span>
+										{cmdStatus.isFree
+											? 'Безкошт.'
+											: `${Math.ceil(cmdStatus.cooldownLeft)}с / 250g+250w`}
 									</span>
 								</div>
-								<p class="text-slate-300 text-[8.5px] mt-0.5">{hoveredItem.descriptionUk}</p>
-							</div>
-						{/if}
-					</div>
-				{:else if placedBuilding.specialType === 'forge'}
-					{@const atkLvl = player.forge.attack}
-					{@const armLvl = player.forge.armor}
-					{@const ecoLvl = player.forge.econ}
-					{@const atkCost = sim.getForgePrice(player.team, 'attack', player)}
-					{@const armCost = sim.getForgePrice(player.team, 'armor', player)}
-					{@const ecoCost = sim.getForgePrice(player.team, 'econ', player)}
-					{@const atkLum = sim.getForgeLumberPrice(player.team, 'attack', player)}
-					{@const armLum = sim.getForgeLumberPrice(player.team, 'armor', player)}
-					{@const ecoLum = sim.getForgeLumberPrice(player.team, 'econ', player)}
-					{@const canAtk = atkLvl < 5 && playerGold >= atkCost && (player.lumber ?? 0) >= atkLum}
-					{@const canArm = armLvl < 5 && playerGold >= armCost && (player.lumber ?? 0) >= armLum}
-					{@const canEco = ecoLvl < 3 && playerGold >= ecoCost && (player.lumber ?? 0) >= ecoLum}
-					<!-- Placed Forge Building: Upgrades -->
-					<div class="col-span-4 flex flex-col justify-between w-[280px] h-full py-0.5">
-						<div class="flex items-center justify-between border-b border-[#3b3226] pb-1 shrink-0">
-							<span class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
-								<UiIcon name="hammer" class="w-3.5 h-3.5 text-amber-400" />
-								Покращення
-							</span>
-							<div class="flex items-center gap-1">
-								{#if buildingHp < buildingMaxHp}
-									<button
-										onclick={() => dispatchRepair(placedBuilding.team, placedBuilding.instanceId)}
-										data-testid="hud-forge-repair-btn"
-										class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-emerald-950/80 hover:bg-emerald-900 border-emerald-500/70 text-emerald-200 cursor-pointer shadow flex items-center gap-0.5"
-									>
-										<UiIcon name="wrench" class="w-2.5 h-2.5 text-emerald-400" />
-										<span>Ремонт</span>
-										<span
-											class="px-1 py-0.2 rounded bg-black/60 border border-emerald-500/40 text-emerald-300 font-mono text-[8px] leading-none"
-										>
-											R
-										</span>
-									</button>
-								{/if}
 								<button
-									onclick={() => onSellBuilding?.(placedBuilding.instanceId)}
-									data-testid="hud-forge-sell-btn"
-									class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-rose-950/70 hover:bg-rose-900 border-rose-600/70 text-rose-200 cursor-pointer shadow flex items-center gap-0.5"
+									type="button"
+									onclick={() => onOpenCommander?.()}
+									data-testid="hud-open-commander-btn"
+									class="w-full py-1.5 px-3 rounded border border-indigo-400/70 bg-indigo-950/80 hover:bg-indigo-900 text-indigo-100 text-[11px] font-bold flex items-center justify-center gap-1.5 cursor-pointer transition shadow"
 								>
-									<UiIcon name="trash2" class="w-2.5 h-2.5 text-rose-400" />
-									<span>Знести (+50g)</span>
+									<UiIcon name="crown" class="w-3.5 h-3.5 text-indigo-300" />
+									<span>{activeCmd ? 'Змінити командира' : 'Обрати командира'}</span>
 								</button>
 							</div>
 						</div>
-						<div class="grid grid-cols-3 gap-1.5 pt-1">
-							<div class="relative group/tip">
-								<button
-									onclick={() => dispatchUpgradeForge('attack')}
-									disabled={!canAtk}
-									class="w-full h-16 rounded border flex flex-col items-center justify-between p-1 transition cursor-pointer {canAtk
-										? 'bg-rose-950/60 hover:bg-rose-900/80 border-rose-500/70 text-white shadow'
-										: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
-								>
-									<span class="text-[9.5px] font-bold text-rose-300 flex items-center gap-1">
-										<UiIcon name="swords" class="w-3 h-3 text-rose-400 shrink-0" />
-										<span>Атака {atkLvl}/5</span>
-									</span>
-									<span class="text-[8px] text-slate-400">+8% шкоди</span>
-									<div
-										class="text-[8.5px] font-mono font-bold text-amber-300 flex items-center gap-1"
-									>
-										{#if atkLvl >= 5}
-											<span>МАКС</span>
-										{:else}
-											<span class="flex items-center gap-0.5">
-												<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
-												<span>{atkCost}</span>
-											</span>
-											{#if atkLum > 0}
-												<span class="flex items-center gap-0.5 text-emerald-400">
-													<UiIcon name="treePine" class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
-													<span>{atkLum}</span>
-												</span>
-											{/if}
-										{/if}
-									</div>
-								</button>
-								<div class="{tipClass} left-0">Атака: +8% шкоди всім військам</div>
-							</div>
-
-							<div class="relative group/tip">
-								<button
-									onclick={() => dispatchUpgradeForge('armor')}
-									disabled={!canArm}
-									class="w-full h-16 rounded border flex flex-col items-center justify-between p-1 transition cursor-pointer {canArm
-										? 'bg-blue-950/60 hover:bg-blue-900/80 border-blue-500/70 text-white shadow'
-										: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
-								>
-									<span class="text-[9.5px] font-bold text-blue-300 flex items-center gap-1">
-										<UiIcon name="shield" class="w-3 h-3 text-blue-400 shrink-0" />
-										<span>Броня {armLvl}/5</span>
-									</span>
-									<span class="text-[8px] text-slate-400">+1 броня</span>
-									<div
-										class="text-[8.5px] font-mono font-bold text-amber-300 flex items-center gap-1"
-									>
-										{#if armLvl >= 5}
-											<span>МАКС</span>
-										{:else}
-											<span class="flex items-center gap-0.5">
-												<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
-												<span>{armCost}</span>
-											</span>
-											{#if armLum > 0}
-												<span class="flex items-center gap-0.5 text-emerald-400">
-													<UiIcon name="treePine" class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
-													<span>{armLum}</span>
-												</span>
-											{/if}
-										{/if}
-									</div>
-								</button>
-								<div class="{tipClass} left-1/2 -translate-x-1/2">
-									Броня: +1 броні всім військам
-								</div>
-							</div>
-
-							<div class="relative group/tip">
-								<button
-									onclick={() => dispatchUpgradeForge('econ')}
-									disabled={!canEco}
-									class="w-full h-16 rounded border flex flex-col items-center justify-between p-1 transition cursor-pointer {canEco
-										? 'bg-emerald-950/60 hover:bg-emerald-900/80 border-emerald-500/70 text-white shadow'
-										: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
-								>
-									<span class="text-[9.5px] font-bold text-emerald-300 flex items-center gap-1">
-										<UiIcon name="coins" class="w-3 h-3 text-emerald-400 shrink-0" />
-										<span>Дохід {ecoLvl}/3</span>
-									</span>
-									<span class="text-[8px] text-slate-400">+10% доходу</span>
-									<div
-										class="text-[8.5px] font-mono font-bold text-amber-300 flex items-center gap-1"
-									>
-										{#if ecoLvl >= 3}
-											<span>МАКС</span>
-										{:else}
-											<span class="flex items-center gap-0.5">
-												<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
-												<span>{ecoCost}</span>
-											</span>
-											{#if ecoLum > 0}
-												<span class="flex items-center gap-0.5 text-emerald-400">
-													<UiIcon name="treePine" class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
-													<span>{ecoLum}</span>
-												</span>
-											{/if}
-										{/if}
-									</div>
-								</button>
-								<div class="{tipClass} right-0">Економіка: +10% до доходу золота</div>
-							</div>
-						</div>
-					</div>
-				{:else if placedBuilding.specialType === 'commander'}
-					{@const activeCmd = findCommander(player.commander)}
-					{@const cmdStatus = sim.canSelectOrChangeCommander(player.team, player)}
-					<!-- Placed Commander Hall: Status & Open Selection -->
-					<div class="col-span-4 flex flex-col justify-between w-[280px] h-full py-0.5">
-						<div class="flex items-center justify-between border-b border-[#3b3226] pb-1 shrink-0">
-							<span class="text-[11px] font-bold text-indigo-300 flex items-center gap-1">
-								<UiIcon name="crown" class="w-3.5 h-3.5 text-indigo-400" />
-								Керування
-							</span>
-							<div class="flex items-center gap-1">
-								{#if buildingHp < buildingMaxHp}
-									<button
-										onclick={() => dispatchRepair(placedBuilding.team, placedBuilding.instanceId)}
-										data-testid="hud-commander-repair-btn"
-										class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-emerald-950/80 hover:bg-emerald-900 border-emerald-500/70 text-emerald-200 cursor-pointer shadow flex items-center gap-0.5"
-									>
-										<UiIcon name="wrench" class="w-2.5 h-2.5 text-emerald-400" />
-										<span>Ремонт</span>
-										<span
-											class="px-1 py-0.2 rounded bg-black/60 border border-emerald-500/40 text-emerald-300 font-mono text-[8px] leading-none"
-										>
-											R
-										</span>
-									</button>
-								{/if}
-								<button
-									onclick={() => onSellBuilding?.(placedBuilding.instanceId)}
-									data-testid="hud-commander-sell-btn"
-									class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-rose-950/70 hover:bg-rose-900 border-rose-600/70 text-rose-200 cursor-pointer shadow flex items-center gap-0.5"
-								>
-									<UiIcon name="trash2" class="w-2.5 h-2.5 text-rose-400" />
-									<span>Знести (+{Math.round(placedBuilding.goldCost * 0.5)}g)</span>
-								</button>
-							</div>
-						</div>
-						<div class="flex flex-col gap-1.5 pt-1">
-							<div
-								class="flex items-center justify-between text-[10px] bg-[#0c1017] px-2 py-1 rounded border border-[#2d3748]"
-							>
-								<span class="text-slate-400">
-									Командир:
-									<strong class="text-indigo-200 ml-1">
-										{#if activeCmd}
-											{activeCmd.name}{player.isRandomCommander ? ' ×2' : ''} ({activeCmd.id === 2
-												? `-${getCommanderEffectivePct(activeCmd.id, Boolean(player.isRandomCommander))}%`
-												: `+${getCommanderEffectivePct(activeCmd.id, Boolean(player.isRandomCommander))}%`})
-										{:else}
-											Не обрано
-										{/if}
-									</strong>
-								</span>
-								<span
-									class="text-[9px] font-mono {cmdStatus.isFree
-										? 'text-emerald-300'
-										: 'text-amber-300'}"
-								>
-									{cmdStatus.isFree
-										? 'Безкошт.'
-										: `${Math.ceil(cmdStatus.cooldownLeft)}с / 250g+250w`}
-								</span>
-							</div>
-							<button
-								type="button"
-								onclick={() => onOpenCommander?.()}
-								data-testid="hud-open-commander-btn"
-								class="w-full py-1.5 px-3 rounded border border-indigo-400/70 bg-indigo-950/80 hover:bg-indigo-900 text-indigo-100 text-[11px] font-bold flex items-center justify-center gap-1.5 cursor-pointer transition shadow"
-							>
-								<UiIcon name="crown" class="w-3.5 h-3.5 text-indigo-300" />
-								<span>{activeCmd ? 'Змінити командира' : 'Обрати командира'}</span>
-							</button>
-						</div>
-					</div>
-				{:else}
+					{/if}
+				</div>
+			{:else}
+				<!-- Regular Placed Building: Compact vertical stack (saves width & prevents truncation) -->
+				<div
+					class="flex flex-col justify-center gap-1.5 min-w-[180px] w-full max-w-[240px] max-h-[128px] overflow-y-auto px-1 py-0.5"
+				>
 					{#each availableUpgrades as up, uIdx}
 						{@const upCost = up.upgrade_from
 							? (up.gold_cost ?? 200)
 							: Math.max(50, (up.gold_cost || 200) - placedBuilding.goldCost)}
 						{@const upLumber = up.lumber_cost || 0}
 						{@const canAfford = playerGold >= upCost && (player.lumber ?? 0) >= upLumber}
-						<div class="relative group/tip">
+						<div class="relative group/tip w-full shrink-0">
 							<button
 								onclick={() => onUpgradeBuilding?.(placedBuilding.instanceId, up.id)}
 								disabled={!canAfford}
 								data-testid="hud-upgrade-btn-{up.id}"
-								class="relative w-16 h-10 rounded border flex flex-col items-center justify-center p-1 overflow-hidden transition cursor-pointer {canAfford
-									? 'bg-[#1e3a5f] hover:bg-[#2563eb] border-blue-400 text-white shadow'
-									: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
+								class="relative w-full min-h-[34px] rounded-lg border flex items-center justify-between gap-2 px-2.5 py-1.5 transition cursor-pointer touch-manipulation {canAfford
+									? 'bg-gradient-to-b from-[#1e3a5f] to-[#132540] hover:from-[#254b7a] hover:to-[#1a3459] border-sky-400/75 text-white shadow-md'
+									: 'bg-[#151a24] border-slate-700/80 text-slate-500 opacity-65 cursor-not-allowed'}"
 							>
-								<span class={hotkeyCornerClass}>
-									{uIdx + 1}
+								<span class="flex items-center gap-1.5 min-w-0">
+									<span
+										class="px-1 py-0.5 rounded bg-black/50 border border-[#544738]/80 text-[8.5px] font-mono font-bold leading-none text-[#fef08a] shrink-0"
+									>
+										{uIdx + 1}
+									</span>
+									<span class="text-[10.5px] font-bold truncate">{up.name}</span>
 								</span>
-								<span class="text-[10px] font-bold truncate max-w-[50px]">{up.name}</span>
-								<div class="flex items-center gap-1.5 text-[8px] font-mono font-bold mt-0.5">
+								<span class="flex items-center gap-1.5 text-[9.5px] font-mono font-bold shrink-0">
 									<span class="text-amber-300 flex items-center gap-0.5">
-										<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
+										<UiIcon name="coins" class="w-3 h-3 text-amber-400 shrink-0" />
 										<span>{upCost}</span>
 									</span>
 									{#if upLumber > 0}
 										<span class="text-emerald-400 flex items-center gap-0.5">
-											<UiIcon name="treePine" class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+											<UiIcon name="treePine" class="w-3 h-3 text-emerald-400 shrink-0" />
 											<span>{upLumber}</span>
 										</span>
 									{/if}
-								</div>
+								</span>
 							</button>
 							<div class="{tipClass} left-1/2 -translate-x-1/2">
 								{up.name} ({upCost}g{upLumber > 0 ? `, ${upLumber}w` : ''}) · Клавіша {uIdx + 1}
@@ -643,16 +666,20 @@
 						</div>
 					{/each}
 					{#if buildingHp < buildingMaxHp}
-						<div class="relative group/tip">
+						<div class="relative group/tip w-full shrink-0">
 							<button
 								onclick={() => dispatchRepair(placedBuilding.team, placedBuilding.instanceId)}
 								data-testid="hud-repair-btn"
-								class="relative w-16 h-10 rounded border border-emerald-500/70 bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-200 flex flex-col items-center justify-center p-0.5 overflow-hidden transition cursor-pointer shadow"
+								class="relative w-full min-h-[30px] rounded-lg border border-emerald-500/70 bg-gradient-to-b from-emerald-950/85 to-[#0b1f17] hover:from-emerald-900/90 hover:to-emerald-950 text-emerald-200 flex items-center justify-between gap-2 px-2.5 py-1 transition cursor-pointer touch-manipulation shadow"
 							>
-								<span class={hotkeyCornerClass}>R</span>
-								<span class="text-[10px] font-bold flex items-center gap-0.5">
-									<UiIcon name="wrench" class="w-3 h-3 text-emerald-400" />
-									Ремонт
+								<span class="text-[10.5px] font-bold flex items-center gap-1.5">
+									<UiIcon name="wrench" class="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+									<span>Ремонт</span>
+								</span>
+								<span
+									class="px-1 py-0.5 rounded bg-black/50 border border-emerald-500/40 text-[8.5px] font-mono font-bold leading-none text-emerald-300"
+								>
+									R
 								</span>
 							</button>
 							<div class="{tipClass} left-1/2 -translate-x-1/2">
@@ -660,18 +687,17 @@
 							</div>
 						</div>
 					{/if}
-					<!-- Sell button in slot 11 -->
-					<div class="relative group/tip col-start-3">
+					<div class="relative group/tip w-full shrink-0">
 						<button
 							onclick={() => onSellBuilding?.(placedBuilding.instanceId)}
 							data-testid="hud-sell-btn"
-							class="relative w-16 h-10 rounded border border-rose-600/70 bg-rose-950/60 hover:bg-rose-900/80 text-rose-200 flex flex-col items-center justify-center p-1 transition cursor-pointer"
+							class="relative w-full min-h-[32px] rounded-lg border border-rose-500/65 bg-gradient-to-b from-rose-950/80 to-[#1a0b11] hover:from-rose-900/85 hover:to-rose-950 text-rose-200 flex items-center justify-between gap-2 px-2.5 py-1 transition cursor-pointer touch-manipulation shadow"
 						>
-							<span class="text-[10px] font-bold flex items-center gap-0.5">
-								<UiIcon name="trash2" class="w-3 h-3 text-rose-400" />
-								Знести
+							<span class="text-[10.5px] font-bold flex items-center gap-1.5">
+								<UiIcon name="trash2" class="w-3.5 h-3.5 text-rose-400 shrink-0" />
+								<span>Знести</span>
 							</span>
-							<span class="text-[9px] text-emerald-300 font-mono font-bold">
+							<span class="text-[10px] text-emerald-300 font-mono font-bold">
 								+{Math.floor(placedBuilding.goldCost * 0.5)}g
 							</span>
 						</button>
@@ -679,8 +705,8 @@
 							Знести споруду (+50% повернення золота)
 						</div>
 					</div>
-				{/if}
-			</div>
+				</div>
+			{/if}
 		{:else}
 			<!-- Enemy building inspection: spawned unit combat stats only -->
 			<div class="flex flex-col justify-center w-[280px] h-full py-1">

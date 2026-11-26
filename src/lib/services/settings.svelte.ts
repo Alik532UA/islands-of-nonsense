@@ -1,5 +1,7 @@
 import { untrack } from 'svelte';
+import { resolve } from '$app/paths';
 import { storage } from './storage';
+import { formatRaceName } from '$lib/engine/gameData';
 import { bindReactiveLocale, getLocale, setLocale, type Locale } from '$lib/i18n';
 import { sound, music, SOUND_PACKS, MUSIC_TRACKS, type SoundPack, type MusicTrack } from './audio';
 export { SOUND_PACKS, MUSIC_TRACKS, type SoundPack, type MusicTrack };
@@ -33,6 +35,85 @@ export const UI_LAYOUT_PRESETS: readonly UiLayoutPreset[] = [
 	'islands-of-nonsense',
 	'warcraft3'
 ] as const;
+
+export const RACE_CURSORS = [
+	'human',
+	'orc',
+	'undead',
+	'elf',
+	'demon',
+	'north',
+	'celestial',
+	'troll',
+	'elemental',
+	'beast',
+	'naga',
+	'mech'
+] as const;
+export type RaceCursor = (typeof RACE_CURSORS)[number];
+export type CursorStyle = 'adaptive' | 'random' | 'default' | RaceCursor;
+export const CURSOR_STYLES: readonly CursorStyle[] = [
+	'adaptive',
+	'random',
+	'default',
+	...RACE_CURSORS
+] as const;
+
+const RACE_TO_CURSOR_SLUG: Record<string, RaceCursor> = {
+	Альянс: 'human',
+	Люди: 'human',
+	Орки: 'orc',
+	Нежить: 'undead',
+	Порча: 'undead',
+	Ельфи: 'elf',
+	'Нічні ельфи': 'elf',
+	Демони: 'demon',
+	Хаос: 'demon',
+	Північ: 'north',
+	Небожителі: 'celestial',
+	Тролі: 'troll',
+	Елементалі: 'elemental',
+	Тварини: 'beast',
+	Наги: 'naga',
+	Техніки: 'mech',
+	Збирачі: 'mech'
+};
+
+function detectInitialCursorStyle(): CursorStyle {
+	const saved = storage.getJSON<CursorStyle>('settings_cursor_style', 'adaptive');
+	if (CURSOR_STYLES.includes(saved)) {
+		return saved;
+	}
+	return 'adaptive';
+}
+
+function resolveActiveCursor(
+	style: CursorStyle,
+	adaptiveRaceSlug: RaceCursor | null = null
+): RaceCursor | 'default' {
+	if (style === 'adaptive') {
+		return adaptiveRaceSlug ?? RACE_CURSORS[Math.floor(Math.random() * RACE_CURSORS.length)];
+	}
+	if (style === 'random') {
+		return RACE_CURSORS[Math.floor(Math.random() * RACE_CURSORS.length)];
+	}
+	return style;
+}
+
+function applyCursorStyle(resolved: RaceCursor | 'default'): void {
+	if (typeof document === 'undefined') return;
+	if (resolved === 'default') {
+		document.documentElement.removeAttribute('data-custom-cursor');
+		document.documentElement.style.removeProperty('--game-cursor');
+		return;
+	}
+	const base = resolve('/').replace(/\/$/, '');
+	document.documentElement.setAttribute('data-custom-cursor', resolved);
+	document.documentElement.style.setProperty(
+		'--game-cursor',
+		`url('${base}/cursors/${resolved}.svg') 4 2, auto`
+	);
+}
 
 function detectInitialControlPreset(): ControlPreset {
 	const saved = storage.getJSON<ControlPreset>('settings_control_preset', 'islands-of-nonsense');
@@ -142,6 +223,8 @@ class SettingsService {
 	#musicEnabled = $state(storage.getJSON<boolean>('settings_music_enabled', true));
 	#musicVolume = $state(storage.getJSON<number>('settings_music_volume', 0.02));
 	#musicTrack = $state<MusicTrack>(detectInitialMusicTrack());
+	#voiceEnabled = $state(storage.getJSON<boolean>('settings_voice_enabled', true));
+	#voiceVolume = $state(storage.getJSON<number>('settings_voice_volume', 0.15));
 	#locale = $state<Locale>(detectInitialLocale());
 	#uiScale = $state<UiScale>(detectInitialUiScale());
 	#theme = $state<AppTheme>(detectInitialTheme());
@@ -149,6 +232,9 @@ class SettingsService {
 	#buildQueueMode = $state<BuildQueueMode>(detectInitialBuildQueueMode());
 	#controlPreset = $state<ControlPreset>(detectInitialControlPreset());
 	#uiLayoutPreset = $state<UiLayoutPreset>(detectInitialUiLayoutPreset());
+	#cursorStyle = $state<CursorStyle>(detectInitialCursorStyle());
+	#adaptiveCursorRace = $state<RaceCursor | null>(null);
+	#activeCursor = $state<RaceCursor | 'default'>('default');
 	#isSettingsOpen = $state(false);
 
 	constructor() {
@@ -159,8 +245,12 @@ class SettingsService {
 		music.setEnabled(this.#musicEnabled && !this.#muted);
 		music.setVolume(this.#musicVolume);
 		music.setTrack(this.#musicTrack);
+		sound.setVoiceEnabled(this.#voiceEnabled && !this.#muted);
+		sound.setVoiceVolume(this.#voiceVolume);
 		applyUiScale(this.#uiScale);
 		applyTheme(this.#theme);
+		this.#activeCursor = resolveActiveCursor(this.#cursorStyle);
+		applyCursorStyle(this.#activeCursor);
 		bindReactiveLocale(
 			() => this.#locale,
 			(loc) => {
@@ -185,7 +275,7 @@ class SettingsService {
 	}
 
 	get isAudioActive(): boolean {
-		return !this.#muted && (this.#sound || this.#musicEnabled);
+		return !this.#muted && (this.#sound || this.#musicEnabled || this.#voiceEnabled);
 	}
 
 	get sound(): boolean {
@@ -210,6 +300,14 @@ class SettingsService {
 
 	get musicTrack(): MusicTrack {
 		return this.#musicTrack;
+	}
+
+	get voiceEnabled(): boolean {
+		return this.#voiceEnabled;
+	}
+
+	get voiceVolume(): number {
+		return this.#voiceVolume;
 	}
 
 	get locale(): Locale {
@@ -240,6 +338,14 @@ class SettingsService {
 		return this.#uiLayoutPreset;
 	}
 
+	get cursorStyle(): CursorStyle {
+		return this.#cursorStyle;
+	}
+
+	get activeCursor(): RaceCursor | 'default' {
+		return this.#activeCursor;
+	}
+
 	get isSettingsOpen(): boolean {
 		return this.#isSettingsOpen;
 	}
@@ -248,6 +354,7 @@ class SettingsService {
 		this.#muted = muted;
 		storage.setJSON('settings_muted', muted);
 		sound.setEnabled(this.#sound && !this.#muted);
+		sound.setVoiceEnabled(this.#voiceEnabled && !this.#muted);
 		music.setEnabled(this.#musicEnabled && !this.#muted);
 	}
 
@@ -255,11 +362,13 @@ class SettingsService {
 		if (this.isAudioActive) {
 			this.setMuted(true);
 		} else {
-			if (!this.#sound && !this.#musicEnabled) {
+			if (!this.#sound && !this.#musicEnabled && !this.#voiceEnabled) {
 				this.#sound = true;
 				this.#musicEnabled = true;
+				this.#voiceEnabled = true;
 				storage.setJSON('settings_sound_fx', true);
 				storage.setJSON('settings_music_enabled', true);
+				storage.setJSON('settings_voice_enabled', true);
 			}
 			this.setMuted(false);
 		}
@@ -271,6 +380,7 @@ class SettingsService {
 		if (enabled && this.#muted) {
 			this.#muted = false;
 			storage.setJSON('settings_muted', false);
+			sound.setVoiceEnabled(this.#voiceEnabled);
 			music.setEnabled(this.#musicEnabled);
 		}
 		sound.setEnabled(this.#sound && !this.#muted);
@@ -298,8 +408,28 @@ class SettingsService {
 			this.#muted = false;
 			storage.setJSON('settings_muted', false);
 			sound.setEnabled(this.#sound);
+			sound.setVoiceEnabled(this.#voiceEnabled);
 		}
 		music.setEnabled(this.#musicEnabled && !this.#muted);
+	}
+
+	setVoiceEnabled(enabled: boolean): void {
+		this.#voiceEnabled = enabled;
+		storage.setJSON('settings_voice_enabled', enabled);
+		if (enabled && this.#muted) {
+			this.#muted = false;
+			storage.setJSON('settings_muted', false);
+			sound.setEnabled(this.#sound);
+			music.setEnabled(this.#musicEnabled);
+		}
+		sound.setVoiceEnabled(this.#voiceEnabled && !this.#muted);
+	}
+
+	setVoiceVolume(vol: number): void {
+		const clamped = Math.max(0, Math.min(1, vol));
+		this.#voiceVolume = clamped;
+		storage.setJSON('settings_voice_volume', clamped);
+		sound.setVoiceVolume(clamped);
 	}
 
 	setMusicVolume(vol: number): void {
@@ -333,6 +463,29 @@ class SettingsService {
 		this.#theme = theme;
 		storage.setJSON('settings_theme', theme);
 		applyTheme(theme);
+	}
+
+	setCursorStyle(style: CursorStyle): void {
+		if (!CURSOR_STYLES.includes(style)) return;
+		this.#cursorStyle = style;
+		storage.setJSON('settings_cursor_style', style);
+		this.#activeCursor = resolveActiveCursor(style, this.#adaptiveCursorRace);
+		applyCursorStyle(this.#activeCursor);
+	}
+
+	/**
+	 * Updates the active cursor to match the player's current in-game race
+	 * when cursorStyle is set to 'adaptive'.
+	 */
+	syncAdaptiveCursorRace(race: string | null | undefined): void {
+		if (!race) return;
+		const slug = RACE_TO_CURSOR_SLUG[race] ?? RACE_TO_CURSOR_SLUG[formatRaceName(race)];
+		if (!slug) return;
+		this.#adaptiveCursorRace = slug;
+		if (this.#cursorStyle === 'adaptive' && this.#activeCursor !== slug) {
+			this.#activeCursor = slug;
+			applyCursorStyle(slug);
+		}
 	}
 
 	setGraphicsStyle(style: GraphicsStyle): void {

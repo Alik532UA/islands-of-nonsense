@@ -73,4 +73,19 @@ describe('Smooth RTS Camera Panning (WASD & Arrows)', () => {
 		expect(arenaContent).not.toContain('cameraY - 240');
 		expect(arenaContent).not.toContain('cameraY + 240');
 	});
+
+	it('ArenaRenderer tracks edge-scrolling mousemove on window so HUD overlays do not block edge pan', () => {
+		const rendererContent = readFileSync(
+			resolve(process.cwd(), 'src/lib/renderer/ArenaRenderer.ts'),
+			'utf8'
+		);
+
+		expect(rendererContent).toContain(
+			"window.addEventListener('mousemove', this.windowMouseMoveHandler)"
+		);
+		expect(rendererContent).toContain(
+			"window.removeEventListener('mousemove', this.windowMouseMoveHandler)"
+		);
+		expect(rendererContent).toContain("window.addEventListener('blur', this.windowBlurHandler)");
+	});
 });

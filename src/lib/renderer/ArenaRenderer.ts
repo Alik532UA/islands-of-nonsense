@@ -141,6 +141,9 @@ export class ArenaRenderer {
 	private mouseScreenX = 0;
 	private mouseScreenY = 0;
 	private isMouseOverCanvas = false;
+	private windowMouseMoveHandler: ((e: MouseEvent) => void) | null = null;
+	private windowBlurHandler: (() => void) | null = null;
+	private documentMouseLeaveHandler: (() => void) | null = null;
 	private keyPan: CameraPanInput = { left: false, right: false, up: false, down: false };
 	private camVelX = 0;
 	private camVelY = 0;
@@ -768,23 +771,31 @@ export class ArenaRenderer {
 			this.isMouseOverCanvas = true;
 		});
 
-		// 3. Mouse Move
-		canvas.addEventListener('mousemove', (e: MouseEvent) => {
+		// 3. Mouse Move (tracked on window so edge-scrolling still works over HUD menus)
+		this.windowMouseMoveHandler = (e: MouseEvent) => {
 			const rect = canvas.getBoundingClientRect();
 			const mouseScreenX = e.clientX - rect.left;
 			const mouseScreenY = e.clientY - rect.top;
+			const insideBounds =
+				rect.width > 0 &&
+				rect.height > 0 &&
+				e.clientX >= rect.left &&
+				e.clientX <= rect.right &&
+				e.clientY >= rect.top &&
+				e.clientY <= rect.bottom;
 			this.mouseScreenX = mouseScreenX;
 			this.mouseScreenY = mouseScreenY;
-			this.isMouseOverCanvas = true;
+			this.isMouseOverCanvas = insideBounds;
+
 			const world = this.screenToWorld(mouseScreenX, mouseScreenY);
-			this.hoveredWorld = { x: world.x, y: world.y };
 
 			// Panning
 			if (this.isPanning) {
 				const dx = (e.clientX - this.panStartX) / this.zoom;
 				const dy = (e.clientY - this.panStartY) / this.zoom;
 				this.cameraX = Math.max(100, Math.min(ARENA_WIDTH - 100, this.panStartCamX - dx));
-				this.cameraY = Math.max(100, Math.min(ARENA_HEIGHT - 100, this.panStartCamY - dy));
+				const dyClamped = Math.max(100, Math.min(ARENA_HEIGHT - 100, this.panStartCamY - dy));
+				this.cameraY = dyClamped;
 				this.onCameraChange?.(this.cameraX, this.cameraY, this.zoom);
 				return;
 			}
@@ -797,6 +808,14 @@ export class ArenaRenderer {
 					this.boxCurrentWorld = { x: world.x, y: world.y };
 				}
 			}
+
+			if (e.target !== canvas) {
+				this.hoveredTile = null;
+				this.hoveredWorld = null;
+				return;
+			}
+
+			this.hoveredWorld = { x: world.x, y: world.y };
 
 			// Hovered Tile calculation on Active Island Platform (Warcraft III Grid Planning with GRID_STEP = 32px)
 			if (this.getSelectedBuildingDefId()) {
@@ -815,7 +834,23 @@ export class ArenaRenderer {
 			} else {
 				this.hoveredTile = null;
 			}
-		});
+		};
+		window.addEventListener('mousemove', this.windowMouseMoveHandler);
+
+		this.windowBlurHandler = () => {
+			this.isMouseOverCanvas = false;
+			this.isPanning = false;
+			this.isBoxSelecting = false;
+			this.boxStartWorld = null;
+		};
+		window.addEventListener('blur', this.windowBlurHandler);
+
+		this.documentMouseLeaveHandler = () => {
+			this.isMouseOverCanvas = false;
+		};
+		if (typeof document !== 'undefined' && document.documentElement) {
+			document.documentElement.addEventListener('mouseleave', this.documentMouseLeaveHandler);
+		}
 
 		// 4. Mouse Up / Click
 		this.windowMouseUpHandler = (e: MouseEvent) => {
@@ -869,10 +904,10 @@ export class ArenaRenderer {
 		window.addEventListener('mouseup', this.windowMouseUpHandler);
 
 		canvas.addEventListener('mouseleave', () => {
-			this.isMouseOverCanvas = false;
+			// Do not clear isMouseOverCanvas here: HUD overlays (e.g. hud-quick-focus-dock)
+			// trigger canvas mouseleave while the cursor is still at the screen edge.
 			this.hoveredTile = null;
 			this.hoveredWorld = null;
-			this.isPanning = false;
 			this.isBoxSelecting = false;
 			this.boxStartWorld = null;
 		});
@@ -1362,6 +1397,22 @@ export class ArenaRenderer {
 		if (typeof window !== 'undefined' && this.windowMouseUpHandler) {
 			window.removeEventListener('mouseup', this.windowMouseUpHandler);
 			this.windowMouseUpHandler = null;
+		}
+		if (typeof window !== 'undefined' && this.windowMouseMoveHandler) {
+			window.removeEventListener('mousemove', this.windowMouseMoveHandler);
+			this.windowMouseMoveHandler = null;
+		}
+		if (typeof window !== 'undefined' && this.windowBlurHandler) {
+			window.removeEventListener('blur', this.windowBlurHandler);
+			this.windowBlurHandler = null;
+		}
+		if (
+			typeof document !== 'undefined' &&
+			document.documentElement &&
+			this.documentMouseLeaveHandler
+		) {
+			document.documentElement.removeEventListener('mouseleave', this.documentMouseLeaveHandler);
+			this.documentMouseLeaveHandler = null;
 		}
 		if (this.tickerFn && this.app?.ticker) {
 			this.app.ticker.remove(this.tickerFn);

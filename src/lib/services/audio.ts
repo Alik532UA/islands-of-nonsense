@@ -85,6 +85,8 @@ export class SoundService {
 	private ctx: AudioContext | null = null;
 	private enabled = true;
 	private volume = 0.5;
+	private voiceEnabled = true;
+	private voiceVolume = 0.15;
 	private pack: SoundPack = '8-bit';
 	private sampleCache = new Map<string, AudioBuffer | 'loading' | 'failed'>();
 	private voiceCache = new Map<string, AudioBuffer | 'loading' | 'failed'>();
@@ -1009,6 +1011,28 @@ export class SoundService {
 		this.playWorkerAck();
 	}
 
+	public setVoiceEnabled(flag: boolean): void {
+		this.voiceEnabled = flag;
+		if (!flag) {
+			this.stopActiveVoice();
+		}
+	}
+
+	public isVoiceEnabled(): boolean {
+		return this.voiceEnabled;
+	}
+
+	public setVoiceVolume(val: number): void {
+		this.voiceVolume = Math.max(0, Math.min(1, val));
+		if (this.voiceVolume <= 0) {
+			this.stopActiveVoice();
+		}
+	}
+
+	public getVoiceVolume(): number {
+		return this.voiceVolume;
+	}
+
 	private stopActiveVoice(): void {
 		this.pendingVoiceUrl = null;
 		if (this.activeVoiceSource) {
@@ -1022,7 +1046,7 @@ export class SoundService {
 	}
 
 	private playVoiceBuffer(buf: AudioBuffer): void {
-		if (!this.enabled || this.volume <= 0) return;
+		if (!this.voiceEnabled || this.voiceVolume <= 0) return;
 		const ctx = this.getContext();
 		if (!ctx) return;
 
@@ -1030,7 +1054,7 @@ export class SoundService {
 		const src = ctx.createBufferSource();
 		src.buffer = buf;
 		const gain = ctx.createGain();
-		gain.gain.setValueAtTime(Math.min(1, this.volume * 1.4), ctx.currentTime);
+		gain.gain.setValueAtTime(Math.min(1, this.voiceVolume), ctx.currentTime);
 		src.connect(gain);
 		gain.connect(ctx.destination);
 		src.onended = () => {
@@ -1059,7 +1083,7 @@ export class SoundService {
 			}
 			const decoded = await ctx.decodeAudioData(arr);
 			this.voiceCache.set(urlPath, decoded);
-			if (this.pendingVoiceUrl === urlPath && this.enabled && this.volume > 0) {
+			if (this.pendingVoiceUrl === urlPath && this.voiceEnabled && this.voiceVolume > 0) {
 				this.playVoiceBuffer(decoded);
 			}
 		} catch {
@@ -1068,7 +1092,7 @@ export class SoundService {
 	}
 
 	private playVoiceUrl(urlPath: string): void {
-		if (!this.enabled || this.volume <= 0) return;
+		if (!this.voiceEnabled || this.voiceVolume <= 0) return;
 		const now = Date.now();
 		if (now - this.lastVoicePlayedAt < 450) return;
 		this.lastVoicePlayedAt = now;
@@ -1089,7 +1113,7 @@ export class SoundService {
 	 * та випадковим вибором з 5 варіантів без повторів поспіль.
 	 */
 	public playWorkerVoice(race: string): void {
-		if (!this.enabled || this.volume <= 0) return;
+		if (!this.voiceEnabled || this.voiceVolume <= 0) return;
 		const now = Date.now();
 		if (this.lastWorkerVoiceAt > 0 && now - this.lastWorkerVoiceAt < WORKER_VOICE_COOLDOWN_MS) {
 			return;
@@ -1110,7 +1134,7 @@ export class SoundService {
 	 * випадковий вибір із 3 унікальних варіантів без повторів поспіль.
 	 */
 	public playUnitVoice(unitId: string): void {
-		if (!unitId || !this.enabled || this.volume <= 0) return;
+		if (!unitId || !this.voiceEnabled || this.voiceVolume <= 0) return;
 		const prev = this.lastUnitVariantById.get(unitId);
 		let variant = Math.floor(Math.random() * UNIT_VOICE_VARIANTS) + 1;
 		if (UNIT_VOICE_VARIANTS > 1 && variant === prev) {
