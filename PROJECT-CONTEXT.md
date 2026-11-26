@@ -35,7 +35,7 @@
 - **Headless-турніри та баланс**: Автоматизований рушій `HeadlessBalanceRunner` (`src/lib/engine/balanceRunner.ts`) для симуляції сотень тіків між ботами без DOM за мілісекунди (`npm run test:balance`).
 - **Тактичний бот-супротивник**: Автономний штучний інтелект `BotAI.ts` із динамічними ярусами цін (Tier 0..4), контр-піками типів броні, пріоритетом ППО проти літаючих юнітів та штрафом за дублікати будівель (-60 очок).
 - **Безпека Firebase RTDB**: Повна фіксація схеми через `$other: false` на 11 критичних вузлах, валідація часових вікон серверного часу `now - 60000`, захист чату і присутності, 41 інваріантів у гейті `check:rules` та семантичний штамп `rules:stamp`.
-- **Контроль розміру бандлу**: Скрипт `scripts/check-bundle.mjs` у воркфлоу `budgets.yml` (ліміт: 180 KB initial entry, 640 KB gzip JS з PixiJS і Firebase та 60 KB CSS).
+- **Контроль розміру бандлу**: Скрипт `scripts/check-bundle.mjs` у воркфлоу `budgets.yml` (ліміт: 180 KB initial entry, 960 KB gzip JS з PixiJS і Firebase та 60 KB CSS).
 
 ---
 
@@ -183,7 +183,7 @@ $$DR = \frac{0.06 \times Armor}{1 + 0.06 \times |Armor|}$$
 | `npm run test:balance` | GATE-BALANCE-SIM   | Headless прогін бот-турніру симуляції балансу без DOM                                           |
 | `npm run test:e2e`     | GATE-A11Y-AXE      | Playwright E2E автоматизовані браузерні тести та WCAG 2.2 AA аудит                              |
 | `npm run check:build`  | GATE-BUILD-OUTPUT  | Автоматичний гейт зібраного проєкту (`build/index.html`, `build/404.html`)                      |
-| `npm run check:bundle` | GATE-BUNDLE-BUDGET | Контроль ваги бандлу JS (<180 KB entry / <640 KB gzip з PixiJS і Firebase) та CSS (<60 KB gzip) |
+| `npm run check:bundle` | GATE-BUNDLE-BUDGET | Контроль ваги бандлу JS (<180 KB entry / <960 KB gzip з PixiJS і Firebase) та CSS (<60 KB gzip) |
 | `npm run audit:ci`     | GATE-AUDIT         | Автоматичний аудит безпеки npm-пакетів                                                          |
 | `lhci autorun`         | GATE-LIGHTHOUSE    | Lighthouse CI аудит швидкодії, доступності (minScore: 0.9), SEO та кращих практик               |
 
@@ -224,7 +224,7 @@ $$DR = \frac{0.06 \times Armor}{1 + 0.06 \times |Armor|}$$
 | **ERROR-HANDLING**    |     Так     | `<svelte:boundary>`, `ErrorFallback.svelte`                                                                                                                 |
 | **PURE-SIMULATION**   |     Так     | Ізольований детермінований рушій `src/lib/engine/`                                                                                                          |
 | **LIGHTHOUSE**        |     Так     | `lighthouserc.cjs` з мінімальним порогом 0.9                                                                                                                |
-| **BUNDLE-BUDGET**     |     Так     | `scripts/check-bundle.mjs`, поріг 180 KB entry / 640 KB gzip                                                                                                |
+| **BUNDLE-BUDGET**     |     Так     | `scripts/check-bundle.mjs`, поріг 180 KB entry / 960 KB gzip                                                                                                |
 | **DEBUGGING**         |     Так     | logService (кільцевий буфер 1000, 200 у сесії), ServiceBadge, redact PII, ErrorLogModal, 55x V/R жести, hardReset/ownScope, 5 Vitest сьютів (DEBUGGING-v10) |
 
 ---

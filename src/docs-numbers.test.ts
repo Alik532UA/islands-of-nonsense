@@ -20,12 +20,12 @@ describe('Docs Numbers & Facts Consistency (AI-AGENT-PITFALLS-v10)', () => {
 		expect(context).toContain('$other: false` на 11 критичних вузлах');
 	});
 
-	it('PROJECT-CONTEXT.md описує ліміт бандлу 180 KB entry / 640 KB total gzip, що відповідає scripts/check-bundle.mjs', () => {
+	it('PROJECT-CONTEXT.md описує ліміт бандлу 180 KB entry / 960 KB total gzip, що відповідає scripts/check-bundle.mjs', () => {
 		const context = readFileSync(resolve(root, 'PROJECT-CONTEXT.md'), 'utf-8');
 		const bundleScript = readFileSync(resolve(root, 'scripts/check-bundle.mjs'), 'utf-8');
-		expect(context).toContain('640 KB gzip');
+		expect(context).toContain('960 KB gzip');
 		expect(context).toContain('180 KB');
-		expect(bundleScript).toContain('640');
+		expect(bundleScript).toContain('960');
 		expect(bundleScript).toContain('180');
 	});
 

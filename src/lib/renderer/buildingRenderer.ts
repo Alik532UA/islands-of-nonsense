@@ -17,7 +17,7 @@ import {
 	shadeHexColor,
 	type SunShadowOffset
 } from './buildingModels';
-import { rc, rr, ci, pg, ln } from './gfx';
+import { rc, rr, ci, el, pg, ln } from './gfx';
 
 /**
  * BuildingRenderer handles rendering of placed buildings, construction scaffolding,
@@ -274,213 +274,104 @@ export class BuildingRenderer {
 		const top = cy - wallH / 2;
 		const gateDir = isWest ? 1 : -1;
 
-		// Зовнішній рів / аура раси
-		if (style === 'Наги') {
-			rr(g, left - 12, top - 12, wallW + 24, wallH + 24, 24, 0x0c4a6e, {
-				color: 0x22d3ee,
-				width: 2.5
-			});
-		} else if (style === 'Демони') {
-			rr(g, left - 10, top - 10, wallW + 20, wallH + 20, 20, 0x7c2d12, {
-				color: 0xf97316,
-				width: 2.2
-			});
-		} else if (style === 'Нежить') {
-			rr(g, left - 9, top - 9, wallW + 18, wallH + 18, 18, 0x052e16, {
-				color: 0x22c55e,
-				width: 1.8
-			});
-		} else if (style === 'Елементалі') {
-			ci(g, cx, cy, 134, 0x0f172a, { color: 0x38bdf8, width: 2 }, 0.65);
-		}
 		if (isSelected) {
 			const col = isWest ? 0xfbbf24 : 0xf43f5e;
 			rr(
 				g,
-				left - 10,
-				top - 10,
-				wallW + 20,
-				wallH + 20,
-				22,
+				left - 12,
+				top - 12,
+				wallW + 24,
+				wallH + 24,
+				28,
 				{ color: col, alpha: 0.14 },
 				{ color: col, width: 3.5, alpha: 0.72 + Math.sin(time * 5) * 0.2 }
 			);
 		}
 
-		rr(
-			g,
-			left + sunShadow.dx * 1.65,
-			top + sunShadow.dy * 1.75,
-			wallW,
-			wallH,
-			16,
-			0x000000,
-			undefined,
-			Math.min(0.52, sunShadow.alpha + 0.05)
-		);
-
-		const wallRadius =
-			style === 'Ельфи' || style === 'Наги'
-				? 28
-				: style === 'Орки' || style === 'Тварини'
-					? 22
-					: 14;
-		rr(g, left - 4, top + 6, wallW + 8, wallH + 4, wallRadius + 2, 0x292524);
-		rr(g, left, top, wallW, wallH, wallRadius, pal ? pal.wallDark : 0x6b6661, {
-			color: pal ? pal.wallTrim : 0x1c1917,
-			width: 3
-		});
-		rr(
-			g,
-			left + 4,
-			top + 4,
-			wallW - 8,
-			wallH - 12,
-			Math.max(8, wallRadius - 3),
-			pal ? pal.wall : 0x857f79
-		);
-
-		// Характерні деталі стін
-		if (style === 'Орки' || style === 'Тварини') {
-			// Частокіл / гострі кілки по периметру
-			for (let sx = left + 18; sx < left + wallW - 14; sx += 16) {
-				pg(g, [sx - 4, top + 2, sx, top - 9, sx + 4, top + 2], 0x92400e, {
-					color: 0x451a03,
-					width: 1.2
-				});
-				pg(g, [sx - 4, top + wallH - 2, sx, top + wallH + 8, sx + 4, top + wallH - 2], 0x78350f, {
-					color: 0x451a03,
-					width: 1.2
-				});
+		if (style === 'Альянс') {
+			// Класична прямокутна кам'яна королівська фортеця
+			rr(
+				g,
+				left + sunShadow.dx * 1.65,
+				top + sunShadow.dy * 1.75,
+				wallW,
+				wallH,
+				16,
+				0x000000,
+				undefined,
+				Math.min(0.52, sunShadow.alpha + 0.05)
+			);
+			rr(g, left - 4, top + 6, wallW + 8, wallH + 4, 16, 0x292524);
+			rr(g, left, top, wallW, wallH, 14, pal ? pal.wallDark : 0x6b6661, {
+				color: pal ? pal.wallTrim : 0x1c1917,
+				width: 3
+			});
+			rr(g, left + 4, top + 4, wallW - 8, wallH - 12, 11, pal ? pal.wall : 0x857f79);
+			const baileyW = wallW - 36;
+			const baileyH = wallH - 40;
+			rr(g, cx - baileyW / 2, cy - baileyH / 2, baileyW, baileyH, 8, 0x3f3a36, {
+				color: 0x292524,
+				width: 2.5
+			});
+			for (let bx = cx - baileyW / 2 + 16; bx < cx + baileyW / 2 - 8; bx += 22) {
+				ln(g, [bx, cy - baileyH / 2 + 2, bx, cy + baileyH / 2 - 2], 0x292524, 1, 0.55);
 			}
-		} else if (style === 'Техніки') {
-			// Заклепки та мідні труби
-			for (let sy = top + 28; sy < top + wallH - 22; sy += 28) {
-				ln(g, [left + 5, sy, left + 16, sy], 0xd97706, 2.2, 0.85);
-				ln(g, [left + wallW - 16, sy, left + wallW - 5, sy], 0xd97706, 2.2, 0.85);
+			for (let by = cy - baileyH / 2 + 16; by < cy + baileyH / 2 - 8; by += 22) {
+				ln(g, [cx - baileyW / 2 + 2, by, cx + baileyW / 2 - 2, by], 0x292524, 1, 0.55);
 			}
-		} else {
-			for (let sy = top + 28; sy < top + wallH - 22; sy += 28) {
-				ln(g, [left + 3, sy, left + 18, sy], 0x44403c, 1.5, 0.7);
-				ln(g, [left + wallW - 18, sy, left + wallW - 3, sy], 0x44403c, 1.5, 0.7);
+			for (let mx = left + 26; mx <= left + wallW - 36; mx += 22) {
+				rc(g, mx, top - 2, 11, 7, 0xa8a29e, { color: 0x292524, width: 1.2 });
+				rc(g, mx, top + wallH - 7, 11, 7, 0x78716c, { color: 0x1c1917, width: 1.2 });
 			}
-			for (let sx = left + 28; sx < left + wallW - 22; sx += 28) {
-				ln(g, [sx, top + 3, sx, top + 18], 0x44403c, 1.5, 0.7);
-				ln(g, [sx, top + wallH - 20, sx, top + wallH - 4], 0x44403c, 1.5, 0.7);
+			for (let my = top + 30; my <= top + wallH - 40; my += 24) {
+				if (isWest || Math.abs(my - cy) >= 34)
+					rc(g, left - 2, my, 7, 12, 0x9ca3af, { color: 0x292524, width: 1.2 });
+				if (!isWest || Math.abs(my - cy) >= 34)
+					rc(g, left + wallW - 5, my, 7, 12, 0x78716c, { color: 0x1c1917, width: 1.2 });
 			}
-		}
-
-		// Двір фортеці (унікальна підлога для рас)
-		const baileyW = wallW - 36;
-		const baileyH = wallH - 40;
-		const baileyFill =
-			style === 'Ельфи'
-				? 0x14532d
-				: style === 'Північ'
-					? 0x1e3a5f
-					: style === 'Нежить'
-						? 0x1e1b2e
-						: style === 'Демони'
-							? 0x2b1212
-							: style === 'Небожителі'
-								? 0x475569
-								: style === 'Наги'
-									? 0x0f3d4c
-									: 0x3f3a36;
-		rr(g, cx - baileyW / 2, cy - baileyH / 2, baileyW, baileyH, 10, baileyFill, {
-			color: 0x1c1917,
-			width: 2.5
-		});
-		if (style === 'Елементалі') {
-			// Енергетичні лінії від центру до 4 кутів стихій
-			const elCols = [0x4ade80, 0xf97316, 0x38bdf8, 0xa855f7];
-			const corners: Array<[number, number]> = [
+			this.drawCastleGateBridge(g, cx, cy, wallW, gateDir, 0x78350f, 0x94a3b8, 0xf97316);
+			this.drawRaceCastleKeep(
+				g,
+				cx,
+				cy,
+				cx - 57,
+				cy - 76,
+				114,
+				152,
+				style,
+				roofDark,
+				roofMid,
+				roofLight,
+				sunShadow,
+				time
+			);
+			const cornerCoords: Array<[number, number]> = [
 				[left + 12, top + 12],
 				[left + wallW - 12, top + 12],
 				[left + 12, top + wallH - 12],
 				[left + wallW - 12, top + wallH - 12]
 			];
-			corners.forEach(([tx, ty], i) => ln(g, [cx, cy, tx, ty], elCols[i], 2.2, 0.6));
+			cornerCoords.forEach(([tx, ty], idx) => {
+				this.drawRaceCornerTower(g, tx, ty, idx, style, roofDark, roofMid, roofLight, sunShadow);
+			});
 		} else {
-			for (let bx = cx - baileyW / 2 + 16; bx < cx + baileyW / 2 - 8; bx += 22) {
-				ln(g, [bx, cy - baileyH / 2 + 2, bx, cy + baileyH / 2 - 2], 0x1c1917, 1, 0.45);
-			}
-			for (let by = cy - baileyH / 2 + 16; by < cy + baileyH / 2 - 8; by += 22) {
-				ln(g, [cx - baileyW / 2 + 2, by, cx + baileyW / 2 - 2, by], 0x1c1917, 1, 0.45);
-			}
+			this.drawUniqueRaceCastleArchitecture(
+				g,
+				cx,
+				cy,
+				wallW,
+				wallH,
+				gateDir,
+				style,
+				roofDark,
+				roofMid,
+				roofLight,
+				sunShadow,
+				time
+			);
 		}
 
-		// Зубці стін (для кам'яних/класичних фортець)
-		if (style !== 'Орки' && style !== 'Тварини' && style !== 'Ельфи') {
-			const merlonCol = pal ? pal.wallTrim : 0xa8a29e;
-			for (let mx = left + 26; mx <= left + wallW - 36; mx += 22) {
-				rc(g, mx, top - 2, 11, 7, merlonCol, { color: 0x1c1917, width: 1.2 });
-				rc(g, mx, top + wallH - 7, 11, 7, merlonCol, { color: 0x1c1917, width: 1.2 });
-			}
-			for (let my = top + 30; my <= top + wallH - 40; my += 24) {
-				if (isWest || Math.abs(my - cy) >= 34)
-					rc(g, left - 2, my, 7, 12, merlonCol, { color: 0x1c1917, width: 1.2 });
-				if (!isWest || Math.abs(my - cy) >= 34)
-					rc(g, left + wallW - 5, my, 7, 12, merlonCol, { color: 0x1c1917, width: 1.2 });
-			}
-		}
-
-		// Ворота та міст
-		const gateCx = cx + gateDir * (wallW / 2 - 2);
-		const bridgeOutX = gateDir > 0 ? gateCx - 10 : gateCx - 38;
-		const bridgeCol = style === 'Техніки' ? 0x475569 : style === 'Небожителі' ? 0xe2e8f0 : 0x78350f;
-		rr(g, bridgeOutX, cy - 26, 48, 52, 4, bridgeCol, { color: 0x1c1917, width: 2.5 });
-		for (let px = bridgeOutX + 8; px < bridgeOutX + 44; px += 8)
-			ln(g, [px, cy - 24, px, cy + 24], 0x1c1917, 1.5, 0.7);
-		rr(g, gateCx - 11, cy - 24, 22, 48, 6, 0x181310, { color: 0x44403c, width: 2 });
-		for (let gy = cy - 18; gy <= cy + 18; gy += 9)
-			ln(g, [gateCx - 9, gy, gateCx + 9, gy], 0x94a3b8, 2);
-
-		const torchCol =
-			style === 'Нежить'
-				? 0x22c55e
-				: style === 'Північ'
-					? 0x38bdf8
-					: style === 'Наги'
-						? 0x2dd4bf
-						: 0xf97316;
-		for (const gy of [cy - 34, cy + 34]) {
-			rr(g, gateCx - 14, gy - 11, 28, 22, 6, 0x9ca3af, { color: 0x292524, width: 2 });
-			ci(g, gateCx + gateDir * 4, gy, 5.5, torchCol);
-			ci(g, gateCx + gateDir * 4, gy, 2.8, 0xfef08a);
-		}
-
-		// Унікальна центральна цитадель раси
-		const keepW = 114;
-		const keepH = 152;
-		const keepLeft = cx - keepW / 2;
-		const keepTop = cy - keepH / 2;
-		this.drawRaceCastleKeep(
-			g,
-			cx,
-			cy,
-			keepLeft,
-			keepTop,
-			keepW,
-			keepH,
-			style,
-			roofDark,
-			roofMid,
-			roofLight,
-			sunShadow,
-			time
-		);
-
-		// 4 унікальні кутові вежі раси
-		const cornerCoords: Array<[number, number]> = [
-			[left + 12, top + 12],
-			[left + wallW - 12, top + 12],
-			[left + 12, top + wallH - 12],
-			[left + wallW - 12, top + wallH - 12]
-		];
-		cornerCoords.forEach(([tx, ty], idx) => {
-			this.drawRaceCornerTower(g, tx, ty, idx, style, roofDark, roofMid, roofLight, sunShadow);
-		});
+		const keepTop = cy - 76;
 
 		const poleTopY = keepTop - 36;
 		const wave = Math.sin(time * 3.8 + (isWest ? 0 : 1.7)) * 3.5;
@@ -577,6 +468,459 @@ export class BuildingRenderer {
 				{ color: 0x38bdf8, width: 4, alpha: 0.85 }
 			);
 		}
+	}
+
+	private drawCastleGateBridge(
+		g: Graphics,
+		cx: number,
+		cy: number,
+		wallW: number,
+		gateDir: number,
+		bridgeCol: number,
+		grillCol: number,
+		torchCol: number
+	): void {
+		const gateCx = cx + gateDir * (wallW / 2 - 2);
+		const bridgeOutX = gateDir > 0 ? gateCx - 10 : gateCx - 38;
+		rr(g, bridgeOutX, cy - 24, 48, 48, 4, bridgeCol, { color: 0x1c1917, width: 2.2 });
+		for (let px = bridgeOutX + 8; px < bridgeOutX + 44; px += 8) {
+			ln(g, [px, cy - 22, px, cy + 22], 0x1c1917, 1.4, 0.65);
+		}
+		rr(g, gateCx - 10, cy - 22, 20, 44, 6, 0x181310, { color: 0x44403c, width: 2 });
+		for (let gy = cy - 16; gy <= cy + 16; gy += 8) {
+			ln(g, [gateCx - 8, gy, gateCx + 8, gy], grillCol, 2);
+		}
+		for (const gy of [cy - 30, cy + 30]) {
+			rr(g, gateCx - 12, gy - 9, 24, 18, 6, 0x475569, { color: 0x1c1917, width: 1.8 });
+			ci(g, gateCx + gateDir * 3, gy, 4.8, torchCol);
+			ci(g, gateCx + gateDir * 3, gy, 2.2, 0xfef08a);
+		}
+	}
+
+	private drawUniqueRaceCastleArchitecture(
+		g: Graphics,
+		cx: number,
+		cy: number,
+		wallW: number,
+		wallH: number,
+		gateDir: number,
+		style: string,
+		roofDark: number,
+		roofMid: number,
+		roofLight: number,
+		sunShadow: { dx: number; dy: number; alpha: number },
+		time: number
+	): void {
+		const left = cx - wallW / 2;
+		const top = cy - wallH / 2;
+		const right = cx + wallW / 2;
+		const bot = cy + wallH / 2;
+
+		if (style === 'Північ') {
+			// Восьмикутна крижана цитадель: сніговий двір + крижаний міст + 3 крижані шпилі
+			const octPts = [
+				left + 38,
+				top,
+				right - 38,
+				top,
+				right,
+				top + 46,
+				right,
+				bot - 46,
+				right - 38,
+				bot,
+				left + 38,
+				bot,
+				left,
+				bot - 46,
+				left,
+				top + 46
+			];
+			pg(g, octPts, 0x1e3a5f, { color: 0xbae6fd, width: 3.5 });
+			pg(
+				g,
+				[
+					left + 44,
+					top + 14,
+					right - 44,
+					top + 14,
+					right - 14,
+					top + 52,
+					right - 14,
+					bot - 52,
+					right - 44,
+					bot - 14,
+					left + 44,
+					bot - 14,
+					left + 14,
+					bot - 52,
+					left + 14,
+					top + 52
+				],
+				0x0f172a,
+				{ color: 0x38bdf8, width: 2 }
+			);
+			// Крижаний міст-кристал
+			const gx = cx + gateDir * (wallW / 2 - 4);
+			rr(g, gateDir > 0 ? gx - 8 : gx - 34, cy - 22, 42, 44, 6, 0x38bdf8, {
+				color: 0xe0f2fe,
+				width: 2
+			});
+			// Верхня та нижня крижані вежі + центральний Замерзлий Трон
+			for (const [tx, ty] of [
+				[left + 20, top + 24],
+				[right - 20, top + 24],
+				[left + 20, bot - 24],
+				[right - 20, bot - 24]
+			]) {
+				this.drawRaceCornerTower(g, tx, ty, 0, style, roofDark, roofMid, roofLight, sunShadow);
+			}
+			// Північний купол / Снігова печера зверху + Вівтар внизу + Крижаний трон у центрі
+			ci(g, cx, cy - 68, 28, 0x1e293b, { color: 0x7dd3fc, width: 2 });
+			ci(g, cx, cy - 68, 14, 0xbae6fd);
+			rr(g, cx - 26, cy + 48, 52, 34, 8, 0x1e3a5f, { color: 0x7dd3fc, width: 2 });
+			pg(g, [cx, cy - 42, cx + 38, cy, cx, cy + 42, cx - 38, cy], 0x0284c7, {
+				color: 0xe0f2fe,
+				width: 2.5
+			});
+			pg(g, [cx, cy - 24, cx + 18, cy, cx, cy + 24, cx - 18, cy], 0xbae6fd);
+			return;
+		}
+
+		if (style === 'Ельфи') {
+			// Живий лісовий гай без стін: органічний острів + 8 дерев + Місячний колодязь + Світове Дерево
+			ci(g, cx, cy, 108, 0x14532d, { color: 0x4ade80, width: 3 });
+			el(g, cx, cy - 66, 76, 44, 0x166534, { color: 0x4ade80, width: 2 });
+			el(g, cx, cy + 66, 76, 44, 0x166534, { color: 0x4ade80, width: 2 });
+			// Живі корені-арка біля входу
+			const gx = cx + gateDir * 94;
+			rr(g, gateDir > 0 ? gx - 8 : gx - 28, cy - 22, 36, 44, 14, 0x78350f, {
+				color: 0x4ade80,
+				width: 2
+			});
+			// Дерева по периметру
+			for (let a = 0; a < 8; a++) {
+				const ang = (a / 8) * Math.PI * 2 + 0.35;
+				const tx = cx + Math.cos(ang) * 86;
+				const ty = cy + Math.sin(ang) * 102;
+				ci(g, tx, ty, 19, 0x14532d, { color: 0x4ade80, width: 1.5 });
+				ci(g, tx - 3, ty - 3, 11, 0x22c55e);
+			}
+			// Місячний колодязь зверху
+			ci(g, cx, cy - 66, 22, 0x334155, { color: 0xfef08a, width: 2 });
+			ci(g, cx, cy - 66, 14, 0x38bdf8);
+			// Альтанка знизу
+			rr(g, cx - 24, cy + 48, 48, 30, 12, 0x3f6212, { color: 0xfde047, width: 1.8 });
+			// Світове Дерево у центрі
+			ci(g, cx - 18, cy - 16, 24, 0x15803d, { color: 0x4ade80, width: 1.5 });
+			ci(g, cx + 18, cy - 14, 24, 0x166534, { color: 0x4ade80, width: 1.5 });
+			ci(g, cx, cy + 16, 24, 0x166534, { color: 0x4ade80, width: 1.5 });
+			ci(g, cx, cy, 26, 0x22c55e, { color: 0xfef08a, width: 2.5 });
+			ci(g, cx, cy, 10, 0xfef08a);
+			return;
+		}
+
+		if (style === 'Небожителі') {
+			// Хрестоподібний мармуровий собор-цитадель із золотим куполом і 2 каплицями
+			rr(g, cx - 58, top, 116, wallH, 24, 0xe2e8f0, { color: 0xf59e0b, width: 3 });
+			rr(g, left, cy - 72, wallW, 144, 24, 0xe2e8f0, { color: 0xf59e0b, width: 3 });
+			rr(g, cx - 44, top + 14, 88, wallH - 28, 16, 0x334155, { color: 0xfbbf24, width: 1.5 });
+			rr(g, left + 14, cy - 58, wallW - 28, 116, 16, 0x334155, { color: 0xfbbf24, width: 1.5 });
+			// Золотий міст світла
+			const gx = cx + gateDir * (wallW / 2 - 4);
+			rr(g, gateDir > 0 ? gx - 8 : gx - 34, cy - 22, 42, 44, 6, 0xfef08a, {
+				color: 0xd97706,
+				width: 2
+			});
+			// 2 бічні каплиці (зверху й знизу)
+			ci(g, cx, cy - 78, 22, 0xf8fafc, { color: 0xf59e0b, width: 2.2 });
+			ci(g, cx, cy - 78, 10, 0xfbbf24);
+			ci(g, cx, cy + 78, 22, 0xf8fafc, { color: 0xf59e0b, width: 2.2 });
+			ci(g, cx, cy + 78, 10, 0xfbbf24);
+			// Крилатий Сонячний Собор у центрі
+			pg(g, [cx - 64, cy, cx - 20, cy - 24, cx - 20, cy + 24], 0xfef08a, {
+				color: 0xd97706,
+				width: 1.8
+			});
+			pg(g, [cx + 64, cy, cx + 20, cy - 24, cx + 20, cy + 24], 0xfef08a, {
+				color: 0xd97706,
+				width: 1.8
+			});
+			ci(g, cx, cy, 34, 0xfbbf24, { color: 0xfef08a, width: 2.5 });
+			ci(g, cx, cy, 15, 0xffffff, { color: 0xf59e0b, width: 2 });
+			return;
+		}
+
+		if (style === 'Нежить') {
+			// Некрополь: зрізана готична платформа на отруйній землі + Склеп + Храм Некромантії
+			rr(g, left - 8, top - 8, wallW + 16, wallH + 16, 28, 0x052e16, {
+				color: 0x22c55e,
+				width: 2
+			});
+			pg(g, [cx, top, right, top + 56, right - 14, bot, left + 14, bot, left, top + 56], 0x1e1b2e, {
+				color: 0x22c55e,
+				width: 2.5
+			});
+			this.drawCastleGateBridge(g, cx, cy, wallW - 8, gateDir, 0x312e81, 0xe2e8f0, 0x22c55e);
+			for (const [tx, ty] of [
+				[left + 16, top + 56],
+				[right - 16, top + 56],
+				[left + 24, bot - 16],
+				[right - 24, bot - 16]
+			]) {
+				this.drawRaceCornerTower(g, tx, ty, 0, style, roofDark, roofMid, roofLight, sunShadow);
+			}
+			// Склеп зверху + Вівтар внизу + Зікурат у центрі
+			rr(g, cx - 32, cy - 86, 64, 34, 6, 0x312e81, { color: 0x4ade80, width: 1.8 });
+			rr(g, cx - 28, cy + 52, 56, 32, 6, 0x1f2937, { color: 0x94a3b8, width: 1.8 });
+			this.drawRaceCastleKeep(
+				g,
+				cx,
+				cy,
+				cx - 46,
+				cy - 48,
+				92,
+				96,
+				style,
+				roofDark,
+				roofMid,
+				roofLight,
+				sunShadow,
+				time
+			);
+			return;
+		}
+
+		if (style === 'Орки') {
+			// Овальний укріплений табір Орди з дерев'яним частоколом + Зала Бійців + Шаманське шатро
+			el(g, cx, cy, 102, 128, 0x451a03, { color: 0x92400e, width: 4 });
+			el(g, cx, cy, 86, 110, 0x3f2718, { color: 0x1c1917, width: 2 });
+			for (let a = 0; a < 16; a++) {
+				const ang = (a / 16) * Math.PI * 2;
+				const sx = cx + Math.cos(ang) * 98;
+				const sy = cy + Math.sin(ang) * 124;
+				ci(g, sx, sy, 6, 0x78350f, { color: 0x1c1917, width: 1.5 });
+			}
+			this.drawCastleGateBridge(g, cx, cy, wallW - 10, gateDir, 0x6b3e1d, 0xfef3c7, 0xf97316);
+			// Шаманське шатро зверху + Кузня/вогнище знизу + Зала Вождів у центрі
+			ci(g, cx, cy - 72, 24, 0x581c87, { color: 0xfbbf24, width: 2 });
+			ci(g, cx, cy + 72, 22, 0x7c2d12, { color: 0xf97316, width: 2 });
+			ci(g, cx, cy + 72, 8, 0xfef08a);
+			this.drawRaceCastleKeep(
+				g,
+				cx,
+				cy,
+				cx - 48,
+				cy - 52,
+				96,
+				104,
+				style,
+				roofDark,
+				roofMid,
+				roofLight,
+				sunShadow,
+				time
+			);
+			return;
+		}
+
+		if (style === 'Демони') {
+			// Ромбовидна обсидіанова цитадель над лавою
+			pg(g, [cx, top - 8, right + 8, cy, cx, bot + 8, left - 8, cy], 0x7c2d12, {
+				color: 0xf97316,
+				width: 2.5
+			});
+			pg(g, [cx, top + 6, right - 6, cy, cx, bot - 6, left + 6, cy], 0x2a1414, {
+				color: 0xea580c,
+				width: 2.5
+			});
+			this.drawCastleGateBridge(g, cx, cy, wallW - 12, gateDir, 0x1c1917, 0xf97316, 0xfef08a);
+			// 2 вогняні клітки + центральна Пекельна Брама
+			rr(g, cx - 22, cy - 82, 44, 28, 4, 0x450a0a, { color: 0xf97316, width: 1.8 });
+			rr(g, cx - 22, cy + 54, 44, 28, 4, 0x450a0a, { color: 0xf97316, width: 1.8 });
+			this.drawRaceCastleKeep(
+				g,
+				cx,
+				cy,
+				cx - 50,
+				cy - 56,
+				100,
+				112,
+				style,
+				roofDark,
+				roofMid,
+				roofLight,
+				sunShadow,
+				time
+			);
+			return;
+		}
+
+		if (style === 'Техніки') {
+			// Броньований завод-бастіон зі сталевими крилами, трубами й шестернями
+			rr(g, left + 6, top + 12, wallW - 12, wallH - 24, 10, 0x1e293b, {
+				color: 0xd97706,
+				width: 3
+			});
+			rr(g, left - 4, cy - 52, wallW + 8, 104, 8, 0x334155, { color: 0x94a3b8, width: 2 });
+			this.drawCastleGateBridge(g, cx, cy, wallW, gateDir, 0x475569, 0xd97706, 0x38bdf8);
+			for (const [tx, ty] of [
+				[left + 16, top + 20],
+				[right - 16, top + 20],
+				[left + 16, bot - 20],
+				[right - 16, bot - 20]
+			]) {
+				this.drawRaceCornerTower(g, tx, ty, 0, style, roofDark, roofMid, roofLight, sunShadow);
+			}
+			this.drawRaceCastleKeep(
+				g,
+				cx,
+				cy,
+				cx - 54,
+				cy - 68,
+				108,
+				136,
+				style,
+				roofDark,
+				roofMid,
+				roofLight,
+				sunShadow,
+				time
+			);
+			return;
+		}
+
+		if (style === 'Тролі') {
+			// Ступінчаста теракотова піраміда-фортеця джунглів
+			rr(g, left + 8, top + 12, wallW - 16, wallH - 24, 16, 0x14532d, {
+				color: 0x2dd4bf,
+				width: 2.5
+			});
+			rr(g, left + 22, top + 28, wallW - 44, wallH - 56, 12, 0x78350f, {
+				color: 0xfbbf24,
+				width: 2
+			});
+			this.drawCastleGateBridge(g, cx, cy, wallW - 16, gateDir, 0x92400e, 0x2dd4bf, 0x14b8a6);
+			for (const [tx, ty] of [
+				[left + 20, top + 26],
+				[right - 20, top + 26],
+				[left + 20, bot - 26],
+				[right - 20, bot - 26]
+			]) {
+				this.drawRaceCornerTower(g, tx, ty, 0, style, roofDark, roofMid, roofLight, sunShadow);
+			}
+			this.drawRaceCastleKeep(
+				g,
+				cx,
+				cy,
+				cx - 48,
+				cy - 62,
+				96,
+				124,
+				style,
+				roofDark,
+				roofMid,
+				roofLight,
+				sunShadow,
+				time
+			);
+			return;
+		}
+
+		if (style === 'Елементалі') {
+			// Без зовнішньої стіни: 4 окремі стихійні острівці-вежі + промені до центрального Порталу
+			ci(g, cx, cy, 118, { color: 0x0f172a, alpha: 0.45 }, { color: 0x38bdf8, width: 2 });
+			const elCols = [0x4ade80, 0xf97316, 0x38bdf8, 0xa855f7];
+			const islands: Array<[number, number]> = [
+				[left + 26, top + 34],
+				[right - 26, top + 34],
+				[left + 26, bot - 34],
+				[right - 26, bot - 34]
+			];
+			islands.forEach(([tx, ty], i) => {
+				ln(g, [cx, cy, tx, ty], elCols[i], 3.5, 0.75);
+				ci(g, tx, ty, 28, 0x1e293b, { color: elCols[i], width: 2.5 });
+				this.drawRaceCornerTower(g, tx, ty, i, style, roofDark, roofMid, roofLight, sunShadow);
+			});
+			// Світловий міст
+			const gx = cx + gateDir * 88;
+			rr(g, gateDir > 0 ? gx - 8 : gx - 30, cy - 18, 38, 36, 12, 0x0f172a, {
+				color: 0x38bdf8,
+				width: 2
+			});
+			this.drawRaceCastleKeep(
+				g,
+				cx,
+				cy,
+				cx - 50,
+				cy - 50,
+				100,
+				100,
+				style,
+				roofDark,
+				roofMid,
+				roofLight,
+				sunShadow,
+				time
+			);
+			return;
+		}
+
+		if (style === 'Тварини') {
+			// Природний скелястий амфітеатр з валунів і колод
+			el(g, cx, cy, 100, 126, 0x3f6212, { color: 0x84cc16, width: 2.5 });
+			for (let a = 0; a < 10; a++) {
+				const ang = (a / 10) * Math.PI * 2;
+				const rx = cx + Math.cos(ang) * 88;
+				const ry = cy + Math.sin(ang) * 112;
+				ci(g, rx, ry, 20 + (a % 3) * 4, 0x57534e, { color: 0x1c1917, width: 2 });
+			}
+			this.drawCastleGateBridge(g, cx, cy, wallW - 14, gateDir, 0x78350f, 0xfef3c7, 0xf97316);
+			this.drawRaceCastleKeep(
+				g,
+				cx,
+				cy,
+				cx - 50,
+				cy - 60,
+				100,
+				120,
+				style,
+				roofDark,
+				roofMid,
+				roofLight,
+				sunShadow,
+				time
+			);
+			return;
+		}
+
+		// Наги: хвилястий кораловий палац у бірюзовій лагуні з перлинним мостом
+		el(g, cx, cy, 114, 140, 0x0c4a6e, { color: 0x22d3ee, width: 2.5 });
+		el(g, cx, cy, 94, 118, 0x0f766e, { color: 0x5eead4, width: 2.5 });
+		this.drawCastleGateBridge(g, cx, cy, wallW - 10, gateDir, 0x0891b2, 0xfde047, 0x22d3ee);
+		for (const [tx, ty] of [
+			[left + 26, top + 34],
+			[right - 26, top + 34],
+			[left + 26, bot - 34],
+			[right - 26, bot - 34]
+		]) {
+			this.drawRaceCornerTower(g, tx, ty, 0, style, roofDark, roofMid, roofLight, sunShadow);
+		}
+		this.drawRaceCastleKeep(
+			g,
+			cx,
+			cy,
+			cx - 52,
+			cy - 66,
+			104,
+			132,
+			style,
+			roofDark,
+			roofMid,
+			roofLight,
+			sunShadow,
+			time
+		);
 	}
 
 	private drawRaceCastleKeep(

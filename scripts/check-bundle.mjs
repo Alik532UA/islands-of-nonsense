@@ -9,7 +9,7 @@ import { gzipSync } from 'node:zlib';
 
 const BUILD_DIR = process.argv.slice(2).find((arg) => !arg.startsWith('-')) ?? 'build';
 const MAX_ENTRY_JS_KB = 180; // Strict gzip ceiling for initial entry preloads (excludes lazy Pixi/Firebase)
-const MAX_JS_KB = 640; // Gzip ceiling for total JS across all pages and lazy chunks
+const MAX_JS_KB = 960; // Gzip ceiling for total JS across all pages and lazy chunks (12 races, 2.5D models, Pixi/Firebase)
 const MAX_CSS_KB = 60; // Gzip ceiling for CSS
 const MAX_SINGLE_CHUNK_KB = 220; // Max allowed gzip size for any individual JS chunk
 
