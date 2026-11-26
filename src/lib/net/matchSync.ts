@@ -19,7 +19,7 @@ export interface MatchSyncOptions {
 	onPeerStatusChange?: (status: { peerUid: string; online: boolean }) => void;
 	onPeerPing?: (ping: { peerUid: string; rtt: number }) => void;
 	onDesync?: (info: { tick: number; localChecksum: string; remoteChecksum: string }) => void;
-	onDesyncPauseChange?: (paused: boolean) => void;
+	onDesyncPauseChange?: (paused: boolean, failed: boolean) => void;
 }
 
 const MAX_CHECKPOINT_HISTORY = 40;
@@ -108,9 +108,12 @@ export class MatchSync {
 		localChecksum: string;
 		remoteChecksum: string;
 	}) => void;
-	private onDesyncPauseChange?: (paused: boolean) => void;
+	private onDesyncPauseChange?: (paused: boolean, failed: boolean) => void;
 	public isPausedForDesync = false;
+	public desyncRecoveryFailed = false;
 	private serverRecoveryInFlight = false;
+	private desyncRecoveryTimer: ReturnType<typeof setTimeout> | null = null;
+	private lastRecoveryTick = 0;
 	private peerSeen = new Map<string, number>();
 	private peerRtt = new Map<string, number>();
 	private checksumHistory = new Map<number, string>();
@@ -186,30 +189,82 @@ export class MatchSync {
 		return { count: this.appliedHistory.length, hash: (hash >>> 0).toString(16) };
 	}
 
+	private clearDesyncRecoveryTimer() {
+		if (this.desyncRecoveryTimer) {
+			clearTimeout(this.desyncRecoveryTimer);
+			this.desyncRecoveryTimer = null;
+		}
+	}
+
 	private setPausedForDesync(paused: boolean) {
-		if (this.isPausedForDesync === paused) return;
-		this.isPausedForDesync = paused;
-		this.sim.isRunning = !paused;
-		this.logSyncEvent(paused ? 'DESYNC_PAUSE' : 'DESYNC_RESUME', { tick: this.sim.tick });
-		this.onDesyncPauseChange?.(paused);
+		if (paused) {
+			const changed = !this.isPausedForDesync;
+			this.isPausedForDesync = true;
+			this.desyncRecoveryFailed = false;
+			this.sim.isRunning = false;
+			if (changed) {
+				this.logSyncEvent('DESYNC_PAUSE', { tick: this.sim.tick });
+			}
+			this.clearDesyncRecoveryTimer();
+			this.desyncRecoveryTimer = setTimeout(() => {
+				if (this.isPausedForDesync) {
+					this.desyncRecoveryFailed = true;
+					this.logSyncEvent('DESYNC_RECOVERY_TIMEOUT', { tick: this.sim.tick });
+					this.onDesyncPauseChange?.(true, true);
+				}
+			}, 6000);
+			this.onDesyncPauseChange?.(true, false);
+		} else {
+			this.clearDesyncRecoveryTimer();
+			if (!this.isPausedForDesync && !this.desyncRecoveryFailed) return;
+			this.isPausedForDesync = false;
+			this.desyncRecoveryFailed = false;
+			this.sim.isRunning = true;
+			this.logSyncEvent('DESYNC_RESUME', { tick: this.sim.tick });
+			this.onDesyncPauseChange?.(false, false);
+		}
+	}
+
+	public forceResumeFromDesync(): void {
+		this.logSyncEvent('DESYNC_FORCE_RESUME', { tick: this.sim.tick });
+		this.setPausedForDesync(false);
+	}
+
+	public retryDesyncRecovery(): void {
+		const target = Math.max(this.sim.tick, this.lastRecoveryTick);
+		this.setPausedForDesync(true);
+		void this.attemptServerMovesRecovery(target);
 	}
 
 	private async attemptServerMovesRecovery(targetTick: number): Promise<void> {
-		if (this.serverRecoveryInFlight || !this.transport.fetchMoves) return;
+		if (this.serverRecoveryInFlight) return;
 		this.serverRecoveryInFlight = true;
+		this.lastRecoveryTick = targetTick;
 		try {
-			const serverMoves = await this.transport.fetchMoves();
-			if (serverMoves.length > 0) {
-				const beforeCount = this.appliedHistory.length;
-				this.processMoves(serverMoves);
-				if (this.appliedHistory.length !== beforeCount) {
-					this.logSyncEvent('SERVER_MOVES_RECOVERED', {
-						added: this.appliedHistory.length - beforeCount,
-						targetTick
-					});
+			let recoveredNewMoves = false;
+			if (this.transport.fetchMoves) {
+				const serverMoves = await this.transport.fetchMoves();
+				if (serverMoves.length > 0) {
+					const beforeCount = this.appliedHistory.length;
+					this.processMoves(serverMoves);
+					if (this.appliedHistory.length !== beforeCount) {
+						recoveredNewMoves = true;
+						this.logSyncEvent('SERVER_MOVES_RECOVERED', {
+							added: this.appliedHistory.length - beforeCount,
+							targetTick
+						});
+					}
 				}
 			}
-			this.resyncSimulationToTick(targetTick);
+			if (recoveredNewMoves) {
+				this.resyncSimulationToTick(targetTick);
+			}
+			// Broadcast both current tick and nearest 30-tick checkpoint so peers compare on a shared tick
+			const commonTick = Math.floor(targetTick / 30) * 30;
+			const commonSum = this.checksumHistory.get(commonTick);
+			if (commonSum && commonTick !== this.sim.tick && this.nextSeq <= TELEMETRY_SEQ_SOFT_LIMIT) {
+				void this.dispatch('CHECKSUM', { checksum: commonSum, tick: commonTick });
+			}
 			await this.broadcastChecksum();
 		} finally {
 			this.serverRecoveryInFlight = false;
@@ -593,7 +648,9 @@ export class MatchSync {
 				remoteChecksum
 			});
 			this.setPausedForDesync(true);
-			void this.attemptServerMovesRecovery(targetTick);
+			if (this.transport.fetchMoves) {
+				void this.attemptServerMovesRecovery(targetTick);
+			}
 		}
 	}
 
@@ -925,6 +982,7 @@ export class MatchSync {
 	}
 
 	dispose() {
+		this.clearDesyncRecoveryTimer();
 		if (this.unwatch) {
 			this.unwatch();
 			this.unwatch = null;

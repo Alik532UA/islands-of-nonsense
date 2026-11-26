@@ -119,7 +119,7 @@ async function acquireSharedChannel(code: string): Promise<SharedRoomChannel> {
 	const existing = sharedChannels.get(channelKey);
 	if (existing) return existing;
 
-	const { onChildAdded, onChildRemoved, onValue, orderByKey, query, ref } =
+	const { get, onChildAdded, onChildChanged, onChildRemoved, onValue, orderByKey, query, ref } =
 		await import('firebase/database');
 
 	let info: RoomInfo | null = null;
@@ -259,28 +259,45 @@ async function acquireSharedChannel(code: string): Promise<SharedRoomChannel> {
 			}
 		);
 
-		const unsubMovesAdd = onChildAdded(
-			movesQuery,
-			(snap) => {
-				const seq = Number(snap.key);
-				const val = snap.val() as Move | null;
-				if (!Number.isInteger(seq) || !val) return;
-				const move: Move = { ...val, seq };
-				movesBySeq.set(seq, move);
-				if (!channel.inFlightSeqs.has(seq)) {
-					if (seq > channel.highestSeq) {
-						channel.highestSeq = seq;
-					}
-					scheduleEmit();
+		let gapHealTimer: ReturnType<typeof setTimeout> | null = null;
+		const scheduleGapHeal = () => {
+			if (gapHealTimer || disposed) return;
+			gapHealTimer = setTimeout(() => {
+				gapHealTimer = null;
+				if (disposed) return;
+				void get(movesRef)
+					.then((snap) => {
+						channel.mergeServerMoves((snap.val() as Record<string, Move> | null) ?? null);
+					})
+					.catch(() => {});
+			}, 180);
+		};
+
+		const ingestMoveSnap = (snap: { key: string | null; val: () => unknown }) => {
+			const seq = Number(snap.key);
+			const val = snap.val() as Move | null;
+			if (!Number.isInteger(seq) || !val) return;
+			const move: Move = { ...val, seq };
+			movesBySeq.set(seq, move);
+			if (!channel.inFlightSeqs.has(seq)) {
+				if (seq > channel.highestSeq) {
+					channel.highestSeq = seq;
 				}
-			},
-			(error) => {
-				logService.warn('network', 'room moves listener cancelled', {
-					code,
-					reason: String(error)
-				});
+				if (seq > 1 && !movesBySeq.has(seq - 1)) {
+					scheduleGapHeal();
+				}
+				scheduleEmit();
 			}
-		);
+		};
+
+		const unsubMovesAdd = onChildAdded(movesQuery, ingestMoveSnap, (error) => {
+			logService.warn('network', 'room moves listener cancelled', {
+				code,
+				reason: String(error)
+			});
+		});
+
+		const unsubMovesChange = onChildChanged(movesQuery, ingestMoveSnap);
 
 		const unsubMovesRemove = onChildRemoved(movesRef, (snap) => {
 			const seq = Number(snap.key);
@@ -294,7 +311,19 @@ async function acquireSharedChannel(code: string): Promise<SharedRoomChannel> {
 			scheduleEmit();
 		});
 
-		unsubFns = [unsubInfo, unsubMembers, unsubMovesAdd, unsubMovesRemove];
+		unsubFns = [
+			unsubInfo,
+			unsubMembers,
+			unsubMovesAdd,
+			unsubMovesChange,
+			unsubMovesRemove,
+			() => {
+				if (gapHealTimer) {
+					clearTimeout(gapHealTimer);
+					gapHealTimer = null;
+				}
+			}
+		];
 	}
 
 	function teardown() {

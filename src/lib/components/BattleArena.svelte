@@ -474,6 +474,9 @@
 	let peerPingMs = $state<number | null>(null);
 	let networkNotice = $state<string | null>(null);
 	let desyncLogCopied = $state(false);
+	let isDesyncPaused = $state(false);
+	let isDesyncRecoveryFailed = $state(false);
+	let desyncTick = $state<number | null>(null);
 	let desyncCopyTimer: ReturnType<typeof setTimeout> | null = null;
 	const heldPanKeys = new Set<string>();
 
@@ -967,7 +970,13 @@
 					peerPingMs = rtt;
 				},
 				onDesync: (tick) => {
+					desyncTick = tick;
 					networkNotice = `Увага: розсинхронізація на тіку ${tick}`;
+				},
+				onDesyncPauseChange: (paused, failed) => {
+					isDesyncPaused = paused;
+					isDesyncRecoveryFailed = failed;
+					uiTick = sim.stateVersion;
 				},
 				onGone: (reason) => {
 					clearOnlineCountdownTimer();
@@ -2423,6 +2432,64 @@
 						{desyncLogCopied ? 'Скопійовано ✓' : 'Копіювати лог'}
 					</button>
 				{/if}
+			</div>
+		{/if}
+
+		<!-- Desync Recovery Pause Modal -->
+		{#if matchSync && isDesyncPaused}
+			<div
+				class="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-4"
+				data-testid="desync-recovery-modal"
+			>
+				<div
+					class="w-full max-w-md rounded-2xl border border-rose-500/60 bg-[#121722]/98 p-5 shadow-2xl text-slate-100 flex flex-col gap-3"
+				>
+					<div class="flex items-center gap-2.5">
+						<span
+							class="inline-block w-3 h-3 rounded-full {isDesyncRecoveryFailed
+								? 'bg-rose-500'
+								: 'bg-amber-400 animate-ping'}"
+						></span>
+						<h2 class="text-base font-bold text-amber-200">
+							{isDesyncRecoveryFailed
+								? 'Не вдалося автоматично синхронізувати'
+								: 'Синхронізація гри...'}
+						</h2>
+					</div>
+					<p class="text-xs text-slate-300 leading-relaxed">
+						{#if isDesyncRecoveryFailed}
+							Виявлено розбіжність стану (тік {desyncTick ?? sim.tick}). Автоматичне відновлення за
+							6 сек не узгодило чексуми; діагностичний лог збережено у Firebase.
+						{:else}
+							Виявлено розбіжність стану (тік {desyncTick ?? sim.tick}). Гру тимчасово поставлено на
+							паузу, поки відновлюється повна синхронізація юнітів і будівель...
+						{/if}
+					</p>
+					<div class="flex flex-wrap items-center justify-end gap-2 pt-1">
+						<button
+							type="button"
+							onclick={() => matchSync?.retryDesyncRecovery()}
+							class="px-3 py-1.5 rounded-lg border border-amber-500/60 bg-amber-500/15 hover:bg-amber-500/30 text-amber-200 text-xs font-bold cursor-pointer transition"
+						>
+							Повторити синхронізацію
+						</button>
+						<button
+							type="button"
+							onclick={handleCopyDesyncLog}
+							class="px-3 py-1.5 rounded-lg border border-slate-600 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer transition"
+						>
+							{desyncLogCopied ? 'Скопійовано ✓' : 'Копіювати лог'}
+						</button>
+						<button
+							type="button"
+							onclick={() => matchSync?.forceResumeFromDesync()}
+							data-testid="desync-force-resume-btn"
+							class="px-3 py-1.5 rounded-lg border border-emerald-500/60 bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-200 text-xs font-bold cursor-pointer transition"
+						>
+							Продовжити гру
+						</button>
+					</div>
+				</div>
 			</div>
 		{/if}
 

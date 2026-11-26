@@ -27,5 +27,7 @@ database-debug.log
 firebase-debug.log
 
 .docs/
+.secrets/
+*firebase-adminsdk*.json
 test-results/
 playwright-report/

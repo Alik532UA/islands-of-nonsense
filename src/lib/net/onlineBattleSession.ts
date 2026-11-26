@@ -23,6 +23,7 @@ export interface OnlineBattleSessionCallbacks {
 	onPeerStatusChange: (status: { peerOnline: boolean; notice?: string | null }) => void;
 	onPeerPing: (rtt: number) => void;
 	onDesync: (tick: number) => void;
+	onDesyncPauseChange?: (paused: boolean, failed: boolean) => void;
 	onGone: (reason: string) => void;
 	onCommandApplied: (move: Move) => void;
 	onMatchStarted: (
@@ -285,14 +286,14 @@ export async function startOnlineBattleSession(
 					});
 				}
 			},
-			onDesyncPauseChange: (paused) => {
+			onDesyncPauseChange: (paused, failed) => {
 				if (paused) {
 					if (pausedAtServerMs === null) {
 						pausedAtServerMs = transport.now();
 					}
-					if (!currentDesyncNotice) {
-						currentDesyncNotice = 'Розсинхронізація · пауза до повної синхронізації';
-					}
+					currentDesyncNotice = failed
+						? 'Не вдалося автоматично синхронізувати'
+						: 'Розсинхронізація · пауза до повної синхронізації';
 					publishPeerOnline();
 				} else {
 					if (pausedAtServerMs !== null && epochAnchorServerMs !== null) {
@@ -302,6 +303,7 @@ export async function startOnlineBattleSession(
 					currentDesyncNotice = null;
 					publishPeerOnline();
 				}
+				callbacks.onDesyncPauseChange?.(paused, failed);
 			},
 			onGone: (reason) => {
 				disposed = true;
