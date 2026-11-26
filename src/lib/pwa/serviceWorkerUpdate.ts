@@ -64,8 +64,11 @@ export function initServiceWorkerUpdate(): () => void {
 
 	let refreshing = false;
 	let prompted = false;
+	let userRequestedUpdate = false;
+	const hadController = Boolean(navigator.serviceWorker.controller);
 
 	const onControllerChange = () => {
+		if (!hadController && !userRequestedUpdate) return;
 		if (refreshing) return;
 		refreshing = true;
 		sessionStore.remove(SW_UPDATING_KEY);
@@ -90,6 +93,7 @@ export function initServiceWorkerUpdate(): () => void {
 				label: t('pwa.updateAction') || 'Оновити',
 				run: () => {
 					if (!confirmReloadIfInBattle()) return;
+					userRequestedUpdate = true;
 					sessionStore.set(SW_UPDATING_KEY, workerUrl);
 					worker.postMessage({ type: 'SKIP_WAITING' });
 					setTimeout(() => {
