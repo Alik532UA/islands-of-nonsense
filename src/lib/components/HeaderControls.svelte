@@ -30,16 +30,16 @@
 		{settings.locale === 'uk' ? 'UA' : 'EN'}
 	</button>
 
-	<!-- Sound toggle (Quick Mute) -->
+	<!-- Sound toggle (Quick Mute: SFX + Music) -->
 	<button
 		type="button"
 		class="header-btn"
-		onclick={() => settings.setSound(!settings.sound)}
-		title={settings.sound ? t('sound') + ': Увімкнено' : t('sound') + ': Вимкнено'}
-		aria-label={settings.sound ? t('sound') + ': Увімкнено' : t('sound') + ': Вимкнено'}
+		onclick={() => settings.toggleMute()}
+		title={settings.isAudioActive ? t('sound') + ': Увімкнено' : t('sound') + ': Вимкнено'}
+		aria-label={settings.isAudioActive ? t('sound') + ': Увімкнено' : t('sound') + ': Вимкнено'}
 		data-testid="header-sound-toggle"
 	>
-		{#if settings.sound}
+		{#if settings.isAudioActive}
 			<UiIcon name="volume2" class="w-4 h-4 text-emerald-400" />
 		{:else}
 			<UiIcon name="volumeX" class="w-4 h-4 text-slate-400" />

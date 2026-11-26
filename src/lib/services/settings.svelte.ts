@@ -135,6 +135,7 @@ function applyUiScale(scale: UiScale): void {
 class SettingsService {
 	#headerTitle = $state<string | null>(null);
 	#headerBack = $state<(() => void) | null>(null);
+	#muted = $state(storage.getJSON<boolean>('settings_muted', false));
 	#sound = $state(storage.getJSON<boolean>('settings_sound_fx', true));
 	#volume = $state(storage.getJSON<number>('settings_volume', 0.07));
 	#soundPack = $state<SoundPack>(detectInitialSoundPack());
@@ -152,10 +153,10 @@ class SettingsService {
 
 	constructor() {
 		// Synchronize procedural sound engine & reactive i18n with saved state
-		sound.setEnabled(this.#sound);
+		sound.setEnabled(this.#sound && !this.#muted);
 		sound.setVolume(this.#volume);
 		sound.setPack(this.#soundPack);
-		music.setEnabled(this.#musicEnabled);
+		music.setEnabled(this.#musicEnabled && !this.#muted);
 		music.setVolume(this.#musicVolume);
 		music.setTrack(this.#musicTrack);
 		applyUiScale(this.#uiScale);
@@ -177,6 +178,14 @@ class SettingsService {
 
 	get headerBack(): (() => void) | null {
 		return this.#headerBack;
+	}
+
+	get muted(): boolean {
+		return this.#muted;
+	}
+
+	get isAudioActive(): boolean {
+		return !this.#muted && (this.#sound || this.#musicEnabled);
 	}
 
 	get sound(): boolean {
@@ -235,10 +244,36 @@ class SettingsService {
 		return this.#isSettingsOpen;
 	}
 
+	setMuted(muted: boolean): void {
+		this.#muted = muted;
+		storage.setJSON('settings_muted', muted);
+		sound.setEnabled(this.#sound && !this.#muted);
+		music.setEnabled(this.#musicEnabled && !this.#muted);
+	}
+
+	toggleMute(): void {
+		if (this.isAudioActive) {
+			this.setMuted(true);
+		} else {
+			if (!this.#sound && !this.#musicEnabled) {
+				this.#sound = true;
+				this.#musicEnabled = true;
+				storage.setJSON('settings_sound_fx', true);
+				storage.setJSON('settings_music_enabled', true);
+			}
+			this.setMuted(false);
+		}
+	}
+
 	setSound(enabled: boolean): void {
 		this.#sound = enabled;
 		storage.setJSON('settings_sound_fx', enabled);
-		sound.setEnabled(enabled);
+		if (enabled && this.#muted) {
+			this.#muted = false;
+			storage.setJSON('settings_muted', false);
+			music.setEnabled(this.#musicEnabled);
+		}
+		sound.setEnabled(this.#sound && !this.#muted);
 	}
 
 	setVolume(vol: number): void {
@@ -259,7 +294,12 @@ class SettingsService {
 	setMusicEnabled(enabled: boolean): void {
 		this.#musicEnabled = enabled;
 		storage.setJSON('settings_music_enabled', enabled);
-		music.setEnabled(enabled);
+		if (enabled && this.#muted) {
+			this.#muted = false;
+			storage.setJSON('settings_muted', false);
+			sound.setEnabled(this.#sound);
+		}
+		music.setEnabled(this.#musicEnabled && !this.#muted);
 	}
 
 	setMusicVolume(vol: number): void {

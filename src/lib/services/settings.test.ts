@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { settings } from './settings.svelte';
-import { sound } from './audio';
+import { sound, music } from './audio';
 import { t, setLocale } from '$lib/i18n';
 
 describe('SettingsService & Header Claiming', () => {
@@ -62,6 +62,42 @@ describe('SettingsService & Header Claiming', () => {
 		expect(sound.getVolume()).toBe(0.0);
 
 		settings.setVolume(0.07);
+	});
+
+	it('toggleMute mutes and unmutes both SFX and music while preserving individual flags', () => {
+		settings.setMuted(false);
+		settings.setSound(true);
+		settings.setMusicEnabled(true);
+		expect(settings.isAudioActive).toBe(true);
+		expect(sound.isEnabled()).toBe(true);
+		expect(music.isEnabled()).toBe(true);
+
+		// Quick mute turns off both SFX and music
+		settings.toggleMute();
+		expect(settings.muted).toBe(true);
+		expect(settings.isAudioActive).toBe(false);
+		expect(sound.isEnabled()).toBe(false);
+		expect(music.isEnabled()).toBe(false);
+
+		// Quick unmute restores both SFX and music
+		settings.toggleMute();
+		expect(settings.muted).toBe(false);
+		expect(settings.isAudioActive).toBe(true);
+		expect(sound.isEnabled()).toBe(true);
+		expect(music.isEnabled()).toBe(true);
+
+		// Preserves music=false across mute/unmute cycle
+		settings.setMusicEnabled(false);
+		settings.toggleMute();
+		expect(sound.isEnabled()).toBe(false);
+		expect(music.isEnabled()).toBe(false);
+		settings.toggleMute();
+		expect(sound.isEnabled()).toBe(true);
+		expect(music.isEnabled()).toBe(false);
+
+		// Restore defaults
+		settings.setMusicEnabled(true);
+		settings.setMuted(false);
 	});
 
 	it('toggles locale reactively between uk and en', () => {

@@ -112,12 +112,12 @@
 				<div class="grid grid-cols-3 gap-2 pt-1">
 					<button
 						type="button"
-						onclick={() => settings.setSound(!settings.sound)}
+						onclick={() => settings.toggleMute()}
 						class="py-2 px-2 bg-[#131722] hover:bg-[#1e2433] border border-slate-700 text-xs text-slate-300 font-semibold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
 						data-testid="pause-sound-toggle"
-						title={settings.sound ? 'Звук: Увімкнено' : 'Звук: Вимкнено'}
+						title={settings.isAudioActive ? 'Звук: Увімкнено' : 'Звук: Вимкнено'}
 					>
-						{#if settings.sound}
+						{#if settings.isAudioActive}
 							<UiIcon name="volume2" class="w-4 h-4 text-emerald-400 shrink-0" />
 							<span>Звук</span>
 						{:else}

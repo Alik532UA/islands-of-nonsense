@@ -198,23 +198,23 @@
 
 		<!-- Dock 1B: System Preferences (Sound, Fullscreen, Locale, Global Settings) -->
 		<div class={dockClass} data-testid="topbar-preferences-dock">
-			<!-- Sound toggle -->
+			<!-- Sound toggle (Quick Mute: SFX + Music) -->
 			<div class="relative group/tip flex items-center">
 				<button
 					type="button"
-					onclick={() => settings.setSound(!settings.sound)}
+					onclick={() => settings.toggleMute()}
 					class={neutralBtnClass}
-					aria-label={settings.sound ? 'Звук: Увімкнено' : 'Звук: Вимкнено'}
+					aria-label={settings.isAudioActive ? 'Звук: Увімкнено' : 'Звук: Вимкнено'}
 					data-testid="topbar-sound-toggle"
 				>
-					{#if settings.sound}
+					{#if settings.isAudioActive}
 						<UiIcon name="volume2" class="w-4 h-4 text-emerald-400" />
 					{:else}
 						<UiIcon name="volumeX" class="w-4 h-4 text-slate-500" />
 					{/if}
 				</button>
 				<div class="{tipBoxClass} left-1/2 -translate-x-1/2 text-amber-100">
-					{settings.sound ? 'Звук: Увімкнено' : 'Звук: Вимкнено'}
+					{settings.isAudioActive ? 'Звук: Увімкнено' : 'Звук: Вимкнено'}
 				</div>
 			</div>
 
