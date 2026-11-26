@@ -737,7 +737,8 @@ export class TerrainRenderer {
 	public drawProceduralDecorations(
 		g: Graphics,
 		baseSeed: number,
-		decorations?: DecorationObstacle[]
+		decorations?: DecorationObstacle[],
+		includeRimLilies = true
 	): void {
 		if (decorations && decorations.length > 0) {
 			for (const d of decorations) {
@@ -749,8 +750,10 @@ export class TerrainRenderer {
 				else if (d.type === 'brazier') this.drawStoneBrazier(g, d.x, d.y);
 			}
 		}
-		this.drawRimWaterLilies(g, WEST_ISLAND_CENTER_X, WEST_ISLAND_CENTER_Y, baseSeed);
-		this.drawRimWaterLilies(g, EAST_ISLAND_CENTER_X, EAST_ISLAND_CENTER_Y, baseSeed + 8191);
+		if (includeRimLilies) {
+			this.drawRimWaterLilies(g, WEST_ISLAND_CENTER_X, WEST_ISLAND_CENTER_Y, baseSeed);
+			this.drawRimWaterLilies(g, EAST_ISLAND_CENTER_X, EAST_ISLAND_CENTER_Y, baseSeed + 8191);
+		}
 	}
 
 	private drawRimWaterLilies(g: Graphics, cx: number, cy: number, seed: number): void {
@@ -931,7 +934,7 @@ export class TerrainRenderer {
 		ci(g, x, y - 19, 2.2, 0xfef9c3);
 	}
 
-	private drawWaterLily(g: Graphics, x: number, y: number): void {
+	public drawWaterLily(g: Graphics, x: number, y: number): void {
 		el(g, x + 2, y + 2, 12, 7.5, 0x38bdf8, undefined, 0.18);
 		pg(
 			g,
