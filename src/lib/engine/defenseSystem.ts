@@ -424,6 +424,21 @@ export class DefenseSystem {
 			if (this.castleCooldowns[team] > 0) {
 				this.castleCooldowns[team] = Math.max(0, this.castleCooldowns[team] - dt);
 			}
+			const autoMode = this.sim.castleCannonAutoMode?.[team];
+			if (autoMode && (this.castleCooldowns[team] ?? 0) <= 0) {
+				const slot = this.sim.castleCannonAutoPlayerSlot?.[team];
+				const shooter =
+					typeof slot === 'number'
+						? this.sim.allPlayers.find((p) => p.slot === slot)
+						: this.sim.players[team];
+				const range = this.getCastleCannonRange(autoMode);
+				if (
+					this.canFireCastleCannon(team, autoMode, shooter) &&
+					this.countEnemiesInRange(team, range, true) > 0
+				) {
+					this.fireCastleCannon(team, autoMode, shooter);
+				}
+			}
 		}
 	}
 

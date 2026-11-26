@@ -100,6 +100,9 @@ export interface RendererOptions {
 	getSpectatorVision?: () => 'all' | 'west' | 'east' | null;
 	onRescueTargetClick?: (worldX: number, worldY: number) => void;
 	onCancelRescueTargeting?: () => void;
+	getIsBlinkTargeting?: () => boolean;
+	onBlinkTargetClick?: (worldX: number, worldY: number) => void;
+	onCancelBlinkTargeting?: () => void;
 	onCameraChange?: (camX: number, camY: number, zoom: number) => void;
 }
 
@@ -119,6 +122,9 @@ export class ArenaRenderer {
 	private getSpectatorVision?: () => 'all' | 'west' | 'east' | null;
 	private onRescueTargetClick?: (worldX: number, worldY: number) => void;
 	private onCancelRescueTargeting?: () => void;
+	private getIsBlinkTargeting?: () => boolean;
+	private onBlinkTargetClick?: (worldX: number, worldY: number) => void;
+	private onCancelBlinkTargeting?: () => void;
 	public onCameraChange?: (camX: number, camY: number, zoom: number) => void;
 
 	// Viewport & RTS Camera Navigation
@@ -225,6 +231,9 @@ export class ArenaRenderer {
 		this.getSpectatorVision = options.getSpectatorVision;
 		this.onRescueTargetClick = options.onRescueTargetClick;
 		this.onCancelRescueTargeting = options.onCancelRescueTargeting;
+		this.getIsBlinkTargeting = options.getIsBlinkTargeting;
+		this.onBlinkTargetClick = options.onBlinkTargetClick;
+		this.onCancelBlinkTargeting = options.onCancelBlinkTargeting;
 		this.onCameraChange = options.onCameraChange;
 		this.graphicsStyle = options.graphicsStyle ?? '2.5d';
 
@@ -640,6 +649,10 @@ export class ArenaRenderer {
 			// RIGHT CLICK: Cancel Rescue Targeting / Building Placement OR Move Worker / Order Action / Repair
 			if (e.button === 2) {
 				e.preventDefault();
+				if (this.getIsBlinkTargeting?.()) {
+					this.onCancelBlinkTargeting?.();
+					return;
+				}
 				if (this.getIsRescueTargeting?.()) {
 					this.onCancelRescueTargeting?.();
 					return;
@@ -740,7 +753,11 @@ export class ArenaRenderer {
 			// LEFT CLICK: Start box selection or click
 			if (e.button === 0) {
 				this.suppressNextClick = false;
-				if (!this.getSelectedBuildingDefId() && !this.getIsRescueTargeting?.()) {
+				if (
+					!this.getSelectedBuildingDefId() &&
+					!this.getIsRescueTargeting?.() &&
+					!this.getIsBlinkTargeting?.()
+				) {
 					this.boxStartWorld = { x: world.x, y: world.y };
 					this.boxCurrentWorld = { x: world.x, y: world.y };
 				}
@@ -872,6 +889,10 @@ export class ArenaRenderer {
 			const mouseScreenY = e.clientY - rect.top;
 			const world = this.screenToWorld(mouseScreenX, mouseScreenY);
 
+			if (this.getIsBlinkTargeting?.()) {
+				this.onBlinkTargetClick?.(Math.round(world.x), Math.round(world.y));
+				return;
+			}
 			if (this.getIsRescueTargeting?.()) {
 				this.onRescueTargetClick?.(Math.round(world.x), Math.round(world.y));
 				return;

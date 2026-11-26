@@ -1076,7 +1076,7 @@
 		<!-- INLINE PAGE VIEW (NO PSEUDO-WINDOW: directly on page, adaptive >90% width) -->
 		<div
 			class="w-full text-white animate-in fade-in slide-in-from-top-2 duration-200"
-			data-testid="match-config-modal"
+			data-testid="match-config-inline"
 		>
 			{@render configBody()}
 		</div>

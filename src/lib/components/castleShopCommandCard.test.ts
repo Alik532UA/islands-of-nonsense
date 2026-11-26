@@ -5,9 +5,11 @@ import { CASTLE_ITEMS } from '../engine/items';
 
 describe('Castle Shop Command Card & Reference Parity', () => {
 	const commandCardPath = path.resolve('src/lib/components/CommandCard.svelte');
+	const entityInspectDetailsPath = path.resolve('src/lib/components/EntityInspectDetails.svelte');
 	const refItemsIdsPath = path.resolve('reference/data/items_ids.json');
 
 	const commandCardSrc = fs.readFileSync(commandCardPath, 'utf8');
+	const entityInspectDetailsSrc = fs.readFileSync(entityInspectDetailsPath, 'utf8');
 	const refItemsIds = JSON.parse(fs.readFileSync(refItemsIdsPath, 'utf8')) as Array<{
 		id: string;
 	}>;
@@ -36,9 +38,9 @@ describe('Castle Shop Command Card & Reference Parity', () => {
 				'CommandCard must declare hud-shop-item-btn testids'
 			).toBe(true);
 		}
-		expect(commandCardSrc).toContain('hud-castle-repair-btn');
-		expect(commandCardSrc).toContain('hud-repair-bridge-btn');
-		expect(commandCardSrc).toContain('hud-close-castle-btn');
+		expect(entityInspectDetailsSrc).toContain('hud-castle-repair-btn');
+		expect(entityInspectDetailsSrc).toContain('hud-repair-bridge-btn');
+		expect(entityInspectDetailsSrc).toContain('hud-close-castle-btn');
 	});
 
 	it('displays item tooltips on hover and cooldown timer overlays', () => {

@@ -441,7 +441,7 @@
 				{#if activeBossInstanceId}
 					<div
 						class="px-2 h-7 rounded-lg bg-amber-950/80 border border-amber-500/70 text-[10px] font-bold text-amber-300 animate-pulse flex items-center gap-1"
-						data-testid="boss-timer-badge"
+						data-testid="boss-active-badge"
 					>
 						<UiIcon name="crown" class="w-3.5 h-3.5 text-amber-400 shrink-0" />
 						<span>БОС НА АРЕНІ!</span>
@@ -661,7 +661,7 @@
 						onclick={onOpenShop}
 						data-testid="hud-shop-btn"
 						class="{baseBtnClass} bg-[#15281e] hover:bg-[#1b3828] border-emerald-600/70 hover:border-emerald-400 text-emerald-300"
-						aria-label="Магазин замку: припаси та захист (Гаряча клавіша: B)"
+						aria-label="Магазин: припаси та захист (Гаряча клавіша: B)"
 						aria-keyshortcuts="b"
 					>
 						<UiIcon name="shoppingBag" class="w-4 h-4 text-emerald-400 shrink-0" />
@@ -669,7 +669,7 @@
 					<div
 						class="{tipBoxClass} left-1/2 -translate-x-1/2 text-emerald-200 flex items-center gap-1.5"
 					>
-						<span>Магазин замку</span>
+						<span>Магазин</span>
 						<span
 							class="text-[9px] font-mono font-bold text-emerald-300 bg-black/60 px-1 rounded border border-emerald-600/70"
 						>
@@ -869,17 +869,21 @@
 
 				<!-- Food Cap (Legendary Building Limit) -->
 				<div
-					class="flex items-center gap-1.5 text-xs border-l border-[#3b3226] pl-2.5 shrink-0 {player.maxFood >
+					class="relative group/tip flex items-center gap-1.5 text-xs border-l border-[#3b3226] pl-2.5 shrink-0 cursor-help {player.maxFood >
 					0
 						? 'text-amber-300'
 						: 'text-slate-500'}"
-					title="Ліміт легендарних будівель (Їжа): {player.food}/{player.maxFood}. Збільшуйте ліміт у магазині замку (B)!"
+					aria-label="Ліміт легендарних будівель (Їжа): {player.food}/{player.maxFood}. Збільшуйте ліміт у Магазині (B)."
 				>
 					<UiIcon
 						name="crown"
 						class="w-3.5 h-3.5 shrink-0 {player.maxFood > 0 ? 'text-amber-400' : 'text-slate-500'}"
 					/>
 					<span class="font-mono font-bold tabular-nums">{player.food}/{player.maxFood}</span>
+					<div class="{tipBoxClass} right-0 text-amber-100">
+						Ліміт легендарних будівель (Їжа): {player.food}/{player.maxFood} · Золотий Сир у Магазині
+						(B)
+					</div>
 				</div>
 			</div>
 		</div>

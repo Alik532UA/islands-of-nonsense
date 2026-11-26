@@ -202,6 +202,14 @@ export class Simulation {
 	public castleInvulnerableTimer: Record<MatchTeam, number> = { west: 0, east: 0 };
 	public castleOverchargeTimer: Record<MatchTeam, number> = { west: 0, east: 0 };
 	public castleCannonUpgraded: Record<MatchTeam, boolean> = { west: false, east: false };
+	public castleCannonAutoMode: Record<MatchTeam, 'short' | 'long' | null> = {
+		west: null,
+		east: null
+	};
+	public castleCannonAutoPlayerSlot: Record<MatchTeam, number | undefined> = {
+		west: undefined,
+		east: undefined
+	};
 	public itemCooldowns: Record<MatchTeam, Record<string, number>> = { west: {}, east: {} };
 
 	// Rescue Strike (Emergency Castle Defense, 180s personal CD + 10s bot team stagger)
@@ -1176,6 +1184,8 @@ export class Simulation {
 		this.castleInvulnerableTimer = { west: 0, east: 0 };
 		this.castleOverchargeTimer = { west: 0, east: 0 };
 		this.castleCannonUpgraded = { west: false, east: false };
+		this.castleCannonAutoMode = { west: null, east: null };
+		this.castleCannonAutoPlayerSlot = { west: undefined, east: undefined };
 		this.combatSystem.defenseSystem.castleCooldowns = { west: 0, east: 0 };
 		this.itemCooldowns = { west: {}, east: {} };
 		this.rescueStrikeCooldown = { west: 0, east: 0 };
@@ -1711,6 +1721,19 @@ export class Simulation {
 		this.workerSystem.moveWorker(team, targetX, targetY, player);
 	}
 
+	public canTeleportWorker(team: MatchTeam, player?: PlayerState): boolean {
+		return this.workerSystem.canTeleportWorker(team, player);
+	}
+
+	public teleportWorker(
+		team: MatchTeam,
+		worldX: number,
+		worldY: number,
+		player?: PlayerState
+	): boolean {
+		return this.workerSystem.teleportWorker(team, worldX, worldY, player);
+	}
+
 	public repairBuilding(
 		team: MatchTeam,
 		buildingInstanceId: string,
@@ -1951,6 +1974,16 @@ export class Simulation {
 
 	public upgradeCastleCannon(team: MatchTeam, player?: PlayerState): boolean {
 		return this.combatSystem.defenseSystem.upgradeCastleCannon(team, player);
+	}
+
+	public setCastleCannonAutoMode(
+		team: MatchTeam,
+		mode: 'short' | 'long' | null,
+		player?: PlayerState
+	): void {
+		this.castleCannonAutoMode[team] = mode;
+		this.castleCannonAutoPlayerSlot[team] = mode ? player?.slot : undefined;
+		this.notifyStateChanged();
 	}
 
 	public getCastleCannonEnemyCount(team: MatchTeam, range: number, visibleOnly = false): number {

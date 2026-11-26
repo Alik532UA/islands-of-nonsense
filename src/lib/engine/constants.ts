@@ -9,6 +9,8 @@ export const RIVER_CENTER_X = ARENA_WIDTH / 2; // 3600
 export const BRIDGE_SPAN_MIN_X = 3060;
 export const BRIDGE_SPAN_MAX_X = 4140;
 export const BRIDGE_WIDTH = BRIDGE_SPAN_MAX_X - BRIDGE_SPAN_MIN_X; // 1080
+export const WORKER_BLINK_RANGE = 500;
+export const WORKER_BLINK_COOLDOWN = 10;
 
 // Islands centers & radii (oval-round procedural islands)
 export const WEST_ISLAND_CENTER_X = 1600;

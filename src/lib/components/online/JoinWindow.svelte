@@ -40,7 +40,7 @@
 			onclick={onBack}
 			class="min-h-[44px] min-w-[44px] p-2 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-slate-800 transition-colors flex items-center justify-center cursor-pointer"
 			aria-label={t('online.back')}
-			data-testid="window-back-btn"
+			data-testid="join-window-back-btn"
 		>
 			<UiIcon name="arrowLeft" class="w-5 h-5" />
 		</button>

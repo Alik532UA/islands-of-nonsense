@@ -12,7 +12,6 @@
 		earnedXp = null,
 		serializedReplay = null,
 		onNextRound,
-		onReselectCommander,
 		onWatchReplay
 	}: {
 		sim: Simulation;
@@ -23,7 +22,6 @@
 		earnedXp?: number | null;
 		serializedReplay?: string | null;
 		onNextRound: () => void;
-		onReselectCommander?: () => void;
 		onWatchReplay?: () => void;
 	} = $props();
 
@@ -303,17 +301,6 @@
 			<!-- Action Buttons -->
 			<div class="space-y-2">
 				<div class="flex gap-2">
-					{#if !isMatchOver && onReselectCommander}
-						<button
-							type="button"
-							onclick={onReselectCommander}
-							class="py-3 px-4 rounded-xl font-bold text-xs tracking-wide transition flex items-center justify-center gap-1.5 cursor-pointer bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 shadow-lg hover:border-amber-400"
-							data-testid="victory-reselect-commander-btn"
-						>
-							<UiIcon name="crown" class="w-4 h-4 text-amber-400" />
-							Командир
-						</button>
-					{/if}
 					<button
 						type="button"
 						onclick={onNextRound}

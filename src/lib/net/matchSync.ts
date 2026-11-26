@@ -686,7 +686,11 @@ export class MatchSync {
 
 			case 'ORDER_WORKER_MOVE':
 				if (typeof p.worldX === 'number' && typeof p.worldY === 'number') {
-					this.sim.orderWorkerMove(team, p.worldX, p.worldY, player);
+					if (p.targetId === 'blink') {
+						this.sim.teleportWorker(team, p.worldX, p.worldY, player);
+					} else {
+						this.sim.orderWorkerMove(team, p.worldX, p.worldY, player);
+					}
 				}
 				break;
 
@@ -737,6 +741,12 @@ export class MatchSync {
 			case 'CASTLE_SHOT':
 				if (p.targetId === 'short' || p.targetId === 'long') {
 					this.sim.fireCastleCannon(team, p.targetId, player);
+				} else if (p.targetId === 'auto_short') {
+					this.sim.setCastleCannonAutoMode(team, 'short', player);
+				} else if (p.targetId === 'auto_long') {
+					this.sim.setCastleCannonAutoMode(team, 'long', player);
+				} else if (p.targetId === 'auto_off') {
+					this.sim.setCastleCannonAutoMode(team, null, player);
 				}
 				break;
 

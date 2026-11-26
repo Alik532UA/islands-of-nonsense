@@ -105,13 +105,13 @@ test.describe('Islands of Nonsense — Smoke and Interaction E2E', () => {
 		// Open Create Room window
 		await page.getByTestId('online-create-room-btn').click();
 		await expect(page.locator('#create-modal-title')).toBeVisible();
-		await page.getByTestId('window-back-btn').click();
+		await page.getByTestId('create-window-back-btn').click();
 		await expect(page.getByTestId('online-create-room-btn')).toBeVisible();
 
 		// Open Join by Code window
 		await page.getByTestId('online-join-code-btn').click();
 		await expect(page.locator('#join-modal-title')).toBeVisible();
-		await page.getByTestId('window-back-btn').click();
+		await page.getByTestId('join-window-back-btn').click();
 		await expect(page.getByTestId('online-join-code-btn')).toBeVisible();
 	});
 

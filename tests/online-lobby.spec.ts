@@ -13,7 +13,7 @@ test.describe('Online Lobby & Quick Match E2E Flow', () => {
 
 		await page.getByTestId('online-create-room-btn').click();
 		await expect(page.locator('#create-modal-title')).toBeVisible();
-		await page.getByTestId('window-back-btn').click();
+		await page.getByTestId('create-window-back-btn').click();
 
 		await page.getByTestId('online-join-code-btn').click();
 		await expect(page.locator('#join-modal-title')).toBeVisible();

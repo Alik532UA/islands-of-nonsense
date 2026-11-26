@@ -528,6 +528,7 @@ export interface WorkerState {
 	repairGoldAccumulator?: number;
 	path?: { x: number; y: number }[];
 	stuckTimer?: number;
+	blinkCooldown?: number;
 	lastMoveX?: number;
 	lastMoveY?: number;
 	buildQueue?: string[];

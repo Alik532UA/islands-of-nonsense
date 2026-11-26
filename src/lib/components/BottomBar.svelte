@@ -44,6 +44,8 @@
 		onSellBuilding,
 		onContinueConstruction,
 		onOpenCommander,
+		isBlinkTargeting = false,
+		onStartBlinkTargeting,
 		onMinimapClick,
 		onClearSelection,
 		onHoverCastleRange,
@@ -63,11 +65,13 @@
 		activePlayer?: PlayerState | null;
 		allowAllTeamsControl?: boolean;
 		isSpectator?: boolean;
+		isBlinkTargeting?: boolean;
 		onSelectBuilding: (id: string | null) => void;
 		onUpgradeBuilding?: (instanceId: string, targetDefId: string) => void;
 		onSellBuilding?: (instanceId: string) => void;
 		onContinueConstruction?: (instanceId: string) => void;
 		onOpenCommander?: () => void;
+		onStartBlinkTargeting?: () => void;
 		onMinimapClick?: (arenaX: number, arenaY: number) => void;
 		onClearSelection?: () => void;
 		onHoverCastleRange?: (mode: 'short' | 'long' | null) => void;
@@ -87,7 +91,7 @@
 
 	// Placed building state
 	let placedBuilding = $derived(
-		selectedPlacedBuildingId
+		uiTick >= 0 && selectedPlacedBuildingId
 			? sim.buildings.find((b) => b.instanceId === selectedPlacedBuildingId) || null
 			: null
 	);
@@ -98,19 +102,19 @@
 
 	// Unit state (friendly, enemy or neutral)
 	let selectedUnit = $derived(
-		selectedUnitId
+		uiTick >= 0 && selectedUnitId
 			? sim.units.find((u) => u.instanceId === selectedUnitId && u.state !== 'DEAD') || null
 			: null
 	);
 
 	// Castle state
 	let selectedCastle = $derived(
-		selectedEntity?.type === 'castle' ? sim.castles[selectedEntity.team] : null
+		uiTick >= 0 && selectedEntity?.type === 'castle' ? sim.castles[selectedEntity.team] : null
 	);
 
 	// Group selection state
 	let groupUnits = $derived(
-		selectedGroup && selectedGroup.length > 0
+		uiTick >= 0 && selectedGroup && selectedGroup.length > 0
 			? sim.units.filter((u) => selectedGroup.includes(u.instanceId) && u.state !== 'DEAD')
 			: []
 	);
@@ -296,34 +300,42 @@
 		<div
 			class="relative {activeEntityType === 'worker'
 				? 'w-full h-full'
-				: 'w-20 h-20'} rounded-md border-2 border-[#8c7456] bg-[#0c1017] flex items-center justify-center overflow-hidden shadow-md"
+				: 'w-full flex-1 min-h-0'} rounded-md border-2 border-[#8c7456] bg-[#0c1017] flex items-center justify-center overflow-hidden shadow-md"
 		>
 			{#if activeEntityType === 'castle' && selectedCastle}
-				<!-- Castle Keep Portrait with Actual WebP Sprite -->
+				<!-- Castle Keep Portrait matching active graphicsStyle preset -->
 				{@const isFriendly = selectedCastle.team === localTeam}
-				{@const cStage = getCastleStageIndex(selectedCastle.hp, selectedCastle.maxHp)}
-				{@const castleUrl = isFriendly
-					? WEST_CASTLE_STAGE_URLS[cStage]
-					: EAST_CASTLE_STAGE_URLS[cStage]}
-				<div class="relative w-full h-full flex flex-col items-center justify-center p-0.5">
+				{#if settings.graphicsStyle === 'hd-webp'}
+					{@const cStage = getCastleStageIndex(selectedCastle.hp, selectedCastle.maxHp)}
+					{@const castleUrl =
+						selectedCastle.team === 'west'
+							? WEST_CASTLE_STAGE_URLS[cStage]
+							: EAST_CASTLE_STAGE_URLS[cStage]}
 					<img
 						src={castleUrl}
 						alt={isFriendly ? 'Ваш Замок' : 'Замок Ворога'}
-						class="w-12 h-11 object-contain drop-shadow"
+						class="w-full h-full object-contain drop-shadow"
 					/>
-					<span
-						class="text-[8px] font-bold uppercase truncate max-w-[70px] mt-0.5 {isFriendly
-							? 'text-amber-300'
-							: 'text-rose-400'}"
+				{:else}
+					<div
+						class="w-full h-full flex items-center justify-center bg-gradient-to-b {selectedCastle.team ===
+						'west'
+							? 'from-blue-950/60 to-[#0c1017]'
+							: 'from-rose-950/60 to-[#0c1017]'}"
 					>
-						{isFriendly ? 'Ваш Замок' : 'Замок Ворога'}
-					</span>
-				</div>
+						<UiIcon
+							name="castle"
+							class="w-16 h-16 {selectedCastle.team === 'west'
+								? 'text-blue-400'
+								: 'text-rose-400'} drop-shadow"
+						/>
+					</div>
+				{/if}
 			{:else if activeEntityType === 'group'}
 				<!-- Group / Squad Portrait -->
 				<div class="flex flex-col items-center justify-center text-amber-300">
-					<UiIcon name="users" class="w-9 h-9 text-amber-400" />
-					<span class="text-[9px] font-bold uppercase truncate max-w-[70px]"> Загін </span>
+					<UiIcon name="users" class="w-12 h-12 text-amber-400" />
+					<span class="text-[9px] font-bold uppercase truncate max-w-[90px]"> Загін </span>
 				</div>
 			{:else if activeEntityType === 'building' && placedBuilding}
 				<!-- Building Icon Portrait -->
@@ -334,15 +346,22 @@
 					sim.players
 				)}
 				<div
-					class="flex flex-col items-center justify-center {isEnemyBld
+					class="relative group/tip flex flex-col items-center justify-center {isEnemyBld
 						? 'text-rose-400'
 						: 'text-amber-300'}"
-					title="{placedBuilding.name} ({buildingRace})"
 				>
-					<UiIcon name="hammer" class="w-9 h-9 {isEnemyBld ? 'text-rose-400' : 'text-amber-400'}" />
-					<span class="text-[9px] font-bold uppercase truncate max-w-[70px]">
+					<UiIcon
+						name="hammer"
+						class="w-12 h-12 {isEnemyBld ? 'text-rose-400' : 'text-amber-400'}"
+					/>
+					<span class="text-[9px] font-bold uppercase truncate max-w-[90px]">
 						{buildingRace}
 					</span>
+					<div
+						class="pointer-events-none absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-50 whitespace-nowrap rounded-md border border-[#544738] bg-[#0f141f]/95 px-2.5 py-1 text-[11px] text-amber-100 shadow-2xl opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150"
+					>
+						{placedBuilding.name} ({buildingRace})
+					</div>
 				</div>
 			{:else if activeEntityType === 'unit' && selectedUnit}
 				<!-- Soldier / Combatant Portrait -->
@@ -356,14 +375,14 @@
 				>
 					<UiIcon
 						name="swords"
-						class="w-9 h-9 {isEnemy
+						class="w-12 h-12 {isEnemy
 							? 'text-rose-400'
 							: selectedUnit.team === 'neutral'
 								? 'text-purple-400'
 								: 'text-blue-400'}"
 					/>
-					<span class="text-[9px] font-bold uppercase truncate max-w-[70px]">
-						{isEnemy ? 'Ворог' : selectedUnit.team === 'neutral' ? 'Бос' : selectedUnit.attackType}
+					<span class="text-[9px] font-bold uppercase truncate max-w-[90px]">
+						{selectedUnit.team === 'neutral' ? 'Бос' : selectedUnit.attackType}
 					</span>
 				</div>
 			{:else if activeEntityType === 'none'}
@@ -500,18 +519,17 @@
 		data-testid="hud-stats-panel"
 		class="relative {activeEntityType === 'worker'
 			? 'w-40 shrink-0'
-			: activeEntityType === 'unit'
-				? 'flex-1 min-w-[340px] max-w-[420px]'
-				: 'flex-1 min-w-[280px] max-w-[500px]'} flex flex-col justify-between px-4 py-2 bg-[#131722]/95 backdrop-blur-md rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 {entityTeam ===
+			: 'w-fit shrink-0 max-w-[420px]'} flex flex-col justify-between px-4 py-2 bg-[#131722]/95 backdrop-blur-md rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 {entityTeam ===
 		'neutral'
 			? 'border-purple-600/80 shadow-[0_0_12px_rgba(168,85,247,0.4)]'
 			: isOpponent
 				? 'border-rose-900/80 shadow-rose-950/50'
-				: 'border-[#544738]'} shadow-inner h-[142px] overflow-hidden pointer-events-auto"
+				: 'border-[#544738]'} shadow-inner h-[142px] overflow-visible pointer-events-auto"
 		style="box-shadow: inset 0 0 10px rgba(0,0,0,0.8);"
 	>
 		<EntityInspectDetails
 			{sim}
+			{uiTick}
 			{activeEntityType}
 			{selectedCastle}
 			{placedBuilding}
@@ -538,14 +556,20 @@
 		<!-- 2 columns x 3 rows grid of enlarged authentic Warcraft III leather inventory pouches -->
 		<div class="grid grid-cols-2 gap-1.5 my-auto">
 			{#each [0, 1, 2, 3, 4, 5] as slotIdx}
+				{@const hasCheese = slotIdx === 0 && player.maxFood > 0}
 				<div
 					data-testid="hud-inventory-slot-{slotIdx}"
-					class="relative w-[44px] h-[39px] rounded-[3px] bg-gradient-to-b from-[#18130d] to-[#0d0a07] border border-[#5c4934] flex items-center justify-center text-xs shadow-inner cursor-pointer hover:border-[#8c7456] transition"
-					title={slotIdx === 0 && player.maxFood > 0
-						? 'Золотий Сир (+1 Ліміт їжі)'
-						: 'Порожній слот торби'}
+					class="relative group/tip w-[44px] h-[39px] rounded-[3px] bg-gradient-to-b from-[#18130d] to-[#0d0a07] border border-[#5c4934] flex items-center justify-center text-xs shadow-inner cursor-pointer hover:border-[#8c7456] transition"
+					aria-label={hasCheese ? 'Золотий Сир (+1 Ліміт їжі)' : 'Порожній слот торби'}
 				>
-					{#if slotIdx === 0 && player.maxFood > 0}
+					<div
+						class="pointer-events-none absolute bottom-full mb-2 {slotIdx % 2 === 1
+							? 'right-0'
+							: 'left-1/2 -translate-x-1/2'} z-50 whitespace-nowrap rounded-md border border-[#544738] bg-[#0f141f]/95 px-2.5 py-1 text-[11px] text-amber-100 shadow-2xl opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150"
+					>
+						{hasCheese ? 'Золотий Сир (+1 Ліміт їжі)' : 'Порожній слот торби'}
+					</div>
+					{#if hasCheese}
 						<!-- Golden Cheese SVG Icon (Food Cap Item) -->
 						<svg
 							class="w-5.5 h-5.5 text-amber-400 drop-shadow"
@@ -592,6 +616,8 @@
 			{onSellBuilding}
 			{onContinueConstruction}
 			{onOpenCommander}
+			{isBlinkTargeting}
+			{onStartBlinkTargeting}
 			{onClearSelection}
 			{onHoverCastleRange}
 			onCloseBuilding={() => (selectedPlacedBuildingId = null)}
@@ -625,7 +651,7 @@
 				{#if activeEntityType === 'worker'}
 					{@render inventorySnippet()}
 				{/if}
-				{#if activeEntityType !== 'unit' && !isSpectator}
+				{#if activeEntityType !== 'unit' && activeEntityType !== 'group' && !isSpectator}
 					{@render commandCardSnippet()}
 				{/if}
 			</div>

@@ -124,7 +124,7 @@
 	<div
 		role="dialog"
 		aria-modal="true"
-		aria-label="Магазин Замку"
+		aria-label="Магазин"
 		class="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4 select-none"
 		data-testid="shop-modal"
 	>
@@ -146,7 +146,7 @@
 						<h2
 							class="text-base sm:text-lg font-extrabold tracking-wide text-emerald-300 uppercase"
 						>
-							Магазин Замку
+							Магазин
 						</h2>
 						<p class="text-[11px] text-slate-400 truncate">
 							Стратегічні припаси та екстрений захист вашої цитаделі ({visibleItems.length}

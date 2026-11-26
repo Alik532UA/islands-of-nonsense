@@ -63,6 +63,7 @@
 	let matchInstanceSeq = 0;
 	let isOnlineSpectator = $state(false);
 	let isRescueTargeting = $state(false);
+	let isBlinkTargeting = $state(false);
 	let lastRescueHotkeyMs = 0;
 	let spectatorVision = $state<'all' | 'west' | 'east'>('all');
 	let isReplayMode = $state(false);
@@ -241,6 +242,32 @@
 	let selectedEntity = $state<SelectedEntity>(null);
 	let controlledPlayerSlot = $state<number>(1);
 	let lastSpaceTime = 0;
+	let lastEnterTime = 0;
+
+	function selectOwnWorker(centerCamera = false) {
+		const targetPlayer = controlledPlayer;
+		selectedBuildingId = null;
+		selectedPlacedBuildingId = null;
+		selectedUnitId = null;
+		selectedEntity = { type: 'worker', playerSlot: targetPlayer.slot };
+		if (centerCamera && targetPlayer.worker) {
+			renderer?.setCamera(targetPlayer.worker.x, targetPlayer.worker.y);
+		}
+		uiTick = sim.stateVersion;
+	}
+
+	function selectOwnCastle(centerCamera = false) {
+		const targetPlayer = controlledPlayer;
+		const castle = sim.castles[targetPlayer.team];
+		selectedBuildingId = null;
+		selectedPlacedBuildingId = null;
+		selectedUnitId = null;
+		selectedEntity = { type: 'castle', team: targetPlayer.team };
+		if (centerCamera && castle) {
+			renderer?.setCamera(castle.x, castle.y);
+		}
+		uiTick = sim.stateVersion;
+	}
 
 	let onlineLocalTeam = $state<'west' | 'east'>('west');
 	let onlineLocalSlot = $state<number>(1);
@@ -554,6 +581,10 @@
 		}
 
 		if (e.key === 'Escape') {
+			if (isBlinkTargeting) {
+				isBlinkTargeting = false;
+				return;
+			}
 			if (isRescueTargeting) {
 				isRescueTargeting = false;
 				return;
@@ -631,18 +662,14 @@
 
 			if (e.code === 'Space' && !e.repeat && !hasBlockingModal) {
 				e.preventDefault();
-				const targetPlayer = controlledPlayer;
-				selectedBuildingId = null;
-				selectedPlacedBuildingId = null;
-				selectedUnitId = null;
-				selectedEntity = { type: 'worker', playerSlot: targetPlayer.slot };
-
 				const now = Date.now();
-				if (now - lastSpaceTime < 350 && targetPlayer.worker) {
-					renderer?.setCamera(targetPlayer.worker.x, targetPlayer.worker.y);
-				}
+				selectOwnWorker(now - lastSpaceTime < 350);
 				lastSpaceTime = now;
-				uiTick = sim.stateVersion;
+			} else if (e.code === 'Enter' && !e.repeat && !hasBlockingModal && !isSpectatorView) {
+				e.preventDefault();
+				const now = Date.now();
+				selectOwnCastle(now - lastEnterTime < 350);
+				lastEnterTime = now;
 			} else if (letter === 'p' && !e.repeat && !hasBlockingModal) {
 				if (isOnlineSpectator) return;
 				e.preventDefault();
@@ -665,6 +692,9 @@
 				return;
 			} else if (letter === 'f' && !e.repeat && (!isWorkerGridActive || e.altKey)) {
 				openExclusiveModal('forge', true);
+			} else if (letter === 'f' && !e.repeat && isWorkerGridActive && !e.altKey) {
+				e.preventDefault();
+				activateBlinkTargeting();
 			} else if (letter === 'c' && !e.repeat && (!isWorkerGridActive || e.altKey)) {
 				openExclusiveModal('commander', true);
 			} else if (letter === 'b' && !e.repeat && (!isWorkerGridActive || e.altKey)) {
@@ -739,6 +769,36 @@
 				}
 			}
 		}
+	}
+
+	function activateBlinkTargeting() {
+		if (isSpectatorView) return;
+		const activePlayer = controlledPlayer;
+		if (!sim.canTeleportWorker(activePlayer.team, activePlayer)) {
+			isBlinkTargeting = false;
+			sound.playErrorResource();
+			return;
+		}
+		isRescueTargeting = false;
+		selectedBuildingId = null;
+		isBlinkTargeting = !isBlinkTargeting;
+	}
+
+	function executeBlinkAtWorld(worldX: number, worldY: number) {
+		if (isSpectatorView) return;
+		const activePlayer = controlledPlayer;
+		const activeTeam = activePlayer.team;
+		isBlinkTargeting = false;
+		if (!sim.canTeleportWorker(activeTeam, activePlayer)) {
+			sound.playErrorResource();
+			return;
+		}
+		dispatchCommand(
+			'ORDER_WORKER_MOVE',
+			{ team: activeTeam, playerSlot: activePlayer.slot, targetId: 'blink', worldX, worldY },
+			() => sim.teleportWorker(activeTeam, worldX, worldY, activePlayer),
+			() => sound.playUpgrade()
+		);
 	}
 
 	function executeRescueStrikeAtWorld(worldX: number, worldY: number) {
@@ -1127,6 +1187,13 @@
 			},
 			onCancelRescueTargeting: () => {
 				isRescueTargeting = false;
+			},
+			getIsBlinkTargeting: () => isBlinkTargeting,
+			onBlinkTargetClick: (worldX: number, worldY: number) => {
+				executeBlinkAtWorld(worldX, worldY);
+			},
+			onCancelBlinkTargeting: () => {
+				isBlinkTargeting = false;
 			}
 		});
 
@@ -1624,6 +1691,87 @@
 			onStartRescueTargeting={() => activateRescueStrikeTargeting(false)}
 		/>
 
+		{#if !isSpectatorView && matchPhase === 'BATTLE'}
+			{@const isEastSide = controlledPlayer.team === 'east'}
+			{@const isWorkerSelected = selectedEntity?.type === 'worker'}
+			{@const isCastleSelected =
+				selectedEntity?.type === 'castle' && selectedEntity.team === controlledPlayer.team}
+			<div
+				data-testid="hud-quick-focus-dock"
+				class="absolute top-1/2 -translate-y-1/2 {isEastSide
+					? 'right-3'
+					: 'left-3'} z-20 flex flex-col items-center gap-2 bg-[#131722]/90 backdrop-blur-md border-2 border-[#544738] rounded-2xl p-1.5 shadow-2xl pointer-events-auto"
+			>
+				<div class="relative group/tip">
+					<button
+						type="button"
+						onclick={() => selectOwnWorker(true)}
+						data-testid="hud-quick-worker-btn"
+						aria-label="Знайти та обрати будівельника (Space)"
+						class="w-14 h-14 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md {isWorkerSelected
+							? 'bg-amber-500/25 border-amber-400 text-amber-200 ring-2 ring-amber-400/50'
+							: 'bg-[#1a2030] hover:bg-[#232b40] border-slate-700 hover:border-amber-500/60 text-amber-300'}"
+					>
+						<UiIcon name="hammer" class="w-7 h-7" />
+					</button>
+					<div
+						class="pointer-events-none absolute top-1/2 -translate-y-1/2 {isEastSide
+							? 'right-full mr-2.5'
+							: 'left-full ml-2.5'} z-50 whitespace-nowrap rounded-md border border-[#544738] bg-[#0f141f]/95 px-2.5 py-1 text-[11px] text-amber-100 shadow-2xl opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 flex items-center gap-1.5"
+					>
+						<span>Будівельник</span>
+						<span
+							class="text-[9px] font-mono font-bold text-amber-400 bg-black/60 px-1 rounded border border-[#544738]"
+						>
+							Space
+						</span>
+					</div>
+				</div>
+				<div class="relative group/tip">
+					<button
+						type="button"
+						onclick={() => selectOwnCastle(true)}
+						data-testid="hud-quick-castle-btn"
+						aria-label="Знайти та обрати замок (Enter)"
+						class="w-14 h-14 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md {isCastleSelected
+							? 'bg-sky-500/25 border-sky-400 text-sky-200 ring-2 ring-sky-400/50'
+							: 'bg-[#1a2030] hover:bg-[#232b40] border-slate-700 hover:border-sky-500/60 text-sky-300'}"
+					>
+						<UiIcon name="castle" class="w-7 h-7" />
+					</button>
+					<div
+						class="pointer-events-none absolute top-1/2 -translate-y-1/2 {isEastSide
+							? 'right-full mr-2.5'
+							: 'left-full ml-2.5'} z-50 whitespace-nowrap rounded-md border border-[#544738] bg-[#0f141f]/95 px-2.5 py-1 text-[11px] text-sky-100 shadow-2xl opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 flex items-center gap-1.5"
+					>
+						<span>Замок</span>
+						<span
+							class="text-[9px] font-mono font-bold text-sky-400 bg-black/60 px-1 rounded border border-sky-500/40"
+						>
+							Enter
+						</span>
+					</div>
+				</div>
+			</div>
+		{/if}
+
+		{#if isBlinkTargeting && !isSpectatorView}
+			<div
+				data-testid="blink-targeting-banner"
+				class="absolute top-16 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-cyan-950/90 border border-cyan-400/75 text-cyan-100 text-xs font-bold shadow-xl backdrop-blur-md"
+			>
+				<UiIcon name="zap" class="w-4 h-4 text-cyan-300 animate-pulse shrink-0" />
+				<span>Оберіть точку на своєму острові для телепорту (макс. 500px)</span>
+				<button
+					type="button"
+					onclick={() => (isBlinkTargeting = false)}
+					class="px-2 py-0.5 rounded bg-slate-900/90 hover:bg-slate-800 border border-slate-600 text-[11px] text-slate-200 cursor-pointer"
+				>
+					{t('online.cancel')}
+				</button>
+			</div>
+		{/if}
+
 		{#if isRescueTargeting && !isSpectatorView}
 			<div
 				data-testid="rescue-targeting-banner"
@@ -1958,6 +2106,8 @@
 			onSellBuilding={handleSellBuilding}
 			onContinueConstruction={handleContinueConstruction}
 			onOpenCommander={() => (isCommanderOpen = true)}
+			{isBlinkTargeting}
+			onStartBlinkTargeting={() => activateBlinkTargeting()}
 			onMinimapClick={(ax: number, ay: number) => renderer?.setCamera(ax, ay)}
 			onHoverCastleRange={(mode: 'short' | 'long' | null) =>
 				renderer?.setHoveredCastleCannonMode(mode)}
@@ -2153,9 +2303,6 @@
 		earnedXp={lastEarnedXp}
 		serializedReplay={savedSerializedReplay}
 		onNextRound={handleNextRound}
-		onReselectCommander={() => {
-			isCommanderOpen = true;
-		}}
 		onWatchReplay={() => {
 			if (!savedSerializedReplay) return;
 			const decoded = ReplaySerializer.deserialize(savedSerializedReplay);

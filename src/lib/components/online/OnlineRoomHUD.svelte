@@ -1235,7 +1235,7 @@
 													};
 												}
 											}}
-											data-testid="lobby-color-btn-{slotKey}"
+											data-testid="lobby-human-color-btn-{slotKey}"
 											title={humanColorDef
 												? `${humanColorDef.nameUk}${
 														humanContention && humanContention.totalClaimants > 1
@@ -1311,7 +1311,7 @@
 													};
 												}
 											}}
-											data-testid="lobby-color-btn-{slotKey}"
+											data-testid="lobby-bot-color-btn-{slotKey}"
 											title={botExplicitColorDef
 												? botExplicitColorDef.nameUk
 												: t('online.hud.randomColor')}

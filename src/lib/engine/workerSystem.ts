@@ -7,7 +7,9 @@ import {
 	MID_LANE_Y,
 	BOTTOM_LANE_Y,
 	BRIDGE_REPAIR_LUMBER_COST,
-	RESCUE_STRIKE_CAST_RANGE
+	RESCUE_STRIKE_CAST_RANGE,
+	WORKER_BLINK_RANGE,
+	WORKER_BLINK_COOLDOWN
 } from './constants';
 import type { MatchTeam, WorkerState, PlayerState } from './types';
 import { GroundNavigation } from './groundNavigation';
@@ -454,10 +456,68 @@ export class WorkerSystem {
 	/**
 	 * Updates workers position, obstacle navigation, construction progress, and repairs.
 	 */
+	public canTeleportWorker(team: MatchTeam, player?: PlayerState): boolean {
+		const w = (player || this.sim.players[team])?.worker;
+		if (!w) return false;
+		return (w.blinkCooldown ?? 0) <= 0;
+	}
+
+	public teleportWorker(
+		team: MatchTeam,
+		worldX: number,
+		worldY: number,
+		player?: PlayerState
+	): boolean {
+		const w = (player || this.sim.players[team])?.worker;
+		if (!w || (w.blinkCooldown ?? 0) > 0) return false;
+
+		const dx = worldX - w.x;
+		const dy = worldY - w.y;
+		const dist = Math.hypot(dx, dy);
+		let tx = worldX;
+		let ty = worldY;
+		if (dist > WORKER_BLINK_RANGE && dist > 0) {
+			tx = w.x + (dx / dist) * WORKER_BLINK_RANGE;
+			ty = w.y + (dy / dist) * WORKER_BLINK_RANGE;
+		}
+
+		// Keep teleport strictly on the worker's own island (clamp back onto island if aimed outside)
+		if (!this.isPointOnOwnDryIsland(team, tx, ty, 16)) {
+			const clamped = this.clampPointToOwnIsland(team, tx, ty, 16, w.x, w.y);
+			tx = clamped.x;
+			ty = clamped.y;
+		}
+		const resolved = this.resolveGroundObstacles(tx, ty, 16);
+		if (!this.isPointOnOwnDryIsland(team, resolved.x, resolved.y, 16)) {
+			return false;
+		}
+
+		w.x = Math.round(resolved.x);
+		w.y = Math.round(resolved.y);
+		w.targetX = w.x;
+		w.targetY = w.y;
+		w.path = [];
+		w.stuckTimer = 0;
+		w.isBuilding = false;
+		w.isRepairing = false;
+		w.targetBuildingId = null;
+		w.targetRepairBuildingId = null;
+		w.pendingRescueStrike = null;
+		w.blinkCooldown = WORKER_BLINK_COOLDOWN;
+
+		this.sim.addFloatingText('Телепорт!', w.x, w.y - 36, '#38bdf8');
+		this.sim.onSoundEffect?.('upgrade');
+		this.sim.notifyStateChanged();
+		return true;
+	}
+
 	public updateWorkers(dt: number): void {
 		for (const p of this.sim.allPlayers) {
 			const w = p.worker;
 			if (!w) continue;
+			if (w.blinkCooldown && w.blinkCooldown > 0) {
+				w.blinkCooldown = Math.max(0, w.blinkCooldown - dt);
+			}
 			const team = p.team;
 
 			if (w.pendingRescueStrike) {

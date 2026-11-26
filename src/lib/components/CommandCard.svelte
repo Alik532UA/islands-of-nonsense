@@ -25,12 +25,6 @@
 		}
 	}
 
-	function dispatchBridgeRepair() {
-		if (!routeBattleCommand?.('BRIDGE_REPAIR', { team: player.team, playerSlot: player.slot })) {
-			sim.orderBridgeRepair(player.team, player);
-		}
-	}
-
 	function dispatchBuyItem(itemId: string) {
 		if (!sim.canBuyCastleItem(player.team, itemId, player)) {
 			sound.playErrorResource();
@@ -83,23 +77,38 @@
 		}
 	}
 
+	function toggleCastleCannonAuto(mode: 'short' | 'long') {
+		const current = sim.castleCannonAutoMode?.[player.team] ?? null;
+		const nextAuto: 'short' | 'long' | null = current === mode ? null : mode;
+		const targetId =
+			nextAuto === 'short' ? 'auto_short' : nextAuto === 'long' ? 'auto_long' : 'auto_off';
+		if (
+			!routeBattleCommand?.('CASTLE_SHOT', { team: player.team, playerSlot: player.slot, targetId })
+		) {
+			sim.setCastleCannonAutoMode(player.team, nextAuto, player);
+		}
+		sound.playUpgrade();
+	}
+
 	function getCastleCannonView(_tick: number) {
 		const cannonCd = sim.getCastleCannonCooldown(player.team);
 		const cannonMaxCd = sim.getCastleCannonEffectiveMaxCooldown(player.team);
 		const isOvercharged = sim.castleOverchargeTimer[player.team] > 0;
 		const isCannonUpgraded = sim.castleCannonUpgraded[player.team];
+		const autoMode = sim.castleCannonAutoMode?.[player.team] ?? null;
 		return {
 			cannonCd,
 			cannonMaxCd,
 			isOvercharged,
 			isCannonUpgraded,
+			autoMode,
 			canUpgradeCannon: sim.canUpgradeCastleCannon(player.team, player),
 			cannonDmg: isOvercharged ? CASTLE_CANNON_BASE_DAMAGE * 2 : CASTLE_CANNON_BASE_DAMAGE,
 			buttons: [
 				{
 					mode: 'short' as const,
 					range: CASTLE_CANNON_SHORT_RANGE,
-					hotkey: '[1]',
+					hotkey: '1',
 					cost: sim.getCastleCannonShotCost(player.team, 'short'),
 					enemies: sim.getCastleCannonEnemyCount(player.team, CASTLE_CANNON_SHORT_RANGE, true),
 					canFire: sim.canFireCastleCannon(player.team, 'short', player),
@@ -110,7 +119,7 @@
 				{
 					mode: 'long' as const,
 					range: CASTLE_CANNON_LONG_RANGE,
-					hotkey: '[2]',
+					hotkey: '2',
 					cost: sim.getCastleCannonShotCost(player.team, 'long'),
 					enemies: sim.getCastleCannonEnemyCount(player.team, CASTLE_CANNON_LONG_RANGE, true),
 					canFire: sim.canFireCastleCannon(player.team, 'long', player),
@@ -139,8 +148,8 @@
 		placedUnit = null,
 		availableUpgrades = [],
 		selectedCastle = null,
-		selectedUnit = null,
-		groupUnits = [],
+		selectedUnit: _selectedUnit = null,
+		groupUnits: _groupUnits = [],
 		availableBuildings = [],
 		selectedBuildingId = null,
 		activeEntityType,
@@ -151,9 +160,11 @@
 		onSellBuilding,
 		onContinueConstruction,
 		onOpenCommander,
-		onClearSelection,
-		onCloseBuilding,
-		onCloseUnit,
+		isBlinkTargeting = false,
+		onStartBlinkTargeting,
+		onClearSelection: _onClearSelection,
+		onCloseBuilding: _onCloseBuilding,
+		onCloseUnit: _onCloseUnit,
 		onHoverCastleRange
 	}: {
 		sim: Simulation;
@@ -169,11 +180,13 @@
 		activeEntityType: 'castle' | 'group' | 'building' | 'unit' | 'worker' | 'none';
 		player: PlayerState;
 		playerGold: number;
+		isBlinkTargeting?: boolean;
 		onSelectBuilding: (id: string | null) => void;
 		onUpgradeBuilding?: (instanceId: string, targetDefId: string) => void;
 		onSellBuilding?: (instanceId: string) => void;
 		onContinueConstruction?: (instanceId: string) => void;
 		onOpenCommander?: () => void;
+		onStartBlinkTargeting?: () => void;
 		onClearSelection?: () => void;
 		onCloseBuilding?: () => void;
 		onCloseUnit?: () => void;
@@ -232,6 +245,16 @@
 		}
 		return WC3_HOTKEYS[index] || HOTKEYS[index] || '';
 	}
+	const tipClass =
+		'pointer-events-none absolute bottom-full mb-2 z-50 whitespace-nowrap rounded-md border border-[#544738] bg-[#0f141f]/95 px-2.5 py-1 text-[11px] text-amber-100 shadow-2xl opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150';
+	const hotkeyCornerClass =
+		'absolute top-0 right-0 px-1 py-0.2 rounded-bl-[3px] text-[7.5px] font-mono font-bold leading-none select-none bg-black/70 text-[#fef08a] border-l border-b border-[#544738]/60';
+
+	const buildingUnderConstruction = $derived(
+		uiTick >= 0 ? Boolean(placedBuilding?.isUnderConstruction) : false
+	);
+	const buildingHp = $derived(uiTick >= 0 ? (placedBuilding?.hp ?? 0) : 0);
+	const buildingMaxHp = $derived(uiTick >= 0 ? (placedBuilding?.maxHp ?? 1) : 1);
 </script>
 
 <div
@@ -243,34 +266,29 @@
 		{#if placedBuilding.team === player.team}
 			<!-- Placed Building Commands: Upgrades, Continue Construction, Sell -->
 			<div class="grid grid-cols-4 gap-1.5 w-[280px]">
-				{#if placedBuilding.isUnderConstruction}
-					<button
-						onclick={() => onContinueConstruction?.(placedBuilding.instanceId)}
-						data-testid="hud-continue-construction-btn"
-						class="col-span-2 h-10 rounded border border-amber-500 bg-amber-950/70 hover:bg-amber-900/90 text-amber-200 flex items-center justify-center gap-1.5 px-2 transition cursor-pointer shadow"
-						title="Відправити робітника добудувати споруду"
-					>
-						<UiIcon name="hammer" class="w-4 h-4 text-amber-400" />
-						<span class="text-[10px] font-bold">Добудувати</span>
-					</button>
-					<button
-						onclick={() => onSellBuilding?.(placedBuilding.instanceId)}
-						data-testid="hud-cancel-construction-btn"
-						class="h-10 rounded border border-rose-600/70 bg-rose-950/60 hover:bg-rose-900/80 text-rose-200 flex items-center justify-center gap-1 px-1 transition cursor-pointer"
-						title="Скасувати будівництво"
-					>
-						<UiIcon name="trash2" class="w-3.5 h-3.5 text-rose-400" />
-						<span class="text-[9px] font-bold">Скасувати</span>
-					</button>
-					<button
-						onclick={() => onCloseBuilding?.()}
-						data-testid="hud-close-building-btn"
-						class="h-10 rounded border border-slate-600 bg-slate-800 hover:bg-slate-700 text-slate-200 flex flex-col items-center justify-center p-1 transition cursor-pointer"
-						title="Закрити вибір (Esc)"
-					>
-						<UiIcon name="x" class="w-4 h-4 text-slate-300" />
-						<span class="text-[8px] font-mono">Esc</span>
-					</button>
+				{#if buildingUnderConstruction}
+					<div class="relative group/tip col-span-2">
+						<button
+							onclick={() => onContinueConstruction?.(placedBuilding.instanceId)}
+							data-testid="hud-continue-construction-btn"
+							class="w-full h-10 rounded border border-amber-500 bg-amber-950/70 hover:bg-amber-900/90 text-amber-200 flex items-center justify-center gap-1.5 px-2 transition cursor-pointer shadow"
+						>
+							<UiIcon name="hammer" class="w-4 h-4 text-amber-400" />
+							<span class="text-[10px] font-bold">Добудувати</span>
+						</button>
+						<div class="{tipClass} left-0">Відправити робітника добудувати споруду</div>
+					</div>
+					<div class="relative group/tip">
+						<button
+							onclick={() => onSellBuilding?.(placedBuilding.instanceId)}
+							data-testid="hud-cancel-construction-btn"
+							class="w-full h-10 rounded border border-rose-600/70 bg-rose-950/60 hover:bg-rose-900/80 text-rose-200 flex items-center justify-center gap-1 px-1 transition cursor-pointer"
+						>
+							<UiIcon name="trash2" class="w-3.5 h-3.5 text-rose-400" />
+							<span class="text-[9px] font-bold">Скасувати</span>
+						</button>
+						<div class="{tipClass} left-1/2 -translate-x-1/2">Скасувати будівництво</div>
+					</div>
 				{:else if placedBuilding.specialType === 'shop'}
 					{@const shopItems = CASTLE_ITEMS_LIST.filter(
 						(it) => (it.id !== 'I00B' && it.id !== 'I00N') || sim.gameModeConfig?.nuclearWarheads
@@ -280,33 +298,31 @@
 						<div class="flex items-center justify-between border-b border-[#3b3226] pb-1 shrink-0">
 							<span class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
 								<UiIcon name="shoppingBag" class="w-3.5 h-3.5 text-amber-400" />
-								Магазин
+								Товари
 							</span>
 							<div class="flex items-center gap-1">
-								{#if placedBuilding.hp < placedBuilding.maxHp}
+								{#if buildingHp < buildingMaxHp}
 									<button
 										onclick={() => dispatchRepair(placedBuilding.team, placedBuilding.instanceId)}
-										data-testid="hud-repair-btn"
+										data-testid="hud-shop-repair-btn"
 										class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-emerald-950/80 hover:bg-emerald-900 border-emerald-500/70 text-emerald-200 cursor-pointer shadow flex items-center gap-0.5"
 									>
 										<UiIcon name="wrench" class="w-2.5 h-2.5 text-emerald-400" />
-										<span>Ремонт [R]</span>
+										<span>Ремонт</span>
+										<span
+											class="px-1 py-0.2 rounded bg-black/60 border border-emerald-500/40 text-emerald-300 font-mono text-[8px] leading-none"
+										>
+											R
+										</span>
 									</button>
 								{/if}
 								<button
 									onclick={() => onSellBuilding?.(placedBuilding.instanceId)}
-									data-testid="hud-sell-btn"
+									data-testid="hud-shop-sell-btn"
 									class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-rose-950/70 hover:bg-rose-900 border-rose-600/70 text-rose-200 cursor-pointer shadow flex items-center gap-0.5"
 								>
 									<UiIcon name="trash2" class="w-2.5 h-2.5 text-rose-400" />
 									<span>Знести (+25g)</span>
-								</button>
-								<button
-									onclick={() => onCloseBuilding?.()}
-									data-testid="hud-close-building-btn"
-									class="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 bg-[#1e2433] rounded border border-slate-700 cursor-pointer"
-								>
-									Esc
 								</button>
 							</div>
 						</div>
@@ -326,7 +342,7 @@
 										: cd > 0
 											? 'bg-[#151a24] border-cyan-800/60 text-cyan-400 cursor-not-allowed'
 											: 'bg-[#12161f] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
-									title="{item.nameUk} ({item.cost}g) - {item.descriptionUk}"
+									aria-label="{item.nameUk} ({item.cost}g) - {item.descriptionUk}"
 								>
 									{#if cd > 0}
 										<div
@@ -384,135 +400,141 @@
 						<div class="flex items-center justify-between border-b border-[#3b3226] pb-1 shrink-0">
 							<span class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
 								<UiIcon name="hammer" class="w-3.5 h-3.5 text-amber-400" />
-								Військова Кузня
+								Покращення
 							</span>
 							<div class="flex items-center gap-1">
-								{#if placedBuilding.hp < placedBuilding.maxHp}
+								{#if buildingHp < buildingMaxHp}
 									<button
 										onclick={() => dispatchRepair(placedBuilding.team, placedBuilding.instanceId)}
-										data-testid="hud-repair-btn"
+										data-testid="hud-forge-repair-btn"
 										class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-emerald-950/80 hover:bg-emerald-900 border-emerald-500/70 text-emerald-200 cursor-pointer shadow flex items-center gap-0.5"
 									>
 										<UiIcon name="wrench" class="w-2.5 h-2.5 text-emerald-400" />
-										<span>Ремонт [R]</span>
+										<span>Ремонт</span>
+										<span
+											class="px-1 py-0.2 rounded bg-black/60 border border-emerald-500/40 text-emerald-300 font-mono text-[8px] leading-none"
+										>
+											R
+										</span>
 									</button>
 								{/if}
 								<button
 									onclick={() => onSellBuilding?.(placedBuilding.instanceId)}
-									data-testid="hud-sell-btn"
+									data-testid="hud-forge-sell-btn"
 									class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-rose-950/70 hover:bg-rose-900 border-rose-600/70 text-rose-200 cursor-pointer shadow flex items-center gap-0.5"
 								>
 									<UiIcon name="trash2" class="w-2.5 h-2.5 text-rose-400" />
 									<span>Знести (+50g)</span>
 								</button>
-								<button
-									onclick={() => onCloseBuilding?.()}
-									data-testid="hud-close-building-btn"
-									class="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 bg-[#1e2433] rounded border border-slate-700 cursor-pointer"
-								>
-									Esc
-								</button>
 							</div>
 						</div>
 						<div class="grid grid-cols-3 gap-1.5 pt-1">
-							<button
-								onclick={() => dispatchUpgradeForge('attack')}
-								disabled={!canAtk}
-								class="h-16 rounded border flex flex-col items-center justify-between p-1 transition cursor-pointer {canAtk
-									? 'bg-rose-950/60 hover:bg-rose-900/80 border-rose-500/70 text-white shadow'
-									: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
-								title="Атака: +8% шкоди всім військам"
-							>
-								<span class="text-[9.5px] font-bold text-rose-300 flex items-center gap-1">
-									<UiIcon name="swords" class="w-3 h-3 text-rose-400 shrink-0" />
-									<span>Атака {atkLvl}/5</span>
-								</span>
-								<span class="text-[8px] text-slate-400">+8% шкоди</span>
-								<div
-									class="text-[8.5px] font-mono font-bold text-amber-300 flex items-center gap-1"
+							<div class="relative group/tip">
+								<button
+									onclick={() => dispatchUpgradeForge('attack')}
+									disabled={!canAtk}
+									class="w-full h-16 rounded border flex flex-col items-center justify-between p-1 transition cursor-pointer {canAtk
+										? 'bg-rose-950/60 hover:bg-rose-900/80 border-rose-500/70 text-white shadow'
+										: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
 								>
-									{#if atkLvl >= 5}
-										<span>МАКС</span>
-									{:else}
-										<span class="flex items-center gap-0.5">
-											<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
-											<span>{atkCost}</span>
-										</span>
-										{#if atkLum > 0}
-											<span class="flex items-center gap-0.5 text-emerald-400">
-												<UiIcon name="treePine" class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
-												<span>{atkLum}</span>
+									<span class="text-[9.5px] font-bold text-rose-300 flex items-center gap-1">
+										<UiIcon name="swords" class="w-3 h-3 text-rose-400 shrink-0" />
+										<span>Атака {atkLvl}/5</span>
+									</span>
+									<span class="text-[8px] text-slate-400">+8% шкоди</span>
+									<div
+										class="text-[8.5px] font-mono font-bold text-amber-300 flex items-center gap-1"
+									>
+										{#if atkLvl >= 5}
+											<span>МАКС</span>
+										{:else}
+											<span class="flex items-center gap-0.5">
+												<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
+												<span>{atkCost}</span>
 											</span>
+											{#if atkLum > 0}
+												<span class="flex items-center gap-0.5 text-emerald-400">
+													<UiIcon name="treePine" class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+													<span>{atkLum}</span>
+												</span>
+											{/if}
 										{/if}
-									{/if}
-								</div>
-							</button>
+									</div>
+								</button>
+								<div class="{tipClass} left-0">Атака: +8% шкоди всім військам</div>
+							</div>
 
-							<button
-								onclick={() => dispatchUpgradeForge('armor')}
-								disabled={!canArm}
-								class="h-16 rounded border flex flex-col items-center justify-between p-1 transition cursor-pointer {canArm
-									? 'bg-blue-950/60 hover:bg-blue-900/80 border-blue-500/70 text-white shadow'
-									: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
-								title="Броня: +1 броні всім військам"
-							>
-								<span class="text-[9.5px] font-bold text-blue-300 flex items-center gap-1">
-									<UiIcon name="shield" class="w-3 h-3 text-blue-400 shrink-0" />
-									<span>Броня {armLvl}/5</span>
-								</span>
-								<span class="text-[8px] text-slate-400">+1 броня</span>
-								<div
-									class="text-[8.5px] font-mono font-bold text-amber-300 flex items-center gap-1"
+							<div class="relative group/tip">
+								<button
+									onclick={() => dispatchUpgradeForge('armor')}
+									disabled={!canArm}
+									class="w-full h-16 rounded border flex flex-col items-center justify-between p-1 transition cursor-pointer {canArm
+										? 'bg-blue-950/60 hover:bg-blue-900/80 border-blue-500/70 text-white shadow'
+										: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
 								>
-									{#if armLvl >= 5}
-										<span>МАКС</span>
-									{:else}
-										<span class="flex items-center gap-0.5">
-											<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
-											<span>{armCost}</span>
-										</span>
-										{#if armLum > 0}
-											<span class="flex items-center gap-0.5 text-emerald-400">
-												<UiIcon name="treePine" class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
-												<span>{armLum}</span>
+									<span class="text-[9.5px] font-bold text-blue-300 flex items-center gap-1">
+										<UiIcon name="shield" class="w-3 h-3 text-blue-400 shrink-0" />
+										<span>Броня {armLvl}/5</span>
+									</span>
+									<span class="text-[8px] text-slate-400">+1 броня</span>
+									<div
+										class="text-[8.5px] font-mono font-bold text-amber-300 flex items-center gap-1"
+									>
+										{#if armLvl >= 5}
+											<span>МАКС</span>
+										{:else}
+											<span class="flex items-center gap-0.5">
+												<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
+												<span>{armCost}</span>
 											</span>
+											{#if armLum > 0}
+												<span class="flex items-center gap-0.5 text-emerald-400">
+													<UiIcon name="treePine" class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+													<span>{armLum}</span>
+												</span>
+											{/if}
 										{/if}
-									{/if}
+									</div>
+								</button>
+								<div class="{tipClass} left-1/2 -translate-x-1/2">
+									Броня: +1 броні всім військам
 								</div>
-							</button>
+							</div>
 
-							<button
-								onclick={() => dispatchUpgradeForge('econ')}
-								disabled={!canEco}
-								class="h-16 rounded border flex flex-col items-center justify-between p-1 transition cursor-pointer {canEco
-									? 'bg-emerald-950/60 hover:bg-emerald-900/80 border-emerald-500/70 text-white shadow'
-									: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
-								title="Економіка: +10% до доходу золота"
-							>
-								<span class="text-[9.5px] font-bold text-emerald-300 flex items-center gap-1">
-									<UiIcon name="coins" class="w-3 h-3 text-emerald-400 shrink-0" />
-									<span>Дохід {ecoLvl}/3</span>
-								</span>
-								<span class="text-[8px] text-slate-400">+10% доходу</span>
-								<div
-									class="text-[8.5px] font-mono font-bold text-amber-300 flex items-center gap-1"
+							<div class="relative group/tip">
+								<button
+									onclick={() => dispatchUpgradeForge('econ')}
+									disabled={!canEco}
+									class="w-full h-16 rounded border flex flex-col items-center justify-between p-1 transition cursor-pointer {canEco
+										? 'bg-emerald-950/60 hover:bg-emerald-900/80 border-emerald-500/70 text-white shadow'
+										: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
 								>
-									{#if ecoLvl >= 3}
-										<span>МАКС</span>
-									{:else}
-										<span class="flex items-center gap-0.5">
-											<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
-											<span>{ecoCost}</span>
-										</span>
-										{#if ecoLum > 0}
-											<span class="flex items-center gap-0.5 text-emerald-400">
-												<UiIcon name="treePine" class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
-												<span>{ecoLum}</span>
+									<span class="text-[9.5px] font-bold text-emerald-300 flex items-center gap-1">
+										<UiIcon name="coins" class="w-3 h-3 text-emerald-400 shrink-0" />
+										<span>Дохід {ecoLvl}/3</span>
+									</span>
+									<span class="text-[8px] text-slate-400">+10% доходу</span>
+									<div
+										class="text-[8.5px] font-mono font-bold text-amber-300 flex items-center gap-1"
+									>
+										{#if ecoLvl >= 3}
+											<span>МАКС</span>
+										{:else}
+											<span class="flex items-center gap-0.5">
+												<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
+												<span>{ecoCost}</span>
 											</span>
+											{#if ecoLum > 0}
+												<span class="flex items-center gap-0.5 text-emerald-400">
+													<UiIcon name="treePine" class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+													<span>{ecoLum}</span>
+												</span>
+											{/if}
 										{/if}
-									{/if}
-								</div>
-							</button>
+									</div>
+								</button>
+								<div class="{tipClass} right-0">Економіка: +10% до доходу золота</div>
+							</div>
 						</div>
 					</div>
 				{:else if placedBuilding.specialType === 'commander'}
@@ -523,33 +545,31 @@
 						<div class="flex items-center justify-between border-b border-[#3b3226] pb-1 shrink-0">
 							<span class="text-[11px] font-bold text-indigo-300 flex items-center gap-1">
 								<UiIcon name="crown" class="w-3.5 h-3.5 text-indigo-400" />
-								Дім командира
+								Керування
 							</span>
 							<div class="flex items-center gap-1">
-								{#if placedBuilding.hp < placedBuilding.maxHp}
+								{#if buildingHp < buildingMaxHp}
 									<button
 										onclick={() => dispatchRepair(placedBuilding.team, placedBuilding.instanceId)}
-										data-testid="hud-repair-btn"
+										data-testid="hud-commander-repair-btn"
 										class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-emerald-950/80 hover:bg-emerald-900 border-emerald-500/70 text-emerald-200 cursor-pointer shadow flex items-center gap-0.5"
 									>
 										<UiIcon name="wrench" class="w-2.5 h-2.5 text-emerald-400" />
-										<span>Ремонт [R]</span>
+										<span>Ремонт</span>
+										<span
+											class="px-1 py-0.2 rounded bg-black/60 border border-emerald-500/40 text-emerald-300 font-mono text-[8px] leading-none"
+										>
+											R
+										</span>
 									</button>
 								{/if}
 								<button
 									onclick={() => onSellBuilding?.(placedBuilding.instanceId)}
-									data-testid="hud-sell-btn"
+									data-testid="hud-commander-sell-btn"
 									class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-rose-950/70 hover:bg-rose-900 border-rose-600/70 text-rose-200 cursor-pointer shadow flex items-center gap-0.5"
 								>
 									<UiIcon name="trash2" class="w-2.5 h-2.5 text-rose-400" />
 									<span>Знести (+{Math.round(placedBuilding.goldCost * 0.5)}g)</span>
-								</button>
-								<button
-									onclick={() => onCloseBuilding?.()}
-									data-testid="hud-close-building-btn"
-									class="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 bg-[#1e2433] rounded border border-slate-700 cursor-pointer"
-								>
-									Esc
 								</button>
 							</div>
 						</div>
@@ -597,100 +617,82 @@
 							: Math.max(50, (up.gold_cost || 200) - placedBuilding.goldCost)}
 						{@const upLumber = up.lumber_cost || 0}
 						{@const canAfford = playerGold >= upCost && (player.lumber ?? 0) >= upLumber}
-						<button
-							onclick={() => onUpgradeBuilding?.(placedBuilding.instanceId, up.id)}
-							disabled={!canAfford}
-							data-testid="hud-upgrade-btn-{up.id}"
-							class="relative w-16 h-10 rounded border flex flex-col items-center justify-center p-1 transition cursor-pointer {canAfford
-								? 'bg-[#1e3a5f] hover:bg-[#2563eb] border-blue-400 text-white shadow'
-								: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
-							title="{up.name} ({upCost}g{upLumber > 0 ? `, ${upLumber}w` : ''})"
-						>
-							<span
-								class="absolute top-0.5 right-1 text-[8px] font-mono font-bold text-amber-300 drop-shadow"
+						<div class="relative group/tip">
+							<button
+								onclick={() => onUpgradeBuilding?.(placedBuilding.instanceId, up.id)}
+								disabled={!canAfford}
+								data-testid="hud-upgrade-btn-{up.id}"
+								class="relative w-16 h-10 rounded border flex flex-col items-center justify-center p-1 overflow-hidden transition cursor-pointer {canAfford
+									? 'bg-[#1e3a5f] hover:bg-[#2563eb] border-blue-400 text-white shadow'
+									: 'bg-[#181d28] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
 							>
-								{uIdx + 1}
-							</span>
-							<span class="text-[10px] font-bold truncate max-w-[50px]">{up.name}</span>
-							<div class="flex items-center gap-1.5 text-[8px] font-mono font-bold mt-0.5">
-								<span class="text-amber-300 flex items-center gap-0.5">
-									<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
-									<span>{upCost}</span>
+								<span class={hotkeyCornerClass}>
+									{uIdx + 1}
 								</span>
-								{#if upLumber > 0}
-									<span class="text-emerald-400 flex items-center gap-0.5">
-										<UiIcon name="treePine" class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
-										<span>{upLumber}</span>
+								<span class="text-[10px] font-bold truncate max-w-[50px]">{up.name}</span>
+								<div class="flex items-center gap-1.5 text-[8px] font-mono font-bold mt-0.5">
+									<span class="text-amber-300 flex items-center gap-0.5">
+										<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
+										<span>{upCost}</span>
 									</span>
-								{/if}
+									{#if upLumber > 0}
+										<span class="text-emerald-400 flex items-center gap-0.5">
+											<UiIcon name="treePine" class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+											<span>{upLumber}</span>
+										</span>
+									{/if}
+								</div>
+							</button>
+							<div class="{tipClass} left-1/2 -translate-x-1/2">
+								{up.name} ({upCost}g{upLumber > 0 ? `, ${upLumber}w` : ''}) · Клавіша {uIdx + 1}
 							</div>
-						</button>
+						</div>
 					{/each}
-					{#if placedBuilding.hp < placedBuilding.maxHp}
-						<button
-							onclick={() => dispatchRepair(placedBuilding.team, placedBuilding.instanceId)}
-							data-testid="hud-repair-btn"
-							class="w-16 h-10 rounded border border-emerald-500/70 bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-200 flex flex-col items-center justify-center p-0.5 transition cursor-pointer shadow"
-							title="Наказати робітникові відремонтувати споруду (R)"
-						>
-							<span class="text-[10px] font-bold flex items-center gap-0.5">
-								<UiIcon name="wrench" class="w-3 h-3 text-emerald-400" />
-								Ремонт
-							</span>
-							<span class="text-[8px] font-mono text-emerald-300 font-bold">[R]</span>
-						</button>
+					{#if buildingHp < buildingMaxHp}
+						<div class="relative group/tip">
+							<button
+								onclick={() => dispatchRepair(placedBuilding.team, placedBuilding.instanceId)}
+								data-testid="hud-repair-btn"
+								class="relative w-16 h-10 rounded border border-emerald-500/70 bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-200 flex flex-col items-center justify-center p-0.5 overflow-hidden transition cursor-pointer shadow"
+							>
+								<span class={hotkeyCornerClass}>R</span>
+								<span class="text-[10px] font-bold flex items-center gap-0.5">
+									<UiIcon name="wrench" class="w-3 h-3 text-emerald-400" />
+									Ремонт
+								</span>
+							</button>
+							<div class="{tipClass} left-1/2 -translate-x-1/2">
+								Наказати робітникові відремонтувати споруду · Клавіша R
+							</div>
+						</div>
 					{/if}
 					<!-- Sell button in slot 11 -->
-					<button
-						onclick={() => onSellBuilding?.(placedBuilding.instanceId)}
-						data-testid="hud-sell-btn"
-						class="relative col-start-3 w-16 h-10 rounded border border-rose-600/70 bg-rose-950/60 hover:bg-rose-900/80 text-rose-200 flex flex-col items-center justify-center p-1 transition cursor-pointer"
-						title="Знести споруду (+50% повернення золота)"
-					>
-						<span class="text-[10px] font-bold flex items-center gap-0.5">
-							<UiIcon name="trash2" class="w-3 h-3 text-rose-400" />
-							Знести
-						</span>
-						<span class="text-[9px] text-emerald-300 font-mono font-bold">
-							+{Math.floor(placedBuilding.goldCost * 0.5)}g
-						</span>
-					</button>
-
-					<!-- Deselect button in slot 12 -->
-					<button
-						onclick={() => onCloseBuilding?.()}
-						data-testid="hud-close-building-btn"
-						class="relative col-start-4 w-16 h-10 rounded border border-slate-600 bg-slate-800 hover:bg-slate-700 text-slate-200 flex flex-col items-center justify-center p-1 transition cursor-pointer"
-						title="Закрити вибір (Esc)"
-					>
-						<UiIcon name="x" class="w-4 h-4 text-slate-300" />
-						<span class="text-[8px] font-mono">Esc</span>
-					</button>
+					<div class="relative group/tip col-start-3">
+						<button
+							onclick={() => onSellBuilding?.(placedBuilding.instanceId)}
+							data-testid="hud-sell-btn"
+							class="relative w-16 h-10 rounded border border-rose-600/70 bg-rose-950/60 hover:bg-rose-900/80 text-rose-200 flex flex-col items-center justify-center p-1 transition cursor-pointer"
+						>
+							<span class="text-[10px] font-bold flex items-center gap-0.5">
+								<UiIcon name="trash2" class="w-3 h-3 text-rose-400" />
+								Знести
+							</span>
+							<span class="text-[9px] text-emerald-300 font-mono font-bold">
+								+{Math.floor(placedBuilding.goldCost * 0.5)}g
+							</span>
+						</button>
+						<div class="{tipClass} left-1/2 -translate-x-1/2">
+							Знести споруду (+50% повернення золота)
+						</div>
+					</div>
 				{/if}
 			</div>
 		{:else}
-			<!-- Enemy building inspection: stats only + dismiss -->
-			<div class="flex flex-col justify-between w-[280px] h-full py-1">
-				<div class="flex items-center justify-between border-b border-[#3b3226] pb-1">
-					<span class="text-[11px] font-bold text-rose-400 flex items-center gap-1">
-						<UiIcon name="hammer" class="w-3.5 h-3.5 text-rose-400" />
-						{placedBuilding.name} (Ворог)
-					</span>
-					<button
-						onclick={() => onCloseBuilding?.()}
-						data-testid="hud-close-enemy-building-btn"
-						class="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 bg-[#1e2433] rounded border border-slate-700 cursor-pointer"
-					>
-						Закрити (Esc)
-					</button>
-				</div>
+			<!-- Enemy building inspection: spawned unit combat stats only -->
+			<div class="flex flex-col justify-center w-[280px] h-full py-1">
 				<div
-					class="flex flex-col gap-1 text-[10px] text-slate-300 bg-[#0d1017] p-2 rounded border border-[#2d3748]"
+					class="flex flex-col gap-1.5 text-[10px] text-slate-300 bg-[#0d1017] p-2.5 rounded border border-[#2d3748]"
 				>
-					<div class="flex justify-between">
-						<span class="text-slate-400">Спавнить бійця:</span>
-						<span class="font-bold text-amber-300">{placedUnit?.name || 'Спеціальна'}</span>
-					</div>
 					{#if placedUnit}
 						<div class="flex justify-between">
 							<span class="text-slate-400">Атака / Броня:</span>
@@ -704,39 +706,33 @@
 								{Math.round(placedUnit.hp)} HP / {placedBuilding.spawnCooldown}с
 							</span>
 						</div>
+					{:else}
+						<div class="text-slate-400 text-center">Спеціальна ворожа споруда</div>
 					{/if}
 				</div>
 			</div>
 		{/if}
 	{:else if activeEntityType === 'castle' && selectedCastle}
-		<!-- Castle Command Card: Status & Defense Repair (Consumable shop items moved to built Shop building) -->
-		<div class="flex flex-col justify-between w-[280px] h-full py-1">
-			<div class="flex items-center justify-between border-b border-[#3b3226] pb-1">
-				<span class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
-					<UiIcon name="castle" class="w-3.5 h-3.5 text-amber-400" />
-					{selectedCastle.team === player.team ? 'Головна Цитадель' : 'Ворожа База'}
-				</span>
-				<button
-					onclick={() => onClearSelection?.()}
-					data-testid="hud-close-castle-btn"
-					class="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 bg-[#1e2433] rounded border border-slate-700 cursor-pointer"
-				>
-					Закрити (Esc)
-				</button>
-			</div>
-			{#if selectedCastle.team === player.team}
+		<!-- Castle Cannon Command Card: Everything related to the Cannon -->
+		{@const isAlliedCastle = selectedCastle.team === player.team}
+		<div class="flex flex-col justify-between w-[270px] h-full py-0.5">
+			{#if isAlliedCastle}
 				{@const cv = getCastleCannonView(uiTick)}
 				<div
-					class="flex flex-col gap-0.5 text-[9.5px] text-slate-300 bg-[#0d1017] px-2 py-1.5 rounded border border-[#2d3748]"
+					class="flex items-center justify-between gap-2 text-[10px] text-slate-300 bg-gradient-to-r from-amber-950/60 via-[#171d2b] to-[#111622] px-2.5 py-1.5 rounded-md border border-amber-500/35 shadow-inner"
 				>
-					<div class="flex justify-between">
-						<span class="text-slate-400">Гармата замку:</span>
-						<span class="font-mono text-amber-300 font-bold">
-							{cv.cannonDmg} (Облога){cv.isOvercharged ? ' ×2!' : ''}
+					<div class="flex items-center gap-1.5">
+						<UiIcon name="crosshair" class="w-3.5 h-3.5 text-amber-400 shrink-0" />
+						<span class="font-bold text-amber-200 tracking-wide">
+							Гармата · {cv.cannonDmg} (Облога){cv.isOvercharged ? ' ×2!' : ''}
 						</span>
 					</div>
-					<div class="flex justify-between">
-						<span class="text-slate-400">Спільний КД:</span>
+					<div class="flex items-center gap-1.5">
+						<span
+							class="inline-block w-1.5 h-1.5 rounded-full {cv.cannonCd > 0
+								? 'bg-rose-400'
+								: 'bg-emerald-400 animate-pulse'}"
+						></span>
 						<span
 							class="font-mono font-bold {cv.cannonCd > 0
 								? 'text-rose-400'
@@ -745,214 +741,150 @@
 									: 'text-emerald-400'}"
 						>
 							{cv.cannonCd > 0
-								? `${cv.cannonCd.toFixed(1)}с / ${cv.cannonMaxCd.toFixed(1)}с`
+								? `${cv.cannonCd.toFixed(1)}с`
 								: `Готово (${cv.cannonMaxCd.toFixed(1)}с)`}
 						</span>
 					</div>
 				</div>
 				{@const castleBtn =
-					'w-16 h-10 rounded border flex flex-col items-center justify-center p-0.5 transition cursor-pointer shadow'}
+					'w-full h-11 rounded-md border flex flex-col items-center justify-center p-0.5 overflow-hidden transition cursor-pointer shadow-md'}
 				{@const disabledCastleBtn =
-					'border-slate-700 bg-slate-900/70 text-slate-500 opacity-60 cursor-not-allowed'}
-				<div class="grid grid-cols-4 gap-1.5 pt-1">
-					{#each cv.buttons as btn (btn.mode)}
-						<button
-							type="button"
-							onclick={() =>
-								dispatchCastleAction(
-									'CASTLE_SHOT',
-									btn.canFire,
-									() => sim.fireCastleCannon(player.team, btn.mode, player).fired,
-									btn.mode
-								)}
-							onmouseenter={() => onHoverCastleRange?.(btn.mode)}
-							onmouseleave={() => onHoverCastleRange?.(null)}
-							disabled={!btn.canFire}
-							data-testid="hud-castle-shot-{btn.mode}-btn"
-							class="relative {castleBtn} {btn.canFire ? btn.activeCls : disabledCastleBtn}"
-							title="Постріл {btn.range}px ({btn.cost}g) {btn.hotkey}: ворог або союзник (50%)"
-						>
-							<span class="text-[9px] font-bold flex items-center gap-0.5">
-								<UiIcon name="crosshair" class="w-2.5 h-2.5 {btn.iconCls}" />
-								{btn.range}px
-							</span>
-							<span class="text-[8px] font-mono {btn.costCls} font-bold flex items-center gap-1">
-								<span>{btn.cost}g</span>
-								<span
-									class="inline-flex items-center gap-0.5 {btn.enemies > 0
-										? 'text-rose-300'
-										: 'text-slate-400'}"
-								>
-									<UiIcon name="swords" class="w-2.5 h-2.5" />
-									{btn.enemies}
+					'border-slate-700/80 bg-[#121722] text-slate-500 opacity-55 cursor-not-allowed'}
+				<div class="grid grid-cols-3 gap-1.5 pt-0.5">
+					{#each cv.buttons as btn, bIdx (btn.mode)}
+						{@const isAuto = cv.autoMode === btn.mode}
+						<div class="relative group/tip">
+							<button
+								type="button"
+								onclick={() =>
+									dispatchCastleAction(
+										'CASTLE_SHOT',
+										btn.canFire,
+										() => sim.fireCastleCannon(player.team, btn.mode, player).fired,
+										btn.mode
+									)}
+								oncontextmenu={(e) => {
+									e.preventDefault();
+									toggleCastleCannonAuto(btn.mode);
+								}}
+								onmouseenter={() => onHoverCastleRange?.(btn.mode)}
+								onmouseleave={() => onHoverCastleRange?.(null)}
+								disabled={!btn.canFire && !isAuto}
+								data-testid="hud-castle-shot-{btn.mode}-btn"
+								aria-label="Постріл {btn.range}px ({btn.cost}g) Клавіша {btn.hotkey}: ворог або союзник (50%), ПКМ — автокаст"
+								class="relative {castleBtn} {btn.canFire
+									? btn.activeCls
+									: disabledCastleBtn} {isAuto ? 'ring-2 ring-amber-400/85 border-amber-300' : ''}"
+							>
+								<span class="text-[9.5px] font-bold flex items-center gap-0.5 leading-none">
+									<UiIcon name="crosshair" class="w-3 h-3 {btn.iconCls}" />
+									{btn.range}px
 								</span>
-							</span>
-							<span class="absolute top-0.5 right-0.5 text-[7px] font-mono text-slate-400">
-								{btn.hotkey}
-							</span>
-						</button>
+								<span
+									class="text-[8.5px] font-mono {btn.costCls} font-bold flex items-center gap-1.5 mt-0.5"
+								>
+									<span>{btn.cost}g</span>
+									<span
+										class="inline-flex items-center gap-0.5 {btn.enemies > 0
+											? 'text-rose-300'
+											: 'text-slate-400'}"
+									>
+										<UiIcon name="swords" class="w-2.5 h-2.5" />
+										{btn.enemies}
+									</span>
+								</span>
+								<span class={hotkeyCornerClass}>
+									{btn.hotkey}
+								</span>
+								{#if isAuto}
+									<span
+										data-testid="hud-castle-auto-{btn.mode}-badge"
+										class="absolute bottom-0 right-0 px-1 py-0.2 rounded-tl-[3px] text-[6.5px] font-mono font-black leading-none bg-amber-400 text-slate-950 animate-pulse"
+									>
+										AUTO
+									</span>
+								{/if}
+							</button>
+							<div class="{tipClass} {bIdx === 0 ? 'left-0' : 'left-1/2 -translate-x-1/2'}">
+								Постріл {btn.range}px ({btn.cost}g) · Клавіша {btn.hotkey} · ПКМ: {isAuto
+									? 'вимкнути автокаст'
+									: 'автокаст'}
+							</div>
+						</div>
 					{/each}
 
 					{#if !cv.isCannonUpgraded}
-						<button
-							type="button"
-							onclick={() =>
-								dispatchCastleAction('UPGRADE_CASTLE_CANNON', cv.canUpgradeCannon, () =>
-									sim.upgradeCastleCannon(player.team, player)
-								)}
-							disabled={!cv.canUpgradeCannon}
-							data-testid="hud-castle-cannon-upgrade-btn"
-							class="relative {castleBtn} {cv.canUpgradeCannon
-								? 'border-cyan-500/80 bg-cyan-950/75 hover:bg-cyan-900/90 text-cyan-100'
-								: disabledCastleBtn}"
-							title="Покращити гармату: КД 2с → 1с ({CASTLE_CANNON_UPGRADE_GOLD}g+{CASTLE_CANNON_UPGRADE_LUMBER}w) [3]"
-						>
-							<span class="text-[8.5px] font-bold flex items-center gap-0.5">
-								<UiIcon name="zap" class="w-2.5 h-2.5 text-cyan-400" />
-								КД 1с
-							</span>
-							<span class="text-[7.5px] font-mono text-cyan-300 font-bold">
-								{CASTLE_CANNON_UPGRADE_GOLD}g/{CASTLE_CANNON_UPGRADE_LUMBER}w
-							</span>
-							<span class="absolute top-0.5 right-0.5 text-[7px] font-mono text-slate-400">
-								[3]
-							</span>
-						</button>
+						<div class="relative group/tip">
+							<button
+								type="button"
+								onclick={() =>
+									dispatchCastleAction('UPGRADE_CASTLE_CANNON', cv.canUpgradeCannon, () =>
+										sim.upgradeCastleCannon(player.team, player)
+									)}
+								disabled={!cv.canUpgradeCannon}
+								data-testid="hud-castle-cannon-upgrade-btn"
+								aria-label="Покращити гармату: КД 2с → 1с ({CASTLE_CANNON_UPGRADE_GOLD}g+{CASTLE_CANNON_UPGRADE_LUMBER}w) Клавіша 3"
+								class="relative {castleBtn} {cv.canUpgradeCannon
+									? 'border-cyan-500/80 bg-cyan-950/75 hover:bg-cyan-900/90 text-cyan-100'
+									: disabledCastleBtn}"
+							>
+								<span class="text-[9.5px] font-bold flex items-center gap-0.5 leading-none">
+									<UiIcon name="zap" class="w-3 h-3 text-cyan-400" />
+									КД 1с
+								</span>
+								<span class="text-[8px] font-mono text-cyan-300 font-bold mt-0.5">
+									{CASTLE_CANNON_UPGRADE_GOLD}g/{CASTLE_CANNON_UPGRADE_LUMBER}w
+								</span>
+								<span class={hotkeyCornerClass}>3</span>
+							</button>
+							<div class="{tipClass} right-0">
+								Покращити гармату: КД 2с → 1с ({CASTLE_CANNON_UPGRADE_GOLD}g + {CASTLE_CANNON_UPGRADE_LUMBER}w)
+								· Клавіша 3
+							</div>
+						</div>
 					{:else}
-						<div
-							data-testid="hud-castle-cannon-upgraded-badge"
-							class="w-16 h-10 rounded border border-cyan-600/50 bg-cyan-950/40 text-cyan-300 flex flex-col items-center justify-center p-0.5"
-							title="Гармата покращена на раунд (КД 1с)"
-						>
-							<UiIcon name="zap" class="w-3 h-3 text-cyan-400" />
-							<span class="text-[8px] font-bold flex items-center gap-0.5">
-								КД 1с
-								<UiIcon name="check" class="w-2.5 h-2.5 text-emerald-400" />
-							</span>
+						<div class="relative group/tip">
+							<div
+								data-testid="hud-castle-cannon-upgraded-badge"
+								class="relative w-full h-11 rounded-md border border-cyan-600/50 bg-cyan-950/40 text-cyan-300 flex flex-col items-center justify-center p-0.5 overflow-hidden"
+							>
+								<span class={hotkeyCornerClass}>3</span>
+								<UiIcon name="zap" class="w-3 h-3 text-cyan-400" />
+								<span class="text-[8.5px] font-bold flex items-center gap-0.5">
+									КД 1с
+									<UiIcon name="check" class="w-2.5 h-2.5 text-emerald-400" />
+								</span>
+							</div>
+							<div class="{tipClass} right-0">Гармата покращена на раунд (КД 1с)</div>
 						</div>
 					{/if}
-
-					{#if selectedCastle.hp < selectedCastle.maxHp}
-						<button
-							onclick={() => dispatchRepair(selectedCastle.team, `castle_${selectedCastle.team}`)}
-							data-testid="hud-castle-repair-btn"
-							class="{castleBtn} border-emerald-500/70 bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-200"
-							title="Наказати робітникові ремонтувати цитадель (R)"
-						>
-							<span class="text-[9.5px] font-bold flex items-center gap-0.5">
-								<UiIcon name="wrench" class="w-3 h-3 text-emerald-400" />
-								Ремонт
-							</span>
-							<span class="text-[8px] font-mono text-emerald-300 font-bold">[R]</span>
-						</button>
-					{/if}
-					{#if sim.brokenBridge}
-						<button
-							type="button"
-							onclick={() => dispatchBridgeRepair()}
-							disabled={(player.lumber ?? 0) < 50}
-							data-testid="hud-repair-bridge-btn"
-							class="{castleBtn} border-amber-500/70 bg-amber-950/70 hover:bg-amber-900/90 disabled:opacity-40 text-amber-200"
-							title="Відбудувати зламаний міст (50w)"
-						>
-							<span class="text-[9.5px] font-bold flex items-center gap-0.5">
-								<UiIcon name="wrench" class="w-3 h-3 text-amber-400" />
-								Міст
-							</span>
-							<span class="text-[8px] font-mono text-amber-300 font-bold flex items-center gap-0.5">
-								<UiIcon name="treePine" class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
-								<span>50</span>
-							</span>
-						</button>
-					{/if}
+				</div>
+				<div class="text-[9.5px] text-slate-400 flex items-center justify-between px-0.5">
+					<span>Радіус оборони: 500 / 1500 px</span>
+					<span>ПКМ — автокаст</span>
 				</div>
 			{:else}
 				{@const enemyCannonCd =
 					uiTick >= 0 ? sim.getCastleCannonEffectiveMaxCooldown(selectedCastle.team) : 2.0}
 				<div
-					class="flex flex-col gap-1 text-[10px] text-slate-300 bg-[#0d1017] p-2 rounded border border-[#2d3748]"
+					class="flex flex-col gap-1.5 text-[10px] text-slate-300 bg-[#0d1017] p-2.5 rounded border border-[#2d3748] my-auto"
 				>
 					<div class="flex justify-between">
-						<span class="text-slate-400">Гармата цитаделі:</span>
+						<span class="text-slate-400">Потужність гармати:</span>
 						<span class="font-mono text-amber-300 font-bold">
 							{CASTLE_CANNON_BASE_DAMAGE} (Облога)
 						</span>
 					</div>
 					<div class="flex justify-between">
-						<span class="text-slate-400">Дальність гармати:</span>
+						<span class="text-slate-400">Радіус оборони:</span>
 						<span class="font-mono text-slate-200">500 / 1500 px</span>
 					</div>
 					<div class="flex justify-between">
 						<span class="text-slate-400">Кулдаун гармати:</span>
 						<span class="font-mono text-slate-200">{enemyCannonCd.toFixed(1)} с</span>
 					</div>
-					<div class="flex justify-between">
-						<span class="text-slate-400">Броня замку:</span>
-						<span class="font-bold text-emerald-300">15 (Укріплена)</span>
-					</div>
 				</div>
 			{/if}
-		</div>
-	{:else if activeEntityType === 'unit' && selectedUnit}
-		<!-- Unit Profile Card -->
-		<div class="flex flex-col justify-between w-[280px] h-full py-1">
-			<div class="flex items-center justify-between border-b border-[#3b3226] pb-1">
-				<span
-					class="text-[11px] font-bold {selectedUnit.team === player.team
-						? 'text-blue-300'
-						: selectedUnit.team === 'neutral'
-							? 'text-purple-300'
-							: 'text-rose-400'} flex items-center gap-1"
-				>
-					<UiIcon name="swords" class="w-3.5 h-3.5" />
-					{selectedUnit.name}
-				</span>
-				<button
-					onclick={() => onCloseUnit?.()}
-					data-testid="hud-close-unit-btn"
-					class="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 bg-[#1e2433] rounded border border-slate-700 cursor-pointer"
-				>
-					Закрити (Esc)
-				</button>
-			</div>
-			<div
-				class="flex flex-col gap-1 text-[10px] text-slate-300 bg-[#0d1017] p-2 rounded border border-[#2d3748]"
-			>
-				<div class="flex justify-between">
-					<span class="text-slate-400">Дистанція атаки:</span>
-					<span class="font-mono text-amber-300 font-bold">{selectedUnit.range} px</span>
-				</div>
-				<div class="flex justify-between">
-					<span class="text-slate-400">Швидкість атаки:</span>
-					<span class="font-mono text-slate-200">{selectedUnit.attackCooldown.toFixed(1)} с</span>
-				</div>
-				<div class="flex justify-between">
-					<span class="text-slate-400">Тип пересування:</span>
-					<span class="font-bold {selectedUnit.flying ? 'text-cyan-300' : 'text-emerald-300'}">
-						{selectedUnit.flying ? 'Повітряний юніт' : 'Наземний юніт'}
-					</span>
-				</div>
-			</div>
-		</div>
-	{:else if activeEntityType === 'group'}
-		<!-- Group Profile Card -->
-		<div class="flex flex-col justify-between w-[280px] h-full py-1">
-			<div class="flex items-center justify-between border-b border-[#3b3226] pb-1">
-				<span class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
-					<UiIcon name="users" class="w-3.5 h-3.5" />
-					Загін бійців ({groupUnits.length})
-				</span>
-				<button
-					onclick={() => onClearSelection?.()}
-					data-testid="hud-close-group-btn"
-					class="text-[9px] text-slate-400 hover:text-white px-1.5 py-0.5 bg-[#1e2433] rounded border border-slate-700 cursor-pointer"
-				>
-					Закрити (Esc)
-				</button>
-			</div>
-			<div class="text-[10px] text-slate-400 text-center p-2">
-				Виділено загін бійців на полі бою. Відображаються сумарні показники здоров'я.
-			</div>
 		</div>
 	{:else if activeEntityType === 'worker'}
 		<!-- 5x3 Grid for Base Buildings + Bridge Repair (15 slots max, Esc/RMB cancels) -->
@@ -1067,36 +999,36 @@
 			{/each}
 
 			<!-- Slot 15: Bridge Repair when a bridge is broken -->
-			{#if sim.brokenBridge}
-				<button
-					type="button"
-					onclick={() => dispatchBridgeRepair()}
-					disabled={(player.lumber ?? 0) < 50}
-					data-testid="hud-worker-repair-bridge-btn"
-					class="relative w-[61px] h-[39px] rounded-[3px] border transition flex items-center justify-center overflow-hidden cursor-pointer touch-manipulation {(player.lumber ??
-						0) >= 50
-						? 'bg-amber-950/80 hover:bg-amber-900 border-amber-500/70 text-amber-200 shadow'
-						: 'bg-slate-900/60 border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
-					title="Наказати робітникові відбудувати зламаний міст (50 деревини)"
-				>
-					<div
-						class="absolute top-0.5 left-0.5 flex items-center justify-center pointer-events-none"
+			{#if onStartBlinkTargeting && activeEntityType === 'worker'}
+				{@const blinkCd = uiTick >= 0 ? (player.worker?.blinkCooldown ?? 0) : 0}
+				{@const canBlink = blinkCd <= 0}
+				<div class="relative group/tip">
+					<button
+						type="button"
+						onclick={() => onStartBlinkTargeting?.()}
+						disabled={!canBlink}
+						data-testid="hud-worker-blink-btn"
+						aria-label="Телепорт будівельника до 500px (Клавіша F)"
+						class="relative w-[61px] h-[39px] rounded-[3px] border transition flex items-center justify-center overflow-hidden cursor-pointer touch-manipulation {isBlinkTargeting
+							? 'bg-cyan-600/80 border-cyan-300 text-white ring-2 ring-cyan-400 shadow-lg'
+							: canBlink
+								? 'bg-cyan-950/75 hover:bg-cyan-900 border-cyan-500/70 text-cyan-200 shadow'
+								: 'bg-slate-900/60 border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
 					>
-						<UiIcon name="wrench" class="w-3 h-3 text-amber-400 drop-shadow" />
+						<span class={hotkeyCornerClass}>F</span>
+						<div class="flex flex-col items-center justify-center pointer-events-none">
+							<UiIcon name="zap" class="w-3 h-3 text-cyan-300 drop-shadow" />
+							<span class="text-[7.5px] font-bold leading-none mt-0.5">
+								{blinkCd > 0 ? `${Math.ceil(blinkCd)}с` : 'Телепорт'}
+							</span>
+						</div>
+					</button>
+					<div class="{tipClass} right-0">
+						{blinkCd > 0
+							? `Телепорт перезаряджається (${Math.ceil(blinkCd)}с)`
+							: 'Телепорт будівельника (до 500px на своєму острові) · Клавіша F'}
 					</div>
-					<!-- Bottom-right: amount then TreePine icon -->
-					<div
-						class="absolute bottom-0 right-0 flex items-center gap-0.5 px-0.5 py-0.2 rounded-tl-[3px] text-[7.5px] font-mono font-bold leading-none bg-black/70 text-amber-300 border-t border-l border-amber-700/60"
-					>
-						<span>50</span>
-						<UiIcon name="treePine" class="w-2.5 h-2.5 text-emerald-400 shrink-0" />
-					</div>
-					<span
-						class="text-[8px] font-bold text-amber-200 leading-tight select-none pointer-events-none"
-					>
-						Міст
-					</span>
-				</button>
+				</div>
 			{/if}
 		</div>
 	{/if}

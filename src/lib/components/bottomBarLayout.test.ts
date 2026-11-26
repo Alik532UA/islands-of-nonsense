@@ -78,7 +78,7 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 		// Command card root and action buttons
 		expect(commandCardSrc).toContain('data-testid="hud-command-card"');
 		expect(commandCardSrc).toContain('data-testid="hud-build-btn-');
-		expect(commandCardSrc).toContain('data-testid="hud-close-building-btn"');
+		expect(entityInspectDetailsSrc).toContain('data-testid="hud-close-building-btn"');
 		expect(commandCardSrc).toContain('data-testid="hud-upgrade-btn-');
 		expect(commandCardSrc).toContain('data-testid="hud-repair-btn"');
 		expect(commandCardSrc).toContain('data-testid="hud-sell-btn"');
@@ -228,11 +228,9 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 		// Single close button testid
 		expect(entityInspectDetailsSrc).toContain('data-testid="hud-close-unit-btn"');
 
-		// CommandCard unit profile block is preserved for future modes
-		expect(commandCardSrc).toContain("activeEntityType === 'unit' && selectedUnit");
-
-		// BottomBar skips redundant empty command card when inspecting autonomous combat units
+		// BottomBar skips redundant empty command card when inspecting autonomous combat units or groups
 		expect(bottomBarSrc).toContain("activeEntityType !== 'unit'");
+		expect(bottomBarSrc).toContain("activeEntityType !== 'group'");
 	});
 
 	it('anchors all bottom console panels flush to the bottom without margin gaps (FLUID-SIZING-v10)', () => {

@@ -254,7 +254,10 @@
 			</button>
 			{#if replayStatus === 'valid' && parsedReplay}
 				<div class="flex flex-wrap items-center gap-2">
-					<span class="text-xs text-emerald-400 font-semibold" data-testid="replay-verify-status">
+					<span
+						class="text-xs text-emerald-400 font-semibold"
+						data-testid="replay-verify-status-valid"
+					>
 						{t('account.replay.valid')} · {t('account.replay.summary', {
 							mode: parsedReplay.gameMode,
 							winner: parsedReplay.result?.winner ?? '—',
@@ -272,7 +275,10 @@
 					</button>
 				</div>
 			{:else if replayStatus === 'invalid'}
-				<span class="text-xs text-rose-400 font-semibold" data-testid="replay-verify-status">
+				<span
+					class="text-xs text-rose-400 font-semibold"
+					data-testid="replay-verify-status-invalid"
+				>
 					{t('account.replay.invalid')}
 				</span>
 			{/if}
