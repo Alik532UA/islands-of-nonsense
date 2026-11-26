@@ -1,0 +1,1026 @@
+{
+	"workers": {
+		"Альянс": {
+			"slug": "human",
+			"texts": [
+				"Готовий до праці, мій лорде!",
+				"Так точно! Вже берусь до справи.",
+				"Ще одна цеглина за королівство!",
+				"Робота кипить, командире!",
+				"Будуємо надійно, на віки!"
+			],
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+2Hz",
+			"rate": "+6%"
+		},
+		"Північ": {
+			"slug": "north",
+			"texts": [
+				"Холод не зупинить будівництво!",
+				"Камінь і крига — міцніший за сталь.",
+				"Північ тримає слово, вже роблю!",
+				"Молот у руках не мерзне!",
+				"Зведемо твердиню посеред хуртовини!"
+			],
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-14Hz",
+			"rate": "-2%"
+		},
+		"Орки": {
+			"slug": "orc",
+			"texts": [
+				"За Орду! Що треба збудувати?",
+				"Робота? Добре, поїхали!",
+				"Рубати й кувати — це ми вміємо!",
+				"Хай стіни тремтять від наших ударів!",
+				"Більше башт! Більше воїнів!"
+			],
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-22Hz",
+			"rate": "+0%"
+		},
+		"Нежить": {
+			"slug": "undead",
+			"texts": [
+				"Наказуй, повелителю тіней.",
+				"Кістки й проклятий камінь стануть стіною.",
+				"Смерть не знає втоми.",
+				"Твоя воля — мій вічний обов'язок.",
+				"Поклик некрополя буде виконано."
+			],
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-28Hz",
+			"rate": "-8%"
+		},
+		"Ельфи": {
+			"slug": "elf",
+			"texts": [
+				"Ліс почує твою волю.",
+				"Древні віти сплетуться у фортецю.",
+				"Природа підкаже правильне місце.",
+				"Легко й тихо, як подих вітру.",
+				"Світанок осяє нову святиню."
+			],
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "+0Hz",
+			"rate": "+2%"
+		},
+		"Демони": {
+			"slug": "demon",
+			"texts": [
+				"Вогнем і кров'ю зведемо фортецю!",
+				"Пекло розширює свої володіння!",
+				"Кожен удар молота — іскра хаосу!",
+				"Стіни з обсидіану вже ростуть!",
+				"Слухаюся, володарю безодні!"
+			],
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-32Hz",
+			"rate": "-4%"
+		},
+		"Наги": {
+			"slug": "naga",
+			"texts": [
+				"З глибин океану — на службу!",
+				"Корал і сталь підкоряться нам.",
+				"Хвилі принесуть нові споруди.",
+				"Швидше течії, точніше леза!",
+				"Твій наказ — закон для глибин."
+			],
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "-12Hz",
+			"rate": "-3%"
+		},
+		"Тролі": {
+			"slug": "troll",
+			"texts": [
+				"Гей, босе! Куди бити киркою?",
+				"Зараз склепаємо, буде як нове!",
+				"Троль працює швидко, коли є золото!",
+				"Оце так споруда вийде, ого!",
+				"Не підганяй, вже майже готово!"
+			],
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-8Hz",
+			"rate": "+10%"
+		},
+		"Тварини": {
+			"slug": "beast",
+			"texts": [
+				"Зграя чекає твого знаку!",
+				"Лігво збудуємо перш ніж впаде ніч.",
+				"Кігті й ікла захистять це місце.",
+				"Чую поклик дикої землі!",
+				"Міцний табір — сильне полювання!"
+			],
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-16Hz",
+			"rate": "+4%"
+		},
+		"Елементалі": {
+			"slug": "elemental",
+			"texts": [
+				"Стихії слухаються твого голосу.",
+				"З каменю й іскри постане оплот.",
+				"Вихор енергії формує стіни.",
+				"Вічний потік не зупинити.",
+				"Сила першооснов втілюється в камені."
+			],
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-20Hz",
+			"rate": "-6%"
+		},
+		"Небожителі": {
+			"slug": "celestial",
+			"texts": [
+				"Світло небес благословляє цей труд.",
+				"Чистим сяйвом зведемо святиню.",
+				"Небесна варта береже кожен камінь.",
+				"Воля зір спрямовує наші руки.",
+				"Гармонія світла постане на землі."
+			],
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "+4Hz",
+			"rate": "+0%"
+		},
+		"Техніки": {
+			"slug": "mech",
+			"texts": [
+				"Шестерні крутяться! Зараз усе змайструємо!",
+				"Креслення є, болти під рукою!",
+				"Трохи пари, іскор — і готово!",
+				"Механізм працює без збоїв, шефе!",
+				"Нова конструкція за останнім словом техніки!"
+			],
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+12Hz",
+			"rate": "+14%"
+		}
+	},
+	"units": {
+		"h03C": {
+			"text": "За світло і честь!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-6Hz",
+			"rate": "+2%"
+		},
+		"h05C": {
+			"text": "Небо буде чистим!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+4Hz",
+			"rate": "+8%"
+		},
+		"h0A2": {
+			"text": "Ціль у прицілі!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-8Hz",
+			"rate": "+4%"
+		},
+		"n01P": {
+			"text": "Три голови — потрійна лють!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-30Hz",
+			"rate": "-8%"
+		},
+		"n00J": {
+			"text": "Мргл! За наш берег!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+10Hz",
+			"rate": "+12%"
+		},
+		"n00K": {
+			"text": "Тихіше... клинок уже близько.",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+6Hz",
+			"rate": "+8%"
+		},
+		"n00X": {
+			"text": "Жоден ворог не пройде!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-10Hz",
+			"rate": "+0%"
+		},
+		"n00Z": {
+			"text": "Слава темному вогню!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-24Hz",
+			"rate": "+2%"
+		},
+		"h00W": {
+			"text": "Магія пробуджується.",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-4Hz",
+			"rate": "-2%"
+		},
+		"n00Y": {
+			"text": "Мій клинок гостріший за вітер.",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-12Hz",
+			"rate": "+4%"
+		},
+		"n023": {
+			"text": "Стріла знайде серце.",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+2Hz",
+			"rate": "+6%"
+		},
+		"u009": {
+			"text": "Мертві повстануть знову!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-22Hz",
+			"rate": "-6%"
+		},
+		"u00D": {
+			"text": "Холод смерті поглине все.",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-34Hz",
+			"rate": "-10%"
+		},
+		"h05H": {
+			"text": "Ніч належить мені!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-18Hz",
+			"rate": "-4%"
+		},
+		"u007": {
+			"text": "Чума вже в повітрі!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-20Hz",
+			"rate": "+2%"
+		},
+		"o00B": {
+			"text": "Барабани війни звучать!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-24Hz",
+			"rate": "-4%"
+		},
+		"o008": {
+			"text": "Розтопчемо їх усіх!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-26Hz",
+			"rate": "+4%"
+		},
+		"o006": {
+			"text": "Стіна броні тримає удар!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-28Hz",
+			"rate": "-6%"
+		},
+		"o005": {
+			"text": "Сокира прагне бою!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-20Hz",
+			"rate": "+6%"
+		},
+		"n01O": {
+			"text": "Сітка готова, здобич не втече!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-8Hz",
+			"rate": "+10%"
+		},
+		"n016": {
+			"text": "Земля здригнеться під ногами!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-32Hz",
+			"rate": "-8%"
+		},
+		"n013": {
+			"text": "Хуртовина кличе на полювання!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-28Hz",
+			"rate": "-6%"
+		},
+		"o00A": {
+			"text": "Від стін не лишиться каменя!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-26Hz",
+			"rate": "-2%"
+		},
+		"n027": {
+			"text": "Нищити! Все в попіл!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-30Hz",
+			"rate": "+4%"
+		},
+		"n01E": {
+			"text": "Титан не знає втоми.",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-34Hz",
+			"rate": "-12%"
+		},
+		"n01B": {
+			"text": "Пекельний жар спалить усе!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-28Hz",
+			"rate": "-4%"
+		},
+		"n01A": {
+			"text": "Океан підкоряється мені!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-18Hz",
+			"rate": "-4%"
+		},
+		"e00J": {
+			"text": "Природа береже рівновагу.",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-10Hz",
+			"rate": "-6%"
+		},
+		"n020": {
+			"text": "Один удар — одна тінь.",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-4Hz",
+			"rate": "+8%"
+		},
+		"e00A": {
+			"text": "Помста неминуча!",
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "-14Hz",
+			"rate": "-2%"
+		},
+		"e003": {
+			"text": "Я бачу кожен рух.",
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "+2Hz",
+			"rate": "+6%"
+		},
+		"e004": {
+			"text": "Спис готовий до бою!",
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "-2Hz",
+			"rate": "+8%"
+		},
+		"z003": {
+			"text": "Підпалимо їм п'яти, бійці!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-6Hz",
+			"rate": "+10%"
+		},
+		"h06R": {
+			"text": "Гвинти на повну! Злітаємо!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+12Hz",
+			"rate": "+14%"
+		},
+		"n024": {
+			"text": "Незламний, як адамант!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-34Hz",
+			"rate": "-10%"
+		},
+		"h06U": {
+			"text": "Обережно, тут усе заміновано!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+10Hz",
+			"rate": "+12%"
+		},
+		"h099": {
+			"text": "Броня міцна, вперед на прорив!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-16Hz",
+			"rate": "+4%"
+		},
+		"h06S": {
+			"text": "Гармати заряджені! Вогонь!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-22Hz",
+			"rate": "-2%"
+		},
+		"cg13": {
+			"text": "Панцир витримає будь-який залп!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-18Hz",
+			"rate": "+0%"
+		},
+		"cg15": {
+			"text": "Трощити ворожі ряди!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-24Hz",
+			"rate": "+4%"
+		},
+		"cg17": {
+			"text": "Дистанція виміряна точно!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+6Hz",
+			"rate": "+10%"
+		},
+		"cg1a": {
+			"text": "Залп по координатах!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-10Hz",
+			"rate": "+6%"
+		},
+		"cg1b": {
+			"text": "З неба падає грім!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+4Hz",
+			"rate": "+10%"
+		},
+		"h03B": {
+			"text": "Промінь світла розсіє темряву!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-4Hz",
+			"rate": "+2%"
+		},
+		"h016": {
+			"text": "Крилата стріла не схибить!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+6Hz",
+			"rate": "+6%"
+		},
+		"n005": {
+			"text": "Тьма принесе силу.",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-24Hz",
+			"rate": "-4%"
+		},
+		"hmtm": {
+			"text": "Снаряд готовий! Бабах!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-8Hz",
+			"rate": "+8%"
+		},
+		"hrif": {
+			"text": "Порох сухий, рушниця готова!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-6Hz",
+			"rate": "+6%"
+		},
+		"n00S": {
+			"text": "Мій голос зачарує ворогів.",
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "+2Hz",
+			"rate": "-4%"
+		},
+		"n004": {
+			"text": "Глибини несуть смерть!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-26Hz",
+			"rate": "-6%"
+		},
+		"n007": {
+			"text": "Панцир твердіший за сталь!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-24Hz",
+			"rate": "-8%"
+		},
+		"n00H": {
+			"text": "Крила закриють сонце!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-18Hz",
+			"rate": "+0%"
+		},
+		"n002": {
+			"text": "Стою на варті!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-12Hz",
+			"rate": "+2%"
+		},
+		"n00L": {
+			"text": "Кров кипить у жилах!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-28Hz",
+			"rate": "+2%"
+		},
+		"n008": {
+			"text": "Підійди ближче, сміливцю...",
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "-4Hz",
+			"rate": "-4%"
+		},
+		"n009": {
+			"text": "Хаос веде нас у бій!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-20Hz",
+			"rate": "+6%"
+		},
+		"n001": {
+			"text": "Полум'я спопелить усе!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-28Hz",
+			"rate": "-4%"
+		},
+		"n000": {
+			"text": "З каменю і вогню народжений!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-34Hz",
+			"rate": "-10%"
+		},
+		"h07B": {
+			"text": "Чари вже сплетені.",
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "+4Hz",
+			"rate": "+2%"
+		},
+		"h00U": {
+			"text": "Молот і крила — разом!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-6Hz",
+			"rate": "+6%"
+		},
+		"n006": {
+			"text": "Шлях меча — шлях перемоги.",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-12Hz",
+			"rate": "+4%"
+		},
+		"n022": {
+			"text": "Натягую тятиву!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+4Hz",
+			"rate": "+8%"
+		},
+		"e005": {
+			"text": "Влучу з першого пострілу!",
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "+4Hz",
+			"rate": "+6%"
+		},
+		"n01Y": {
+			"text": "З висоти видно кожну ціль!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+6Hz",
+			"rate": "+8%"
+		},
+		"u005": {
+			"text": "Свіже м'ясо!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-32Hz",
+			"rate": "-8%"
+		},
+		"n00E": {
+			"text": "Зшитий для війни!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-30Hz",
+			"rate": "-10%"
+		},
+		"h01U": {
+			"text": "Жага крові кличе!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-14Hz",
+			"rate": "+2%"
+		},
+		"u001": {
+			"text": "Крик темряви прониже душу!",
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "-10Hz",
+			"rate": "-4%"
+		},
+		"u000": {
+			"text": "Голодний! Рвати і гризти!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-16Hz",
+			"rate": "+12%"
+		},
+		"o009": {
+			"text": "Віверна готова до піке!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-12Hz",
+			"rate": "+8%"
+		},
+		"o007": {
+			"text": "За честь клану! В атаку!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-22Hz",
+			"rate": "+4%"
+		},
+		"o003": {
+			"text": "Спис летить просто в ціль!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-8Hz",
+			"rate": "+10%"
+		},
+		"o001": {
+			"text": "Крила несуть отруту!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-14Hz",
+			"rate": "+6%"
+		},
+		"n00V": {
+			"text": "Лють закипає! Бережіться!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-16Hz",
+			"rate": "+12%"
+		},
+		"n012": {
+			"text": "Мороз і кігті!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-24Hz",
+			"rate": "-2%"
+		},
+		"n014": {
+			"text": "Зима заморозить ваші серця.",
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "-6Hz",
+			"rate": "-4%"
+		},
+		"n015": {
+			"text": "Духи підкажуть правильне закляття!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-6Hz",
+			"rate": "+8%"
+		},
+		"n011": {
+			"text": "Північ стоїть непорушно!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-18Hz",
+			"rate": "+0%"
+		},
+		"n010": {
+			"text": "Крижане дихання скує ворога!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-22Hz",
+			"rate": "-4%"
+		},
+		"h04I": {
+			"text": "Блискавка вдарить миттєво!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-10Hz",
+			"rate": "+6%"
+		},
+		"n01G": {
+			"text": "Магма палає в мені!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-22Hz",
+			"rate": "+4%"
+		},
+		"n01F": {
+			"text": "Грані кристалу ріжуть як лезо!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-20Hz",
+			"rate": "-6%"
+		},
+		"n01D": {
+			"text": "Небо спалахне вогнем!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-24Hz",
+			"rate": "+0%"
+		},
+		"n019": {
+			"text": "Хвиля змиє перешкоди.",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-14Hz",
+			"rate": "-6%"
+		},
+		"e007": {
+			"text": "Сила лісу з нами.",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-8Hz",
+			"rate": "-4%"
+		},
+		"n01Z": {
+			"text": "Швидко і без сліду.",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+2Hz",
+			"rate": "+10%"
+		},
+		"e00B": {
+			"text": "Тінь помсти вже поруч.",
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "-10Hz",
+			"rate": "+0%"
+		},
+		"e002": {
+			"text": "Зорі падають на ворогів!",
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "+6Hz",
+			"rate": "+4%"
+		},
+		"e001": {
+			"text": "Місяць освітить здобич!",
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "+0Hz",
+			"rate": "+6%"
+		},
+		"e000": {
+			"text": "Іскри магії танцюють!",
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "+14Hz",
+			"rate": "+12%"
+		},
+		"z002": {
+			"text": "Хто замовляв вогнику?",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-4Hz",
+			"rate": "+10%"
+		},
+		"n01T": {
+			"text": "Шторм підкоряється моїй волі!",
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "-8Hz",
+			"rate": "+0%"
+		},
+		"n01V": {
+			"text": "Ха-ха! Зараз усе вибухне!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+16Hz",
+			"rate": "+16%"
+		},
+		"h06Q": {
+			"text": "Тримаю курс! Бомби готові!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+12Hz",
+			"rate": "+14%"
+		},
+		"n01X": {
+			"text": "Сталь не відчуває болю.",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-30Hz",
+			"rate": "-10%"
+		},
+		"h06T": {
+			"text": "Швидкий рейд! Поїхали!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+4Hz",
+			"rate": "+10%"
+		},
+		"cg11": {
+			"text": "Брухт теж піде в діло!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+8Hz",
+			"rate": "+12%"
+		},
+		"cg12": {
+			"text": "Щити підняті! Прориваємось!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-16Hz",
+			"rate": "+2%"
+		},
+		"cg14": {
+			"text": "Потрошимо ворожу броню!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-20Hz",
+			"rate": "+6%"
+		},
+		"cg16": {
+			"text": "Ціль захоплена! Коригую вогонь!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+4Hz",
+			"rate": "+10%"
+		},
+		"cg18": {
+			"text": "Камінь летить прямо в замок!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-14Hz",
+			"rate": "+2%"
+		},
+		"cg19": {
+			"text": "Вітер під крилами! Пікірую!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+10Hz",
+			"rate": "+12%"
+		},
+		"hfoo": {
+			"text": "За короля! Тримати стрій!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-4Hz",
+			"rate": "+6%"
+		},
+		"n003": {
+			"text": "Мргл-мргл! Вперед!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+12Hz",
+			"rate": "+14%"
+		},
+		"n00A": {
+			"text": "Почуй гарчання пекла!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-26Hz",
+			"rate": "+6%"
+		},
+		"n00B": {
+			"text": "Кістки бряжчать на війну.",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-20Hz",
+			"rate": "-4%"
+		},
+		"o002": {
+			"text": "Лок-тар! Сила і лють!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-24Hz",
+			"rate": "+2%"
+		},
+		"n017": {
+			"text": "Холодний слід веде до здобичі.",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-16Hz",
+			"rate": "+4%"
+		},
+		"n01I": {
+			"text": "Древній лук не знає промаху.",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-10Hz",
+			"rate": "-2%"
+		},
+		"n00B_u2": {
+			"text": "Вічна варта не знає спокою.",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-24Hz",
+			"rate": "-6%"
+		},
+		"u001_u2": {
+			"text": "Стогін потойбіччя скує вас!",
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "-14Hz",
+			"rate": "-6%"
+		},
+		"n00E_u2": {
+			"text": "Кістяна фортеця крокує вперед!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-34Hz",
+			"rate": "-10%"
+		},
+		"u000_u2": {
+			"text": "Крилаті пазурі вже над вами!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-18Hz",
+			"rate": "+10%"
+		},
+		"o002_u2": {
+			"text": "Могутній удар змете ворогів!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-28Hz",
+			"rate": "+2%"
+		},
+		"o003_u2": {
+			"text": "Магічний спис пробиває броню!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-12Hz",
+			"rate": "+8%"
+		},
+		"o009_u2": {
+			"text": "Небо належить еліті Орди!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-16Hz",
+			"rate": "+6%"
+		},
+		"o001_u2": {
+			"text": "Бойова віверна розриває стрій!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-20Hz",
+			"rate": "+4%"
+		},
+		"n00A_u2": {
+			"text": "Лютий звір зірвався з ланцюга!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-30Hz",
+			"rate": "+6%"
+		},
+		"n008_u2": {
+			"text": "Усі схиляться перед королевою ночі.",
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "-8Hz",
+			"rate": "-4%"
+		},
+		"n00L_u2": {
+			"text": "Князь крові вимагає жертв!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-32Hz",
+			"rate": "-2%"
+		},
+		"n001_u2": {
+			"text": "Древнє полум'я спалить світ!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-34Hz",
+			"rate": "-8%"
+		},
+		"n000_u2": {
+			"text": "Вищий інфернал не знає пощади!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-35Hz",
+			"rate": "-10%"
+		},
+		"n01V_u2": {
+			"text": "Більше пороху! Більше вибухів!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+16Hz",
+			"rate": "+18%"
+		},
+		"n01T_u2": {
+			"text": "Гнів морських глибин прокинувся!",
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "-12Hz",
+			"rate": "-2%"
+		},
+		"n017_u2": {
+			"text": "Ікла криги роздеруть ворога!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-22Hz",
+			"rate": "+6%"
+		},
+		"n011_u2": {
+			"text": "Ветеран півночі не відступає!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-22Hz",
+			"rate": "+0%"
+		},
+		"n010_u2": {
+			"text": "Віковічний лід скує арену!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-28Hz",
+			"rate": "-6%"
+		},
+		"n014_u2": {
+			"text": "Вклоніться імператриці вічної зими!",
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "-10Hz",
+			"rate": "-6%"
+		},
+		"h00U_u2": {
+			"text": "Королівські крила несуть бурю!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-10Hz",
+			"rate": "+4%"
+		},
+		"n01Y_u2": {
+			"text": "Елітний мисливець не знає пощади!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+2Hz",
+			"rate": "+8%"
+		},
+		"e005_u2": {
+			"text": "Кожен постріл — смертельний!",
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "+0Hz",
+			"rate": "+4%"
+		},
+		"e002_u2": {
+			"text": "Зоряний гнів впаде з небес!",
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "+2Hz",
+			"rate": "+2%"
+		},
+		"e000_u2": {
+			"text": "Сяйво магії засліпить ворогів!",
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "+12Hz",
+			"rate": "+10%"
+		},
+		"n01I_u2": {
+			"text": "Ліс приховує мою стрілу.",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-12Hz",
+			"rate": "+2%"
+		},
+		"n01G_u2": {
+			"text": "Вогонь і кігті розплавлять усе!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-26Hz",
+			"rate": "+4%"
+		},
+		"h04I_u2": {
+			"text": "Буря підкоряється лише мені!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-18Hz",
+			"rate": "+0%"
+		},
+		"n003_u2": {
+			"text": "Гвардія глибин тримає рубіж!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+6Hz",
+			"rate": "+10%"
+		},
+		"n00H_u2": {
+			"text": "Стародавній змій несе загибель!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-24Hz",
+			"rate": "-4%"
+		},
+		"n007_u2": {
+			"text": "Непробивний панцир йде в наступ!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-28Hz",
+			"rate": "-8%"
+		},
+		"n00S_u2": {
+			"text": "Пісня безодні забере ваші сили.",
+			"voice": "uk-UA-PolinaNeural",
+			"pitch": "-4Hz",
+			"rate": "-4%"
+		},
+		"hfoo_u2": {
+			"text": "Загартовані в боях! Вперед!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-10Hz",
+			"rate": "+4%"
+		},
+		"hmtm_u2": {
+			"text": "Важкий калібр! Земля тремтить!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-18Hz",
+			"rate": "+2%"
+		},
+		"h016_u2": {
+			"text": "Вища майстерність стрільби!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "+2Hz",
+			"rate": "+4%"
+		},
+		"n005_u2": {
+			"text": "Верховна тьма поглине світ!",
+			"voice": "uk-UA-OstapNeural",
+			"pitch": "-30Hz",
+			"rate": "-6%"
+		}
+	}
+}

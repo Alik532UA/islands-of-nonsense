@@ -20,6 +20,33 @@ export const MUSIC_TRACKS: readonly MusicTrack[] = [
 	'tavern'
 ] as const;
 
+const WORKER_VOICE_SLUG_MAP: Record<string, string> = {
+	Альянс: 'human',
+	Люди: 'human',
+	Північ: 'north',
+	Орки: 'orc',
+	Нежить: 'undead',
+	Порча: 'undead',
+	Ельфи: 'elf',
+	'Нічні ельфи': 'elf',
+	Демони: 'demon',
+	Хаос: 'demon',
+	Наги: 'naga',
+	Тролі: 'troll',
+	Тварини: 'beast',
+	Елементалі: 'elemental',
+	Небожителі: 'celestial',
+	Техніки: 'mech',
+	Збирачі: 'mech'
+};
+
+export function getWorkerVoiceSlug(race: string): string {
+	return WORKER_VOICE_SLUG_MAP[race] ?? 'human';
+}
+
+export const WORKER_VOICE_VARIANTS = 5;
+export const WORKER_VOICE_COOLDOWN_MS = 60_000;
+
 type SfxSampleKey =
 	| 'build'
 	| 'upgrade'
@@ -59,6 +86,12 @@ export class SoundService {
 	private volume = 0.5;
 	private pack: SoundPack = '8-bit';
 	private sampleCache = new Map<string, AudioBuffer | 'loading' | 'failed'>();
+	private voiceCache = new Map<string, AudioBuffer | 'loading' | 'failed'>();
+	private activeVoiceSource: AudioBufferSourceNode | null = null;
+	private pendingVoiceUrl: string | null = null;
+	private lastVoicePlayedAt = 0;
+	private lastWorkerVoiceAt = 0;
+	private lastWorkerVariantBySlug = new Map<string, number>();
 
 	constructor() {
 		// AudioContext will be initialized on user interaction
@@ -224,6 +257,9 @@ export class SoundService {
 
 	public setEnabled(flag: boolean): void {
 		this.enabled = flag;
+		if (!flag) {
+			this.stopActiveVoice();
+		}
 	}
 
 	public isEnabled(): boolean {
@@ -969,6 +1005,110 @@ export class SoundService {
 	 */
 	public playWorkerSelect(): void {
 		this.playWorkerAck();
+	}
+
+	private stopActiveVoice(): void {
+		this.pendingVoiceUrl = null;
+		if (this.activeVoiceSource) {
+			try {
+				this.activeVoiceSource.stop();
+			} catch {
+				// Ignore already stopped source
+			}
+			this.activeVoiceSource = null;
+		}
+	}
+
+	private playVoiceBuffer(buf: AudioBuffer): void {
+		if (!this.enabled || this.volume <= 0) return;
+		const ctx = this.getContext();
+		if (!ctx) return;
+
+		this.stopActiveVoice();
+		const src = ctx.createBufferSource();
+		src.buffer = buf;
+		const gain = ctx.createGain();
+		gain.gain.setValueAtTime(Math.min(1, this.volume * 1.4), ctx.currentTime);
+		src.connect(gain);
+		gain.connect(ctx.destination);
+		src.onended = () => {
+			if (this.activeVoiceSource === src) {
+				this.activeVoiceSource = null;
+			}
+		};
+		this.activeVoiceSource = src;
+		src.start();
+	}
+
+	private async loadAndPlayVoice(urlPath: string): Promise<void> {
+		if (typeof window === 'undefined' || typeof fetch !== 'function') return;
+		this.voiceCache.set(urlPath, 'loading');
+		try {
+			const res = await fetch(audioUrl(urlPath));
+			if (!res.ok) {
+				this.voiceCache.set(urlPath, 'failed');
+				return;
+			}
+			const arr = await res.arrayBuffer();
+			const ctx = this.getContext();
+			if (!ctx) {
+				this.voiceCache.delete(urlPath);
+				return;
+			}
+			const decoded = await ctx.decodeAudioData(arr);
+			this.voiceCache.set(urlPath, decoded);
+			if (this.pendingVoiceUrl === urlPath && this.enabled && this.volume > 0) {
+				this.playVoiceBuffer(decoded);
+			}
+		} catch {
+			this.voiceCache.set(urlPath, 'failed');
+		}
+	}
+
+	private playVoiceUrl(urlPath: string): void {
+		if (!this.enabled || this.volume <= 0) return;
+		const now = Date.now();
+		if (now - this.lastVoicePlayedAt < 450) return;
+		this.lastVoicePlayedAt = now;
+		this.pendingVoiceUrl = urlPath;
+
+		const cached = this.voiceCache.get(urlPath);
+		if (cached && cached !== 'loading' && cached !== 'failed') {
+			this.playVoiceBuffer(cached);
+			return;
+		}
+		if (!cached) {
+			void this.loadAndPlayVoice(urlPath);
+		}
+	}
+
+	/**
+	 * Озвучена репліка робітника певної раси (вибір або наказ) з кулдауном 1 хв
+	 * та випадковим вибором з 5 варіантів без повторів поспіль.
+	 */
+	public playWorkerVoice(race: string): void {
+		if (!this.enabled || this.volume <= 0) return;
+		const now = Date.now();
+		if (this.lastWorkerVoiceAt > 0 && now - this.lastWorkerVoiceAt < WORKER_VOICE_COOLDOWN_MS) {
+			return;
+		}
+		const slug = getWorkerVoiceSlug(race);
+		const prev = this.lastWorkerVariantBySlug.get(slug);
+		let variant = Math.floor(Math.random() * WORKER_VOICE_VARIANTS) + 1;
+		if (WORKER_VOICE_VARIANTS > 1 && variant === prev) {
+			variant = (variant % WORKER_VOICE_VARIANTS) + 1;
+		}
+		this.lastWorkerVariantBySlug.set(slug, variant);
+		this.lastWorkerVoiceAt = now;
+		this.playVoiceUrl(`/audio/voices/workers/${slug}_${variant}.mp3`);
+	}
+
+	/**
+	 * Озвучена репліка юніта за його defId (при виборі на арені).
+	 */
+	public playUnitVoice(unitId: string): void {
+		if (!unitId) return;
+		this.playVoiceUrl(`/audio/voices/units/${unitId}.mp3`);
 	}
 }
 

@@ -254,6 +254,7 @@
 		selectedPlacedBuildingId = null;
 		selectedUnitId = null;
 		selectedEntity = { type: 'worker', playerSlot: targetPlayer.slot };
+		sound.playWorkerVoice(targetPlayer.race);
 		if (centerCamera && targetPlayer.worker) {
 			renderer?.setCamera(targetPlayer.worker.x, targetPlayer.worker.y);
 		}
@@ -356,6 +357,7 @@
 		selectedPlacedBuildingId = null;
 		selectedUnitId = null;
 		selectedEntity = { type: 'worker', playerSlot: targetSlot };
+		sound.playWorkerVoice(target.race);
 		if ((centerCamera || alreadySelected) && target.worker) {
 			renderer?.setCamera(target.worker.x, target.worker.y);
 		}
@@ -745,7 +747,10 @@
 								'REPAIR',
 								{ team: bld.team, targetId: selectedPlacedBuildingId },
 								() => sim.repairBuilding(bld.team, selectedPlacedBuildingId!, owner),
-								() => sound.playRepair()
+								() => {
+									sound.playRepair();
+									sound.playWorkerVoice(owner.race);
+								}
 							);
 							return;
 						}
@@ -761,7 +766,10 @@
 								'REPAIR',
 								{ team: cTeam, targetId: `castle_${cTeam}` },
 								() => sim.repairBuilding(cTeam, `castle_${cTeam}`, owner),
-								() => sound.playRepair()
+								() => {
+									sound.playRepair();
+									sound.playWorkerVoice(owner.race);
+								}
 							);
 							return;
 						}
@@ -797,7 +805,10 @@
 			'ORDER_WORKER_MOVE',
 			{ team: activeTeam, playerSlot: activePlayer.slot, targetId: 'blink', worldX, worldY },
 			() => sim.teleportWorker(activeTeam, worldX, worldY, activePlayer),
-			() => sound.playUpgrade()
+			() => {
+				sound.playUpgrade();
+				sound.playWorkerVoice(activePlayer.race);
+			}
 		);
 	}
 
@@ -896,7 +907,10 @@
 			'CONTINUE_BUILD',
 			{ targetId: instanceId },
 			() => sim.continueConstruction(targetTeam, instanceId, owner),
-			() => sound.playWorkerAck()
+			() => {
+				sound.playWorkerAck();
+				sound.playWorkerVoice(owner.race);
+			}
 		);
 	}
 
@@ -1096,6 +1110,7 @@
 							shiftKey: shouldQueue
 						});
 						sound.playBuild();
+						sound.playWorkerVoice(controlledPlayer.race);
 						if (!shiftKey) {
 							selectedBuildingId = null;
 							selectedPlacedBuildingId = null;
@@ -1114,6 +1129,7 @@
 						);
 						if (success) {
 							sound.playBuild();
+							sound.playWorkerVoice(activeP.race);
 							if (!shiftKey) {
 								selectedBuildingId = null;
 								selectedPlacedBuildingId = null;
@@ -1154,12 +1170,20 @@
 					selectedUnitId = entity.instanceId;
 					selectedPlacedBuildingId = null;
 					selectedBuildingId = null;
+					const selectedUnit = sim.units.find((u) => u.instanceId === entity.instanceId);
+					if (selectedUnit) {
+						sound.playUnitVoice(selectedUnit.defId);
+					}
 				} else if (entity?.type === 'worker') {
 					selectedPlacedBuildingId = null;
 					selectedUnitId = null;
+					const workerOwner =
+						(entity.playerSlot != null ? getControllablePlayerBySlot(entity.playerSlot) : null) ??
+						controlledPlayer;
 					if (entity.playerSlot != null && getControllablePlayerBySlot(entity.playerSlot)) {
 						controlledPlayerSlot = entity.playerSlot;
 					}
+					sound.playWorkerVoice(workerOwner.race);
 				} else if (entity?.type === 'castle') {
 					selectedPlacedBuildingId = null;
 					selectedUnitId = null;
