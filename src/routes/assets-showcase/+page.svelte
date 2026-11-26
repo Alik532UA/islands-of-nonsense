@@ -2119,7 +2119,7 @@
 <div
 	class={viewMode === 'map'
 		? 'fixed inset-0 z-40 bg-[#012e4a] text-slate-100 overflow-hidden select-none'
-		: 'min-h-screen bg-[#080c14] text-slate-100 flex flex-col'}
+		: 'min-h-[calc(100dvh-56px)] bg-[#080c14] text-slate-100 flex flex-col'}
 >
 	<!-- Top Bar (Edge-docked game HUD in Map mode, sticky bar in Menu mode) -->
 	<header

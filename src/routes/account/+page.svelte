@@ -274,7 +274,7 @@
 	<title>{t('account.title')} — Islands of Nonsense</title>
 </svelte:head>
 
-<div class="menu-page fill min-h-[calc(100vh-56px)] py-8 px-4 flex justify-center">
+<div class="menu-page fill min-h-[calc(100dvh-56px)] py-8 px-4 flex justify-center">
 	<div
 		class="w-full max-w-2xl bg-slate-900/90 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl backdrop-blur-md flex flex-col"
 	>

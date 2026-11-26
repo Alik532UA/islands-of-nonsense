@@ -496,7 +496,7 @@
 	<title>Castle Fight Web — {t('online.title')}</title>
 </svelte:head>
 
-<div class="menu-page fill min-h-screen">
+<div class="menu-page fill min-h-[calc(100dvh-56px)]">
 	{#if errorMessage}
 		<div
 			role="alert"

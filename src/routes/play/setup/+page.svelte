@@ -12,6 +12,8 @@
 	<title>Castle Fight Web — Одиночна гра</title>
 </svelte:head>
 
-<div class="menu-page fill min-h-screen flex items-center justify-center text-slate-400 text-xs">
+<div
+	class="menu-page fill min-h-[calc(100dvh-56px)] flex items-center justify-center text-slate-400 text-xs"
+>
 	<span>Перенаправлення до вибору режимів...</span>
 </div>

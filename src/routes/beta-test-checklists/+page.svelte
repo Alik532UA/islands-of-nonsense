@@ -54,7 +54,9 @@
 	<meta name="robots" content="noindex, nofollow" />
 </svelte:head>
 
-<main class="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8 max-w-5xl mx-auto space-y-6">
+<main
+	class="min-h-[calc(100dvh-56px)] bg-slate-950 text-slate-100 p-4 sm:p-8 max-w-5xl mx-auto space-y-6"
+>
 	<div
 		class="border-b border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
 	>

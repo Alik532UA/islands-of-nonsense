@@ -4,7 +4,9 @@
 	import { t } from '$lib/i18n';
 </script>
 
-<div class="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
+<div
+	class="min-h-[calc(100dvh-56px)] bg-slate-950 text-slate-100 flex items-center justify-center p-4"
+>
 	<div class="max-w-md w-full p-8 rounded-2xl bg-slate-900 border border-slate-800 text-center">
 		<h1 class="text-6xl font-black text-amber-500 mb-2">{page.status}</h1>
 		<p class="text-xl font-bold mb-4">{page.error?.message || t('errorPage.notFound')}</p>

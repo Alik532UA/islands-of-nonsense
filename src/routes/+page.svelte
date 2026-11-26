@@ -11,7 +11,7 @@
 	<title>Islands of Nonsense — Castle Fight Web</title>
 </svelte:head>
 
-<div class="menu-page fill min-h-screen">
+<div class="menu-page fill min-h-[calc(100dvh-56px)]">
 	<!-- Game Title & Hero Header -->
 	<header class="w-full max-w-2xl text-center mb-8">
 		<h1
