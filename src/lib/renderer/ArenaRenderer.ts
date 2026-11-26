@@ -141,6 +141,7 @@ export class ArenaRenderer {
 	private mouseScreenX = 0;
 	private mouseScreenY = 0;
 	private isMouseOverCanvas = false;
+	private isPointerOverHud = false;
 	private windowMouseMoveHandler: ((e: MouseEvent) => void) | null = null;
 	private windowBlurHandler: (() => void) | null = null;
 	private documentMouseLeaveHandler: (() => void) | null = null;
@@ -540,7 +541,8 @@ export class ArenaRenderer {
 		const dt = this.app?.ticker?.deltaMS ? this.app.ticker.deltaMS / 1000 : 1 / 60;
 
 		// Edge scrolling for RTS mouse navigation + smooth keyboard panning (WASD / Arrows)
-		const edgeMargin = 25;
+		// Use a tighter 10px margin over HUD menus so hovering HUD buttons doesn't trigger accidental panning
+		const edgeMargin = this.isPointerOverHud ? 10 : 25;
 		const allowEdge = this.isMouseOverCanvas && !this.isPanning && !this.isBoxSelecting;
 		const edgeInput: CameraPanInput = {
 			left: allowEdge && this.mouseScreenX < edgeMargin,
@@ -783,9 +785,12 @@ export class ArenaRenderer {
 				e.clientX <= rect.right &&
 				e.clientY >= rect.top &&
 				e.clientY <= rect.bottom;
+			const targetEl = e.target as Element | null;
+			const isOverModal = Boolean(targetEl?.closest?.('[role="dialog"]'));
 			this.mouseScreenX = mouseScreenX;
 			this.mouseScreenY = mouseScreenY;
-			this.isMouseOverCanvas = insideBounds;
+			this.isMouseOverCanvas = insideBounds && !isOverModal;
+			this.isPointerOverHud = insideBounds && !isOverModal && e.target !== canvas;
 
 			const world = this.screenToWorld(mouseScreenX, mouseScreenY);
 
@@ -839,6 +844,7 @@ export class ArenaRenderer {
 
 		this.windowBlurHandler = () => {
 			this.isMouseOverCanvas = false;
+			this.isPointerOverHud = false;
 			this.isPanning = false;
 			this.isBoxSelecting = false;
 			this.boxStartWorld = null;
@@ -847,6 +853,7 @@ export class ArenaRenderer {
 
 		this.documentMouseLeaveHandler = () => {
 			this.isMouseOverCanvas = false;
+			this.isPointerOverHud = false;
 		};
 		if (typeof document !== 'undefined' && document.documentElement) {
 			document.documentElement.addEventListener('mouseleave', this.documentMouseLeaveHandler);

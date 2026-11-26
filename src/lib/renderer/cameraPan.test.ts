@@ -87,5 +87,6 @@ describe('Smooth RTS Camera Panning (WASD & Arrows)', () => {
 			"window.removeEventListener('mousemove', this.windowMouseMoveHandler)"
 		);
 		expect(rendererContent).toContain("window.addEventListener('blur', this.windowBlurHandler)");
+		expect(rendererContent).toContain('const edgeMargin = this.isPointerOverHud ? 10 : 25;');
 	});
 });
