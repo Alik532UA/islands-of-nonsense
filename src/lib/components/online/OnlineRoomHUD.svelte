@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
+	import GameSelect from '$lib/components/ui/GameSelect.svelte';
 	import { generateQrSvgPath } from '$lib/utils/qrSvg';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
 	import Flag from '$lib/components/ui/Flag.svelte';
@@ -1364,20 +1365,21 @@
 								<div class="flex items-center gap-1.5 shrink-0">
 									{#if occupant}
 										{#if occupant.uid === localUid && !roomInfo?.config?.allRandom}
-											<select
-												aria-label="Раса"
-												data-testid="lobby-race-select-{slotKey}"
+											<GameSelect
+												ariaLabel="Раса"
+												testId="lobby-race-select-{slotKey}"
 												value={occupant.race ?? 'in_game'}
-												onchange={(e) =>
-													handleChangeRace((e.currentTarget as HTMLSelectElement).value)}
-												class="px-2 py-1 rounded-[6px] bg-[#0b0f18] border border-[#8c7456]/60 hover:border-amber-400 text-[11px] font-semibold text-amber-200 max-w-[145px] cursor-pointer focus:outline-none focus:border-amber-400"
-											>
-												<option value="in_game">{t('online.hud.raceInGame')}</option>
-												<option value="random">{t('online.hud.randomRaceBonus')}</option>
-												{#each availablePlayableRaces as race (race)}
-													<option value={race}>{formatRaceName(race)}</option>
-												{/each}
-											</select>
+												onchange={(val) => handleChangeRace(val)}
+												buttonClass="px-2 py-1 rounded-[6px] bg-[#0b0f18] border-[#8c7456]/60 text-[11px] max-w-[145px]"
+												options={[
+													{ value: 'in_game', label: t('online.hud.raceInGame') },
+													{ value: 'random', label: t('online.hud.randomRaceBonus') },
+													...availablePlayableRaces.map((r) => ({
+														value: r,
+														label: formatRaceName(r)
+													}))
+												]}
+											/>
 										{:else if !roomInfo?.config?.allRandom}
 											{@const occRace = occupant.race ?? 'in_game'}
 											<span
@@ -1411,23 +1413,20 @@
 										{/if}
 									{:else}
 										{#if slotCfg.kind === 'bot' && isEffectiveHost && !roomInfo?.config?.allRandom}
-											<select
-												aria-label="Раса бота"
+											<GameSelect
+												ariaLabel="Раса бота"
 												value={slotCfg.race ?? 'random'}
-												onchange={(e) =>
-													handleHostSetSlot(
-														slotKey,
-														'bot',
-														slotCfg.botDifficulty ?? 15,
-														(e.currentTarget as HTMLSelectElement).value
-													)}
-												class="px-2 py-1 rounded-[6px] bg-[#0b0f18] border border-slate-700 hover:border-amber-400/70 text-[11px] font-semibold text-amber-200 max-w-[115px] cursor-pointer"
-											>
-												<option value="random">{t('online.hud.randomRaceBonus')}</option>
-												{#each availablePlayableRaces as race (race)}
-													<option value={race}>{formatRaceName(race)}</option>
-												{/each}
-											</select>
+												onchange={(val) =>
+													handleHostSetSlot(slotKey, 'bot', slotCfg.botDifficulty ?? 15, val)}
+												buttonClass="px-2 py-1 rounded-[6px] bg-[#0b0f18] border-slate-700 text-[11px] max-w-[115px]"
+												options={[
+													{ value: 'random', label: t('online.hud.randomRaceBonus') },
+													...availablePlayableRaces.map((r) => ({
+														value: r,
+														label: formatRaceName(r)
+													}))
+												]}
+											/>
 										{/if}
 										{#if slotCfg.kind === 'open' && localMember}
 											<button
@@ -1440,24 +1439,22 @@
 											</button>
 										{/if}
 										{#if isEffectiveHost}
-											<select
-												aria-label="Стан слота"
-												data-testid="lobby-slot-select-{slotKey}"
+											<GameSelect
+												ariaLabel="Стан слота"
+												testId="lobby-slot-select-{slotKey}"
 												value={slotModeVal}
-												onchange={(e) =>
-													handleHostSetSlotMode(
-														slotKey,
-														(e.currentTarget as HTMLSelectElement).value
-													)}
-												class="px-2 py-1 rounded-[6px] bg-[#0b0f18] border border-slate-700 hover:border-[#8c7456] text-[11px] font-semibold text-slate-200 cursor-pointer focus:outline-none focus:border-amber-400"
-											>
-												<option value="open">{t('online.hud.slotOpen')}</option>
-												<option value="closed">{t('online.hud.slotClosed')}</option>
-												<option value="bot:0">{t('online.hud.botEasy')}</option>
-												<option value="bot:15">{t('online.hud.botMedium')}</option>
-												<option value="bot:30">{t('online.hud.botHard')}</option>
-												<option value="bot:80">{t('online.hud.botInsane')}</option>
-											</select>
+												align="right"
+												onchange={(val) => handleHostSetSlotMode(slotKey, val)}
+												buttonClass="px-2 py-1 rounded-[6px] bg-[#0b0f18] border-slate-700 text-[11px] text-slate-200"
+												options={[
+													{ value: 'open', label: t('online.hud.slotOpen') },
+													{ value: 'closed', label: t('online.hud.slotClosed') },
+													{ value: 'bot:0', label: t('online.hud.botEasy') },
+													{ value: 'bot:15', label: t('online.hud.botMedium') },
+													{ value: 'bot:30', label: t('online.hud.botHard') },
+													{ value: 'bot:80', label: t('online.hud.botInsane') }
+												]}
+											/>
 										{/if}
 									{/if}
 								</div>

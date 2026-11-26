@@ -5,6 +5,7 @@
 	import { resolve } from '$app/paths';
 	import {
 		PLAYABLE_RACES,
+		BUILDINGS_MAP,
 		getBaseBuildingsForRace,
 		getUpgradesForBuilding,
 		getUnit,
@@ -33,8 +34,13 @@
 		getUnitVisualSpec,
 		type UnitVisualSpec
 	} from '$lib/renderer/unitModels';
-	import { WEST_CASTLE_STAGE_URLS, EAST_CASTLE_STAGE_URLS } from '$lib/renderer/castleAssets';
+	import {
+		WEST_CASTLE_STAGE_URLS,
+		EAST_CASTLE_STAGE_URLS,
+		getCastleStageIndex
+	} from '$lib/renderer/castleAssets';
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
+	import GameSelect, { type GameSelectOption } from '$lib/components/ui/GameSelect.svelte';
 	import ShowcaseMinimap from '$lib/components/ShowcaseMinimap.svelte';
 
 	type ShowcaseCategory = 'all' | 'workers' | 'buildings' | 'units';
@@ -75,15 +81,151 @@
 	let category = $state<ShowcaseCategory>('all');
 	let previewTeam = $state<MatchTeam>('west');
 	let selectedColorId = $state<number>(9); // 9 = Сірий за замовчуванням
-	let colorMenuOpen = $state(false);
 	const selectedPlayerColor = $derived(
 		ALL_PLAYER_COLORS.find((c) => c.id === selectedColorId) ?? ALL_PLAYER_COLORS[8]
 	);
+	const raceSelectOptions: GameSelectOption[] = [
+		{ value: 'all', label: 'Усі 12 рас' },
+		...PLAYABLE_RACES.map((r) => ({ value: r, label: r }))
+	];
+	const colorSelectOptions: GameSelectOption[] = ALL_PLAYER_COLORS.map((c) => ({
+		value: String(c.id),
+		label: c.nameUk,
+		colorHex: c.hex
+	}));
 	let animateUnits = $state(true);
+	let castleHpPct = $state(100);
+	const castleStage = $derived(getCastleStageIndex(castleHpPct, 100));
 	let selectedItem = $state<ShowcaseItem | null>(null);
 	let copiedLabel = $state<string | null>(null);
 	let copyFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
 	let searchQuery = $state('');
+	let searchInputEl = $state<HTMLInputElement | null>(null);
+	let searchPopupOpen = $state(false);
+	let searchPopupStyle = $state('');
+	let placedItemsSnapshot = $state<ShowcaseItem[]>([]);
+
+	const searchMatches = $derived.by(() => {
+		const q = searchQuery.trim().toLowerCase();
+		if (viewMode !== 'map' || !q) return [];
+		return placedItemsSnapshot.filter(
+			(item) =>
+				item.title.toLowerCase().includes(q) ||
+				item.defId.toLowerCase().includes(q) ||
+				item.subtitle.toLowerCase().includes(q) ||
+				item.race.toLowerCase().includes(q)
+		);
+	});
+
+	const searchThumbCache = new Map<string, string>();
+
+	function getSearchItemThumbnail(item: ShowcaseItem): string | null {
+		const stageKey = item.defId.startsWith('castle') ? `_${castleStage}` : '';
+		const cacheKey = `${item.defId}_${item.race}_${selectedColorId}_${previewTeam}${stageKey}`;
+		const cached = searchThumbCache.get(cacheKey);
+		if (cached) return cached;
+
+		if (item.defId.startsWith('west_castle_')) {
+			const idx = Number(item.defId.replace('west_castle_', ''));
+			return WEST_CASTLE_STAGE_URLS[idx] ?? null;
+		}
+		if (item.defId.startsWith('east_castle_')) {
+			const idx = Number(item.defId.replace('east_castle_', ''));
+			return EAST_CASTLE_STAGE_URLS[idx] ?? null;
+		}
+		if (!pixiApp) return null;
+
+		const g = new Graphics();
+		try {
+			const teamColor = selectedPlayerColor.num;
+			const facing = previewTeam === 'west' ? 1 : -1;
+
+			if (item.kind === 'worker') {
+				drawRaceWorkerModel({
+					g,
+					wx: 0,
+					wy: 0,
+					bob: 0,
+					facing,
+					isMoving: false,
+					isSwinging: false,
+					slot: 1,
+					time: 0,
+					playerColor: teamColor,
+					race: item.race
+				});
+			} else if (item.kind === 'unit') {
+				const raw =
+					(unitsJson as unknown as RawUnitData[]).find((u) => u.id === item.defId) ??
+					({ id: item.defId, name: item.title } as RawUnitData);
+				const mockU = buildMockUnit(item.defId, raw, 0, 0);
+				renderUniqueUnitModel(g, mockU, teamColor, false, 0, facing, 0, 0, shadeHexColor);
+			} else if (item.kind === 'building') {
+				if (
+					item.defId === 'castle_25d_west' ||
+					item.defId === 'castle_25d_east' ||
+					item.defId.startsWith('castle_')
+				) {
+					const isWest = item.defId === 'castle_25d_east' ? false : previewTeam === 'west';
+					const race = item.defId.startsWith('castle_25d_') ? undefined : item.race;
+					const mockC: Castle = {
+						...showcaseSim.castles.west,
+						hp: Math.round((castleHpPct / 100) * 5000),
+						maxHp: 5000,
+						color: selectedPlayerColor,
+						x: 0,
+						y: 0
+					};
+					showcaseBuildingRenderer.renderAuthenticCastle(g, mockC, isWest, false, false, race);
+				} else {
+					const bld = BUILDINGS_MAP.get(item.defId);
+					if (!bld) return null;
+					const isUpgrade = item.title.includes('(Апгрейд)');
+					const mockB = buildMockBuilding(item.race as PlayableRace, bld, -32, -32);
+					drawIndividualBuildingModel(
+						g,
+						mockB,
+						teamColor,
+						bld?.specialType ? 3 : isUpgrade ? 2 : 1,
+						isUpgrade,
+						bld ? isLegendaryBuilding(bld) : false,
+						false,
+						0
+					);
+				}
+			}
+
+			const bounds = g.getBounds();
+			if (bounds.width <= 0 || bounds.height <= 0) return null;
+			const extracted = pixiApp.renderer.extract.canvas(g) as HTMLCanvasElement;
+			const url = extracted.toDataURL('image/png');
+			searchThumbCache.set(cacheKey, url);
+			return url;
+		} finally {
+			g.destroy();
+		}
+	}
+
+	function updateSearchPopupPos() {
+		if (!searchInputEl || typeof window === 'undefined') return;
+		const rect = searchInputEl.getBoundingClientRect();
+		const maxH = Math.max(180, window.innerHeight - rect.bottom - 20);
+		const right = Math.max(10, Math.round(window.innerWidth - rect.right));
+		searchPopupStyle = `top: ${Math.round(rect.bottom + 8)}px; right: ${right}px; max-height: ${Math.floor(maxH)}px;`;
+	}
+
+	function portalToBody(node: HTMLElement) {
+		if (typeof document !== 'undefined') {
+			document.body.appendChild(node);
+		}
+		return {
+			destroy() {
+				if (node.parentNode) {
+					node.parentNode.removeChild(node);
+				}
+			}
+		};
+	}
 
 	let canvasEl = $state<HTMLCanvasElement | null>(null);
 	let canvasWrapEl = $state<HTMLDivElement | null>(null);
@@ -399,10 +541,10 @@
 
 	const CARD_W = 196;
 	const CARD_H = 156;
-	const CARD_STEP_X = 214;
+	const CARD_STEP_X = 224;
 	const SPECIAL_W = 124;
 	const SPECIAL_STEP_X = 140;
-	const UPGRADE_STEP_Y = 170;
+	const UPGRADE_STEP_Y = 186;
 	const CASTLE_BOX_W = 342;
 	const SHARED_BOX_W = 288;
 
@@ -437,9 +579,9 @@
 		bottomIsland: BottomIslandLayout;
 		mapW: number;
 	} {
-		const q = searchQuery.trim().toLowerCase();
+		const q = viewMode === 'map' ? '' : searchQuery.trim().toLowerCase();
 		const rows: RaceRowLayout[] = [];
-		let curY = 144;
+		let curY = 160;
 		let maxRowRight = 1990;
 		for (const race of filteredRaces) {
 			const baseBlds = getBaseBuildingsForRace(race).filter(
@@ -470,7 +612,7 @@
 			const rowRight = extraW > 0 ? extraX + extraW : sharedX + sharedW;
 			if (rowRight > maxRowRight) maxRowRight = rowRight;
 			const contentH = CARD_H + 16 + maxUpgrades * UPGRADE_STEP_Y;
-			const rowH = Math.max(350, contentH + 20);
+			const rowH = Math.max(364, contentH + 34);
 			rows.push({
 				race,
 				rowY: curY,
@@ -485,7 +627,7 @@
 				extraW,
 				maxUpgrades
 			});
-			curY += rowH + 56;
+			curY += rowH + 64;
 		}
 		const westIslandW = Math.max(1980, maxRowRight - 60 + 44);
 		const topIslandH = Math.max(460, curY - 60 + 20);
@@ -542,62 +684,18 @@
 		const islandH = mapH - 120;
 
 		// West Island & East Island
-		const drawIsland = (
-			ix: number,
-			iy: number,
-			iw: number,
-			ih: number,
-			contentRect: { x: number; y: number; w: number; h: number }
-		) => {
-			g.roundRect(ix - 14, iy - 14, iw + 28, ih + 28, 42).fill({ color: 0x0b4f6c, alpha: 0.7 });
-			g.roundRect(ix - 6, iy - 6, iw + 12, ih + 12, 34).fill(0x334155);
-			g.roundRect(ix, iy, iw, ih, 28).fill(0x0f172a);
-			// Grass tufts, flowers, mushrooms & crystals only in border margins outside content rows
-			for (let gx = ix + 28; gx < ix + iw - 28; gx += 110) {
-				for (let gy = iy + 26; gy < iy + ih - 26; gy += 96) {
-					const jx = gx + ((gx * 17 + gy * 31) % 31) - 15;
-					const jy = gy + ((gx * 29 + gy * 13) % 25) - 12;
-					const insideContent =
-						jx >= contentRect.x &&
-						jx <= contentRect.x + contentRect.w &&
-						jy >= contentRect.y &&
-						jy <= contentRect.y + contentRect.h;
-					if (insideContent) continue;
-
-					g.moveTo(jx, jy)
-						.lineTo(jx - 3, jy - 8)
-						.moveTo(jx, jy)
-						.lineTo(jx + 4, jy - 7)
-						.stroke({ color: 0x4ade80, width: 1.5, alpha: 0.55 });
-					if ((gx + gy) % 3 === 0) {
-						g.circle(jx + 14, jy + 8, 2.5).fill(0xfde047);
-					} else if ((gx + gy) % 5 === 0) {
-						g.rect(jx - 2, jy + 6, 4, 6).fill(0xfef3c7);
-						g.circle(jx, jy + 5, 5).fill(0xef4444);
-						g.circle(jx - 2, jy + 4, 1.2).fill(0xffffff);
-					} else if ((gx + gy) % 7 === 0) {
-						g.poly([jx, jy - 10, jx + 6, jy, jx, jy + 8, jx - 6, jy]).fill({
-							color: 0x38bdf8,
-							alpha: 0.85
-						});
-					}
-				}
-			}
+		const drawIsland = (ix: number, iy: number, iw: number, ih: number) => {
+			// Shallow turquoise coastal aura + sandy/rocky cliff rim + fairytale meadow grass
+			g.roundRect(ix - 20, iy - 20, iw + 40, ih + 40, 48).fill({ color: 0x0b4f6c, alpha: 0.68 });
+			g.roundRect(ix - 10, iy - 10, iw + 20, ih + 20, 38).fill(0x6b4235);
+			g.roundRect(ix - 4, iy - 4, iw + 8, ih + 8, 32).fill(0x8d5b4c);
+			g.roundRect(ix, iy, iw, ih, 28).fill(0x1b4713);
+			g.roundRect(ix + 16, iy + 16, iw - 32, ih - 32, 22).fill({ color: 0x255b16, alpha: 0.65 });
 		};
 
 		if (bottomIsland) {
-			drawIsland(60, 60, westIslandW, bottomIsland.topH, {
-				x: 84,
-				y: 66,
-				w: westIslandW - 44,
-				h: bottomIsland.topH - 20
-			});
-			drawIsland(bottomIsland.x, bottomIsland.y, bottomIsland.w, bottomIsland.h, {
-				x: bottomIsland.x + 24,
-				y: bottomIsland.y + 6,
-				w: bottomIsland.w - 48,
-				h: bottomIsland.h - 20
-			});
+			drawIsland(60, 60, westIslandW, bottomIsland.topH);
+			drawIsland(bottomIsland.x, bottomIsland.y, bottomIsland.w, bottomIsland.h);
 
 			// Two wide vertical wooden bridges across the horizontal strait
 			const by = 60 + bottomIsland.topH - 40;
@@ -621,18 +719,8 @@
 			return;
 		}
 
-		drawIsland(60, 60, westIslandW, islandH, {
-			x: 84,
-			y: 66,
-			w: westIslandW - 44,
-			h: islandH - 20
-		});
-		drawIsland(eastIslandX, 60, 1140, islandH, {
-			x: eastIslandX + 24,
-			y: 66,
-			w: 1092,
-			h: islandH - 20
-		});
+		drawIsland(60, 60, westIslandW, islandH);
+		drawIsland(eastIslandX, 60, 1140, islandH);
 
 		// Two wide wooden bridges across the strait
 		for (const by of [320, Math.min(islandH - 360, 1520)]) {
@@ -830,19 +918,19 @@
 					extraX,
 					extraW
 				} = rows[rIdx];
-				addMapLabel(race.toUpperCase(), 92, rowY - 38, 0xfcd34d);
+				addMapLabel(race.toUpperCase(), 92, rowY - 52, 0xfcd34d);
 
 				// Container 1: Castle + Worker
 				terrainG
-					.roundRect(92, rowY - 16, CASTLE_BOX_W, rowH, 12)
+					.roundRect(92, rowY - 30, CASTLE_BOX_W, rowH, 12)
 					.fill({ color: 0x163812, alpha: 0.92 });
 				terrainG
-					.roundRect(92, rowY - 16, CASTLE_BOX_W, rowH, 12)
+					.roundRect(92, rowY - 30, CASTLE_BOX_W, rowH, 12)
 					.stroke({ color: 0x4ade80, width: 1.5, alpha: 0.75 });
 				addCenteredWrappedLabel(
 					'ЗАМОК · РОБІТНИК',
 					92 + CASTLE_BOX_W / 2,
-					rowY - 11,
+					rowY - 25,
 					0x86efac,
 					160,
 					9.5
@@ -852,62 +940,122 @@
 
 				// Container 2: Spawners + Upgrades + Extra units of this race
 				terrainG
-					.roundRect(spawnersX, rowY - 16, spawnersW, rowH, 12)
+					.roundRect(spawnersX, rowY - 30, spawnersW, rowH, 12)
 					.fill({ color: 0x163812, alpha: 0.92 });
 				terrainG
-					.roundRect(spawnersX, rowY - 16, spawnersW, rowH, 12)
+					.roundRect(spawnersX, rowY - 30, spawnersW, rowH, 12)
 					.stroke({ color: 0x38bdf8, width: 1.5, alpha: 0.65 });
-				addMapLabel('БУДІВЛІ ТА ЮНІТИ', spawnersX + 12, rowY - 11, 0x7dd3fc, 10);
+				addMapLabel('БУДІВЛІ ТА ЮНІТИ', spawnersX + 12, rowY - 25, 0x7dd3fc, 10);
 
 				// Container 3: Unique special buildings (2 rows)
 				terrainG
-					.roundRect(uniqueX, rowY - 16, uniqueW, rowH, 12)
+					.roundRect(uniqueX, rowY - 30, uniqueW, rowH, 12)
 					.fill({ color: 0x163812, alpha: 0.92 });
 				terrainG
-					.roundRect(uniqueX, rowY - 16, uniqueW, rowH, 12)
+					.roundRect(uniqueX, rowY - 30, uniqueW, rowH, 12)
 					.stroke({ color: 0x94a3b8, width: 1.5, alpha: 0.65 });
-				addMapLabel('УНІКАЛЬНІ БУДІВЛІ', uniqueX + 12, rowY - 11, 0xcbd5e1, 10);
+				addMapLabel('УНІКАЛЬНІ БУДІВЛІ', uniqueX + 12, rowY - 25, 0xcbd5e1, 10);
 
 				// Container 4: Shared special buildings (2x2)
 				terrainG
-					.roundRect(sharedX, rowY - 16, sharedW, rowH, 12)
+					.roundRect(sharedX, rowY - 30, sharedW, rowH, 12)
 					.fill({ color: 0x163812, alpha: 0.92 });
 				terrainG
-					.roundRect(sharedX, rowY - 16, sharedW, rowH, 12)
+					.roundRect(sharedX, rowY - 30, sharedW, rowH, 12)
 					.stroke({ color: 0xfbbf24, width: 1.5, alpha: 0.65 });
-				addMapLabel('СПІЛЬНІ БУДІВЛІ', sharedX + 12, rowY - 11, 0xfcd34d, 10);
+				addMapLabel('СПІЛЬНІ БУДІВЛІ', sharedX + 12, rowY - 25, 0xfcd34d, 10);
 
 				// Container 5: Extra / Summoned units of this race (after all buildings)
 				if (extraW > 0) {
 					terrainG
-						.roundRect(extraX, rowY - 16, extraW, rowH, 12)
+						.roundRect(extraX, rowY - 30, extraW, rowH, 12)
 						.fill({ color: 0x163812, alpha: 0.92 });
 					terrainG
-						.roundRect(extraX, rowY - 16, extraW, rowH, 12)
+						.roundRect(extraX, rowY - 30, extraW, rowH, 12)
 						.stroke({ color: 0x22d3ee, width: 1.5, alpha: 0.7 });
-					addMapLabel('ПРИЗОВНІ ЮНІТИ', extraX + 12, rowY - 11, 0x67e8f9, 10);
+					addMapLabel('ПРИЗОВНІ ЮНІТИ', extraX + 12, rowY - 25, 0x67e8f9, 10);
 				}
 
+				const filterQ = viewMode === 'map' ? '' : q;
 				const baseBlds = getBaseBuildingsForRace(race).filter(
-					(b) => !q || b.name.toLowerCase().includes(q) || b.id.toLowerCase().includes(q)
+					(b) =>
+						!filterQ ||
+						b.name.toLowerCase().includes(filterQ) ||
+						b.id.toLowerCase().includes(filterQ)
 				);
 				const spawners = baseBlds.filter((b) => Boolean(b.unit));
 				const specials = baseBlds.filter((b) => !b.unit);
 				const uniqueSpecials = specials.filter((b) => !SHARED_BUILDING_IDS.has(b.id));
 				const sharedSpecials = specials.filter((b) => SHARED_BUILDING_IDS.has(b.id));
-				const extraUnits = getExtraUnitsForRace(race, q);
+				const extraUnits = getExtraUnitsForRace(race, filterQ);
 
 				const drawUpgradesBelow = (baseBldId: string, colX: number) => {
 					const ups = getUpgradesForBuilding(baseBldId);
 					if (ups.length === 0) return;
-					const lastUpY = rowY + UPGRADE_STEP_Y + (ups.length - 1) * UPGRADE_STEP_Y;
-					const railX = colX - 13;
-					terrainG
-						?.moveTo(colX + 12, rowY + CARD_H - 8)
-						.lineTo(colX + 12, rowY + CARD_H)
-						.lineTo(railX, rowY + CARD_H)
-						.lineTo(railX, lastUpY + 64)
-						.stroke({ color: 0xc084fc, width: 2, alpha: 0.85 });
+
+					const baseBotY = rowY + CARD_H - 8;
+					const firstUpTopY = rowY + UPGRADE_STEP_Y - 8;
+					const connX = colX + CARD_W / 2 - 8;
+
+					const strokeStyledPath = (trace: () => void, accent = 0xc084fc) => {
+						if (!terrainG) return;
+						trace();
+						terrainG.stroke({ color: accent, width: 7, alpha: 0.18, cap: 'round', join: 'round' });
+						trace();
+						terrainG.stroke({
+							color: 0x090d16,
+							width: 4.4,
+							alpha: 0.95,
+							cap: 'round',
+							join: 'round'
+						});
+						trace();
+						terrainG.stroke({ color: accent, width: 2, alpha: 0.96, cap: 'round', join: 'round' });
+					};
+
+					const drawSocketDiamond = (sx: number, sy: number, fill = 0xfbbf24) => {
+						terrainG?.poly([sx, sy - 4.5, sx + 4.5, sy, sx, sy + 4.5, sx - 4.5, sy]).fill(fill);
+						terrainG
+							?.poly([sx, sy - 4.5, sx + 4.5, sy, sx, sy + 4.5, sx - 4.5, sy])
+							.stroke({ color: 0x090d16, width: 1.3 });
+					};
+
+					const drawDownChevron = (ax: number, ay: number) => {
+						terrainG?.poly([ax - 5.5, ay - 7, ax + 5.5, ay - 7, ax, ay]).fill(0xe879f9);
+						terrainG
+							?.poly([ax - 5.5, ay - 7, ax + 5.5, ay - 7, ax, ay])
+							.stroke({ color: 0x090d16, width: 1.1 });
+					};
+
+					const drawRightChevron = (ax: number, ay: number) => {
+						terrainG?.poly([ax - 7, ay - 5, ax - 7, ay + 5, ax, ay]).fill(0xe879f9);
+						terrainG
+							?.poly([ax - 7, ay - 5, ax - 7, ay + 5, ax, ay])
+							.stroke({ color: 0x090d16, width: 1.1 });
+					};
+
+					// Direct vertical rune conduit from base card to 1st upgrade
+					strokeStyledPath(() => {
+						terrainG?.moveTo(connX, baseBotY).lineTo(connX, firstUpTopY - 4);
+					}, 0xc084fc);
+					drawSocketDiamond(connX, baseBotY, 0xfbbf24);
+					drawDownChevron(connX, firstUpTopY);
+
+					// Smooth curved side rail when there are 2+ upgrades
+					const railX = colX - 18;
+					if (ups.length > 1) {
+						const splitY = Math.round((baseBotY + firstUpTopY) / 2);
+						const r = 10;
+						const lastUpMidY = rowY + UPGRADE_STEP_Y + (ups.length - 1) * UPGRADE_STEP_Y + 60;
+						strokeStyledPath(() => {
+							terrainG
+								?.moveTo(connX, splitY)
+								.lineTo(railX + r, splitY)
+								.quadraticCurveTo(railX, splitY, railX, splitY + r)
+								.lineTo(railX, lastUpMidY - r);
+						}, 0xc084fc);
+						drawSocketDiamond(connX, splitY, 0xd8b4fe);
+					}
 
 					for (let uIdx = 0; uIdx < ups.length; uIdx++) {
 						const up = ups[uIdx];
@@ -919,10 +1067,18 @@
 								up.id.toLowerCase().includes(q) ||
 								uName.toLowerCase().includes(q));
 
-						terrainG
-							?.moveTo(railX, upY + 64)
-							.lineTo(colX - 8, upY + 64)
-							.stroke({ color: 0xc084fc, width: 2, alpha: 0.85 });
+						if (uIdx > 0) {
+							const branchY = upY + 60;
+							const r = 9;
+							strokeStyledPath(() => {
+								terrainG
+									?.moveTo(railX, branchY - r)
+									.quadraticCurveTo(railX, branchY, railX + r, branchY)
+									.lineTo(colX - 12, branchY);
+							}, 0xc084fc);
+							drawSocketDiamond(railX, branchY - r, 0xfbbf24);
+							drawRightChevron(colX - 8, branchY);
+						}
 
 						terrainG?.roundRect(colX - 8, upY - 8, CARD_W, CARD_H, 10).fill({
 							color: 0x2d6a1e,
@@ -1198,6 +1354,8 @@
 				});
 				const mockRaceCastle: Castle = {
 					...showcaseSim.castles.west,
+					hp: Math.round((castleHpPct / 100) * 5000),
+					maxHp: 5000,
 					color: selectedPlayerColor,
 					x: castleX,
 					y: castleY
@@ -1207,7 +1365,7 @@
 					mockRaceCastle,
 					previewTeam === 'west',
 					selectedItem?.defId === `castle_${race}`,
-					false,
+					castleHpPct < 100,
 					race
 				);
 				placedItems.push({
@@ -1219,7 +1377,7 @@
 					subtitle: 'Повноцінна 2.5D фортеця раси',
 					race,
 					defId: `castle_${race}`,
-					stats: '5000 HP · 10 ARM (fort)'
+					stats: `${Math.round((castleHpPct / 100) * 5000)}/5000 HP (Стадія ${castleStage}/7) · 10 ARM (fort)`
 				});
 
 				g.roundRect(wx - 32, wy - 32, 64, 64, 10).fill({ color: 0x2d6a1e, alpha: 1 });
@@ -1248,14 +1406,18 @@
 					defId: `worker_${race}`
 				});
 
+				const filterQ = viewMode === 'map' ? '' : q;
 				const baseBlds = getBaseBuildingsForRace(race).filter(
-					(b) => !q || b.name.toLowerCase().includes(q) || b.id.toLowerCase().includes(q)
+					(b) =>
+						!filterQ ||
+						b.name.toLowerCase().includes(filterQ) ||
+						b.id.toLowerCase().includes(filterQ)
 				);
 				const spawners = baseBlds.filter((b) => Boolean(b.unit));
 				const specials = baseBlds.filter((b) => !b.unit);
 				const uniqueSpecials = specials.filter((b) => !SHARED_BUILDING_IDS.has(b.id));
 				const sharedSpecials = specials.filter((b) => SHARED_BUILDING_IDS.has(b.id));
-				const extraUnits = getExtraUnitsForRace(race, q);
+				const extraUnits = getExtraUnitsForRace(race, filterQ);
 
 				const drawUnitInPair = (
 					unitId: string,
@@ -1458,11 +1620,15 @@
 			const eastCastleY = castleBoxY + 172;
 			const mockWestCastle: Castle = {
 				...showcaseSim.castles.west,
+				hp: Math.round((castleHpPct / 100) * 5000),
+				maxHp: 5000,
 				x: eastIslandX + 310,
 				y: westCastleY
 			};
 			const mockEastCastle: Castle = {
 				...showcaseSim.castles.east,
+				hp: Math.round((castleHpPct / 100) * 5000),
+				maxHp: 5000,
 				x: eastIslandX + 810,
 				y: eastCastleY
 			};
@@ -1471,14 +1637,14 @@
 				mockWestCastle,
 				true,
 				selectedItem?.defId === 'castle_25d_west',
-				false
+				castleHpPct < 100
 			);
 			showcaseBuildingRenderer.renderAuthenticCastle(
 				g,
 				mockEastCastle,
 				false,
 				selectedItem?.defId === 'castle_25d_east',
-				false
+				castleHpPct < 100
 			);
 			placedItems.push(
 				{
@@ -1537,6 +1703,12 @@
 				});
 			}
 			showcaseTerrainRenderer.drawProceduralDecorations(g, 1, obstacleDecs, false);
+			if (
+				placedItemsSnapshot.length !== placedItems.length ||
+				placedItemsSnapshot[0]?.defId !== placedItems[0]?.defId
+			) {
+				placedItemsSnapshot = [...placedItems];
+			}
 			return;
 		}
 
@@ -1752,7 +1924,7 @@
 		const mx = e.clientX - rect.left;
 		const my = e.clientY - rect.top;
 		const factor = e.deltaY < 0 ? 1.12 : 0.89;
-		const nextZoom = Math.min(2.2, Math.max(0.24, camZoom * factor));
+		const nextZoom = Math.min(2.2, Math.max(0.08, camZoom * factor));
 		const worldX = (mx - camX) / camZoom;
 		const worldY = (my - camY) / camZoom;
 		camZoom = nextZoom;
@@ -1766,8 +1938,8 @@
 		const layout = graphicsTab === 'hd-webp' ? null : computeRaceRowsLayout();
 		const mapW = layout ? layout.mapW : 3400;
 		const mapH = layout ? layout.mapH : BASE_MAP_H;
-		const fitZoom = Math.min(hostW / mapW, hostH / mapH) * 0.96;
-		camZoom = Math.max(0.24, Math.min(1.5, fitZoom));
+		const fitZoom = Math.min(hostW / mapW, hostH / mapH) * 0.94;
+		camZoom = Math.max(0.08, Math.min(1.5, fitZoom));
 		camX = (hostW - mapW * camZoom) / 2;
 		camY = (hostH - mapH * camZoom) / 2;
 	}
@@ -1811,6 +1983,11 @@
 		void searchQuery;
 		void selectedItem;
 		rebuildStaticScene();
+		redrawShowcase();
+	});
+
+	$effect(() => {
+		void castleHpPct;
 		redrawShowcase();
 	});
 
@@ -1921,21 +2098,21 @@
 		? 'fixed inset-0 z-40 bg-[#012e4a] text-slate-100 overflow-hidden select-none'
 		: 'min-h-screen bg-[#080c14] text-slate-100 flex flex-col'}
 >
-	<!-- Top Bar (Floating HUD in Map mode, sticky bar in Menu mode) -->
+	<!-- Top Bar (Edge-docked game HUD in Map mode, sticky bar in Menu mode) -->
 	<header
 		class={viewMode === 'map'
-			? 'pointer-events-none fixed top-2.5 inset-x-3 z-50 flex flex-wrap items-center justify-between gap-2'
+			? 'pointer-events-none fixed top-0 left-0 right-0 z-50 flex flex-wrap items-start justify-between gap-2'
 			: 'sticky top-0 z-30 bg-[#111622]/95 backdrop-blur-md border-b border-[#544738] px-4 py-3 flex flex-wrap items-center justify-between gap-3'}
 		data-testid="assets-showcase-header"
 	>
 		<div
 			class={viewMode === 'map'
-				? 'pointer-events-auto flex flex-wrap items-center gap-2 rounded-xl border border-[#544738] bg-[#111622]/90 backdrop-blur-md px-2.5 py-1.5 shadow-xl'
+				? 'pointer-events-auto flex flex-wrap items-center gap-2 rounded-br-xl border-b border-r border-t-0 border-l-0 border-[#544738] bg-[#131722]/95 backdrop-blur-md px-3 py-1.5 shadow-2xl'
 				: 'flex items-center gap-3'}
 		>
 			<a
 				href={resolve('/')}
-				class="px-2.5 py-1 rounded-lg border border-[#544738] bg-[#1a2030] hover:bg-[#242c42] text-xs font-bold text-amber-200 flex items-center gap-1.5 transition"
+				class="px-2.5 py-1 rounded-lg border border-[#3b3226] hover:border-amber-500/70 bg-[#181d28] hover:bg-[#242c3d] text-xs font-bold text-amber-200 flex items-center gap-1.5 transition"
 				data-testid="assets-showcase-back-link"
 			>
 				<UiIcon name="arrowLeft" class="w-3.5 h-3.5" />
@@ -2008,42 +2185,157 @@
 
 		<div
 			class={viewMode === 'map'
-				? 'pointer-events-auto flex flex-wrap items-center gap-1.5 rounded-xl border border-[#544738] bg-[#111622]/90 backdrop-blur-md px-2.5 py-1.5 shadow-xl'
+				? 'pointer-events-auto flex flex-wrap items-center gap-1.5 rounded-bl-xl border-b border-l border-t-0 border-r-0 border-[#544738] bg-[#131722]/95 backdrop-blur-md px-3 py-1.5 shadow-2xl'
 				: 'flex flex-wrap items-center gap-2'}
 		>
-			<div class="flex items-center gap-1">
+			<div class="relative flex items-center gap-1">
 				<input
+					bind:this={searchInputEl}
 					type="text"
 					bind:value={searchQuery}
+					onfocus={() => {
+						if (viewMode === 'map' && searchQuery.trim()) {
+							updateSearchPopupPos();
+							searchPopupOpen = true;
+						}
+					}}
+					oninput={() => {
+						if (viewMode === 'map' && searchQuery.trim()) {
+							updateSearchPopupPos();
+							searchPopupOpen = true;
+						} else {
+							searchPopupOpen = false;
+						}
+					}}
 					onkeydown={(e) => {
-						if (e.key === 'Enter') focusFirstSearchResult();
+						if (e.key === 'Enter') {
+							updateSearchPopupPos();
+							searchPopupOpen = true;
+							focusFirstSearchResult();
+						} else if (e.key === 'Escape') {
+							searchPopupOpen = false;
+						}
 					}}
 					placeholder="Пошук за назвою або ID..."
 					class="px-2.5 py-1 rounded-lg bg-[#0c1017] border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-amber-400 w-36 sm:w-44"
 					data-testid="assets-showcase-search"
 				/>
+				{#if searchQuery.trim()}
+					<button
+						type="button"
+						onclick={() => {
+							searchQuery = '';
+							searchPopupOpen = false;
+						}}
+						class="px-1.5 py-1 rounded-lg bg-[#181d28] hover:bg-[#242c3d] border border-[#3b3226] text-slate-300 hover:text-white text-xs font-bold cursor-pointer transition"
+						title="Очистити пошук"
+						aria-label="Очистити пошук"
+					>
+						×
+					</button>
+				{/if}
 				{#if viewMode === 'map' && searchQuery.trim()}
 					<button
 						type="button"
-						onclick={focusFirstSearchResult}
+						onclick={() => {
+							updateSearchPopupPos();
+							searchPopupOpen = true;
+							focusFirstSearchResult();
+						}}
 						class="px-2 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold cursor-pointer transition"
 						title="Перейти до першого результату (Enter)"
 					>
-						Знайти
+						Знайти ({searchMatches.length})
 					</button>
+				{/if}
+
+				{#if viewMode === 'map' && searchPopupOpen && searchQuery.trim()}
+					<div use:portalToBody class="contents">
+						<div
+							style={searchPopupStyle}
+							class="fixed z-[9995] w-[min(92vw,580px)] rounded-xl border border-[#8c7456]/85 bg-[#131722]/98 backdrop-blur-md shadow-2xl flex flex-col overflow-hidden text-slate-100"
+							data-testid="assets-showcase-search-results"
+						>
+							<div
+								class="flex items-center justify-between px-3 py-2 border-b border-slate-800 bg-[#0e121b] text-[11px] font-bold uppercase tracking-wider text-amber-300"
+							>
+								<span>Знайдені поінти ({searchMatches.length})</span>
+								<button
+									type="button"
+									onclick={() => (searchPopupOpen = false)}
+									class="text-slate-400 hover:text-white cursor-pointer px-1 text-sm leading-none"
+									title="Згорнути сітку"
+								>
+									×
+								</button>
+							</div>
+							{#if searchMatches.length === 0}
+								<div class="px-3 py-4 text-xs text-slate-400 text-center">
+									Нічого не знайдено за запитом «{searchQuery.trim()}»
+								</div>
+							{:else}
+								<div class="overflow-y-auto p-2.5 grid grid-cols-2 sm:grid-cols-3 gap-2">
+									{#each searchMatches as item (`${item.defId}_${item.x}_${item.y}`)}
+										{@const thumbUrl = getSearchItemThumbnail(item)}
+										<button
+											type="button"
+											onclick={() => {
+												selectedItem = item;
+												focusWorldPoint(item.x, item.y, Math.max(camZoom, 0.92));
+											}}
+											class="text-left p-2 rounded-xl border transition cursor-pointer flex flex-col gap-1.5 {selectedItem?.defId ===
+												item.defId && selectedItem?.x === item.x
+												? 'bg-amber-500/20 border-amber-500/70 text-amber-100 shadow-lg'
+												: 'bg-[#181d28]/90 border-slate-700/70 hover:bg-[#242c3d] hover:border-[#8c7456] text-slate-200'}"
+										>
+											<div
+												class="relative w-full h-20 rounded-lg bg-[#1d4418]/80 border border-[#4ade80]/30 flex items-center justify-center p-1.5 overflow-hidden"
+											>
+												{#if thumbUrl}
+													<img
+														src={thumbUrl}
+														alt={item.title}
+														class="max-w-full max-h-full object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.65)]"
+													/>
+												{:else}
+													<span class="text-[10px] font-mono text-slate-400">{item.defId}</span>
+												{/if}
+												<span
+													class="absolute top-1 right-1 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-950/85 text-amber-300 border border-slate-700/80"
+												>
+													{item.kind === 'unit'
+														? 'Юніт'
+														: item.kind === 'building'
+															? 'Будівля'
+															: item.kind === 'worker'
+																? 'Робітник'
+																: 'Декор'}
+												</span>
+											</div>
+											<div class="min-w-0">
+												<div class="text-xs font-bold leading-tight line-clamp-2">
+													{item.title}
+												</div>
+												<div class="text-[10px] text-slate-400 truncate mt-0.5">
+													{item.race} · <span class="font-mono text-cyan-300">{item.defId}</span>
+												</div>
+											</div>
+										</button>
+									{/each}
+								</div>
+							{/if}
+						</div>
+					</div>
 				{/if}
 			</div>
 
-			<select
+			<GameSelect
 				bind:value={selectedRace}
-				class="px-2 py-1 rounded-lg bg-[#0c1017] border border-slate-700 text-xs text-amber-200 font-semibold"
-				data-testid="assets-showcase-race-select"
-			>
-				<option value="all">Усі 12 рас</option>
-				{#each PLAYABLE_RACES as race}
-					<option value={race}>{race}</option>
-				{/each}
-			</select>
+				options={raceSelectOptions}
+				ariaLabel="Фільтр за расою"
+				testId="assets-showcase-race-select"
+				minMenuWidth={168}
+			/>
 
 			{#if viewMode === 'menu' && graphicsTab === '2.5d'}
 				<div class="flex rounded-lg border border-slate-700 overflow-hidden text-xs font-bold">
@@ -2075,54 +2367,44 @@
 			</button>
 
 			<!-- Окреме меню зміни кольору (за замовчуванням — Сірий) -->
-			<div class="relative">
-				<button
-					type="button"
-					onclick={() => (colorMenuOpen = !colorMenuOpen)}
-					class="px-2.5 py-1 rounded-lg border border-slate-600/80 bg-[#121722] hover:bg-slate-800 text-xs font-bold text-slate-200 flex items-center gap-1.5 cursor-pointer transition"
-					title="Змінити колір юнітів та будівель"
-					data-testid="assets-showcase-color-btn"
-				>
-					<span
-						class="w-3 h-3 rounded-full border border-white/40 shrink-0"
-						style="background-color: {selectedPlayerColor.hex};"
-					></span>
-					<span>{selectedPlayerColor.nameUk}</span>
-				</button>
+			<GameSelect
+				value={String(selectedColorId)}
+				options={colorSelectOptions}
+				onchange={(val) => (selectedColorId = Number(val))}
+				ariaLabel="Колір юнітів та будівель"
+				testId="assets-showcase-color-btn"
+				align="right"
+				minMenuWidth={176}
+			/>
 
-				{#if colorMenuOpen}
-					<button
-						type="button"
-						class="fixed inset-0 z-40 cursor-default"
-						onclick={() => (colorMenuOpen = false)}
-						aria-label="Закрити меню кольорів"
-					></button>
-					<div
-						class="absolute right-0 mt-1.5 w-48 rounded-xl border border-[#544738] bg-[#131722]/95 backdrop-blur-md p-1.5 shadow-2xl z-50 grid grid-cols-1 gap-0.5 max-h-72 overflow-y-auto"
-						data-testid="assets-showcase-color-menu"
+			{#if graphicsTab === '2.5d'}
+				<label
+					class="flex items-center gap-2 px-2.5 py-1 rounded-lg border border-[#544738]/85 bg-[#121722] text-xs font-bold text-slate-200"
+					title="Перевірка поступового руйнування 2.5D замків (8 стадій)"
+					data-testid="assets-showcase-castle-hp-wrap"
+				>
+					<span class="text-[11px] text-amber-300 whitespace-nowrap">Замок HP</span>
+					<input
+						type="range"
+						min="0"
+						max="100"
+						step="1"
+						bind:value={castleHpPct}
+						aria-label="Рівень HP 2.5D замків"
+						data-testid="assets-showcase-castle-hp-slider"
+						class="w-20 sm:w-24 accent-amber-400 cursor-pointer"
+					/>
+					<span
+						class="font-mono text-[11px] w-14 text-right whitespace-nowrap {castleHpPct > 50
+							? 'text-emerald-300'
+							: castleHpPct > 25
+								? 'text-amber-300'
+								: 'text-rose-400'}"
 					>
-						{#each ALL_PLAYER_COLORS as c (c.id)}
-							<button
-								type="button"
-								onclick={() => {
-									selectedColorId = c.id;
-									colorMenuOpen = false;
-								}}
-								class="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition text-left {selectedColorId ===
-								c.id
-									? 'bg-amber-500/20 text-amber-200 border border-amber-500/40'
-									: 'text-slate-200 hover:bg-slate-800/80 border border-transparent'}"
-							>
-								<span
-									class="w-3.5 h-3.5 rounded-full border border-white/40 shrink-0"
-									style="background-color: {c.hex};"
-								></span>
-								<span class="truncate">{c.nameUk}</span>
-							</button>
-						{/each}
-					</div>
-				{/if}
-			</div>
+						{castleHpPct}% · С{castleStage}
+					</span>
+				</label>
+			{/if}
 
 			<button
 				type="button"
@@ -2199,14 +2481,17 @@
 			></canvas>
 
 			{#if viewMode === 'map'}
-				<!-- Bottom-Left Camera HUD -->
+				<!-- Bottom-Left Edge-Docked Camera HUD -->
 				<div
-					class="fixed bottom-3 left-3 z-50 flex items-center gap-2 rounded-xl border border-[#544738] bg-[#111622]/90 backdrop-blur-md px-2.5 py-1.5 text-xs shadow-xl"
+					class="fixed bottom-0 left-0 z-50 flex items-center gap-1.5 rounded-tr-xl border-t border-r border-b-0 border-l-0 border-[#544738] bg-[#131722]/95 backdrop-blur-md px-3 py-1.5 text-xs shadow-2xl"
 				>
 					<button
 						type="button"
-						onclick={() => (camZoom = Math.max(0.24, +(camZoom - 0.12).toFixed(2)))}
-						class="px-2 py-0.5 rounded hover:bg-slate-800 text-slate-200 font-bold cursor-pointer"
+						onclick={() => {
+							const step = camZoom <= 0.3 ? 0.04 : 0.12;
+							camZoom = Math.max(0.08, +(camZoom - step).toFixed(2));
+						}}
+						class="px-2 py-0.5 rounded-md border border-[#3b3226] bg-[#181d28] hover:bg-[#242c3d] hover:border-amber-500/70 text-slate-200 font-bold cursor-pointer transition"
 						title="Віддалити"
 					>
 						-
@@ -2214,15 +2499,18 @@
 					<button
 						type="button"
 						onclick={() => (camZoom = 1)}
-						class="font-mono text-[11px] text-amber-200 hover:text-amber-100 cursor-pointer px-1 rounded hover:bg-slate-800"
+						class="font-mono text-[11px] text-amber-200 hover:text-amber-100 cursor-pointer px-1.5 py-0.5 rounded-md hover:bg-[#242c3d] transition"
 						title="Скинути масштаб до 100% (1:1)"
 					>
 						{Math.round(camZoom * 100)}%
 					</button>
 					<button
 						type="button"
-						onclick={() => (camZoom = Math.min(2.2, +(camZoom + 0.12).toFixed(2)))}
-						class="px-2 py-0.5 rounded hover:bg-slate-800 text-slate-200 font-bold cursor-pointer"
+						onclick={() => {
+							const step = camZoom < 0.28 ? 0.04 : 0.12;
+							camZoom = Math.min(2.2, +(camZoom + step).toFixed(2));
+						}}
+						class="px-2 py-0.5 rounded-md border border-[#3b3226] bg-[#181d28] hover:bg-[#242c3d] hover:border-amber-500/70 text-slate-200 font-bold cursor-pointer transition"
 						title="Наблизити"
 					>
 						+
@@ -2230,15 +2518,15 @@
 					<button
 						type="button"
 						onclick={fitWholeMap}
-						class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold cursor-pointer"
+						class="px-2.5 py-0.5 rounded-md border border-[#3b3226] bg-[#181d28] hover:bg-[#242c3d] hover:border-amber-500/70 text-amber-300 font-bold cursor-pointer transition"
 					>
 						Вся карта
 					</button>
 					<button
 						type="button"
 						onclick={() => focusWorldPoint(680, 460, 0.9)}
-						class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-emerald-300 font-semibold cursor-pointer"
-						title="Перейти до рас, будівель та їхніх покращень (Західний острів)"
+						class="px-2.5 py-0.5 rounded-md border border-[#3b3226] bg-[#181d28] hover:bg-[#242c3d] hover:border-emerald-500/60 text-emerald-300 font-semibold cursor-pointer transition"
+						title="Перейти до рас, будівель та їхніх покращень (Основний острів)"
 					>
 						Раси й апгрейди
 					</button>
@@ -2252,12 +2540,12 @@
 								focusWorldPoint(bottomIsland.x + 560, bottomIsland.y + 380, 0.9);
 							}
 						}}
-						class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 font-semibold cursor-pointer"
+						class="px-2.5 py-0.5 rounded-md border border-[#3b3226] bg-[#181d28] hover:bg-[#242c3d] hover:border-cyan-500/60 text-cyan-300 font-semibold cursor-pointer transition"
 						title="Перейти до замків та декорацій (Нижній острів)"
 					>
 						Замки й декор
 					</button>
-					<span class="hidden md:inline text-[11px] text-slate-400 border-l border-slate-700 pl-2">
+					<span class="hidden md:inline text-[11px] text-slate-400 border-l border-[#3b3226] pl-2">
 						Миша / WASD — рух · Колесо — зум · Клік — деталі
 					</span>
 				</div>
@@ -2286,7 +2574,7 @@
 		{#if viewMode === 'menu' || selectedItem}
 			<aside
 				class={viewMode === 'map'
-					? 'fixed bottom-3 right-3 z-50 w-72 rounded-xl border border-[#544738] bg-[#131722]/95 backdrop-blur-md p-3.5 flex flex-col gap-2.5 shadow-2xl'
+					? 'fixed bottom-0 right-0 z-50 w-72 rounded-tl-xl border-t border-l border-b-0 border-r-0 border-[#544738] bg-[#131722]/95 backdrop-blur-md p-3.5 flex flex-col gap-2.5 shadow-2xl'
 					: 'rounded-xl border border-[#544738] bg-[#131722] p-4 flex flex-col gap-3 h-fit sticky top-24'}
 				data-testid="assets-showcase-inspector"
 			>

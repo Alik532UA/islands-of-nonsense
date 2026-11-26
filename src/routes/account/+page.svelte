@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
+	import GameSelect from '$lib/components/ui/GameSelect.svelte';
 	import { t } from '$lib/i18n';
 	import { settings } from '$lib/services/settings.svelte';
 	import { AccountController } from '$lib/controllers/account.svelte';
@@ -440,17 +441,20 @@
 						<label for="profile-country" class="block text-xs font-medium text-slate-400 mb-1.5">
 							{t('account.country')}
 						</label>
-						<select
+						<GameSelect
 							id="profile-country"
-							data-testid="select-country"
+							testId="select-country"
 							bind:value={formCountry}
-							class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-amber-500"
-						>
-							<option value="">Не вказано</option>
-							{#each FLAG_COUNTRIES as code}
-								<option value={code}>{countryName(code)} ({code.toUpperCase()})</option>
-							{/each}
-						</select>
+							ariaLabel={t('account.country')}
+							buttonClass="w-full px-3 py-2 text-sm rounded-xl border-slate-700 bg-slate-950 text-slate-100"
+							options={[
+								{ value: '', label: 'Не вказано' },
+								...FLAG_COUNTRIES.map((code) => ({
+									value: code,
+									label: `${countryName(code)} (${code.toUpperCase()})`
+								}))
+							]}
+						/>
 					</div>
 
 					<div class="flex items-center justify-between pt-2">

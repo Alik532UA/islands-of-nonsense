@@ -18,6 +18,7 @@ import {
 	type SunShadowOffset
 } from './buildingModels';
 import { rc, rr, ci, el, pg, ln } from './gfx';
+import { getCastleStageIndex } from './castleAssets';
 
 /**
  * BuildingRenderer handles rendering of placed buildings, construction scaffolding,
@@ -372,44 +373,101 @@ export class BuildingRenderer {
 		}
 
 		const keepTop = cy - 76;
+		const hpPct = Math.max(0, Math.min(1, castle.hp / Math.max(1, castle.maxHp)));
+		const stage = getCastleStageIndex(castle.hp, castle.maxHp);
 
 		const poleTopY = keepTop - 36;
 		const wave = Math.sin(time * 3.8 + (isWest ? 0 : 1.7)) * 3.5;
-		ln(g, [cx, cy - 10, cx, poleTopY], 0xd97706, 3);
-		ci(g, cx, poleTopY - 2, 3.5, 0xfef08a);
-		pg(
-			g,
-			[
-				cx,
-				poleTopY,
-				cx + 42,
-				poleTopY + 5 + wave,
-				cx + 32,
-				poleTopY + 13 + wave * 0.6,
-				cx + 42,
-				poleTopY + 21 + wave,
-				cx,
-				poleTopY + 24
-			],
-			teamColor,
-			{ color: 0xfde047, width: 1.5 }
-		);
-		pg(
-			g,
-			[
-				cx + 10,
-				poleTopY + 12 + wave * 0.25,
-				cx + 16,
-				poleTopY + 8 + wave * 0.25,
-				cx + 22,
-				poleTopY + 12 + wave * 0.25,
-				cx + 16,
-				poleTopY + 16 + wave * 0.25
-			],
-			0xfef08a
-		);
+		if (stage <= 4) {
+			ln(g, [cx, cy - 10, cx, poleTopY], 0xd97706, 3);
+			ci(g, cx, poleTopY - 2, 3.5, 0xfef08a);
+			pg(
+				g,
+				[
+					cx,
+					poleTopY,
+					cx + 42,
+					poleTopY + 5 + wave,
+					cx + 32,
+					poleTopY + 13 + wave * 0.6,
+					cx + 42,
+					poleTopY + 21 + wave,
+					cx,
+					poleTopY + 24
+				],
+				stage >= 2 ? this.shadeHexColor(teamColor, 0.72) : teamColor,
+				{ color: stage >= 3 ? 0x78350f : 0xfde047, width: 1.5 }
+			);
+			pg(
+				g,
+				[
+					cx + 10,
+					poleTopY + 12 + wave * 0.25,
+					cx + 16,
+					poleTopY + 8 + wave * 0.25,
+					cx + 22,
+					poleTopY + 12 + wave * 0.25,
+					cx + 16,
+					poleTopY + 16 + wave * 0.25
+				],
+				stage >= 3 ? 0xd97706 : 0xfef08a
+			);
+			if (stage >= 2) {
+				// Tattered/singed notch on worn banner
+				pg(
+					g,
+					[
+						cx + 26,
+						poleTopY + 10 + wave * 0.5,
+						cx + 43,
+						poleTopY + 13 + wave * 0.7,
+						cx + 31,
+						poleTopY + 18 + wave * 0.6
+					],
+					0x1c1917,
+					undefined,
+					0.85
+				);
+			}
+		} else if (stage === 5) {
+			// Tilted, battle-damaged flagpole with tattered banner
+			ln(g, [cx, cy - 10, cx + 14, poleTopY + 12], 0x92400e, 2.8);
+			pg(
+				g,
+				[
+					cx + 14,
+					poleTopY + 12,
+					cx + 40,
+					poleTopY + 20 + wave * 0.5,
+					cx + 31,
+					poleTopY + 26 + wave * 0.4,
+					cx + 12,
+					poleTopY + 28
+				],
+				this.shadeHexColor(teamColor, 0.55),
+				{ color: 0x451a03, width: 1.2 }
+			);
+		} else {
+			// Stage 6-7: Snapped/charred flagpole stump
+			ln(g, [cx, cy - 10, cx + 8, cy - 36], 0x451a03, 3);
+		}
 
-		const hpPct = Math.max(0, castle.hp / castle.maxHp);
+		if (stage > 0) {
+			this.drawCastleDestructionEffects(
+				g,
+				cx,
+				cy,
+				left,
+				top,
+				wallW,
+				wallH,
+				keepTop,
+				hpPct,
+				stage,
+				time
+			);
+		}
+
 		if (drawHealthBar) {
 			const bX = cx - 80;
 			const bY = top - 32;
@@ -424,40 +482,6 @@ export class BuildingRenderer {
 				hpPct > 0.5 ? 0x22c55e : hpPct > 0.25 ? 0xeab308 : 0xef4444
 			);
 		}
-		if (hpPct < 0.75) {
-			ln(
-				g,
-				[cx - 58, keepTop + 26, cx - 42, keepTop + 42, cx - 52, keepTop + 58],
-				0x1c1917,
-				2.5,
-				0.85
-			);
-			ln(g, [cx + 46, cy + 16, cx + 32, cy + 34, cx + 44, cy + 52], 0x1c1917, 2.5, 0.85);
-		}
-		if (hpPct < 0.6) {
-			for (let i = 0; i < 4; i++) {
-				ci(
-					g,
-					cx - 45 + i * 30 + Math.sin(time * 3 + i) * 6,
-					keepTop - 8 - ((time * 25 + i * 14) % 36),
-					5 + ((time * 6 + i * 3) % 8),
-					0x334155,
-					undefined,
-					0.35
-				);
-				if (hpPct < 0.35) {
-					ci(
-						g,
-						cx - 35 + i * 24 + Math.cos(time * 10 + i) * 4,
-						keepTop + 8 - ((time * 35 + i * 8) % 18),
-						4.5,
-						0xf97316,
-						undefined,
-						0.75
-					);
-				}
-			}
-		}
 		if (this.sim.castleInvulnerableTimer[castle.team] > 0) {
 			ci(
 				g,
@@ -467,6 +491,181 @@ export class BuildingRenderer {
 				{ color: 0x06b6d4, alpha: 0.25 },
 				{ color: 0x38bdf8, width: 4, alpha: 0.85 }
 			);
+		}
+	}
+
+	private drawCastleDestructionEffects(
+		g: Graphics,
+		cx: number,
+		cy: number,
+		left: number,
+		top: number,
+		wallW: number,
+		wallH: number,
+		keepTop: number,
+		hpPct: number,
+		stage: number,
+		time: number
+	): void {
+		const damage = 1 - hpPct;
+
+		// Progressive soot & charring wash over the fortress
+		if (stage >= 3) {
+			const sootAlpha = Math.min(0.62, 0.1 + Math.max(0, damage - 0.35) * 0.82);
+			rr(g, left + 2, top + 2, wallW - 4, wallH - 4, 14, 0x0c0a09, undefined, sootAlpha);
+		}
+
+		// Stage 1+: Masonry cracks on walls and courtyard
+		ln(
+			g,
+			[cx - 64, keepTop + 22, cx - 44, keepTop + 40, cx - 54, keepTop + 60],
+			0x1c1917,
+			2.2,
+			0.8
+		);
+		ln(g, [cx + 50, cy + 14, cx + 34, cy + 32, cx + 46, cy + 50], 0x1c1917, 2.2, 0.8);
+
+		if (stage >= 2) {
+			ln(g, [left + 28, top + 24, left + 46, top + 46, left + 34, top + 72], 0x0c0a09, 2.6, 0.88);
+			ln(
+				g,
+				[left + wallW - 30, top + wallH - 28, left + wallW - 52, top + wallH - 48],
+				0x0c0a09,
+				2.6,
+				0.88
+			);
+			// Scorch mark near gate/courtyard
+			el(g, cx + 38, cy + 8, 22, 16, 0x1c1917, undefined, 0.35);
+		}
+
+		// Stage 3+: Breached outer wall craters & internal scorch
+		if (stage >= 3) {
+			el(g, cx - 22, cy - 18, 28, 20, 0x0c0a09, undefined, 0.5);
+			el(g, left + wallW - 14, cy + 36, 16, 22, 0x1c1917, { color: 0x0c0a09, width: 2 }, 0.85);
+			ln(g, [cx - 32, cy - 30, cx + 18, cy + 12, cx + 6, cy + 44], 0x0c0a09, 3.2, 0.9);
+		}
+
+		// Stage 4+: Collapsed corner towers & rubble chunks
+		const towerOffsets: Array<[number, number]> = [
+			[left + 16, top + 16],
+			[left + wallW - 16, top + wallH - 16],
+			[left + wallW - 16, top + 16],
+			[left + 16, top + wallH - 16]
+		];
+		const collapsedCount = stage === 4 ? 2 : stage >= 5 ? 4 : 0;
+		for (let i = 0; i < collapsedCount; i++) {
+			const [tx, ty] = towerOffsets[i];
+			ci(g, tx, ty, 20, 0x1c1917, { color: 0x0c0a09, width: 2 }, 0.92);
+			ci(g, tx + 2, ty + 2, 12, 0x292524, undefined, 0.9);
+			// Scattered stone rubble around broken tower
+			pg(g, [tx - 14, ty + 6, tx - 6, ty + 2, tx - 4, ty + 11], 0x57534e, {
+				color: 0x1c1917,
+				width: 1
+			});
+			pg(g, [tx + 6, ty - 12, tx + 15, ty - 8, tx + 10, ty - 2], 0x44403c, {
+				color: 0x1c1917,
+				width: 1
+			});
+		}
+
+		// Stage 5+: Wall breaches and heavy rubble piles
+		if (stage >= 5) {
+			rr(g, left + 48, top - 2, 42, 16, 4, 0x1c1917, { color: 0x0c0a09, width: 1.5 }, 0.9);
+			rr(
+				g,
+				left + wallW - 92,
+				top + wallH - 14,
+				46,
+				16,
+				4,
+				0x1c1917,
+				{ color: 0x0c0a09, width: 1.5 },
+				0.9
+			);
+			for (const [rx, ry, rw, rh] of [
+				[cx - 52, cy + 56, 18, 12],
+				[cx + 34, cy - 64, 20, 13],
+				[cx - 68, cy - 12, 15, 11],
+				[cx + 48, cy + 44, 16, 12]
+			]) {
+				rr(g, rx, ry, rw, rh, 3, 0x44403c, { color: 0x1c1917, width: 1.2 }, 0.92);
+			}
+		}
+
+		// Stage 6+: Charred skeletal timbers & glowing ember fissures across collapsed keep
+		if (stage >= 6) {
+			el(g, cx, cy, 58, 72, 0x1c1917, { color: 0x0c0a09, width: 2 }, 0.88);
+			ln(g, [cx - 42, cy - 48, cx + 38, cy + 44], 0x292524, 5, 0.95);
+			ln(g, [cx + 40, cy - 46, cx - 38, cy + 42], 0x292524, 5, 0.95);
+			ln(g, [cx - 46, cy + 4, cx + 44, cy - 6], 0x451a03, 4, 0.9);
+			// Glowing ember cracks
+			ln(g, [cx - 28, cy - 22, cx + 10, cy + 6, cx + 26, cy + 28], 0xf97316, 2.2, 0.78);
+			ln(g, [cx + 24, cy - 28, cx - 12, cy + 16], 0xfacc15, 1.5, 0.65);
+		}
+
+		// Stage 7: Complete pile of smoking rubble
+		if (stage === 7) {
+			el(g, cx, cy + 8, 76, 56, 0x292524, { color: 0x0c0a09, width: 2.5 }, 0.94);
+			for (const [sx, sy, sr, col] of [
+				[cx - 34, cy + 12, 14, 0x44403c],
+				[cx + 28, cy + 18, 16, 0x57534e],
+				[cx - 6, cy - 6, 18, 0x3f3a36],
+				[cx + 12, cy + 32, 13, 0x44403c],
+				[cx - 22, cy + 34, 12, 0x57534e]
+			]) {
+				ci(g, sx, sy, sr, col, { color: 0x1c1917, width: 1.5 }, 0.95);
+			}
+		}
+
+		// Animated flames (stages 3 to 6, dying embers at stage 7)
+		if (stage >= 3) {
+			const flameCount = stage === 3 ? 3 : stage === 4 ? 5 : stage <= 6 ? 7 : 4;
+			const flamePts: Array<[number, number]> = [
+				[cx - 26, cy - 12],
+				[cx + 22, cy + 8],
+				[cx - 4, cy - 42],
+				[cx - 56, cy + 34],
+				[cx + 52, cy - 36],
+				[cx + 4, cy + 44],
+				[cx - 48, cy - 52]
+			];
+			for (let i = 0; i < flameCount; i++) {
+				const [fx, fy] = flamePts[i];
+				const flicker = Math.sin(time * 9 + i * 2.1) * 2.4;
+				const scale = stage === 7 ? 0.65 : 0.85 + (stage - 3) * 0.16;
+				const baseR = (7.5 + (i % 2) * 2) * scale + flicker * 0.4;
+				if (stage < 7) {
+					ci(g, fx, fy - flicker * 0.4, baseR * 1.25, 0xea580c, undefined, 0.78);
+					ci(
+						g,
+						fx + flicker * 0.25,
+						fy - 2.5 - flicker * 0.5,
+						baseR * 0.85,
+						0xf97316,
+						undefined,
+						0.9
+					);
+					ci(g, fx, fy - 4 - flicker * 0.6, baseR * 0.45, 0xfef08a, undefined, 0.92);
+				} else {
+					// Smoldering embers in rubble
+					const pulse = 0.55 + Math.sin(time * 5 + i * 1.7) * 0.25;
+					ci(g, fx, fy, baseR * 1.1, 0xdc2626, undefined, pulse);
+					ci(g, fx, fy, baseR * 0.55, 0xf97316, undefined, pulse + 0.1);
+				}
+			}
+		}
+
+		// Animated rising smoke plumes (stages 2 to 7)
+		if (stage >= 2) {
+			const smokeCount = Math.min(8, 2 + stage);
+			for (let i = 0; i < smokeCount; i++) {
+				const phase = (time * 0.55 + i * 0.29) % 1;
+				const sx = cx - 58 + ((i * 37) % 116) + Math.sin(time * 2.4 + i) * 7;
+				const sy = keepTop + 20 - phase * (38 + stage * 5);
+				const sr = 5 + phase * (7 + stage * 1.4);
+				const sAlpha = (1 - phase) * (stage >= 6 ? 0.58 : 0.42);
+				ci(g, sx, sy, sr, stage >= 5 ? 0x1e293b : 0x334155, undefined, sAlpha);
+			}
 		}
 	}
 
