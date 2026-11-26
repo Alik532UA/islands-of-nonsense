@@ -113,7 +113,9 @@
 		{id}
 		type="button"
 		onclick={toggleMenu}
-		aria-label={ariaLabel}
+		aria-label={ariaLabel && selectedOption?.label
+			? `${ariaLabel}: ${selectedOption.label}`
+			: ariaLabel}
 		aria-haspopup="listbox"
 		aria-expanded={isOpen}
 		data-testid={testId}
@@ -147,7 +149,9 @@
 			></button>
 			<div
 				role="listbox"
-				aria-label={ariaLabel}
+				aria-label={ariaLabel && selectedOption?.label
+					? `${ariaLabel}: ${selectedOption.label}`
+					: ariaLabel}
 				style={menuStyle}
 				class="fixed z-[9999] rounded-xl border border-[#8c7456]/85 bg-[#131722]/98 backdrop-blur-md p-1.5 shadow-2xl overflow-y-auto flex flex-col gap-0.5 text-slate-100"
 			>
