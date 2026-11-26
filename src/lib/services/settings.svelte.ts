@@ -148,11 +148,11 @@ function detectInitialGraphicsStyle(): GraphicsStyle {
 }
 
 function detectInitialSoundPack(): SoundPack {
-	const saved = storage.getJSON<SoundPack>('settings_sound_pack', 'fantasy-rpg');
+	const saved = storage.getJSON<SoundPack>('settings_sound_pack', 'synth-pro');
 	if (SOUND_PACKS.includes(saved)) {
 		return saved;
 	}
-	return 'fantasy-rpg';
+	return 'synth-pro';
 }
 
 function detectInitialMusicTrack(): MusicTrack {
@@ -218,7 +218,7 @@ class SettingsService {
 	#headerBack = $state<(() => void) | null>(null);
 	#muted = $state(storage.getJSON<boolean>('settings_muted', false));
 	#sound = $state(storage.getJSON<boolean>('settings_sound_fx', true));
-	#volume = $state(storage.getJSON<number>('settings_volume', 0.07));
+	#volume = $state(storage.getJSON<number>('settings_volume', 0.04));
 	#soundPack = $state<SoundPack>(detectInitialSoundPack());
 	#musicEnabled = $state(storage.getJSON<boolean>('settings_music_enabled', true));
 	#musicVolume = $state(storage.getJSON<number>('settings_music_volume', 0.02));

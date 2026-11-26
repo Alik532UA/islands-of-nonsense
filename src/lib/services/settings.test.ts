@@ -35,16 +35,16 @@ describe('SettingsService & Header Claiming', () => {
 		expect(settings.headerBack).toBeNull();
 	});
 
-	it('defaults SFX volume to 7% (0.07), music volume to 2% (0.02), and soundPack to fantasy-rpg', () => {
-		expect(settings.volume).toBe(0.07);
-		expect(sound.getVolume()).toBe(0.07);
+	it('defaults SFX volume to 4% (0.04), music volume to 2% (0.02), and soundPack to synth-pro', () => {
+		expect(settings.volume).toBe(0.04);
+		expect(sound.getVolume()).toBe(0.04);
 		expect(settings.musicVolume).toBe(0.02);
 		expect(settings.voiceVolume).toBe(0.15);
 		expect(sound.getVoiceVolume()).toBe(0.15);
 		expect(settings.voiceEnabled).toBe(true);
 		expect(sound.isVoiceEnabled()).toBe(true);
-		expect(settings.soundPack).toBe('fantasy-rpg');
-		expect(sound.getPack()).toBe('fantasy-rpg');
+		expect(settings.soundPack).toBe('synth-pro');
+		expect(sound.getPack()).toBe('synth-pro');
 
 		settings.setVoiceVolume(0.4);
 		expect(settings.voiceVolume).toBe(0.4);
@@ -76,7 +76,7 @@ describe('SettingsService & Header Claiming', () => {
 		expect(settings.volume).toBe(0.0);
 		expect(sound.getVolume()).toBe(0.0);
 
-		settings.setVolume(0.07);
+		settings.setVolume(0.04);
 	});
 
 	it('toggleMute mutes and unmutes both SFX and music while preserving individual flags', () => {
