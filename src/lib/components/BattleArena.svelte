@@ -1043,6 +1043,20 @@
 						isForgeOpen = false;
 						isShopOpen = false;
 						renderer?.resetCastleVisuals();
+						if (
+							!isReplayMode &&
+							!sim.gameModeConfig?.allRandom &&
+							!sim.config.allRandom &&
+							!sim.config.botVsBot
+						) {
+							for (const p of sim.allPlayers) {
+								if (!p.isBot) {
+									p.pendingRacePick = true;
+								}
+							}
+							sim.syncCastleRaces();
+							startOnlineCountdown(15);
+						}
 					}
 					uiTick = sim.stateVersion;
 				},
@@ -1512,7 +1526,6 @@
 			sim.round++;
 			sim.resetRound();
 		}
-		sim.isRunning = true;
 		selectedBuildingId = null;
 		isRescueTargeting = false;
 		selectedPlacedBuildingId = null;
@@ -1522,8 +1535,31 @@
 		isForgeOpen = false;
 		isShopOpen = false;
 		renderer?.resetCastleVisuals();
+
+		if (
+			!sim.gameModeConfig?.allRandom &&
+			!sim.config.allRandom &&
+			!sim.config.botVsBot &&
+			!controlledPlayer.isBot
+		) {
+			controlledPlayer.pendingRacePick = true;
+			sim.syncCastleRaces();
+			sim.isRunning = false;
+			matchPhase = 'COUNTDOWN';
+			chosenWestRace = null;
+			countdownSeconds = 15;
+			if (countdownTimer) clearInterval(countdownTimer);
+			countdownTimer = setInterval(() => {
+				countdownSeconds--;
+				if (countdownSeconds <= 0) {
+					finishCountdownAndStartBattle();
+				}
+			}, 1000);
+		} else {
+			sim.isRunning = true;
+			settings.syncAdaptiveCursorRace(controlledPlayer.race);
+		}
 		uiTick = sim.stateVersion;
-		settings.syncAdaptiveCursorRace(controlledPlayer.race);
 	}
 
 	function handleStartNewMatch(newConfig: SimulationConfig) {
@@ -1682,13 +1718,13 @@
 		await matchSync.dispatch('RESUME', { tick: 0 });
 	}
 
-	function startOnlineCountdown() {
+	function startOnlineCountdown(forceFreshSec?: number) {
 		clearOnlineCountdownTimer();
 		matchPhase = 'COUNTDOWN';
 		onlinePickedRace = null;
 		onlineRacePickError = null;
 		onlineResumeSent = false;
-		countdownSeconds = onlineSession?.getCountdownRemainingSec() ?? 15;
+		countdownSeconds = forceFreshSec ?? onlineSession?.getCountdownRemainingSec() ?? 15;
 		sim.isRunning = false;
 		const fallbackStartMs = Date.now();
 		const fallbackInitialSec = countdownSeconds;
@@ -1698,7 +1734,7 @@
 				clearOnlineCountdownTimer();
 				return;
 			}
-			const rem = onlineSession?.getCountdownRemainingSec();
+			const rem = forceFreshSec === undefined ? onlineSession?.getCountdownRemainingSec() : null;
 			if (rem !== null && rem !== undefined) {
 				countdownSeconds = rem;
 			} else {
@@ -1741,7 +1777,7 @@
 			clearInterval(countdownTimer);
 			countdownTimer = null;
 		}
-		const finalRace = chosenWestRace || 'Альянс';
+		const finalRace = chosenWestRace || controlledPlayer.race || 'Альянс';
 		sim.setPlayerRace(controlledPlayer.team, finalRace, controlledPlayer);
 		matchPhase = 'BATTLE';
 		sim.isRunning = true;
@@ -1902,7 +1938,7 @@
 						}}
 						disabled={!canUseRescue}
 						data-testid="hud-rescue-strike-btn"
-						aria-label="Прицільний Рятівний Удар на своєму острові (-950 хаос-шкоди по наземних і повітряних ворогах у 750px, 500px від робітника, КД 180с, клавіша X)"
+						aria-label="Прицільний Рятівний Удар на своєму острові (-2850 хаос-шкоди по наземних і повітряних ворогах у 750px, 500px від робітника, КД 180с, клавіша X)"
 						aria-keyshortcuts="x"
 						aria-pressed={isRescueTargeting}
 						class="relative w-11 h-11 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md {isRescueTargeting
@@ -1932,7 +1968,7 @@
 							</span>
 						</div>
 						<span class="text-[10px] text-slate-300 font-normal">
-							950 шкоди у 750px на своєму острові • 2× золото • КД: 180с
+							2850 шкоди у 750px на своєму острові • 2× золото • КД: 180с
 						</span>
 					</div>
 				</div>

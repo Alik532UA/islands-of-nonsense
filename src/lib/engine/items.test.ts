@@ -119,14 +119,21 @@ describe('Point 1: Castle Shop & Complete Consumables Roster', () => {
 		expect(sim.buyCastleItem('west', 'I001')).toBe(true);
 		expect(w.inventory?.[1]?.id).toBe('I001');
 		sim.workerSystem.updateWorkers(0.1);
-		expect(enemyNear.hp).toBeLessThan(1000); // took magic damage within 300 range
+		expect(sim.projectiles.length).toBe(1);
 		expect(enemyFar.hp).toBe(1000); // out of 300 range
+		for (let i = 0; i < 15; i++) {
+			sim.step(0.05);
+		}
+		expect(enemyNear.hp).toBeLessThan(1000); // projectile hit & dealt magic damage
 
 		const hpAfterFirstWand = enemyNear.hp;
 		expect(sim.buyCastleItem('west', 'I002')).toBe(true);
 		expect(w.inventory?.[2]?.id).toBe('I002');
 		sim.workerSystem.updateWorkers(0.1);
-		expect(enemyNear.hp).toBeLessThan(hpAfterFirstWand); // improved wand also deals magic damage
+		for (let i = 0; i < 15; i++) {
+			sim.step(0.05);
+		}
+		expect(enemyNear.hp).toBeLessThan(hpAfterFirstWand); // improved wand projectile also hit
 	});
 
 	it('Battle Drums (I003) buffs all friendly units with +33% damage', () => {

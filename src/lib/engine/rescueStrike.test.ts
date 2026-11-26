@@ -202,7 +202,7 @@ describe('Point 5: Rescue Strike (Emergency Castle Defense)', () => {
 				lane: 'top',
 				x: westCastle.x + 250 + i * 40,
 				y: westCastle.y,
-				hp: 1500,
+				hp: 4000,
 				damage: 55,
 				attackCooldown: 1.0
 			});

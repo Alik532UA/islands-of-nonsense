@@ -6,6 +6,7 @@
 	let {
 		sim,
 		uiTick = 0,
+		localTeam = 'west',
 		isOnline = false,
 		isOnlineHost = true,
 		earnedScore = null,
@@ -16,6 +17,7 @@
 	}: {
 		sim: Simulation;
 		uiTick?: number;
+		localTeam?: 'west' | 'east';
 		isOnline?: boolean;
 		isOnlineHost?: boolean;
 		earnedScore?: number | null;
@@ -37,13 +39,45 @@
 		}
 	}
 
+	function sumTeamStats(team: 'west' | 'east') {
+		const members = sim.teamMembers?.[team];
+		if (!members || members.length === 0) return sim.players[team].stats;
+		return members.reduce(
+			(acc, p) => {
+				acc.damageToCastle += p.stats.damageToCastle ?? 0;
+				acc.totalDamageDealt += p.stats.totalDamageDealt ?? 0;
+				acc.unitsKilled += p.stats.unitsKilled ?? 0;
+				acc.unitsSpawned += p.stats.unitsSpawned ?? 0;
+				acc.coinsCollected += p.stats.coinsCollected ?? 0;
+				acc.itemsPurchased += p.stats.itemsPurchased ?? 0;
+				acc.goldSpent += p.stats.goldSpent ?? 0;
+				return acc;
+			},
+			{
+				damageToCastle: 0,
+				totalDamageDealt: 0,
+				unitsKilled: 0,
+				unitsSpawned: 0,
+				coinsCollected: 0,
+				itemsPurchased: 0,
+				goldSpent: 0
+			}
+		);
+	}
+
 	// Explicitly derive from uiTick so Svelte 5 reacts to simulation round/match completion
 	let winner = $derived(uiTick >= 0 ? sim.winner : null);
-	let isWestWin = $derived(winner === 'west');
+	let isLocalWin = $derived(winner === localTeam);
 	let isMatchOver = $derived(uiTick >= 0 ? !!sim.matchWinner : false);
-	let statsWest = $derived(uiTick >= 0 ? sim.players.west.stats : sim.players.west.stats);
-	let statsEast = $derived(uiTick >= 0 ? sim.players.east.stats : sim.players.east.stats);
-	let westMvp = $derived(uiTick >= 0 ? sim.getMvpBuilding('west') : null);
+	let statsWest = $derived(uiTick >= 0 ? sumTeamStats('west') : sim.players.west.stats);
+	let statsEast = $derived(uiTick >= 0 ? sumTeamStats('east') : sim.players.east.stats);
+	let myMvp = $derived(uiTick >= 0 ? sim.getMvpBuilding(localTeam) : null);
+	let westTeamLabel = $derived(
+		localTeam === 'west' ? 'Ваша команда' : isOnline ? 'Супротивник' : 'Бот (Супротивник)'
+	);
+	let eastTeamLabel = $derived(
+		localTeam === 'east' ? 'Ваша команда' : isOnline ? 'Супротивник' : 'Бот (Супротивник)'
+	);
 
 	let countdown = $state(10);
 	let isPaused = $state(false);
@@ -79,30 +113,30 @@
 	>
 		<div
 			class="bg-slate-900 border {isMatchOver
-				? isWestWin
+				? isLocalWin
 					? 'border-amber-400 shadow-amber-500/30 ring-2 ring-amber-400/50'
 					: 'border-red-600 shadow-red-600/30'
-				: isWestWin
+				: isLocalWin
 					? 'border-blue-500/80 shadow-blue-500/20'
 					: 'border-red-500/80 shadow-red-500/20'} rounded-3xl w-full max-w-md shadow-2xl p-7 text-white text-center"
 		>
 			<!-- Big Trophy or Skull Icon -->
 			<div
 				class="inline-flex p-4 rounded-2xl mb-4 {isMatchOver
-					? isWestWin
+					? isLocalWin
 						? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
 						: 'bg-red-500/20 text-red-400 border border-red-500/40'
-					: isWestWin
+					: isLocalWin
 						? 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
 						: 'bg-red-500/20 text-red-400 border border-red-500/40'}"
 			>
 				{#if isMatchOver}
-					{#if isWestWin}
+					{#if isLocalWin}
 						<UiIcon name="award" class="w-12 h-12 text-amber-400 animate-bounce" />
 					{:else}
 						<UiIcon name="skull" class="w-12 h-12 text-red-400" />
 					{/if}
-				{:else if isWestWin}
+				{:else if isLocalWin}
 					<UiIcon name="trophy" class="w-12 h-12" />
 				{:else}
 					<UiIcon name="skull" class="w-12 h-12" />
@@ -112,17 +146,17 @@
 			<!-- Title -->
 			<h2
 				class="text-2xl font-black uppercase tracking-wider mb-1 {isMatchOver
-					? isWestWin
+					? isLocalWin
 						? 'text-amber-400'
 						: 'text-red-400'
-					: isWestWin
+					: isLocalWin
 						? 'text-blue-400'
 						: 'text-red-400'}"
 			>
 				{#if isMatchOver}
-					{isWestWin ? 'Тріумф! Перемога у матчі!' : 'Матч програно!'}
+					{isLocalWin ? 'Тріумф! Перемога у матчі!' : 'Матч програно!'}
 				{:else}
-					{isWestWin ? 'Перемога у раунді!' : 'Поразка у раунді!'}
+					{isLocalWin ? 'Перемога у раунді!' : 'Поразка у раунді!'}
 				{/if}
 			</h2>
 
@@ -159,7 +193,7 @@
 			{/if}
 
 			<!-- MVP Building Banner -->
-			{#if westMvp}
+			{#if myMvp}
 				<div
 					class="bg-gradient-to-r from-amber-950/60 via-amber-900/40 to-amber-950/60 border border-amber-500/40 rounded-xl p-3 mb-4 text-xs flex items-center justify-between shadow-lg shadow-amber-500/5"
 				>
@@ -171,12 +205,12 @@
 							<div class="text-[10px] font-bold uppercase tracking-wider text-amber-400">
 								MVP Споруда вашої армії
 							</div>
-							<div class="font-bold text-slate-100">{westMvp.name}</div>
+							<div class="font-bold text-slate-100">{myMvp.name}</div>
 						</div>
 					</div>
 					<div class="text-right text-[11px] font-mono">
-						<div class="text-amber-300 font-bold">{westMvp.kills} вбивств</div>
-						<div class="text-slate-400 text-[10px]">{westMvp.damage} шкоди</div>
+						<div class="text-amber-300 font-bold">{myMvp.kills} вбивств</div>
+						<div class="text-slate-400 text-[10px]">{myMvp.damage} шкоди</div>
 					</div>
 				</div>
 			{/if}
@@ -187,7 +221,7 @@
 			>
 				<div class="border-r border-slate-800 pr-2 space-y-1 text-left">
 					<div class="font-bold text-blue-400 mb-1 flex items-center justify-between">
-						<span>Ваша команда</span>
+						<span>{westTeamLabel}</span>
 						<span class="text-[10px] font-mono bg-blue-950 px-1.5 rounded text-blue-300">West</span>
 					</div>
 					<div class="flex justify-between">
@@ -222,7 +256,7 @@
 
 				<div class="pl-2 space-y-1 text-left">
 					<div class="font-bold text-red-400 mb-1 flex items-center justify-between">
-						<span>Бот (Супротивник)</span>
+						<span>{eastTeamLabel}</span>
 						<span class="text-[10px] font-mono bg-red-950 px-1.5 rounded text-red-300">East</span>
 					</div>
 					<div class="flex justify-between">
@@ -290,7 +324,7 @@
 				<!-- Smooth visual countdown bar -->
 				<div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
 					<div
-						class="h-full transition-all duration-1000 ease-linear rounded-full {isWestWin
+						class="h-full transition-all duration-1000 ease-linear rounded-full {isLocalWin
 							? 'bg-amber-400'
 							: 'bg-red-500'}"
 						style="width: {(countdown / 10) * 100}%"
@@ -304,17 +338,23 @@
 					<button
 						type="button"
 						onclick={onNextRound}
-						class="flex-1 py-3.5 px-6 rounded-xl font-bold text-sm tracking-wide transition flex items-center justify-center gap-2 cursor-pointer shadow-lg {isMatchOver
-							? isWestWin
-								? 'bg-amber-600 hover:bg-amber-500 text-slate-950 shadow-amber-600/30 font-black'
-								: 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/30'
-							: isWestWin
-								? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30'
-								: 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/30'}"
+						disabled={isOnline && !isOnlineHost}
+						class="flex-1 py-3.5 px-6 rounded-xl font-bold text-sm tracking-wide transition flex items-center justify-center gap-2 shadow-lg {isOnline &&
+						!isOnlineHost
+							? 'bg-slate-800 text-slate-400 cursor-not-allowed'
+							: isMatchOver
+								? isLocalWin
+									? 'bg-amber-600 hover:bg-amber-500 text-slate-950 shadow-amber-600/30 font-black cursor-pointer'
+									: 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/30 cursor-pointer'
+								: isLocalWin
+									? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30 cursor-pointer'
+									: 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/30 cursor-pointer'}"
 						data-testid="victory-next-round-btn"
 					>
 						<UiIcon name="rotateCcw" class="w-4 h-4" />
-						{#if isMatchOver}
+						{#if isOnline && !isOnlineHost}
+							Очікування хоста... {!isPaused ? `(${countdown}с)` : ''}
+						{:else if isMatchOver}
 							Зіграти ще раз {!isPaused ? `(${countdown}с)` : ''}
 						{:else}
 							Розпочати раунд {sim.round + 1} {!isPaused ? `(${countdown}с)` : ''}

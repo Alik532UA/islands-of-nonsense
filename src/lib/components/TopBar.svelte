@@ -135,12 +135,17 @@
 		'absolute top-full mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px]';
 
 	const speedMenu = createHoverMenu({ closeDelayMs: 300 });
+	const soundMenu = createHoverMenu({ closeDelayMs: 300 });
 </script>
 
 <!-- Floating Modular Top HUD Docks (Mirrors BottomBar modular architecture) -->
 <header
 	class="absolute top-0 left-0 right-0 px-2.5 sm:px-3 flex flex-wrap xl:flex-nowrap items-start justify-between gap-2 text-white select-none z-30 pointer-events-none min-w-0 overflow-visible"
-	style:z-index={speedMenu.isOpen ? speedMenu.zIndex : undefined}
+	style:z-index={speedMenu.isOpen
+		? speedMenu.zIndex
+		: soundMenu.isOpen
+			? soundMenu.zIndex
+			: undefined}
 	data-testid="top-bar"
 >
 	<!-- 1. LEFT: System, Navigation & Settings Containers -->
@@ -234,14 +239,24 @@
 		</div>
 
 		<!-- Dock 1B: System Preferences (Sound, Fullscreen, Locale, Global Settings) -->
-		<div class={dockClass} data-testid="topbar-preferences-dock">
-			<!-- Sound toggle (Quick Mute: SFX + Music) -->
-			<div class="relative group/tip flex items-center">
+		<div
+			class={dockClass}
+			style:z-index={soundMenu.isOpen ? soundMenu.zIndex : undefined}
+			data-testid="topbar-preferences-dock"
+		>
+			<!-- Sound toggle (Quick Mute + Hover Volume Mini-Menu for SFX, Music, Voice) -->
+			<div
+				class="relative flex items-center"
+				use:hoverMenuContainer={soundMenu}
+				data-testid="topbar-sound-menu"
+			>
 				<button
 					type="button"
 					onclick={() => settings.toggleMute()}
-					class={neutralBtnClass}
+					class="{neutralBtnClass} {soundMenu.isOpen ? 'border-amber-400 bg-[#242c3d]' : ''}"
 					aria-label={settings.isAudioActive ? 'Звук: Увімкнено' : 'Звук: Вимкнено'}
+					aria-expanded={soundMenu.isOpen}
+					aria-haspopup="menu"
 					data-testid="topbar-sound-toggle"
 				>
 					{#if settings.isAudioActive}
@@ -250,8 +265,118 @@
 						<UiIcon name="volumeX" class="w-4 h-4 text-slate-500" />
 					{/if}
 				</button>
-				<div class="{tipBoxClass} left-1/2 -translate-x-1/2 text-amber-100">
-					{settings.isAudioActive ? 'Звук: Увімкнено' : 'Звук: Вимкнено'}
+
+				<div
+					class="absolute top-full -left-2 pt-2 px-2 pb-2 transition-all duration-150 z-50 {soundMenu.isOpen
+						? 'opacity-100 translate-y-0 pointer-events-auto visible'
+						: 'opacity-0 -translate-y-1 pointer-events-none invisible'}"
+					role="menu"
+					aria-label="Налаштування гучності звуку"
+					data-testid="topbar-sound-dropdown"
+				>
+					<div
+						class="w-60 bg-[#131722]/98 backdrop-blur-md border border-[#544738] rounded-xl p-2.5 shadow-2xl space-y-2.5"
+					>
+						<div class="flex items-center justify-between border-b border-[#3b3226] pb-1.5">
+							<span class="text-[11px] font-bold text-amber-300">Гучність аудіо</span>
+							<button
+								type="button"
+								onclick={() => settings.toggleMute()}
+								class="text-[10px] font-semibold px-1.5 py-0.5 rounded border transition cursor-pointer {settings.isAudioActive
+									? 'bg-emerald-950/70 border-emerald-600/60 text-emerald-300'
+									: 'bg-rose-950/70 border-rose-600/60 text-rose-300'}"
+							>
+								{settings.isAudioActive ? 'Увімкнено' : 'Вимкнено'}
+							</button>
+						</div>
+
+						<!-- SFX Volume -->
+						<div class="space-y-1">
+							<div class="flex items-center justify-between text-[11px]">
+								<button
+									type="button"
+									onclick={() => settings.setSound(!settings.sound)}
+									class="flex items-center gap-1.5 font-medium cursor-pointer {settings.sound
+										? 'text-slate-200'
+										: 'text-slate-500 line-through'}"
+								>
+									<span>Ефекти</span>
+								</button>
+								<span class="font-mono text-[10px] text-amber-300 tabular-nums">
+									{Math.round(settings.volume * 100)}%
+								</span>
+							</div>
+							<input
+								type="range"
+								min="0"
+								max="1"
+								step="0.01"
+								value={settings.volume}
+								oninput={(e) => settings.setVolume(Number(e.currentTarget.value))}
+								aria-label="Гучність ефектів"
+								data-testid="sound-slider-sfx"
+								class="w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-[#1f2636] accent-amber-400"
+							/>
+						</div>
+
+						<!-- Music Volume -->
+						<div class="space-y-1">
+							<div class="flex items-center justify-between text-[11px]">
+								<button
+									type="button"
+									onclick={() => settings.setMusicEnabled(!settings.musicEnabled)}
+									class="flex items-center gap-1.5 font-medium cursor-pointer {settings.musicEnabled
+										? 'text-slate-200'
+										: 'text-slate-500 line-through'}"
+								>
+									<span>Музика</span>
+								</button>
+								<span class="font-mono text-[10px] text-amber-300 tabular-nums">
+									{Math.round(settings.musicVolume * 100)}%
+								</span>
+							</div>
+							<input
+								type="range"
+								min="0"
+								max="1"
+								step="0.01"
+								value={settings.musicVolume}
+								oninput={(e) => settings.setMusicVolume(Number(e.currentTarget.value))}
+								aria-label="Гучність музики"
+								data-testid="sound-slider-music"
+								class="w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-[#1f2636] accent-emerald-400"
+							/>
+						</div>
+
+						<!-- Voice Volume -->
+						<div class="space-y-1">
+							<div class="flex items-center justify-between text-[11px]">
+								<button
+									type="button"
+									onclick={() => settings.setVoiceEnabled(!settings.voiceEnabled)}
+									class="flex items-center gap-1.5 font-medium cursor-pointer {settings.voiceEnabled
+										? 'text-slate-200'
+										: 'text-slate-500 line-through'}"
+								>
+									<span>Озвучка</span>
+								</button>
+								<span class="font-mono text-[10px] text-amber-300 tabular-nums">
+									{Math.round(settings.voiceVolume * 100)}%
+								</span>
+							</div>
+							<input
+								type="range"
+								min="0"
+								max="1"
+								step="0.01"
+								value={settings.voiceVolume}
+								oninput={(e) => settings.setVoiceVolume(Number(e.currentTarget.value))}
+								aria-label="Гучність озвучки"
+								data-testid="sound-slider-voice"
+								class="w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-[#1f2636] accent-sky-400"
+							/>
+						</div>
+					</div>
 				</div>
 			</div>
 

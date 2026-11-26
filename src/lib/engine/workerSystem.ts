@@ -546,19 +546,27 @@ export class WorkerSystem {
 							}
 							if (nearestEnemy) {
 								item.autoAttack.timer = item.autoAttack.interval;
-								this.sim.combatSystem.applyUnitDamage(
-									nearestEnemy,
-									item.autoAttack.damage,
-									'magic',
+								const dist = Math.hypot(nearestEnemy.x - w.x, nearestEnemy.y - w.y);
+								this.sim.projectiles.push({
+									id: `proj_${this.sim.nextProjectileId++}`,
+									sourceUnitId: `worker_${p.slot ?? team}`,
+									targetUnitId: nearestEnemy.instanceId,
+									x: w.x,
+									y: w.y,
+									targetX: nearestEnemy.x,
+									targetY: nearestEnemy.y,
+									originX: w.x,
+									originY: w.y,
+									totalDist: dist,
+									arcHeight: 15,
+									speed: 650,
+									damage: item.autoAttack.damage,
+									attackType: 'magic',
+									isCrit: false,
 									team,
-									false
-								);
-								this.sim.addFloatingText(
-									`-${item.autoAttack.damage}`,
-									nearestEnemy.x,
-									nearestEnemy.y - 18,
-									'#c084fc'
-								);
+									shooterPlayerId: p.id,
+									shooterSlot: p.slot
+								});
 							}
 						}
 					}
@@ -1170,9 +1178,22 @@ export class WorkerSystem {
 
 			const hitIds = new Set<string>();
 			let current = primary;
+			let prevX = w.x;
+			let prevY = w.y;
 			let damage = 1000;
 			for (let bounce = 0; bounce < 10; bounce++) {
 				hitIds.add(current.instanceId);
+				this.sim.lightningEffects.push({
+					sourceX: prevX,
+					sourceY: prevY,
+					targetX: current.x,
+					targetY: current.y,
+					timer: 0.45,
+					maxTimer: 0.45,
+					color: 0x38bdf8
+				});
+				prevX = current.x;
+				prevY = current.y;
 				this.sim.combatSystem.applyUnitDamage(current, Math.round(damage), 'magic', team, false);
 				damage *= 0.85;
 

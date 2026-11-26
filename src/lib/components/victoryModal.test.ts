@@ -17,4 +17,12 @@ describe('VictoryModal Invariants & Post-Match Actions', () => {
 		expect(content).toContain("goto(resolve('/play'))");
 		expect(content).toContain("goto(resolve('/'))");
 	});
+
+	it('determines victory/defeat, MVP, and team labels relative to localTeam (not hardcoded west)', () => {
+		expect(content).toContain("localTeam = 'west'");
+		expect(content).toContain('let isLocalWin = $derived(winner === localTeam);');
+		expect(content).toContain('sim.getMvpBuilding(localTeam)');
+		expect(content).not.toContain('isWestWin');
+		expect(content).toContain("localTeam === 'east' ? 'Ваша команда'");
+	});
 });

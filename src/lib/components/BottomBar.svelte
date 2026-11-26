@@ -496,12 +496,18 @@
 						: 'Порожній слот торби'}
 				>
 					<div
-						class="pointer-events-none absolute bottom-full mb-2 {slotIdx % 2 === 1
-							? 'right-0'
-							: 'left-1/2 -translate-x-1/2'} z-50 whitespace-nowrap rounded-md border border-[#544738] bg-[#0f141f]/95 px-2.5 py-1 text-[11px] text-amber-100 shadow-2xl opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150"
+						class="pointer-events-none absolute bottom-full mb-2 right-0 z-50 w-max max-w-[min(240px,calc(100vw-24px))] whitespace-normal text-left leading-snug rounded-md border border-[#544738] bg-[#0f141f]/95 px-2.5 py-1.5 text-[11px] text-amber-100 shadow-2xl opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150"
 					>
 						{#if slotItem}
-							{slotItem.name} ({slotItem.description}) · ЛКМ: передати/викласти · ПКМ: скинути
+							<div class="font-bold text-amber-300">{slotItem.name}</div>
+							<div class="text-slate-200 mt-0.5">{slotItem.description}</div>
+							<div class="text-[10px] text-slate-400 mt-1 border-t border-[#3b3226] pt-1">
+								{#if slotItem.activeAbility}
+									ЛКМ: активувати · Shift+ЛКМ: передати · ПКМ: скинути
+								{:else}
+									ЛКМ: передати/викласти · ПКМ: скинути
+								{/if}
+							</div>
 						{:else if itemTargetingSlot !== null}
 							Перемістити предмет у слот {slotIdx + 1}
 						{:else}

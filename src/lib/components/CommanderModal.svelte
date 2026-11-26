@@ -25,7 +25,8 @@
 		onSelectCommander?: (choice: number | 'random') => boolean | void;
 	} = $props();
 
-	let player = $derived(activePlayer ?? sim.players.west);
+	let player = $derived(uiTick >= 0 ? (activePlayer ?? sim.players.west) : sim.players.west);
+	let isSandbox = $derived(uiTick >= 0 ? sim.config.modeId === 'sandbox' : false);
 	let playerGold = $derived(uiTick >= 0 ? Math.floor(player.gold) : 0);
 	let playerLumber = $derived(uiTick >= 0 ? Math.floor(player.lumber ?? 0) : 0);
 	let hallStatus = $derived(
@@ -83,22 +84,49 @@
 			</button>
 
 			<!-- Header -->
-			<div class="flex items-center gap-3 border-b border-[#3b3226] pb-3.5 mb-4 shrink-0">
-				<div class="p-2 rounded-xl bg-indigo-500/15 border border-indigo-500/40 text-indigo-300">
-					<UiIcon name="crown" class="w-5 h-5" />
+			<div
+				class="flex items-center justify-between gap-3 border-b border-[#3b3226] pb-3.5 mb-4 pr-8 shrink-0"
+			>
+				<div class="flex items-center gap-3">
+					<div class="p-2 rounded-xl bg-indigo-500/15 border border-indigo-500/40 text-indigo-300">
+						<UiIcon name="crown" class="w-5 h-5" />
+					</div>
+					<div>
+						<h2 class="text-base font-bold text-indigo-200 flex items-center gap-2">
+							<span>Командири</span>
+							<span
+								class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/50 border border-indigo-500/40 text-indigo-300"
+							>
+								C
+							</span>
+						</h2>
+						<p class="text-xs text-slate-400">
+							Оберіть стратегічного командира для бонусу команді (Випадковий = ×2)
+						</p>
+					</div>
 				</div>
-				<div>
-					<h2 class="text-base font-bold text-indigo-200 flex items-center gap-2">
-						<span>Командири</span>
-						<span
-							class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/50 border border-indigo-500/40 text-indigo-300"
-						>
-							C
-						</span>
-					</h2>
-					<p class="text-xs text-slate-400">
-						Оберіть стратегічного командира для бонусу команді (Випадковий = ×2)
-					</p>
+				<div
+					class="hidden sm:flex items-center gap-2.5 bg-[#0a0d14] border border-[#3b3226] rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold shadow-inner shrink-0"
+				>
+					<span class="flex items-center gap-1 text-amber-400" title="Доступне золото">
+						<UiIcon name="coins" class="w-3.5 h-3.5 text-amber-400" />
+						{isSandbox ? '∞' : playerGold}
+					</span>
+					<span class="h-3 w-px bg-[#3b3226]"></span>
+					<span
+						class="flex items-center gap-1 {isSandbox || playerLumber > 0
+							? 'text-emerald-300'
+							: 'text-slate-500'}"
+						title="Доступна деревина"
+					>
+						<UiIcon
+							name="treePine"
+							class="w-3.5 h-3.5 {isSandbox || playerLumber > 0
+								? 'text-emerald-400'
+								: 'text-slate-500'}"
+						/>
+						{isSandbox ? '∞' : playerLumber}
+					</span>
 				</div>
 			</div>
 

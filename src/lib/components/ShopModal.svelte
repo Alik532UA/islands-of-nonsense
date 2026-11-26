@@ -29,9 +29,10 @@
 			? (activePlayer ?? (localTeam === 'east' ? sim.players.east : sim.players.west))
 			: sim.players.west
 	);
-	let activeTeam = $derived(player.team);
-	let playerGold = $derived(Math.floor(player.gold));
-	let playerLumber = $derived(Math.floor(player.lumber ?? 0));
+	let activeTeam = $derived(uiTick >= 0 ? player.team : player.team);
+	let isSandbox = $derived(uiTick >= 0 ? sim.config.modeId === 'sandbox' : false);
+	let playerGold = $derived(uiTick >= 0 ? Math.floor(player.gold) : 0);
+	let playerLumber = $derived(uiTick >= 0 ? Math.floor(player.lumber ?? 0) : 0);
 	let hasShop = $derived(uiTick >= 0 ? sim.hasShop(activeTeam, player) : false);
 	let pendingShop = $derived(
 		uiTick >= 0
@@ -165,20 +166,22 @@
 					>
 						<span class="flex items-center gap-1 text-amber-400" title="Доступне золото">
 							<UiIcon name="coins" class="w-3.5 h-3.5 text-amber-400" />
-							{playerGold}
+							{isSandbox ? '∞' : playerGold}
 						</span>
 						<span class="h-3 w-px bg-[#3b3226]"></span>
 						<span
-							class="flex items-center gap-1 {playerLumber > 0
+							class="flex items-center gap-1 {isSandbox || playerLumber > 0
 								? 'text-emerald-300'
 								: 'text-slate-500'}"
 							title="Доступна деревина"
 						>
 							<UiIcon
 								name="treePine"
-								class="w-3.5 h-3.5 {playerLumber > 0 ? 'text-emerald-400' : 'text-slate-500'}"
+								class="w-3.5 h-3.5 {isSandbox || playerLumber > 0
+									? 'text-emerald-400'
+									: 'text-slate-500'}"
 							/>
-							{playerLumber}
+							{isSandbox ? '∞' : playerLumber}
 						</span>
 					</div>
 

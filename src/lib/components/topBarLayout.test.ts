@@ -236,4 +236,11 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 		expect(topBarContent).toContain('westTeamIncome');
 		expect(topBarContent).toContain('eastTeamIncome');
 	});
+
+	it('sound toggle exposes mini-menu with independent sliders for sfx, music, and voice', () => {
+		expect(topBarContent).toContain('data-testid="topbar-sound-dropdown"');
+		expect(topBarContent).toContain('data-testid="sound-slider-sfx"');
+		expect(topBarContent).toContain('data-testid="sound-slider-music"');
+		expect(topBarContent).toContain('data-testid="sound-slider-voice"');
+	});
 });

@@ -30,9 +30,10 @@
 			? (activePlayer ?? (localTeam === 'east' ? sim.players.east : sim.players.west))
 			: sim.players.west
 	);
-	let activeTeam = $derived(player.team);
-	let playerGold = $derived(Math.floor(player.gold));
-	let playerLumber = $derived(Math.floor(player.lumber ?? 0));
+	let activeTeam = $derived(uiTick >= 0 ? player.team : player.team);
+	let isSandbox = $derived(uiTick >= 0 ? sim.config.modeId === 'sandbox' : false);
+	let playerGold = $derived(uiTick >= 0 ? Math.floor(player.gold) : 0);
+	let playerLumber = $derived(uiTick >= 0 ? Math.floor(player.lumber ?? 0) : 0);
 	let forgeDiscount = $derived(uiTick >= 0 ? getCommanderForgeDiscount(player) : 0);
 	let forgeDiscountPct = $derived(Math.round(forgeDiscount * 100));
 	let isAlik = $derived(forgeDiscount > 0);
@@ -51,13 +52,18 @@
 
 	const forgeDef = BUILDINGS_MAP.get('cg11_forge');
 	const baseForgeGoldCost = forgeDef?.gold_cost ?? 100;
-	let forgeGoldCost = $derived(applyCommanderForgeCostDiscount(baseForgeGoldCost, true, player));
+	let forgeGoldCost = $derived(
+		uiTick >= 0
+			? applyCommanderForgeCostDiscount(baseForgeGoldCost, true, player)
+			: baseForgeGoldCost
+	);
 	const forgeLumberCost = forgeDef?.lumber_cost ?? 100;
 	let canAffordBuildForge = $derived(
 		playerGold >= forgeGoldCost && playerLumber >= forgeLumberCost
 	);
 
 	let upgrades = $derived.by(() => {
+		if (uiTick < 0) return [];
 		const atkLvl = player.forge.attack;
 		const armLvl = player.forge.armor;
 		const ecoLvl = player.forge.econ;
@@ -71,8 +77,8 @@
 				maxLevel: 5,
 				currentText: `+${atkLvl * 8}% до шкоди`,
 				nextText: atkLvl < 5 ? `+${(atkLvl + 1) * 8}%` : null,
-				goldPrice: sim.getForgePrice(localTeam, 'attack', player),
-				lumberPrice: sim.getForgeLumberPrice(localTeam, 'attack', player),
+				goldPrice: sim.getForgePrice(activeTeam, 'attack', player),
+				lumberPrice: sim.getForgeLumberPrice(activeTeam, 'attack', player),
 				accent: 'red' as const
 			},
 			{
@@ -83,8 +89,8 @@
 				maxLevel: 5,
 				currentText: `+${armLvl} до броні`,
 				nextText: armLvl < 5 ? `+${armLvl + 1}` : null,
-				goldPrice: sim.getForgePrice(localTeam, 'armor', player),
-				lumberPrice: sim.getForgeLumberPrice(localTeam, 'armor', player),
+				goldPrice: sim.getForgePrice(activeTeam, 'armor', player),
+				lumberPrice: sim.getForgeLumberPrice(activeTeam, 'armor', player),
 				accent: 'blue' as const
 			},
 			{
@@ -95,8 +101,8 @@
 				maxLevel: 3,
 				currentText: `+${ecoLvl * 10}% до доходу`,
 				nextText: ecoLvl < 3 ? `+${(ecoLvl + 1) * 10}%` : null,
-				goldPrice: sim.getForgePrice(localTeam, 'econ', player),
-				lumberPrice: sim.getForgeLumberPrice(localTeam, 'econ', player),
+				goldPrice: sim.getForgePrice(activeTeam, 'econ', player),
+				lumberPrice: sim.getForgeLumberPrice(activeTeam, 'econ', player),
 				accent: 'amber' as const
 			}
 		];
@@ -202,20 +208,22 @@
 					>
 						<span class="flex items-center gap-1 text-amber-400" title="Доступне золото">
 							<UiIcon name="coins" class="w-3.5 h-3.5 text-amber-400" />
-							{playerGold}
+							{isSandbox ? '∞' : playerGold}
 						</span>
 						<span class="h-3 w-px bg-[#3b3226]"></span>
 						<span
-							class="flex items-center gap-1 {playerLumber > 0
+							class="flex items-center gap-1 {isSandbox || playerLumber > 0
 								? 'text-emerald-300'
 								: 'text-slate-500'}"
 							title="Доступна деревина"
 						>
 							<UiIcon
 								name="treePine"
-								class="w-3.5 h-3.5 {playerLumber > 0 ? 'text-emerald-400' : 'text-slate-500'}"
+								class="w-3.5 h-3.5 {isSandbox || playerLumber > 0
+									? 'text-emerald-400'
+									: 'text-slate-500'}"
 							/>
-							{playerLumber}
+							{isSandbox ? '∞' : playerLumber}
 						</span>
 					</div>
 
