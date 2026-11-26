@@ -94,8 +94,13 @@
 		colorHex: c.hex
 	}));
 	let animateUnits = $state(true);
-	let castleHpPct = $state(100);
-	const castleStage = $derived(getCastleStageIndex(castleHpPct, 100));
+	let castleHpByDefId = $state<Record<string, number>>({});
+	function getCastleHpPct(defId: string): number {
+		return castleHpByDefId[defId] ?? 100;
+	}
+	function setCastleHpPct(defId: string, pct: number): void {
+		castleHpByDefId = { ...castleHpByDefId, [defId]: Math.max(0, Math.min(100, pct)) };
+	}
 	let selectedItem = $state<ShowcaseItem | null>(null);
 	let copiedLabel = $state<string | null>(null);
 	let copyFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
@@ -104,6 +109,14 @@
 	let searchPopupOpen = $state(false);
 	let searchPopupStyle = $state('');
 	let placedItemsSnapshot = $state<ShowcaseItem[]>([]);
+	const castleSliderItems = $derived(
+		placedItemsSnapshot.filter(
+			(i) =>
+				i.defId === 'castle_25d_west' ||
+				i.defId === 'castle_25d_east' ||
+				i.defId.startsWith('castle_')
+		)
+	);
 
 	const searchMatches = $derived.by(() => {
 		const q = searchQuery.trim().toLowerCase();
@@ -120,7 +133,11 @@
 	const searchThumbCache = new Map<string, string>();
 
 	function getSearchItemThumbnail(item: ShowcaseItem): string | null {
-		const stageKey = item.defId.startsWith('castle') ? `_${castleStage}` : '';
+		const isCastle =
+			item.defId === 'castle_25d_west' ||
+			item.defId === 'castle_25d_east' ||
+			item.defId.startsWith('castle_');
+		const stageKey = isCastle ? `_${getCastleStageIndex(getCastleHpPct(item.defId), 100)}` : '';
 		const cacheKey = `${item.defId}_${item.race}_${selectedColorId}_${previewTeam}${stageKey}`;
 		const cached = searchThumbCache.get(cacheKey);
 		if (cached) return cached;
@@ -168,9 +185,10 @@
 				) {
 					const isWest = item.defId === 'castle_25d_east' ? false : previewTeam === 'west';
 					const race = item.defId.startsWith('castle_25d_') ? undefined : item.race;
+					const itemHpPct = getCastleHpPct(item.defId);
 					const mockC: Castle = {
 						...showcaseSim.castles.west,
-						hp: Math.round((castleHpPct / 100) * 5000),
+						hp: Math.round((itemHpPct / 100) * 5000),
 						maxHp: 5000,
 						color: selectedPlayerColor,
 						x: 0,
@@ -1352,9 +1370,12 @@
 					color: 0xfbbf24,
 					width: 1.4
 				});
+				const raceCastleId = `castle_${race}`;
+				const raceCastleHpPct = getCastleHpPct(raceCastleId);
+				const raceCastleStage = getCastleStageIndex(raceCastleHpPct, 100);
 				const mockRaceCastle: Castle = {
 					...showcaseSim.castles.west,
-					hp: Math.round((castleHpPct / 100) * 5000),
+					hp: Math.round((raceCastleHpPct / 100) * 5000),
 					maxHp: 5000,
 					color: selectedPlayerColor,
 					x: castleX,
@@ -1364,8 +1385,8 @@
 					g,
 					mockRaceCastle,
 					previewTeam === 'west',
-					selectedItem?.defId === `castle_${race}`,
-					castleHpPct < 100,
+					selectedItem?.defId === raceCastleId,
+					raceCastleHpPct < 100,
 					race
 				);
 				placedItems.push({
@@ -1376,8 +1397,8 @@
 					title: `Замок · ${race}`,
 					subtitle: 'Повноцінна 2.5D фортеця раси',
 					race,
-					defId: `castle_${race}`,
-					stats: `${Math.round((castleHpPct / 100) * 5000)}/5000 HP (Стадія ${castleStage}/7) · 10 ARM (fort)`
+					defId: raceCastleId,
+					stats: `${Math.round((raceCastleHpPct / 100) * 5000)}/5000 HP (Стадія ${raceCastleStage}/7) · 10 ARM (fort)`
 				});
 
 				g.roundRect(wx - 32, wy - 32, 64, 64, 10).fill({ color: 0x2d6a1e, alpha: 1 });
@@ -1618,16 +1639,18 @@
 			const castleBoxY = eastCursorY + 26;
 			const westCastleY = castleBoxY + 172;
 			const eastCastleY = castleBoxY + 172;
+			const westHpPct = getCastleHpPct('castle_25d_west');
+			const eastHpPct = getCastleHpPct('castle_25d_east');
 			const mockWestCastle: Castle = {
 				...showcaseSim.castles.west,
-				hp: Math.round((castleHpPct / 100) * 5000),
+				hp: Math.round((westHpPct / 100) * 5000),
 				maxHp: 5000,
 				x: eastIslandX + 310,
 				y: westCastleY
 			};
 			const mockEastCastle: Castle = {
 				...showcaseSim.castles.east,
-				hp: Math.round((castleHpPct / 100) * 5000),
+				hp: Math.round((eastHpPct / 100) * 5000),
 				maxHp: 5000,
 				x: eastIslandX + 810,
 				y: eastCastleY
@@ -1637,14 +1660,14 @@
 				mockWestCastle,
 				true,
 				selectedItem?.defId === 'castle_25d_west',
-				castleHpPct < 100
+				westHpPct < 100
 			);
 			showcaseBuildingRenderer.renderAuthenticCastle(
 				g,
 				mockEastCastle,
 				false,
 				selectedItem?.defId === 'castle_25d_east',
-				castleHpPct < 100
+				eastHpPct < 100
 			);
 			placedItems.push(
 				{
@@ -1987,7 +2010,7 @@
 	});
 
 	$effect(() => {
-		void castleHpPct;
+		void castleHpByDefId;
 		redrawShowcase();
 	});
 
@@ -2377,35 +2400,6 @@
 				minMenuWidth={176}
 			/>
 
-			{#if graphicsTab === '2.5d'}
-				<label
-					class="flex items-center gap-2 px-2.5 py-1 rounded-lg border border-[#544738]/85 bg-[#121722] text-xs font-bold text-slate-200"
-					title="Перевірка поступового руйнування 2.5D замків (8 стадій)"
-					data-testid="assets-showcase-castle-hp-wrap"
-				>
-					<span class="text-[11px] text-amber-300 whitespace-nowrap">Замок HP</span>
-					<input
-						type="range"
-						min="0"
-						max="100"
-						step="1"
-						bind:value={castleHpPct}
-						aria-label="Рівень HP 2.5D замків"
-						data-testid="assets-showcase-castle-hp-slider"
-						class="w-20 sm:w-24 accent-amber-400 cursor-pointer"
-					/>
-					<span
-						class="font-mono text-[11px] w-14 text-right whitespace-nowrap {castleHpPct > 50
-							? 'text-emerald-300'
-							: castleHpPct > 25
-								? 'text-amber-300'
-								: 'text-rose-400'}"
-					>
-						{castleHpPct}% · С{castleStage}
-					</span>
-				</label>
-			{/if}
-
 			<button
 				type="button"
 				onclick={() => (animateUnits = !animateUnits)}
@@ -2479,6 +2473,46 @@
 					? 'w-full h-full block cursor-grab active:cursor-grabbing'
 					: 'w-full h-auto block cursor-crosshair'}
 			></canvas>
+
+			{#if viewMode === 'map' && graphicsTab === '2.5d'}
+				<div
+					class="pointer-events-none absolute top-0 left-0 origin-top-left z-[5]"
+					style="transform: translate({camX}px, {camY}px) scale({camZoom});"
+				>
+					{#each castleSliderItems as c (c.defId)}
+						{@const hp = getCastleHpPct(c.defId)}
+						{@const stage = getCastleStageIndex(hp, 100)}
+						<div
+							class="pointer-events-auto absolute -translate-x-1/2 flex items-center gap-1.5 px-2 py-0.5 rounded-lg border border-[#544738]/90 bg-[#0d121d]/95 shadow-lg text-[10px] font-bold"
+							style="left: {c.x}px; top: {c.y + 146}px;"
+							data-testid="castle-hp-slider-wrap-{c.defId}"
+						>
+							<input
+								type="range"
+								min="0"
+								max="100"
+								step="1"
+								value={hp}
+								onpointerdown={(e) => e.stopPropagation()}
+								oninput={(e) =>
+									setCastleHpPct(c.defId, Number((e.currentTarget as HTMLInputElement).value))}
+								aria-label="HP для {c.title}"
+								data-testid="castle-hp-slider-{c.defId}"
+								class="w-24 accent-amber-400 cursor-pointer h-3"
+							/>
+							<span
+								class="font-mono w-12 text-right whitespace-nowrap {hp > 50
+									? 'text-emerald-300'
+									: hp > 25
+										? 'text-amber-300'
+										: 'text-rose-400'}"
+							>
+								{hp}%·С{stage}
+							</span>
+						</div>
+					{/each}
+				</div>
+			{/if}
 
 			{#if viewMode === 'map'}
 				<!-- Bottom-Left Edge-Docked Camera HUD -->
