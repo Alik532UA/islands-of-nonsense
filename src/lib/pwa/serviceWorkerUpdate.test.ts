@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { applyAppUpdateOrReload } from './serviceWorkerUpdate';
+import { sessionStore } from '$lib/services/storage';
 
 describe('applyAppUpdateOrReload', () => {
 	const originalWindow = globalThis.window;
@@ -72,5 +73,32 @@ describe('applyAppUpdateOrReload', () => {
 
 		await applyAppUpdateOrReload();
 		expect(reload).toHaveBeenCalledTimes(1);
+	});
+
+	it('marks sw_updating_url in sessionStore when posting SKIP_WAITING so stuck waiting workers do not loop infinitely', async () => {
+		const postMessage = vi.fn();
+		const update = vi.fn().mockResolvedValue(undefined);
+		const setSpy = vi.spyOn(sessionStore, 'set');
+
+		Object.defineProperty(globalThis, 'window', {
+			value: { location: { pathname: '/', reload: vi.fn() } },
+			configurable: true,
+			writable: true
+		});
+		Object.defineProperty(globalThis, 'navigator', {
+			value: {
+				serviceWorker: {
+					getRegistration: vi.fn().mockResolvedValue({
+						update,
+						waiting: { postMessage, scriptURL: 'https://example.com/sw.js' }
+					})
+				}
+			},
+			configurable: true,
+			writable: true
+		});
+
+		await applyAppUpdateOrReload();
+		expect(setSpy).toHaveBeenCalledWith('sw_updating_url', 'https://example.com/sw.js');
 	});
 });

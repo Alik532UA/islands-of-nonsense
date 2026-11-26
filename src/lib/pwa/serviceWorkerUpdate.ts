@@ -1,7 +1,10 @@
 import { browser } from '$app/env';
 import { toast } from '$lib/controllers/toast.svelte';
 import { logService } from '$lib/services/logService.svelte';
+import { sessionStore } from '$lib/services/storage';
 import { t } from '$lib/i18n';
+
+const SW_UPDATING_KEY = 'sw_updating_url';
 
 function confirmReloadIfInBattle(): boolean {
 	if (
@@ -32,10 +35,17 @@ export async function applyAppUpdateOrReload(): Promise<void> {
 				const refreshedReg =
 					(await navigator.serviceWorker.getRegistration().catch(() => reg)) ?? reg;
 				if (refreshedReg.waiting) {
+					const scriptUrl = refreshedReg.waiting.scriptURL || 'waiting';
+					sessionStore.set(SW_UPDATING_KEY, scriptUrl);
 					refreshedReg.waiting.postMessage({ type: 'SKIP_WAITING' });
 					setTimeout(() => {
-						window.location.reload();
-					}, 1200);
+						void refreshedReg
+							.unregister?.()
+							.catch(() => {})
+							.finally(() => {
+								window.location.reload();
+							});
+					}, 2500);
 					return;
 				}
 			}
@@ -58,13 +68,20 @@ export function initServiceWorkerUpdate(): () => void {
 	const onControllerChange = () => {
 		if (refreshing) return;
 		refreshing = true;
+		sessionStore.remove(SW_UPDATING_KEY);
 		window.location.reload();
 	};
 
 	navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
 
-	function promptUser(worker: ServiceWorker) {
+	function promptUser(worker: ServiceWorker, reg: ServiceWorkerRegistration) {
 		if (prompted) return;
+		const workerUrl = worker.scriptURL || 'waiting';
+		if (sessionStore.get(SW_UPDATING_KEY) === workerUrl) {
+			// Застряглий waiting-воркер вже пробували активувати перед reload — не показуємо тост нескінченно
+			sessionStore.remove(SW_UPDATING_KEY);
+			return;
+		}
 		prompted = true;
 
 		toast.info(t('pwa.updateAvailable') || 'Доступна нова версія гри', {
@@ -73,13 +90,19 @@ export function initServiceWorkerUpdate(): () => void {
 				label: t('pwa.updateAction') || 'Оновити',
 				run: () => {
 					if (!confirmReloadIfInBattle()) return;
+					sessionStore.set(SW_UPDATING_KEY, workerUrl);
 					worker.postMessage({ type: 'SKIP_WAITING' });
 					setTimeout(() => {
 						if (!refreshing) {
 							refreshing = true;
-							window.location.reload();
+							void reg
+								.unregister()
+								.catch(() => {})
+								.finally(() => {
+									window.location.reload();
+								});
 						}
-					}, 1200);
+					}, 2500);
 				}
 			}
 		});
@@ -93,7 +116,7 @@ export function initServiceWorkerUpdate(): () => void {
 			void reg.update().catch(() => {});
 
 			if (reg.waiting) {
-				promptUser(reg.waiting);
+				promptUser(reg.waiting, reg);
 				return;
 			}
 
@@ -103,7 +126,7 @@ export function initServiceWorkerUpdate(): () => void {
 
 				newWorker.addEventListener('statechange', () => {
 					if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-						promptUser(newWorker);
+						promptUser(newWorker, reg);
 					}
 				});
 			});

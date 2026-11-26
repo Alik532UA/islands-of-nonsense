@@ -28,14 +28,15 @@ self.addEventListener('install', (event: ExtendableEvent) => {
 });
 
 self.addEventListener('activate', (event: ExtendableEvent) => {
-	async function deleteOldCaches() {
+	async function activateAndClean() {
 		for (const key of await caches.keys()) {
 			if (key !== CACHE) {
 				await caches.delete(key);
 			}
 		}
+		await self.clients.claim();
 	}
-	event.waitUntil(deleteOldCaches());
+	event.waitUntil(activateAndClean());
 });
 
 self.addEventListener('fetch', (event: FetchEvent) => {
