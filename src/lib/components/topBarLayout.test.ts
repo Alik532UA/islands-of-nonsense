@@ -16,7 +16,6 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 		expect(topBarContent).toContain('data-testid="topbar-system-nav-dock"');
 		expect(topBarContent).toContain('data-testid="topbar-preferences-dock"');
 		expect(topBarContent).toContain('data-testid="topbar-match-dock"');
-		expect(topBarContent).toContain('data-testid="topbar-game-actions-dock"');
 		expect(topBarContent).toContain('data-testid="resource-boxes"');
 	});
 
@@ -31,12 +30,8 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 		const leftIdx = topBarContent.indexOf(
 			'<!-- 1. LEFT: System, Navigation & Settings Containers -->'
 		);
-		const centerIdx = topBarContent.indexOf(
-			'<!-- 2. CENTER: Warcraft III Day/Night Dial, Match Clock & Stylish Scoreboard -->'
-		);
-		const rightIdx = topBarContent.indexOf(
-			'<!-- 3. RIGHT: Speed Controls, In-Game Actions, Resources & Spectator Castles -->'
-		);
+		const centerIdx = topBarContent.indexOf('<!-- 2. CENTER:');
+		const rightIdx = topBarContent.indexOf('<!-- 3. RIGHT:');
 		expect(leftIdx).toBeGreaterThan(-1);
 		expect(centerIdx).toBeGreaterThan(leftIdx);
 		expect(rightIdx).toBeGreaterThan(centerIdx);
@@ -53,15 +48,25 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 		expect(leftSection).toContain('data-testid="topbar-locale-toggle"');
 		expect(leftSection).toContain('data-testid="topbar-settings-btn"');
 
-		// Gameplay buttons (including Commanders) and resources live in RIGHT section
-		const rightSection = topBarContent.slice(rightIdx);
-		expect(rightSection).toContain('data-testid="hud-commander-btn"');
-		expect(rightSection).toContain('data-testid="hud-forge-btn"');
-		expect(rightSection).toContain('data-testid="hud-shop-btn"');
-		expect(rightSection).toContain('data-testid="hud-race-ability-btn"');
-		expect(rightSection).toContain('data-testid="hud-rescue-strike-btn"');
-		expect(rightSection).toContain('data-testid="resource-boxes"');
-		expect(rightSection).toContain('sim.useRaceSkill(player.team, player)');
+		// Resources live in CENTER section (to the left of match dock)
+		const centerSection = topBarContent.slice(centerIdx, rightIdx);
+		expect(centerSection).toContain('data-testid="resource-boxes"');
+		expect(centerSection.indexOf('data-testid="resource-boxes"')).toBeLessThan(
+			centerSection.indexOf('data-testid="topbar-match-dock"')
+		);
+
+		// Side docks in BattleArena: hud-quick-focus-dock and opposite-side topbar-game-actions-dock
+		const arenaPath = path.resolve(process.cwd(), 'src/lib/components/BattleArena.svelte');
+		const arenaContent = fs.readFileSync(arenaPath, 'utf-8');
+		expect(arenaContent).toContain('data-testid="hud-quick-focus-dock"');
+		expect(arenaContent).toContain('data-testid="topbar-game-actions-dock"');
+		expect(arenaContent).toContain('data-testid="hud-commander-btn"');
+		expect(arenaContent).toContain('data-testid="hud-forge-btn"');
+		expect(arenaContent).toContain('data-testid="hud-shop-btn"');
+		expect(arenaContent).toContain('data-testid="hud-race-ability-btn"');
+		expect(arenaContent).toContain('data-testid="hud-rescue-strike-btn"');
+		expect(arenaContent).toContain('data-testid="hud-topbar-cannon-{cfg.mode}-btn"');
+		expect(arenaContent).toContain('sim.useRaceSkill(controlledPlayer.team, controlledPlayer)');
 	});
 
 	it('left and right navigation button tooltips and speed dropdown are positioned with top-full and high z-index without vertical clipping', () => {
@@ -144,16 +149,11 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 		expect(topBarContent).toContain('data-testid="topbar-back-link"');
 		expect(topBarContent).toContain('data-testid="topbar-home-link"');
 		expect(topBarContent).toContain('data-testid="hud-guide-btn"');
-		expect(topBarContent).toContain('data-testid="hud-commander-btn"');
 		expect(topBarContent).toContain('data-testid="hud-menu-btn"');
 		expect(topBarContent).toContain('data-testid="topbar-sound-toggle"');
 		expect(topBarContent).toContain('data-testid="topbar-fullscreen-toggle"');
 		expect(topBarContent).toContain('data-testid="topbar-locale-toggle"');
 		expect(topBarContent).toContain('data-testid="topbar-settings-btn"');
-		expect(topBarContent).toContain('data-testid="hud-forge-btn"');
-		expect(topBarContent).toContain('data-testid="hud-shop-btn"');
-		expect(topBarContent).toContain('data-testid="hud-race-ability-btn"');
-		expect(topBarContent).toContain('data-testid="hud-rescue-strike-btn"');
 		expect(topBarContent).toContain('data-testid="topbar-pause-btn"');
 		expect(topBarContent).toContain('data-testid="topbar-speed-btn-');
 	});
@@ -214,12 +214,15 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 	it('TopBar includes full ARIA accessibility attributes and shortcut keys', () => {
 		const updatedContent = fs.readFileSync(topBarPath, 'utf-8');
 		expect(updatedContent).toContain('aria-keyshortcuts="F9"');
-		expect(updatedContent).toContain('aria-keyshortcuts="f"');
-		expect(updatedContent).toContain('aria-keyshortcuts="b"');
-		expect(updatedContent).toContain('aria-keyshortcuts="r"');
-		expect(updatedContent).toContain('aria-keyshortcuts="e"');
 		expect(updatedContent).toContain('aria-keyshortcuts="Space"');
 		expect(updatedContent).toContain('role="meter"');
+
+		const arenaPath = path.resolve(process.cwd(), 'src/lib/components/BattleArena.svelte');
+		const arenaContent = fs.readFileSync(arenaPath, 'utf-8');
+		expect(arenaContent).toContain('aria-keyshortcuts="f"');
+		expect(arenaContent).toContain('aria-keyshortcuts="b"');
+		expect(arenaContent).toContain('aria-keyshortcuts="z"');
+		expect(arenaContent).toContain('aria-keyshortcuts="x"');
 		expect(updatedContent).toContain('aria-label="Здоров\'я Західного Замку (Гравець)"');
 		expect(updatedContent).toContain('aria-label="Здоров\'я Східного Замку (Ворог)"');
 	});

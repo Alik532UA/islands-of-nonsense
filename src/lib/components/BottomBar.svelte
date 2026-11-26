@@ -185,7 +185,7 @@
 		const letter = shortcutLetter(e)?.toUpperCase();
 		const digit = shortcutDigit(e);
 
-		if (e.key === 'Escape' || (letter === 'B' && activeEntityType !== 'castle')) {
+		if (e.key === 'Escape') {
 			if (selectedBuildingId) {
 				onSelectBuilding(null);
 				return;

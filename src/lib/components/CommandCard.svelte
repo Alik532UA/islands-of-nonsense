@@ -16,6 +16,8 @@
 		getCommanderEffectivePct
 	} from '../engine/commanders';
 	import { sound } from '../services/audio';
+	import CooldownOverlay from '$lib/components/ui/CooldownOverlay.svelte';
+	import { WORKER_BLINK_COOLDOWN } from '../engine/constants';
 
 	const routeBattleCommand = getContext<BattleCommandRouter | undefined>(BATTLE_COMMAND_ROUTER_KEY);
 
@@ -344,15 +346,7 @@
 											: 'bg-[#12161f] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
 									aria-label="{item.nameUk} ({item.cost}g) - {item.descriptionUk}"
 								>
-									{#if cd > 0}
-										<div
-											class="absolute inset-0 bg-black/75 rounded flex items-center justify-center z-10"
-										>
-											<span class="text-[9px] font-mono font-bold text-cyan-300">
-												{Math.ceil(cd)}с
-											</span>
-										</div>
-									{/if}
+									<CooldownOverlay remaining={cd} max={item.cooldown} />
 									<span class="text-[8px] font-bold text-slate-200 truncate max-w-[55px]">
 										{item.nameUk}
 									</span>
@@ -1016,16 +1010,15 @@
 								: 'bg-slate-900/60 border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
 					>
 						<span class={hotkeyCornerClass}>F</span>
+						<CooldownOverlay remaining={blinkCd} max={WORKER_BLINK_COOLDOWN} />
 						<div class="flex flex-col items-center justify-center pointer-events-none">
 							<UiIcon name="zap" class="w-3 h-3 text-cyan-300 drop-shadow" />
-							<span class="text-[7.5px] font-bold leading-none mt-0.5">
-								{blinkCd > 0 ? `${Math.ceil(blinkCd)}с` : 'Телепорт'}
-							</span>
+							<span class="text-[7.5px] font-bold leading-none mt-0.5">Телепорт</span>
 						</div>
 					</button>
 					<div class="{tipClass} right-0">
 						{blinkCd > 0
-							? `Телепорт перезаряджається (${Math.ceil(blinkCd)}с)`
+							? `Телепорт перезаряджається (${blinkCd.toFixed(1)}с)`
 							: 'Телепорт будівельника (до 500px на своєму острові) · Клавіша F'}
 					</div>
 				</div>

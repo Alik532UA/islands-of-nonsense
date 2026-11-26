@@ -16,7 +16,7 @@
 		costText?: string;
 		description?: string;
 		hotkey: string;
-		icon: 'rescue' | 'repair' | 'bridge' | 'shop' | 'forge' | 'skill';
+		icon: 'rescue' | 'repair' | 'bridge' | 'shop' | 'forge' | 'commander' | 'skill';
 		enabled: boolean;
 		action: () => void;
 	}
@@ -32,6 +32,7 @@
 		onSelectBuilding,
 		onOpenShop,
 		onOpenForge,
+		onOpenCommander,
 		onStartRescueTargeting,
 		onClose
 	}: {
@@ -45,6 +46,7 @@
 		onSelectBuilding: (defId: string) => void;
 		onOpenShop?: () => void;
 		onOpenForge?: () => void;
+		onOpenCommander?: () => void;
 		onStartRescueTargeting?: () => void;
 		onClose: () => void;
 	} = $props();
@@ -171,11 +173,24 @@
 			}
 		},
 		{
+			id: 'open_commander',
+			name: 'Дім командира',
+			costText: 'Командир',
+			description: 'Вибір або зміна пасивного бонусу командира.',
+			hotkey: '6',
+			icon: 'commander',
+			enabled: true,
+			action: () => {
+				onOpenCommander?.();
+				onClose();
+			}
+		},
+		{
 			id: 'race_skill',
 			name: 'Здібність раси',
 			costText: 'Магія',
 			description: 'Унікальна активна здібність вашої обраної раси.',
-			hotkey: '6',
+			hotkey: '7',
 			icon: 'skill',
 			enabled: sim.canUseRaceSkill(activeTeam),
 			action: () =>
@@ -359,6 +374,8 @@
 		<UiIcon name="shoppingBag" class="{cls} text-sky-400" />
 	{:else if iconType === 'forge'}
 		<UiIcon name="anvil" class="{cls} text-amber-400" />
+	{:else if iconType === 'commander'}
+		<UiIcon name="crown" class="{cls} text-indigo-400" />
 	{:else}
 		<UiIcon name="sparkles" class="{cls} text-purple-400" />
 	{/if}

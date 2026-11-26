@@ -35,10 +35,12 @@
 <style>
 	.flg {
 		display: inline-block;
+		box-sizing: border-box;
 		border-radius: 2px;
-		border: 1px solid rgba(255, 255, 255, 0.25);
+		box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+		overflow: hidden;
 		flex-shrink: 0;
-		background: #334155;
+		background-color: #334155;
 	}
 	.f-ua {
 		background: linear-gradient(180deg, #0057b7 50%, #ffd700 50%);

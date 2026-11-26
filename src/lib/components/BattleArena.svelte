@@ -24,6 +24,8 @@
 		formatRaceName,
 		getBaseBuildingsForRace
 	} from '$lib/engine/gameData';
+	import { getRaceAbility } from '$lib/engine/raceAbilities';
+	import { findCommander } from '$lib/engine/commanders';
 	import TopBar from '$lib/components/TopBar.svelte';
 	import BottomBar from '$lib/components/BottomBar.svelte';
 	import RadialMenu from '$lib/components/RadialMenu.svelte';
@@ -39,9 +41,11 @@
 	import A11yAnnouncer from '$lib/components/ui/A11yAnnouncer.svelte';
 	import { battleAnnouncer } from '$lib/services/battleAnnouncer.svelte';
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
+	import CooldownOverlay from '$lib/components/ui/CooldownOverlay.svelte';
+	import { WORKER_BLINK_COOLDOWN } from '$lib/engine/constants';
 	import { storage } from '$lib/services/storage';
 	import { createKeySequence, listenForSequences } from '$lib/debug/keySequence';
-	import { shortcutLetter, shortcutDigit, isEditableTarget } from '$lib/hotkeys/hotkeys';
+	import { shortcutLetter, isEditableTarget } from '$lib/hotkeys/hotkeys';
 	import { logService } from '$lib/services/logService.svelte';
 	import { perfMonitor } from '$lib/debug/perfMonitor.svelte';
 	import type { MatchSync } from '$lib/net/matchSync';
@@ -633,19 +637,18 @@
 		} else {
 			const hasBlockingModal =
 				isForgeOpen || isCommanderOpen || isGuideOpen || isShopOpen || isSettingsOpen || isHelpOpen;
-			const digit = shortcutDigit(e);
 			if (
 				!hasBlockingModal &&
 				!isSpectatorView &&
-				e.altKey &&
+				!e.altKey &&
 				!e.ctrlKey &&
 				!e.repeat &&
-				(digit === 1 || digit === 2)
+				(letter === 't' || letter === 'g')
 			) {
 				e.preventDefault();
 				const activePlayer = controlledPlayer;
 				const activeTeam = activePlayer.team;
-				const mode = digit === 1 ? 'short' : 'long';
+				const mode = letter === 't' ? 'short' : 'long';
 				if (sim.canFireCastleCannon(activeTeam, mode, activePlayer)) {
 					dispatchCommand(
 						'CASTLE_SHOT',
@@ -690,9 +693,9 @@
 					openExclusiveModal('help', true);
 				}
 				return;
-			} else if (letter === 'f' && !e.repeat && (!isWorkerGridActive || e.altKey)) {
+			} else if (letter === 'k' && !e.repeat && !e.ctrlKey && !e.altKey) {
 				openExclusiveModal('forge', true);
-			} else if (letter === 'f' && !e.repeat && isWorkerGridActive && !e.altKey) {
+			} else if (letter === 'f' && !e.repeat && !e.ctrlKey && !e.altKey) {
 				e.preventDefault();
 				activateBlinkTargeting();
 			} else if (letter === 'c' && !e.repeat && (!isWorkerGridActive || e.altKey)) {
@@ -705,6 +708,22 @@
 				(!isWorkerGridActive || e.altKey)
 			) {
 				openExclusiveModal('help', true);
+			} else if (letter === 'z' && !e.repeat && !e.ctrlKey && !e.altKey) {
+				const targetPlayer = controlledPlayer;
+				const activeTeam = targetPlayer.team;
+				if (sim.canUseRaceSkill(activeTeam)) {
+					dispatchCommand(
+						'USE_ABILITY',
+						{},
+						() => sim.useRaceSkill(activeTeam, targetPlayer),
+						() => sound.playUpgrade()
+					);
+				} else {
+					sound.playErrorResource();
+				}
+			} else if (letter === 'x' && !e.repeat && !e.ctrlKey && !e.altKey) {
+				e.preventDefault();
+				activateRescueStrikeTargeting(true);
 			} else if (settings.controlPreset === 'islands-of-nonsense') {
 				if (letter === 'e' && !e.repeat && !e.ctrlKey && !e.altKey) {
 					toggleRadial('army');
@@ -744,28 +763,6 @@
 							return;
 						}
 					}
-					if (!isWorkerGridActive || e.altKey) {
-						const targetPlayer = controlledPlayer;
-						const activeTeam = targetPlayer.team;
-						if (sim.canUseRaceSkill(activeTeam)) {
-							dispatchCommand(
-								'USE_ABILITY',
-								{},
-								() => sim.useRaceSkill(activeTeam, targetPlayer),
-								() => sound.playUpgrade()
-							);
-						} else {
-							sound.playErrorResource();
-						}
-					}
-				} else if (
-					letter === 'e' &&
-					!e.repeat &&
-					!hasBlockingModal &&
-					(!isWorkerGridActive || e.altKey)
-				) {
-					e.preventDefault();
-					activateRescueStrikeTargeting(true);
 				}
 			}
 		}
@@ -1678,17 +1675,10 @@
 			{uiTick}
 			isOnline={Boolean(matchSync)}
 			isSpectator={isSpectatorView}
-			{isRescueTargeting}
 			activePlayer={controlledPlayer}
-			onOpenForge={() => openExclusiveModal('forge')}
-			onOpenCommander={() => openExclusiveModal('commander')}
 			onOpenGuide={() => openExclusiveModal('guide')}
-			onOpenShop={() => openExclusiveModal('shop')}
 			onOpenSettings={openPauseMenu}
 			onBeforeLeave={handleRequestLeave}
-			onHoverCastleRange={(mode: 'short' | 'long' | null) =>
-				renderer?.setHoveredCastleCannonMode(mode)}
-			onStartRescueTargeting={() => activateRescueStrikeTargeting(false)}
 		/>
 
 		{#if !isSpectatorView && matchPhase === 'BATTLE'}
@@ -1696,29 +1686,229 @@
 			{@const isWorkerSelected = selectedEntity?.type === 'worker'}
 			{@const isCastleSelected =
 				selectedEntity?.type === 'castle' && selectedEntity.team === controlledPlayer.team}
+			{@const raceAbility =
+				uiTick >= 0 ? getRaceAbility(controlledPlayer.race) : getRaceAbility('Альянс')}
+			{@const canCastRaceSkill = uiTick >= 0 ? sim.canUseRaceSkill(controlledPlayer.team) : false}
+			{@const raceSkillCd = uiTick >= 0 ? sim.raceSkillCooldown[controlledPlayer.team] : 0}
+			{@const raceSkillUnlockLeft = uiTick >= 0 ? Math.max(0, 300 - Math.floor(sim.gameTime)) : 300}
+			{@const canUseRescue =
+				uiTick >= 0 ? sim.canUseRescueStrike(controlledPlayer.team, controlledPlayer) : false}
+			{@const rescueCd =
+				uiTick >= 0 ? sim.getRescueStrikeCooldown(controlledPlayer.team, controlledPlayer) : 0}
+			{@const cannonCd = uiTick >= 0 ? sim.getCastleCannonCooldown(controlledPlayer.team) : 0}
+			{@const cannonMaxCd =
+				uiTick >= 0 ? sim.getCastleCannonEffectiveMaxCooldown(controlledPlayer.team) : 2.0}
+			{@const quickBlinkCd = uiTick >= 0 ? (controlledPlayer.worker?.blinkCooldown ?? 0) : 0}
+			{@const canQuickBlink = quickBlinkCd <= 0}
+			{@const quickCannonModes = [
+				{
+					mode: 'short' as const,
+					range: 500,
+					hotkey: 'T',
+					activeCls:
+						'bg-amber-950/90 hover:bg-amber-900 border-amber-500 text-amber-100 ring-1 ring-amber-500/40',
+					iconCls: 'text-amber-400',
+					badgeCls: 'text-amber-300 border-amber-500/50',
+					tipCls: 'text-amber-200',
+					keyCls: 'text-amber-300 border-amber-500/60'
+				},
+				{
+					mode: 'long' as const,
+					range: 1500,
+					hotkey: 'G',
+					activeCls:
+						'bg-sky-950/90 hover:bg-sky-900 border-sky-500 text-sky-100 ring-1 ring-sky-500/40',
+					iconCls: 'text-sky-400',
+					badgeCls: 'text-sky-300 border-sky-500/50',
+					tipCls: 'text-sky-200',
+					keyCls: 'text-sky-300 border-sky-500/60'
+				}
+			]}
+			{@const sideTipClass = `pointer-events-none absolute top-1/2 -translate-y-1/2 ${
+				isEastSide ? 'right-full mr-2.5' : 'left-full ml-2.5'
+			} z-50 whitespace-nowrap rounded-md border border-[#544738] bg-[#0f141f]/95 px-2.5 py-1 text-[11px] shadow-2xl opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150`}
+			{@const raceBuildings = getBaseBuildingsForRace(controlledPlayer.race)}
+			{@const quickBuildGroups = [
+				{
+					key: 'army' as const,
+					label: 'Армія',
+					hotkey: 'E',
+					icon: 'swords' as const,
+					btnCls:
+						'border-amber-500/50 hover:border-amber-400 bg-[#1a2030] hover:bg-[#262f45] text-amber-300',
+					badgeCls: 'text-amber-300 border-amber-500/50',
+					items: raceBuildings.filter((b) => !b.specialType)
+				},
+				{
+					key: 'special' as const,
+					label: 'Спеціальні',
+					hotkey: 'R',
+					icon: 'zap' as const,
+					btnCls:
+						'border-cyan-500/50 hover:border-cyan-400 bg-[#1a2030] hover:bg-[#1e2c42] text-cyan-300',
+					badgeCls: 'text-cyan-300 border-cyan-500/50',
+					items: raceBuildings.filter((b) => Boolean(b.specialType))
+				}
+			]}
 			<div
 				data-testid="hud-quick-focus-dock"
 				class="absolute top-1/2 -translate-y-1/2 {isEastSide
-					? 'right-3'
-					: 'left-3'} z-20 flex flex-col items-center gap-2 bg-[#131722]/90 backdrop-blur-md border-2 border-[#544738] rounded-2xl p-1.5 shadow-2xl pointer-events-auto"
+					? 'right-0 rounded-l-2xl rounded-r-none border-y-2 border-l-2 border-r-0'
+					: 'left-0 rounded-r-2xl rounded-l-none border-y-2 border-r-2 border-l-0'} z-20 flex flex-col items-center gap-1.5 bg-[#131722]/90 backdrop-blur-md border-[#544738] p-1.5 shadow-2xl pointer-events-auto"
 			>
+				<!-- Above Worker: Race Ability (Z), Rescue Strike (X), Blink (F) -->
+				<div class="relative group/tip">
+					<button
+						type="button"
+						onclick={() => {
+							if (!canCastRaceSkill) return;
+							if (
+								!routeOnlineCommand('USE_ABILITY', {
+									team: controlledPlayer.team,
+									playerSlot: controlledPlayer.slot
+								})
+							) {
+								sim.useRaceSkill(controlledPlayer.team, controlledPlayer);
+							}
+						}}
+						disabled={!canCastRaceSkill}
+						data-testid="hud-race-ability-btn"
+						aria-label="{raceAbility.nameUk}: {raceAbility.descriptionUk} (Гаряча клавіша: Z)"
+						aria-keyshortcuts="z"
+						class="relative w-11 h-11 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md {canCastRaceSkill
+							? 'bg-purple-900/90 hover:bg-purple-800 border-purple-400 text-purple-100 ring-2 ring-purple-400/50 animate-pulse'
+							: 'bg-[#121620] border-slate-800 text-slate-600 opacity-50 cursor-not-allowed'}"
+					>
+						<UiIcon
+							name="sparkles"
+							class="w-5 h-5 {canCastRaceSkill ? 'text-purple-300' : 'text-slate-500'}"
+						/>
+						<span
+							class="absolute top-0 right-0 px-1 py-0.2 rounded-bl-[6px] rounded-tr-[9px] bg-black/75 text-[8px] font-mono font-bold leading-none border-l border-b border-purple-500/50 text-purple-300"
+						>
+							Z
+						</span>
+						{#if raceSkillUnlockLeft > 0}
+							<CooldownOverlay remaining={raceSkillUnlockLeft} max={300} />
+						{:else if raceSkillCd > 0}
+							<CooldownOverlay remaining={raceSkillCd} max={150} />
+						{/if}
+					</button>
+					<div class="{sideTipClass} text-purple-200 flex items-center gap-1.5">
+						<span>{raceAbility.nameUk}</span>
+						<span
+							class="text-[9px] font-mono font-bold text-purple-300 bg-black/60 px-1 rounded border border-purple-500/60"
+						>
+							Z
+						</span>
+					</div>
+				</div>
+
+				<div class="relative group/tip">
+					<button
+						type="button"
+						onclick={() => {
+							if (!canUseRescue) return;
+							activateRescueStrikeTargeting(false);
+						}}
+						disabled={!canUseRescue}
+						data-testid="hud-rescue-strike-btn"
+						aria-label="Прицільний Рятівний Удар на своєму острові (-950 хаос-шкоди по наземних і повітряних ворогах у 750px, 500px від робітника, КД 180с, клавіша X)"
+						aria-keyshortcuts="x"
+						aria-pressed={isRescueTargeting}
+						class="relative w-11 h-11 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md {isRescueTargeting
+							? 'bg-amber-600/90 border-amber-300 text-slate-950 ring-2 ring-amber-400'
+							: canUseRescue
+								? 'bg-rose-950/90 hover:bg-rose-900 border-rose-500 text-rose-100 ring-2 ring-rose-500/50'
+								: 'bg-[#121620] border-slate-800 text-slate-600 opacity-50 cursor-not-allowed'}"
+					>
+						<UiIcon
+							name="flame"
+							class="w-5 h-5 {canUseRescue ? 'text-rose-400 animate-pulse' : 'text-slate-500'}"
+						/>
+						<span
+							class="absolute top-0 right-0 px-1 py-0.2 rounded-bl-[6px] rounded-tr-[9px] bg-black/75 text-[8px] font-mono font-bold leading-none border-l border-b border-rose-500/50 text-rose-300"
+						>
+							X
+						</span>
+						<CooldownOverlay remaining={rescueCd} max={180} />
+					</button>
+					<div class="{sideTipClass} py-1.5 text-rose-200 flex flex-col gap-0.5">
+						<div class="flex items-center gap-1.5 font-bold">
+							<span>Рятівний удар</span>
+							<span
+								class="text-[9px] font-mono font-bold text-rose-300 bg-black/60 px-1 rounded border border-rose-500/60"
+							>
+								X
+							</span>
+						</div>
+						<span class="text-[10px] text-slate-300 font-normal">
+							950 шкоди у 750px на своєму острові • 2× золото • КД: 180с
+						</span>
+					</div>
+				</div>
+
+				<!-- Worker Blink / Teleport (F) -->
+				<div class="relative group/tip">
+					<button
+						type="button"
+						onclick={() => {
+							if (!canQuickBlink) return;
+							activateBlinkTargeting();
+						}}
+						disabled={!canQuickBlink}
+						data-testid="hud-quick-blink-btn"
+						aria-label="Телепорт будівельника до 500px (Клавіша F)"
+						aria-keyshortcuts="f"
+						aria-pressed={isBlinkTargeting}
+						class="relative w-11 h-11 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md {isBlinkTargeting
+							? 'bg-cyan-600/90 border-cyan-300 text-white ring-2 ring-cyan-400'
+							: canQuickBlink
+								? 'bg-cyan-950/90 hover:bg-cyan-900 border-cyan-500/80 text-cyan-200'
+								: 'bg-[#121620] border-slate-800 text-slate-600 opacity-50 cursor-not-allowed'}"
+					>
+						<UiIcon
+							name="zap"
+							class="w-5 h-5 {canQuickBlink ? 'text-cyan-300' : 'text-slate-500'}"
+						/>
+						<span
+							class="absolute top-0 right-0 px-1 py-0.2 rounded-bl-[6px] rounded-tr-[9px] bg-black/75 text-[8px] font-mono font-bold leading-none border-l border-b border-cyan-500/50 text-cyan-300"
+						>
+							F
+						</span>
+						<CooldownOverlay remaining={quickBlinkCd} max={WORKER_BLINK_COOLDOWN} />
+					</button>
+					<div class="{sideTipClass} text-cyan-200 flex items-center gap-1.5">
+						<span>Телепорт (500px · КД 500мс)</span>
+						<span
+							class="text-[9px] font-mono font-bold text-cyan-300 bg-black/60 px-1 rounded border border-cyan-500/60"
+						>
+							F
+						</span>
+					</div>
+				</div>
+
+				<div class="w-8 h-px bg-[#544738]/70 my-0.5"></div>
+
+				<!-- Worker Focus (Space) -->
 				<div class="relative group/tip">
 					<button
 						type="button"
 						onclick={() => selectOwnWorker(true)}
 						data-testid="hud-quick-worker-btn"
 						aria-label="Знайти та обрати будівельника (Space)"
-						class="w-14 h-14 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md {isWorkerSelected
+						class="relative w-14 h-14 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md {isWorkerSelected
 							? 'bg-amber-500/25 border-amber-400 text-amber-200 ring-2 ring-amber-400/50'
 							: 'bg-[#1a2030] hover:bg-[#232b40] border-slate-700 hover:border-amber-500/60 text-amber-300'}"
 					>
 						<UiIcon name="hammer" class="w-7 h-7" />
+						<span
+							class="absolute top-0 right-0 px-1 py-0.2 rounded-bl-[6px] rounded-tr-[9px] bg-black/75 text-[8px] font-mono font-bold leading-none border-l border-b border-amber-500/50 text-amber-300"
+						>
+							Spc
+						</span>
 					</button>
-					<div
-						class="pointer-events-none absolute top-1/2 -translate-y-1/2 {isEastSide
-							? 'right-full mr-2.5'
-							: 'left-full ml-2.5'} z-50 whitespace-nowrap rounded-md border border-[#544738] bg-[#0f141f]/95 px-2.5 py-1 text-[11px] text-amber-100 shadow-2xl opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 flex items-center gap-1.5"
-					>
+					<div class="{sideTipClass} text-amber-100 flex items-center gap-1.5">
 						<span>Будівельник</span>
 						<span
 							class="text-[9px] font-mono font-bold text-amber-400 bg-black/60 px-1 rounded border border-[#544738]"
@@ -1727,28 +1917,313 @@
 						</span>
 					</div>
 				</div>
+
+				<!-- Worker Quick Build Flyouts: Army (E) & Special (R) -->
+				{#each quickBuildGroups as grp (grp.key)}
+					<div class="relative group/build">
+						<button
+							type="button"
+							onclick={() => toggleRadial(grp.key)}
+							data-testid="hud-quick-build-{grp.key}-btn"
+							aria-label="{grp.label} ({grp.hotkey})"
+							aria-keyshortcuts={grp.hotkey.toLowerCase()}
+							class="relative w-11 h-11 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md {grp.btnCls}"
+						>
+							<UiIcon name={grp.icon} class="w-5 h-5" />
+							<span
+								class="absolute top-0 right-0 px-1 py-0.2 rounded-bl-[6px] rounded-tr-[9px] bg-black/75 text-[8px] font-mono font-bold leading-none border-l border-b {grp.badgeCls}"
+							>
+								{grp.hotkey}
+							</span>
+						</button>
+						<div
+							class="hidden group-hover/build:flex absolute top-1/2 -translate-y-1/2 {isEastSide
+								? 'right-full pr-2'
+								: 'left-full pl-2'} z-50"
+						>
+							<div
+								class="bg-[#131722]/95 backdrop-blur-md border-2 border-[#544738] rounded-xl p-2 shadow-2xl flex flex-col gap-1.5 min-w-[210px]"
+							>
+								<div
+									class="text-[10px] font-bold uppercase tracking-wider text-amber-200/90 flex items-center justify-between border-b border-[#3b3226] pb-1"
+								>
+									<span>{grp.label}</span>
+									<span class="text-[9px] font-mono px-1 rounded bg-black/60 border {grp.badgeCls}">
+										{grp.hotkey}
+									</span>
+								</div>
+								<div class="grid grid-cols-4 gap-1">
+									{#each grp.items as bld (bld.id)}
+										{@const goldCost = bld.gold_cost || 200}
+										{@const lumberCost = bld.lumber_cost || 0}
+										{@const canAfford =
+											controlledPlayer.gold >= goldCost &&
+											(controlledPlayer.lumber ?? 0) >= lumberCost}
+										{@const isSel = selectedBuildingId === bld.id}
+										<button
+											type="button"
+											onclick={() => {
+												selectedBuildingId = isSel ? null : bld.id;
+												selectedPlacedBuildingId = null;
+												selectedUnitId = null;
+												selectedEntity = {
+													type: 'worker',
+													playerSlot: controlledPlayer.slot
+												};
+												uiTick = sim.stateVersion;
+											}}
+											data-testid="hud-quick-build-item-{bld.id}"
+											title="{bld.name} ({goldCost}g{lumberCost > 0 ? `, ${lumberCost}w` : ''})"
+											class="w-11 h-11 rounded-lg border flex flex-col items-center justify-center p-0.5 transition cursor-pointer {isSel
+												? 'bg-blue-600/80 border-amber-300 ring-2 ring-amber-400 text-white'
+												: canAfford
+													? 'bg-[#1b2230] hover:bg-[#28354d] border-[#544738] hover:border-[#8c7456] text-amber-200'
+													: 'bg-[#12161f] border-slate-800 text-slate-500 opacity-55'}"
+										>
+											<UiIcon
+												name={bld.specialType === 'shop'
+													? 'shoppingBag'
+													: bld.specialType === 'forge'
+														? 'hammer'
+														: bld.specialType === 'commander'
+															? 'crown'
+															: bld.specialType === 'tower'
+																? 'shieldAlert'
+																: bld.specialType
+																	? 'zap'
+																	: 'swords'}
+												class="w-4 h-4 shrink-0"
+											/>
+											<span class="text-[8px] font-mono font-bold leading-none mt-1">
+												{goldCost}g
+											</span>
+										</button>
+									{/each}
+								</div>
+							</div>
+						</div>
+					</div>
+				{/each}
+
+				<!-- Castle Focus (Enter) -->
 				<div class="relative group/tip">
 					<button
 						type="button"
 						onclick={() => selectOwnCastle(true)}
 						data-testid="hud-quick-castle-btn"
 						aria-label="Знайти та обрати замок (Enter)"
-						class="w-14 h-14 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md {isCastleSelected
+						class="relative w-14 h-14 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md {isCastleSelected
 							? 'bg-sky-500/25 border-sky-400 text-sky-200 ring-2 ring-sky-400/50'
 							: 'bg-[#1a2030] hover:bg-[#232b40] border-slate-700 hover:border-sky-500/60 text-sky-300'}"
 					>
 						<UiIcon name="castle" class="w-7 h-7" />
+						<span
+							class="absolute top-0 right-0 px-1 py-0.2 rounded-bl-[6px] rounded-tr-[9px] bg-black/75 text-[8px] font-mono font-bold leading-none border-l border-b border-sky-500/50 text-sky-300"
+						>
+							Ent
+						</span>
 					</button>
-					<div
-						class="pointer-events-none absolute top-1/2 -translate-y-1/2 {isEastSide
-							? 'right-full mr-2.5'
-							: 'left-full ml-2.5'} z-50 whitespace-nowrap rounded-md border border-[#544738] bg-[#0f141f]/95 px-2.5 py-1 text-[11px] text-sky-100 shadow-2xl opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 flex items-center gap-1.5"
-					>
+					<div class="{sideTipClass} text-sky-100 flex items-center gap-1.5">
 						<span>Замок</span>
 						<span
 							class="text-[9px] font-mono font-bold text-sky-400 bg-black/60 px-1 rounded border border-sky-500/40"
 						>
 							Enter
+						</span>
+					</div>
+				</div>
+
+				<div class="w-8 h-px bg-[#544738]/70 my-0.5"></div>
+
+				<!-- Below Castle: Cannon Shots (500px Alt+1, 1500px Alt+2) -->
+				{#each quickCannonModes as cfg (cfg.mode)}
+					{@const canFire =
+						uiTick >= 0
+							? sim.canFireCastleCannon(controlledPlayer.team, cfg.mode, controlledPlayer)
+							: false}
+					{@const shotCost =
+						uiTick >= 0 ? sim.getCastleCannonShotCost(controlledPlayer.team, cfg.mode) : 1}
+					{@const enemyCount =
+						uiTick >= 0 ? sim.getCastleCannonEnemyCount(controlledPlayer.team, cfg.range, true) : 0}
+					<div class="relative group/tip">
+						<button
+							type="button"
+							onclick={() => {
+								if (!canFire) return;
+								if (
+									!routeOnlineCommand('CASTLE_SHOT', {
+										team: controlledPlayer.team,
+										playerSlot: controlledPlayer.slot,
+										targetId: cfg.mode
+									})
+								) {
+									sim.fireCastleCannon(controlledPlayer.team, cfg.mode, controlledPlayer);
+								}
+							}}
+							onmouseenter={() => renderer?.setHoveredCastleCannonMode(cfg.mode)}
+							onmouseleave={() => renderer?.setHoveredCastleCannonMode(null)}
+							disabled={!canFire}
+							data-testid="hud-topbar-cannon-{cfg.mode}-btn"
+							aria-label="Гармата замку {cfg.range}px ({shotCost}g, {cfg.hotkey})"
+							aria-keyshortcuts={cfg.hotkey.toLowerCase()}
+							class="relative w-11 h-11 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md {canFire
+								? cfg.activeCls
+								: 'bg-[#121620] border-slate-800 text-slate-600 opacity-50 cursor-not-allowed'}"
+						>
+							<UiIcon name="crosshair" class="w-5 h-5 {canFire ? cfg.iconCls : 'text-slate-500'}" />
+							<span
+								class="absolute top-0 right-0 px-1 py-0.2 rounded-bl-[6px] rounded-tr-[9px] bg-black/75 text-[8px] font-mono font-bold leading-none border-l border-b {cfg.keyCls}"
+							>
+								{cfg.hotkey}
+							</span>
+							{#if cannonCd > 0}
+								<CooldownOverlay remaining={cannonCd} max={cannonMaxCd} />
+							{:else if enemyCount > 0}
+								<span
+									class="absolute -bottom-1 -right-1 text-[8px] font-mono bg-black/85 px-1 py-0.5 rounded font-bold leading-none border {cfg.badgeCls}"
+								>
+									{enemyCount}
+								</span>
+							{/if}
+						</button>
+						<div class="{sideTipClass} py-1.5 {cfg.tipCls} flex flex-col gap-0.5">
+							<div class="flex items-center gap-1.5 font-bold">
+								<span>Гармата · {cfg.range}px ({shotCost}g)</span>
+								<span
+									class="text-[9px] font-mono font-bold bg-black/60 px-1 rounded border {cfg.keyCls}"
+								>
+									{cfg.hotkey}
+								</span>
+							</div>
+							<span class="text-[10px] text-slate-300 font-normal">
+								Ворог у {cfg.range}px або союзник 50% • Ворогів: {enemyCount}
+							</span>
+						</div>
+					</div>
+				{/each}
+			</div>
+
+			<!-- Opposite Side Dock: Global Actions (Commanders, Forge, Shop) matching hud-quick-focus-dock style -->
+			{@const commander = uiTick >= 0 ? findCommander(controlledPlayer.commander) : null}
+			{@const commanderStatus =
+				uiTick >= 0
+					? sim.canSelectOrChangeCommander(controlledPlayer.team, controlledPlayer)
+					: sim.canSelectOrChangeCommander(controlledPlayer.team, controlledPlayer)}
+			{@const oppositeSideTipClass = `pointer-events-none absolute top-1/2 -translate-y-1/2 ${
+				isEastSide ? 'left-full ml-2.5' : 'right-full mr-2.5'
+			} z-50 whitespace-nowrap rounded-md border border-[#544738] bg-[#0f141f]/95 px-2.5 py-1 text-[11px] shadow-2xl opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150`}
+			<div
+				data-testid="topbar-game-actions-dock"
+				class="absolute top-1/2 -translate-y-1/2 {isEastSide
+					? 'left-0 rounded-r-2xl rounded-l-none border-y-2 border-r-2 border-l-0'
+					: 'right-0 rounded-l-2xl rounded-r-none border-y-2 border-l-2 border-r-0'} z-20 flex flex-col items-center gap-1.5 bg-[#131722]/90 backdrop-blur-md border-[#544738] p-1.5 shadow-2xl pointer-events-auto"
+			>
+				<!-- Commanders (C) -->
+				<div class="relative group/tip">
+					<button
+						type="button"
+						onclick={() => openExclusiveModal('commander')}
+						data-testid="hud-commander-btn"
+						aria-label="Командири: {commander
+							? `${commander.name}${controlledPlayer.isRandomCommander ? ' ×2' : ''} (${commander.nickname})`
+							: commanderStatus.hasHall
+								? 'доступний вибір командира'
+								: 'потрібен Дім командира'} (Гаряча клавіша: C)"
+						aria-keyshortcuts="c"
+						class="relative w-14 h-14 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md bg-[#16192b] hover:bg-[#222745] border-indigo-500/70 hover:border-indigo-400 text-indigo-200"
+					>
+						<UiIcon
+							name="crown"
+							class="w-7 h-7 {commander ? 'text-indigo-300' : 'text-indigo-400/80'}"
+						/>
+						<span
+							class="absolute top-0 right-0 px-1 py-0.2 rounded-bl-[6px] rounded-tr-[9px] bg-black/75 text-[8px] font-mono font-bold leading-none border-l border-b border-indigo-500/60 text-indigo-300"
+						>
+							C
+						</span>
+						{#if commander}
+							<span
+								class="absolute -bottom-1 -right-1 text-[9px] font-mono bg-indigo-600 px-1 py-0.5 rounded text-white font-bold leading-none border border-indigo-300/60"
+							>
+								{controlledPlayer.isRandomCommander ? '×2' : '✓'}
+							</span>
+						{/if}
+					</button>
+					<div class="{oppositeSideTipClass} text-indigo-200 flex items-center gap-1.5">
+						<span>
+							Командир: {commander
+								? `${commander.name}${controlledPlayer.isRandomCommander ? ' (×2)' : ''}`
+								: commanderStatus.hasHall
+									? 'Можна обрати'
+									: 'Не обрано'}
+						</span>
+						<span
+							class="text-[9px] font-mono font-bold text-indigo-300 bg-black/60 px-1 rounded border border-indigo-500/60"
+						>
+							C
+						</span>
+					</div>
+				</div>
+
+				<!-- War Forge (K) -->
+				<div class="relative group/tip">
+					<button
+						type="button"
+						onclick={() => openExclusiveModal('forge')}
+						data-testid="hud-forge-btn"
+						aria-label="Військова Кузня (Гаряча клавіша: K)"
+						aria-keyshortcuts="k"
+						class="relative w-14 h-14 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md bg-[#1a2030] hover:bg-[#232b40] border-slate-700 hover:border-amber-500/70 text-amber-300"
+					>
+						<UiIcon name="hammer" class="w-7 h-7 text-amber-400" />
+						<span
+							class="absolute top-0 right-0 px-1 py-0.2 rounded-bl-[6px] rounded-tr-[9px] bg-black/75 text-[8px] font-mono font-bold leading-none border-l border-b border-[#544738] text-amber-300"
+						>
+							K
+						</span>
+						{#if controlledPlayer.forge.attack + controlledPlayer.forge.armor + controlledPlayer.forge.econ > 0}
+							<span
+								class="absolute -bottom-1 -left-1 bg-amber-500 text-slate-950 text-[9px] w-4 h-4 rounded-full font-bold flex items-center justify-center leading-none shadow"
+							>
+								{controlledPlayer.forge.attack +
+									controlledPlayer.forge.armor +
+									controlledPlayer.forge.econ}
+							</span>
+						{/if}
+					</button>
+					<div class="{oppositeSideTipClass} text-amber-100 flex items-center gap-1.5">
+						<span>Військова Кузня</span>
+						<span
+							class="text-[9px] font-mono font-bold text-amber-400 bg-black/60 px-1 rounded border border-[#544738]"
+						>
+							K
+						</span>
+					</div>
+				</div>
+
+				<!-- Castle Shop (B) -->
+				<div class="relative group/tip">
+					<button
+						type="button"
+						onclick={() => openExclusiveModal('shop')}
+						data-testid="hud-shop-btn"
+						aria-label="Магазин: припаси та захист (Гаряча клавіша: B)"
+						aria-keyshortcuts="b"
+						class="relative w-14 h-14 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md bg-[#15281e] hover:bg-[#1b3828] border-emerald-600/70 hover:border-emerald-400 text-emerald-300"
+					>
+						<UiIcon name="shoppingBag" class="w-7 h-7 text-emerald-400" />
+						<span
+							class="absolute top-0 right-0 px-1 py-0.2 rounded-bl-[6px] rounded-tr-[9px] bg-black/75 text-[8px] font-mono font-bold leading-none border-l border-b border-emerald-600/70 text-emerald-300"
+						>
+							B
+						</span>
+					</button>
+					<div class="{oppositeSideTipClass} text-emerald-200 flex items-center gap-1.5">
+						<span>Магазин</span>
+						<span
+							class="text-[9px] font-mono font-bold text-emerald-300 bg-black/60 px-1 rounded border border-emerald-600/70"
+						>
+							B
 						</span>
 					</div>
 				</div>
@@ -2203,6 +2678,9 @@
 		}}
 		onOpenForge={() => {
 			isForgeOpen = true;
+		}}
+		onOpenCommander={() => {
+			isCommanderOpen = true;
 		}}
 		onStartRescueTargeting={() => activateRescueStrikeTargeting(false)}
 		onClose={() => {

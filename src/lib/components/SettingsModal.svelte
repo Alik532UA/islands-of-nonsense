@@ -56,7 +56,9 @@
 		data-testid="settings-modal"
 	>
 		<div
-			class="relative w-full max-w-4xl max-h-[90vh] flex flex-col bg-gradient-to-b from-[#181d28] to-[#0d1017] border-2 border-[#8c7456] rounded-2xl shadow-2xl overflow-hidden p-5 sm:p-6 text-white"
+			class="relative w-full {activeTab === 'interface'
+				? 'max-w-6xl'
+				: 'max-w-4xl'} max-h-[90vh] flex flex-col bg-gradient-to-b from-[#181d28] to-[#0d1017] border-2 border-[#8c7456] rounded-2xl shadow-2xl overflow-hidden p-5 sm:p-6 text-white transition-[max-width] duration-200"
 			style="box-shadow: 0 0 35px rgba(0,0,0,0.9), inset 0 0 20px rgba(140,116,86,0.15);"
 		>
 			<!-- Header -->
@@ -262,331 +264,325 @@
 						</div>
 					</div>
 				{:else if activeTab === 'interface'}
-					<div class="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in duration-100">
-						<!-- Column 1: Graphics, Controls, UI Layout & UI Scale -->
-						<div class="space-y-4">
-							<!-- Graphics Style Selector -->
-							<div class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 space-y-3">
-								<div class="space-y-0.5">
-									<div class="text-xs font-bold text-slate-200">{t('settings.graphicsStyle')}</div>
-									<div class="text-[11px] text-slate-400">{t('settings.graphicsStyleDesc')}</div>
-								</div>
-
-								<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-									{#each GRAPHICS_STYLES as styleId}
-										<button
-											type="button"
-											class="p-3 rounded-xl border text-left transition flex items-center justify-between gap-3 cursor-pointer {settings.graphicsStyle ===
-											styleId
-												? 'bg-amber-500/20 border-amber-500/60 text-amber-200 shadow-sm'
-												: 'bg-[#0f131d] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
-											onclick={() => settings.setGraphicsStyle(styleId)}
-											data-testid={`settings-graphics-${styleId}`}
-										>
-											<div class="flex items-center gap-2.5">
-												<div
-													class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 {settings.graphicsStyle ===
-													styleId
-														? 'bg-amber-500/30 text-amber-300'
-														: 'bg-slate-800/80 text-slate-400'}"
-												>
-													{styleId === '2.5d' ? '2.5D' : 'HD'}
-												</div>
-												<div>
-													<div class="text-xs font-bold text-slate-200">
-														{t(`settings.graphicsStyle.${styleId}`)}
-													</div>
-													<div class="text-[10px] text-slate-400">
-														{styleId === '2.5d' ? 'Векторна класика' : 'Деталізовані моделі'}
-													</div>
-												</div>
-											</div>
-
-											{#if settings.graphicsStyle === styleId}
-												<span
-													class="p-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 shrink-0"
-												>
-													<UiIcon name="check" class="w-3.5 h-3.5" />
-												</span>
-											{/if}
-										</button>
-									{/each}
-								</div>
+					<div
+						class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in duration-100"
+					>
+						<!-- Graphics Style Selector -->
+						<div class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 space-y-3">
+							<div class="space-y-0.5">
+								<div class="text-xs font-bold text-slate-200">{t('settings.graphicsStyle')}</div>
+								<div class="text-[11px] text-slate-400">{t('settings.graphicsStyleDesc')}</div>
 							</div>
 
-							<!-- Control Preset Selector (Islands of Nonsense vs Warcraft III) -->
-							<div class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 space-y-3">
-								<div class="space-y-0.5">
-									<div class="text-xs font-bold text-slate-200">{t('settings.controlPreset')}</div>
-									<div class="text-[11px] text-slate-400">{t('settings.controlPresetDesc')}</div>
-								</div>
-
-								<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-									{#each CONTROL_PRESETS as presetId}
-										<button
-											type="button"
-											class="p-3 rounded-xl border text-left transition flex items-center justify-between gap-3 cursor-pointer {settings.controlPreset ===
-											presetId
-												? 'bg-amber-500/20 border-amber-500/60 text-amber-200 shadow-sm'
-												: 'bg-[#0f131d] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
-											onclick={() => settings.setControlPreset(presetId)}
-											data-testid={`settings-control-${presetId}`}
-										>
-											<div class="flex items-center gap-2.5">
-												<div
-													class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 {settings.controlPreset ===
-													presetId
-														? 'bg-amber-500/30 text-amber-300'
-														: 'bg-slate-800/80 text-slate-400'}"
-												>
-													{#if presetId === 'islands-of-nonsense'}
-														<UiIcon name="sparkles" class="w-4 h-4 text-amber-300" />
-													{:else}
-														<UiIcon name="swords" class="w-4 h-4 text-slate-300" />
-													{/if}
+							<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+								{#each GRAPHICS_STYLES as styleId}
+									<button
+										type="button"
+										class="p-3 rounded-xl border text-left transition flex items-center justify-between gap-3 cursor-pointer {settings.graphicsStyle ===
+										styleId
+											? 'bg-amber-500/20 border-amber-500/60 text-amber-200 shadow-sm'
+											: 'bg-[#0f131d] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
+										onclick={() => settings.setGraphicsStyle(styleId)}
+										data-testid={`settings-graphics-${styleId}`}
+									>
+										<div class="flex items-center gap-2.5">
+											<div
+												class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 {settings.graphicsStyle ===
+												styleId
+													? 'bg-amber-500/30 text-amber-300'
+													: 'bg-slate-800/80 text-slate-400'}"
+											>
+												{styleId === '2.5d' ? '2.5D' : 'HD'}
+											</div>
+											<div>
+												<div class="text-xs font-bold text-slate-200">
+													{t(`settings.graphicsStyle.${styleId}`)}
 												</div>
-												<div>
-													<div class="text-xs font-bold text-slate-200">
-														{t(`settings.controlPreset.${presetId}`)}
-													</div>
-													<div class="text-[10px] text-slate-400">
-														{t(`settings.controlPreset.${presetId}.desc`)}
-													</div>
+												<div class="text-[10px] text-slate-400">
+													{styleId === '2.5d' ? 'Векторна класика' : 'Деталізовані моделі'}
 												</div>
 											</div>
+										</div>
 
-											{#if settings.controlPreset === presetId}
-												<span
-													class="p-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 shrink-0"
-												>
-													<UiIcon name="check" class="w-3.5 h-3.5" />
-												</span>
-											{/if}
-										</button>
-									{/each}
-								</div>
-							</div>
-
-							<!-- UI Layout Preset Selector -->
-							<div class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 space-y-3">
-								<div class="space-y-0.5">
-									<div class="text-xs font-bold text-slate-200">{t('settings.uiLayoutPreset')}</div>
-									<div class="text-[11px] text-slate-400">{t('settings.uiLayoutPresetDesc')}</div>
-								</div>
-
-								<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-									{#each UI_LAYOUT_PRESETS as layoutId}
-										<button
-											type="button"
-											class="p-3 rounded-xl border text-left transition flex items-center justify-between gap-3 cursor-pointer {settings.uiLayoutPreset ===
-											layoutId
-												? 'bg-amber-500/20 border-amber-500/60 text-amber-200 shadow-sm'
-												: 'bg-[#0f131d] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
-											onclick={() => settings.setUiLayoutPreset(layoutId)}
-											data-testid={`settings-layout-${layoutId}`}
-										>
-											<div class="flex items-center gap-2.5">
-												<div
-													class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 {settings.uiLayoutPreset ===
-													layoutId
-														? 'bg-amber-500/30 text-amber-300'
-														: 'bg-slate-800/80 text-slate-400'}"
-												>
-													{#if layoutId === 'islands-of-nonsense'}
-														<UiIcon name="sparkles" class="w-4 h-4 text-amber-300" />
-													{:else}
-														<UiIcon name="castle" class="w-4 h-4 text-slate-300" />
-													{/if}
-												</div>
-												<div>
-													<div class="text-xs font-bold text-slate-200">
-														{t(`settings.uiLayoutPreset.${layoutId}`)}
-													</div>
-													<div class="text-[10px] text-slate-400">
-														{t(`settings.uiLayoutPreset.${layoutId}.desc`)}
-													</div>
-												</div>
-											</div>
-
-											{#if settings.uiLayoutPreset === layoutId}
-												<span
-													class="p-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 shrink-0"
-												>
-													<UiIcon name="check" class="w-3.5 h-3.5" />
-												</span>
-											{/if}
-										</button>
-									{/each}
-								</div>
-							</div>
-
-							<!-- UI Scale Presets -->
-							<div class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 space-y-3">
-								<div class="space-y-0.5">
-									<div class="text-xs font-bold text-slate-200">{t('settings.uiScale')}</div>
-									<div class="text-[11px] text-slate-400">{t('settings.uiScaleDesc')}</div>
-								</div>
-
-								<div class="grid grid-cols-4 gap-2 pt-1">
-									{#each UI_SCALES as scale}
-										<button
-											type="button"
-											class="py-2 px-1 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center gap-1 cursor-pointer {settings.uiScale ===
-											scale
-												? 'bg-amber-500/20 border-amber-500/60 text-amber-200 shadow-sm'
-												: 'bg-[#0f131d] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
-											onclick={() => settings.setUiScale(scale)}
-											data-testid={`settings-scale-${scale}`}
-										>
-											<span>{Math.round(scale * 100)}%</span>
-											<span class="text-[9px] text-slate-400 font-normal">
-												{scale === 0.85
-													? '85%'
-													: scale === 1
-														? '100%'
-														: scale === 1.15
-															? '115%'
-															: '130%'}
+										{#if settings.graphicsStyle === styleId}
+											<span
+												class="p-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 shrink-0"
+											>
+												<UiIcon name="check" class="w-3.5 h-3.5" />
 											</span>
-										</button>
-									{/each}
-								</div>
+										{/if}
+									</button>
+								{/each}
 							</div>
 						</div>
 
-						<!-- Column 2: Build Queue Mode, Themes, Fullscreen -->
-						<div class="space-y-4">
-							<!-- Build Queue Mode (Settings - зручний vs класичний) -->
-							<div class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 space-y-3">
-								<div class="space-y-0.5">
-									<div class="text-xs font-bold text-slate-200">{t('settings.buildQueueMode')}</div>
-									<div class="text-[11px] text-slate-400">{t('settings.buildQueueModeDesc')}</div>
-								</div>
+						<!-- Control Preset Selector (Islands of Nonsense vs Warcraft III) -->
+						<div class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 space-y-3">
+							<div class="space-y-0.5">
+								<div class="text-xs font-bold text-slate-200">{t('settings.controlPreset')}</div>
+								<div class="text-[11px] text-slate-400">{t('settings.controlPresetDesc')}</div>
+							</div>
 
-								<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-									{#each BUILD_QUEUE_MODES as modeId}
-										<button
-											type="button"
-											class="p-3 rounded-xl border text-left transition flex items-center justify-between gap-3 cursor-pointer {settings.buildQueueMode ===
-											modeId
-												? 'bg-amber-500/20 border-amber-500/60 text-amber-200 shadow-sm'
-												: 'bg-[#0f131d] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
-											onclick={() => settings.setBuildQueueMode(modeId)}
-											data-testid={`settings-buildqueue-${modeId}`}
-										>
-											<div class="flex items-center gap-2.5">
-												<div
-													class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 {settings.buildQueueMode ===
-													modeId
-														? 'bg-amber-500/30 text-amber-300'
-														: 'bg-slate-800/80 text-slate-400'}"
-												>
-													{#if modeId === 'convenient'}
-														<UiIcon name="zap" class="w-4 h-4 text-amber-300" />
-													{:else}
-														<UiIcon name="scroll" class="w-4 h-4 text-slate-300" />
-													{/if}
+							<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+								{#each CONTROL_PRESETS as presetId}
+									<button
+										type="button"
+										class="p-3 rounded-xl border text-left transition flex items-center justify-between gap-3 cursor-pointer {settings.controlPreset ===
+										presetId
+											? 'bg-amber-500/20 border-amber-500/60 text-amber-200 shadow-sm'
+											: 'bg-[#0f131d] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
+										onclick={() => settings.setControlPreset(presetId)}
+										data-testid={`settings-control-${presetId}`}
+									>
+										<div class="flex items-center gap-2.5">
+											<div
+												class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 {settings.controlPreset ===
+												presetId
+													? 'bg-amber-500/30 text-amber-300'
+													: 'bg-slate-800/80 text-slate-400'}"
+											>
+												{#if presetId === 'islands-of-nonsense'}
+													<UiIcon name="sparkles" class="w-4 h-4 text-amber-300" />
+												{:else}
+													<UiIcon name="swords" class="w-4 h-4 text-slate-300" />
+												{/if}
+											</div>
+											<div>
+												<div class="text-xs font-bold text-slate-200">
+													{t(`settings.controlPreset.${presetId}`)}
 												</div>
-												<div>
-													<div class="text-xs font-bold text-slate-200">
-														{t(`settings.buildQueueMode.${modeId}`)}
-													</div>
-													<div class="text-[10px] text-slate-400">
-														{modeId === 'convenient'
-															? 'Без Shift: у чергу (з Shift: перервати)'
-															: 'Без Shift: перервати (з Shift: у чергу)'}
-													</div>
+												<div class="text-[10px] text-slate-400">
+													{t(`settings.controlPreset.${presetId}.desc`)}
 												</div>
 											</div>
+										</div>
 
-											{#if settings.buildQueueMode === modeId}
+										{#if settings.controlPreset === presetId}
+											<span
+												class="p-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 shrink-0"
+											>
+												<UiIcon name="check" class="w-3.5 h-3.5" />
+											</span>
+										{/if}
+									</button>
+								{/each}
+							</div>
+						</div>
+
+						<!-- UI Layout Preset Selector -->
+						<div class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 space-y-3">
+							<div class="space-y-0.5">
+								<div class="text-xs font-bold text-slate-200">{t('settings.uiLayoutPreset')}</div>
+								<div class="text-[11px] text-slate-400">{t('settings.uiLayoutPresetDesc')}</div>
+							</div>
+
+							<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+								{#each UI_LAYOUT_PRESETS as layoutId}
+									<button
+										type="button"
+										class="p-3 rounded-xl border text-left transition flex items-center justify-between gap-3 cursor-pointer {settings.uiLayoutPreset ===
+										layoutId
+											? 'bg-amber-500/20 border-amber-500/60 text-amber-200 shadow-sm'
+											: 'bg-[#0f131d] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
+										onclick={() => settings.setUiLayoutPreset(layoutId)}
+										data-testid={`settings-layout-${layoutId}`}
+									>
+										<div class="flex items-center gap-2.5">
+											<div
+												class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 {settings.uiLayoutPreset ===
+												layoutId
+													? 'bg-amber-500/30 text-amber-300'
+													: 'bg-slate-800/80 text-slate-400'}"
+											>
+												{#if layoutId === 'islands-of-nonsense'}
+													<UiIcon name="sparkles" class="w-4 h-4 text-amber-300" />
+												{:else}
+													<UiIcon name="castle" class="w-4 h-4 text-slate-300" />
+												{/if}
+											</div>
+											<div>
+												<div class="text-xs font-bold text-slate-200">
+													{t(`settings.uiLayoutPreset.${layoutId}`)}
+												</div>
+												<div class="text-[10px] text-slate-400">
+													{t(`settings.uiLayoutPreset.${layoutId}.desc`)}
+												</div>
+											</div>
+										</div>
+
+										{#if settings.uiLayoutPreset === layoutId}
+											<span
+												class="p-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 shrink-0"
+											>
+												<UiIcon name="check" class="w-3.5 h-3.5" />
+											</span>
+										{/if}
+									</button>
+								{/each}
+							</div>
+						</div>
+
+						<!-- UI Scale Presets -->
+						<div class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 space-y-3">
+							<div class="space-y-0.5">
+								<div class="text-xs font-bold text-slate-200">{t('settings.uiScale')}</div>
+								<div class="text-[11px] text-slate-400">{t('settings.uiScaleDesc')}</div>
+							</div>
+
+							<div class="grid grid-cols-4 gap-2 pt-1">
+								{#each UI_SCALES as scale}
+									<button
+										type="button"
+										class="py-2 px-1 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center gap-1 cursor-pointer {settings.uiScale ===
+										scale
+											? 'bg-amber-500/20 border-amber-500/60 text-amber-200 shadow-sm'
+											: 'bg-[#0f131d] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
+										onclick={() => settings.setUiScale(scale)}
+										data-testid={`settings-scale-${scale}`}
+									>
+										<span>{Math.round(scale * 100)}%</span>
+										<span class="text-[9px] text-slate-400 font-normal">
+											{scale === 0.85
+												? '85%'
+												: scale === 1
+													? '100%'
+													: scale === 1.15
+														? '115%'
+														: '130%'}
+										</span>
+									</button>
+								{/each}
+							</div>
+						</div>
+						<!-- Build Queue Mode (Settings - зручний vs класичний) -->
+						<div class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 space-y-3">
+							<div class="space-y-0.5">
+								<div class="text-xs font-bold text-slate-200">{t('settings.buildQueueMode')}</div>
+								<div class="text-[11px] text-slate-400">{t('settings.buildQueueModeDesc')}</div>
+							</div>
+
+							<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+								{#each BUILD_QUEUE_MODES as modeId}
+									<button
+										type="button"
+										class="p-3 rounded-xl border text-left transition flex items-center justify-between gap-3 cursor-pointer {settings.buildQueueMode ===
+										modeId
+											? 'bg-amber-500/20 border-amber-500/60 text-amber-200 shadow-sm'
+											: 'bg-[#0f131d] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
+										onclick={() => settings.setBuildQueueMode(modeId)}
+										data-testid={`settings-buildqueue-${modeId}`}
+									>
+										<div class="flex items-center gap-2.5">
+											<div
+												class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 {settings.buildQueueMode ===
+												modeId
+													? 'bg-amber-500/30 text-amber-300'
+													: 'bg-slate-800/80 text-slate-400'}"
+											>
+												{#if modeId === 'convenient'}
+													<UiIcon name="zap" class="w-4 h-4 text-amber-300" />
+												{:else}
+													<UiIcon name="scroll" class="w-4 h-4 text-slate-300" />
+												{/if}
+											</div>
+											<div>
+												<div class="text-xs font-bold text-slate-200">
+													{t(`settings.buildQueueMode.${modeId}`)}
+												</div>
+												<div class="text-[10px] text-slate-400">
+													{modeId === 'convenient'
+														? 'Без Shift: у чергу (з Shift: перервати)'
+														: 'Без Shift: перервати (з Shift: у чергу)'}
+												</div>
+											</div>
+										</div>
+
+										{#if settings.buildQueueMode === modeId}
+											<span
+												class="p-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 shrink-0"
+											>
+												<UiIcon name="check" class="w-3.5 h-3.5" />
+											</span>
+										{/if}
+									</button>
+								{/each}
+							</div>
+						</div>
+
+						<!-- Theme Selector (from Slovko) -->
+						<div class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 space-y-3">
+							<div class="space-y-0.5">
+								<div class="text-xs font-bold text-slate-200">{t('settings.theme')}</div>
+								<div class="text-[11px] text-slate-400">{t('settings.themeDesc')}</div>
+							</div>
+
+							<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+								{#each APP_THEMES as themeId}
+									<button
+										type="button"
+										class="p-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-between gap-2 cursor-pointer {settings.theme ===
+										themeId
+											? 'bg-amber-500/20 border-amber-500/60 text-amber-200 shadow-sm'
+											: 'bg-[#0f131d] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
+										onclick={() => settings.setTheme(themeId)}
+										data-testid={`settings-theme-${themeId}`}
+									>
+										<!-- Theme Color Preview Swatch -->
+										<div
+											class="w-full h-8 rounded-lg flex items-center justify-center relative overflow-hidden border border-white/10"
+											style={themeId === 'dark-gray'
+												? 'background: #0b0f19;'
+												: themeId === 'light-gray'
+													? 'background: #f5f6fa;'
+													: themeId === 'orange'
+														? 'background: linear-gradient(135deg, #77216f, #e95420);'
+														: 'background: #b2f7b8;'}
+										>
+											{#if settings.theme === themeId}
 												<span
-													class="p-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 shrink-0"
+													class="p-0.5 rounded-full {themeId === 'light-gray' || themeId === 'green'
+														? 'bg-slate-900/60 text-amber-300'
+														: 'bg-black/60 text-amber-300'}"
 												>
 													<UiIcon name="check" class="w-3.5 h-3.5" />
 												</span>
 											{/if}
-										</button>
-									{/each}
-								</div>
-							</div>
-
-							<!-- Theme Selector (from Slovko) -->
-							<div class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 space-y-3">
-								<div class="space-y-0.5">
-									<div class="text-xs font-bold text-slate-200">{t('settings.theme')}</div>
-									<div class="text-[11px] text-slate-400">{t('settings.themeDesc')}</div>
-								</div>
-
-								<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-									{#each APP_THEMES as themeId}
-										<button
-											type="button"
-											class="p-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-between gap-2 cursor-pointer {settings.theme ===
-											themeId
-												? 'bg-amber-500/20 border-amber-500/60 text-amber-200 shadow-sm'
-												: 'bg-[#0f131d] border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}"
-											onclick={() => settings.setTheme(themeId)}
-											data-testid={`settings-theme-${themeId}`}
-										>
-											<!-- Theme Color Preview Swatch -->
-											<div
-												class="w-full h-8 rounded-lg flex items-center justify-center relative overflow-hidden border border-white/10"
-												style={themeId === 'dark-gray'
-													? 'background: #0b0f19;'
-													: themeId === 'light-gray'
-														? 'background: #f5f6fa;'
-														: themeId === 'orange'
-															? 'background: linear-gradient(135deg, #77216f, #e95420);'
-															: 'background: #b2f7b8;'}
-											>
-												{#if settings.theme === themeId}
-													<span
-														class="p-0.5 rounded-full {themeId === 'light-gray' ||
-														themeId === 'green'
-															? 'bg-slate-900/60 text-amber-300'
-															: 'bg-black/60 text-amber-300'}"
-													>
-														<UiIcon name="check" class="w-3.5 h-3.5" />
-													</span>
-												{/if}
-											</div>
-											<span class="text-[11px] font-semibold truncate w-full text-center">
-												{t(`settings.theme.${themeId}`)}
-											</span>
-										</button>
-									{/each}
-								</div>
-							</div>
-
-							<!-- Fullscreen Option -->
-							<div
-								class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 flex items-center justify-between gap-4"
-							>
-								<div class="space-y-0.5">
-									<div class="text-xs font-bold text-slate-200">{t('settings.fullscreen')}</div>
-									<div class="text-[11px] text-slate-400">{t('settings.fullscreenDesc')}</div>
-								</div>
-
-								{#if canFullscreen() || !isStandalone()}
-									<button
-										type="button"
-										onclick={() => fullscreen.toggle()}
-										class="py-2 px-3 rounded-lg border border-slate-700 bg-[#0f131d] hover:bg-[#1a2130] text-xs font-semibold text-slate-200 transition flex items-center gap-1.5 cursor-pointer shrink-0"
-										data-testid="settings-fullscreen-btn"
-									>
-										{#if fullscreen.active}
-											<UiIcon name="minimize2" class="w-4 h-4 text-amber-400" />
-											<span>{t('settings.disabled')}</span>
-										{:else}
-											<UiIcon name="maximize2" class="w-4 h-4 text-sky-400" />
-											<span>{t('settings.enabled')}</span>
-										{/if}
+										</div>
+										<span class="text-[11px] font-semibold truncate w-full text-center">
+											{t(`settings.theme.${themeId}`)}
+										</span>
 									</button>
-								{:else}
-									<span class="text-xs text-slate-500 font-mono">—</span>
-								{/if}
+								{/each}
 							</div>
+						</div>
+
+						<!-- Fullscreen Option -->
+						<div
+							class="bg-[#121622] border border-slate-800/80 rounded-xl p-4 flex items-center justify-between gap-4"
+						>
+							<div class="space-y-0.5">
+								<div class="text-xs font-bold text-slate-200">{t('settings.fullscreen')}</div>
+								<div class="text-[11px] text-slate-400">{t('settings.fullscreenDesc')}</div>
+							</div>
+
+							{#if canFullscreen() || !isStandalone()}
+								<button
+									type="button"
+									onclick={() => fullscreen.toggle()}
+									class="py-2 px-3 rounded-lg border border-slate-700 bg-[#0f131d] hover:bg-[#1a2130] text-xs font-semibold text-slate-200 transition flex items-center gap-1.5 cursor-pointer shrink-0"
+									data-testid="settings-fullscreen-btn"
+								>
+									{#if fullscreen.active}
+										<UiIcon name="minimize2" class="w-4 h-4 text-amber-400" />
+										<span>{t('settings.disabled')}</span>
+									{:else}
+										<UiIcon name="maximize2" class="w-4 h-4 text-sky-400" />
+										<span>{t('settings.enabled')}</span>
+									{/if}
+								</button>
+							{:else}
+								<span class="text-xs text-slate-500 font-mono">—</span>
+							{/if}
 						</div>
 					</div>
 				{/if}
