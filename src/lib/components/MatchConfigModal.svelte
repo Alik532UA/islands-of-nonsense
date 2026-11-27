@@ -1083,15 +1083,14 @@
 	{:else}
 		<!-- MODAL DIALOG POPUP (used during in-battle pause) -->
 		<div
-			class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[10000] p-2 sm:p-4 select-none animate-in fade-in duration-150"
+			class="lg-hud-backdrop fixed inset-0 flex items-center justify-center z-[10000] p-2 sm:p-4 select-none animate-in fade-in duration-150"
 			role="dialog"
 			aria-modal="true"
 			aria-label="Конфігурація матчу"
 			data-testid="match-config-modal"
 		>
 			<div
-				class="bg-gradient-to-b from-[#181d28] to-[#0d1017] border-2 border-[#8c7456] rounded-3xl w-full max-w-6xl xl:max-w-7xl max-h-[92vh] shadow-2xl flex flex-col overflow-hidden text-white"
-				style="box-shadow: 0 0 40px rgba(0,0,0,0.9), inset 0 0 20px rgba(140,116,86,0.15);"
+				class="lg-hud-modal border-2 border-[#8c7456]/80 rounded-3xl w-full max-w-6xl xl:max-w-7xl max-h-[92vh] flex flex-col overflow-hidden text-white"
 			>
 				<!-- Dialog Header -->
 				<div

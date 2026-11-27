@@ -4,6 +4,7 @@
 	import { BUILDINGS_MAP } from '../engine/gameData';
 	import { getCommanderForgeDiscount, applyCommanderForgeCostDiscount } from '../engine/commanders';
 	import { sound } from '../services/audio';
+	import { t } from '$lib/i18n';
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	type ForgeUpgradeType = 'attack' | 'armor' | 'econ';
 
@@ -71,11 +72,11 @@
 		return [
 			{
 				type: 'attack' as const,
-				title: 'Гострота Зброї',
+				title: t('forge.atkTitle'),
 				icon: 'sword' as const,
 				level: atkLvl,
 				maxLevel: 5,
-				currentText: `+${atkLvl * 8}% до шкоди`,
+				currentText: t('forge.atkCurrent', { pct: atkLvl * 8 }),
 				nextText: atkLvl < 5 ? `+${(atkLvl + 1) * 8}%` : null,
 				goldPrice: sim.getForgePrice(activeTeam, 'attack', player),
 				lumberPrice: sim.getForgeLumberPrice(activeTeam, 'attack', player),
@@ -83,11 +84,11 @@
 			},
 			{
 				type: 'armor' as const,
-				title: 'Ковані Лати',
+				title: t('forge.armTitle'),
 				icon: 'shield' as const,
 				level: armLvl,
 				maxLevel: 5,
-				currentText: `+${armLvl} до броні`,
+				currentText: t('forge.armCurrent', { val: armLvl }),
 				nextText: armLvl < 5 ? `+${armLvl + 1}` : null,
 				goldPrice: sim.getForgePrice(activeTeam, 'armor', player),
 				lumberPrice: sim.getForgeLumberPrice(activeTeam, 'armor', player),
@@ -95,11 +96,11 @@
 			},
 			{
 				type: 'econ' as const,
-				title: 'Гільдія Торговців',
+				title: t('forge.ecoTitle'),
 				icon: 'trendingUp' as const,
 				level: ecoLvl,
 				maxLevel: 3,
-				currentText: `+${ecoLvl * 10}% до доходу`,
+				currentText: t('forge.ecoCurrent', { pct: ecoLvl * 10 }),
 				nextText: ecoLvl < 3 ? `+${(ecoLvl + 1) * 10}%` : null,
 				goldPrice: sim.getForgePrice(activeTeam, 'econ', player),
 				lumberPrice: sim.getForgeLumberPrice(activeTeam, 'econ', player),
@@ -162,13 +163,12 @@
 	<div
 		role="dialog"
 		aria-modal="true"
-		aria-label="Військова Кузня"
-		class="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4 select-none"
+		aria-label={t('forge.title')}
+		class="lg-hud-backdrop fixed inset-0 flex items-center justify-center z-50 p-4 select-none"
 		data-testid="forge-modal"
 	>
 		<div
-			class="bg-[#121622] border-2 border-[#8c7456] rounded-2xl w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl text-white relative overflow-hidden"
-			style="box-shadow: 0 16px 48px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,215,140,0.12);"
+			class="lg-hud-modal bg-[#121622] border-2 border-[#8c7456]/80 rounded-2xl w-full max-w-xl max-h-[90vh] flex flex-col text-white relative overflow-hidden"
 		>
 			<!-- Header -->
 			<div
@@ -185,18 +185,21 @@
 							<h2
 								class="text-base sm:text-lg font-extrabold tracking-wide text-amber-300 uppercase"
 							>
-								Військова Кузня
+								{t('forge.title')}
 							</h2>
 							{#if isAlik}
 								<span
 									class="px-2 py-0.5 rounded-md bg-emerald-950/80 border border-emerald-500/50 text-[10px] font-bold text-emerald-300"
 								>
-									Знижка Алика -{forgeDiscountPct}%{player.isRandomCommander ? ' (×2)' : ''}
+									{t('forge.discount', {
+										pct: forgeDiscountPct,
+										boost: player.isRandomCommander ? ' (×2)' : ''
+									})}
 								</span>
 							{/if}
 						</div>
 						<p class="text-[11px] text-slate-400 truncate">
-							Ковальські покращення армії та економіки на поточний раунд
+							{t('forge.subtitle')}
 						</p>
 					</div>
 				</div>
@@ -206,7 +209,7 @@
 					<div
 						class="hidden sm:flex items-center gap-2.5 bg-[#0a0d14] border border-[#3b3226] rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold shadow-inner"
 					>
-						<span class="flex items-center gap-1 text-amber-400" title="Доступне золото">
+						<span class="flex items-center gap-1 text-amber-400" title={t('forge.goldAvail')}>
 							<UiIcon name="coins" class="w-3.5 h-3.5 text-amber-400" />
 							{isSandbox ? '∞' : playerGold}
 						</span>
@@ -215,7 +218,7 @@
 							class="flex items-center gap-1 {isSandbox || playerLumber > 0
 								? 'text-emerald-300'
 								: 'text-slate-500'}"
-							title="Доступна деревина"
+							title={t('forge.lumberAvail')}
 						>
 							<UiIcon
 								name="treePine"
@@ -232,7 +235,7 @@
 						onclick={() => (isOpen = false)}
 						data-testid="forge-close-btn"
 						class="w-9 h-9 rounded-lg bg-[#181d28] hover:bg-[#242c3d] border border-[#3b3226] hover:border-amber-500/70 text-slate-300 hover:text-amber-300 flex items-center justify-center transition cursor-pointer active:scale-95"
-						aria-label="Закрити Кузню"
+						aria-label={t('forge.close')}
 					>
 						<UiIcon name="x" class="w-4 h-4" />
 					</button>
@@ -254,7 +257,7 @@
 						<div class="flex items-center gap-2.5 min-w-0">
 							<UiIcon name="hammer" class="w-4 h-4 text-amber-400 animate-pulse shrink-0" />
 							<div class="text-xs font-bold text-amber-200">
-								Кузня зводиться робітником ({pct}%)
+								{t('forge.constructing', { pct })}
 							</div>
 						</div>
 						<div class="w-28 h-2 bg-[#0a0d14] rounded-full overflow-hidden border border-[#544738]">
@@ -276,9 +279,9 @@
 								<UiIcon name="hammer" class="w-4 h-4" />
 							</div>
 							<div class="min-w-0">
-								<div class="text-xs font-bold text-amber-200">Кузня ще не збудована</div>
+								<div class="text-xs font-bold text-amber-200">{t('forge.notBuiltTitle')}</div>
 								<div class="text-[11px] text-slate-400 mt-0.5">
-									Зведіть споруду на базі, щоб розблокувати ковальські покращення
+									{t('forge.notBuiltDesc')}
 								</div>
 							</div>
 						</div>
@@ -293,11 +296,11 @@
 									? 'bg-gradient-to-b from-amber-500 to-amber-700 hover:from-amber-400 hover:to-amber-600 border-amber-300 text-slate-950 shadow-lg shadow-amber-950/60'
 									: 'bg-[#181d28] border-[#3b3226] text-slate-400 opacity-75 cursor-not-allowed'}"
 								title={canAffordBuildForge
-									? 'Вибрати місце на мапі для будівництва Кузні'
-									: `Потрібно ${forgeGoldCost} золота та ${forgeLumberCost} деревини`}
+									? t('forge.buildTip')
+									: t('forge.needRes', { gold: forgeGoldCost, lumber: forgeLumberCost })}
 							>
 								<UiIcon name="hammer" class="w-3.5 h-3.5 shrink-0" />
-								<span>Будувати</span>
+								<span>{t('forge.build')}</span>
 								<span
 									class="flex items-center gap-1.5 font-mono text-[11px] pl-1.5 border-l {canAffordBuildForge
 										? 'border-slate-900/30'
@@ -329,7 +332,7 @@
 						data-testid="forge-active-banner"
 					>
 						<UiIcon name="checkCircle2" class="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-						<span>Кузня активна — покращення застосовуються миттєво до всієї армії</span>
+						<span>{t('forge.activeBanner')}</span>
 					</div>
 				{/if}
 
@@ -342,7 +345,7 @@
 						{@const canUpgrade = hasForge && !isMax && canAfford}
 
 						<div
-							class="bg-[#0b0e16] border border-[#3b3226] hover:border-[#544738] rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition shadow-inner"
+							class="lg-hud-subcard border border-[#3b3226]/80 hover:border-[#8c7456]/70 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition"
 							data-testid="forge-upgrade-card-{up.type}"
 						>
 							<div class="flex items-center gap-3.5 min-w-0">
@@ -398,7 +401,7 @@
 										? style.btnActive
 										: 'bg-[#171c29] border-[#293142] text-slate-500 cursor-not-allowed'}"
 								>
-									<span>Покращити</span>
+									<span>{t('forge.upgrade')}</span>
 									<span
 										class="flex items-center gap-1.5 font-mono text-[11px] pl-1.5 border-l {canUpgrade
 											? 'border-white/25'
@@ -433,7 +436,7 @@
 									class="px-3.5 py-2 rounded-xl border border-emerald-500/60 bg-emerald-950/60 text-emerald-300 text-xs font-extrabold tracking-wider flex items-center justify-center gap-1.5 shrink-0 min-w-[144px]"
 								>
 									<UiIcon name="check" class="w-3.5 h-3.5 text-emerald-400" />
-									МАКСИМУМ
+									{t('forge.max')}
 								</span>
 							{/if}
 						</div>

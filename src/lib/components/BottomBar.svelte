@@ -5,7 +5,6 @@
 	import { BATTLE_COMMAND_ROUTER_KEY, type BattleCommandRouter } from '$lib/net/onlineMatchSetup';
 	import { sound } from '../services/audio';
 	import {
-		formatRaceName,
 		getBaseBuildingsForRace,
 		getUpgradesForBuilding,
 		getUnit,
@@ -19,6 +18,8 @@
 	import type { SelectedEntity } from '../renderer/entityRenderer';
 	import { shortcutLetter, shortcutDigit, isEditableTarget } from '../hotkeys/hotkeys';
 	import { settings } from '../services/settings.svelte';
+	import { t } from '$lib/i18n';
+	import { CASTLE_ITEMS } from '../engine/items';
 
 	let {
 		sim,
@@ -314,15 +315,14 @@
 	<!-- 2. Entity Portrait & Health / Mana Vital Bars -->
 	<div
 		data-testid="hud-portrait-panel"
-		class="flex flex-col items-center {activeEntityType === 'worker'
+		class="lg-hud-panel flex flex-col items-center {activeEntityType === 'worker'
 			? 'justify-center p-2'
-			: 'justify-between px-3 py-2'} bg-[#131722]/95 backdrop-blur-md rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 {entityTeam ===
+			: 'justify-between px-3 py-2'} rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 {entityTeam ===
 		'neutral'
-			? 'border-purple-600/80 shadow-[0_0_12px_rgba(168,85,247,0.4)]'
+			? 'border-purple-500/80 shadow-[0_0_12px_rgba(168,85,247,0.4)]'
 			: isOpponent
-				? 'border-rose-900/80 shadow-rose-950/50'
-				: 'border-[#544738]'} shadow-inner shrink-0 w-36 h-[142px] pointer-events-auto"
-		style="box-shadow: inset 0 0 10px rgba(0,0,0,0.8);"
+				? 'border-rose-700/80 shadow-rose-950/50'
+				: 'border-[#544738]/80'} shrink-0 w-36 h-[142px] pointer-events-auto"
 	>
 		<!-- Stone Arch Portrait Frame -->
 		<div
@@ -443,15 +443,14 @@
 	<!-- 3. CENTER: Entity Stats & Characteristics Panel -->
 	<div
 		data-testid="hud-stats-panel"
-		class="relative {activeEntityType === 'worker'
+		class="lg-hud-panel relative {activeEntityType === 'worker'
 			? 'w-40 shrink-0'
-			: 'w-fit shrink-0 max-w-[420px]'} flex flex-col justify-between px-4 py-2 bg-[#131722]/95 backdrop-blur-md rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 {entityTeam ===
+			: 'w-fit shrink-0 max-w-[420px]'} flex flex-col justify-between px-4 py-2 rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 {entityTeam ===
 		'neutral'
-			? 'border-purple-600/80 shadow-[0_0_12px_rgba(168,85,247,0.4)]'
+			? 'border-purple-500/80 shadow-[0_0_12px_rgba(168,85,247,0.4)]'
 			: isOpponent
-				? 'border-rose-900/80 shadow-rose-950/50'
-				: 'border-[#544738]'} shadow-inner h-[142px] overflow-visible pointer-events-auto"
-		style="box-shadow: inset 0 0 10px rgba(0,0,0,0.8);"
+				? 'border-rose-700/80 shadow-rose-950/50'
+				: 'border-[#544738]/80'} h-[142px] overflow-visible pointer-events-auto"
 	>
 		<EntityInspectDetails
 			{sim}
@@ -476,8 +475,7 @@
 	<!-- 4. CENTER-RIGHT: Authentic Warcraft III 6-Slot Inventory -->
 	<div
 		data-testid="hud-inventory-panel"
-		class="flex flex-col items-center justify-center p-1.5 bg-[#131722]/95 backdrop-blur-md rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 border-[#544738] shadow-inner shrink-0 w-28 h-[142px] pointer-events-auto"
-		style="box-shadow: inset 0 0 10px rgba(0,0,0,0.85);"
+		class="lg-hud-panel flex flex-col items-center justify-center p-1.5 rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 border-[#544738]/80 shrink-0 w-28 h-[142px] pointer-events-auto"
 	>
 		<!-- 2 columns x 3 rows grid of enlarged authentic Warcraft III leather inventory pouches -->
 		<div class="grid grid-cols-2 gap-1.5 my-auto">
@@ -516,26 +514,48 @@
 							? 'border-[#8c7456] hover:border-amber-400'
 							: 'border-[#5c4934] hover:border-[#8c7456]'}"
 					aria-label={slotItem
-						? `${slotItem.name} (${slotItem.description})`
-						: 'Порожній слот торби'}
+						? (() => {
+								const def = CASTLE_ITEMS[slotItem.id];
+								const iName = def
+									? settings.locale === 'en'
+										? def.nameEn
+										: def.nameUk
+									: slotItem.name;
+								const iDesc = def
+									? settings.locale === 'en'
+										? def.descriptionEn
+										: def.descriptionUk
+									: slotItem.description;
+								return `${iName} (${iDesc})`;
+							})()
+						: t('bag.emptySlot')}
 				>
 					<div
 						class="pointer-events-none absolute bottom-full mb-2 right-0 z-50 w-max max-w-[min(240px,calc(100vw-24px))] whitespace-normal text-left leading-snug rounded-md border border-[#544738] bg-[#0f141f]/95 px-2.5 py-1.5 text-[11px] text-amber-100 shadow-2xl opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150"
 					>
 						{#if slotItem}
-							<div class="font-bold text-amber-300">{slotItem.name}</div>
-							<div class="text-slate-200 mt-0.5">{slotItem.description}</div>
+							{@const def = CASTLE_ITEMS[slotItem.id]}
+							<div class="font-bold text-amber-300">
+								{def ? (settings.locale === 'en' ? def.nameEn : def.nameUk) : slotItem.name}
+							</div>
+							<div class="text-slate-200 mt-0.5">
+								{def
+									? settings.locale === 'en'
+										? def.descriptionEn
+										: def.descriptionUk
+									: slotItem.description}
+							</div>
 							<div class="text-[10px] text-slate-400 mt-1 border-t border-[#3b3226] pt-1">
 								{#if slotItem.activeAbility}
-									ЛКМ: активувати · Shift+ЛКМ: передати · ПКМ: скинути
+									{t('bag.itemActiveHint')}
 								{:else}
-									ЛКМ: передати/викласти · ПКМ: скинути
+									{t('bag.itemPassiveHint')}
 								{/if}
 							</div>
 						{:else if itemTargetingSlot !== null}
-							Перемістити предмет у слот {slotIdx + 1}
+							{t('bag.moveToSlot', { slot: slotIdx + 1 })}
 						{:else}
-							Порожній слот торби
+							{t('bag.emptySlot')}
 						{/if}
 					</div>
 					{#if slotItem}

@@ -13,11 +13,10 @@
 		aria-modal="true"
 		aria-label="Довідник гри"
 		data-testid="guide-modal"
-		class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 select-none"
+		class="lg-hud-backdrop fixed inset-0 flex items-center justify-center z-50 p-4 select-none"
 	>
 		<div
-			class="bg-[#121622] border-2 border-[#544738] rounded-2xl w-full max-w-3xl shadow-2xl p-6 text-white relative flex flex-col max-h-[85vh] overflow-hidden"
-			style="box-shadow: 0 10px 40px rgba(0,0,0,0.95);"
+			class="lg-hud-modal border-2 border-[#544738]/80 rounded-2xl w-full max-w-3xl p-6 text-white relative flex flex-col max-h-[85vh] overflow-hidden"
 		>
 			<button
 				type="button"
@@ -52,7 +51,7 @@
 			<!-- Content -->
 			<div class="overflow-y-auto pr-2 space-y-4 text-xs text-slate-300 flex-1">
 				<!-- Economy & Rules -->
-				<div class="bg-[#181d28] p-3.5 rounded-xl border border-slate-800">
+				<div class="lg-hud-subcard p-3.5 rounded-xl border border-slate-700/70">
 					<h3 class="font-bold text-sm text-emerald-300 flex items-center gap-1.5 mb-2">
 						<UiIcon name="coins" class="w-4 h-4 text-emerald-400" />
 						Економіка та правила матчу

@@ -23,8 +23,8 @@ describe('Race Selection Countdown Overlay Invariants', () => {
 
 	it('features separate top button for random race with countdown timer and +30% gold bonus', () => {
 		expect(arenaContent).toContain('name="dices"');
-		expect(arenaContent).toContain('Випадкова раса');
-		expect(arenaContent).toContain('+30% золота');
+		expect(arenaContent).toContain("t('arena.randomRace')");
+		expect(arenaContent).toContain("t('arena.bonusGold30')");
 		expect(arenaContent).toContain('{countdownSeconds}');
 		expect(arenaContent).toContain("selectRaceAndStart('random')");
 	});

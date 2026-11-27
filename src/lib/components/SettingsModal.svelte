@@ -96,15 +96,14 @@
 
 {#if isOpen}
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-0 py-4 select-none animate-in fade-in duration-150"
+		class="lg-hud-backdrop fixed inset-0 z-50 flex items-center justify-center px-0 py-4 select-none animate-in fade-in duration-150"
 		role="dialog"
 		aria-modal="true"
 		aria-label={t('settings.title')}
 		data-testid="settings-modal"
 	>
 		<div
-			class="relative w-full max-w-none max-h-[92vh] flex flex-col bg-gradient-to-b from-[#181d28] to-[#0d1017] border-y-2 border-x-0 border-[#8c7456] rounded-none shadow-2xl overflow-hidden p-5 sm:px-8 sm:py-5 text-white"
-			style="box-shadow: 0 0 35px rgba(0,0,0,0.9), inset 0 0 20px rgba(140,116,86,0.15);"
+			class="lg-hud-modal relative w-full max-w-none max-h-[92vh] flex flex-col border-y-2 border-x-0 border-[#8c7456]/80 rounded-none overflow-hidden p-5 sm:px-8 sm:py-5 text-white"
 		>
 			<!-- Header -->
 			<div class="flex items-center justify-between pb-3 border-b border-[#3b3226] shrink-0 mb-4">

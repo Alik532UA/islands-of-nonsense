@@ -1,5 +1,6 @@
 <script lang="ts" module>
 	import type { AttackType, ArmorType } from '../engine/types';
+	import { t, getLocale, type Locale } from '$lib/i18n';
 
 	export const ATTACK_NAMES_UK: Record<string, string> = {
 		normal: 'Звичайна',
@@ -17,6 +18,24 @@
 		large: 'Важка',
 		fort: 'Укріплена',
 		hero: 'Герой'
+	};
+
+	export const ATTACK_NAMES_EN: Record<string, string> = {
+		normal: 'Normal',
+		pierce: 'Pierce',
+		siege: 'Siege',
+		magic: 'Magic',
+		chaos: 'Chaos',
+		hero: 'Hero'
+	};
+
+	export const ARMOR_NAMES_EN: Record<string, string> = {
+		none: 'Unarmored',
+		small: 'Light',
+		medium: 'Medium',
+		large: 'Heavy',
+		fort: 'Fortified',
+		hero: 'Hero'
 	};
 
 	export function normalizeArmorKey(raw: string): ArmorType {
@@ -38,6 +57,18 @@
 		if (s === 'hero' || s.includes('герой')) return 'hero';
 		return 'normal';
 	}
+
+	export function getArmorTypeLabel(raw: string, locale: Locale = getLocale()): string {
+		const norm = normalizeArmorKey(raw || 'none');
+		const map = locale === 'en' ? ARMOR_NAMES_EN : ARMOR_NAMES_UK;
+		return map[norm] || t(`combat.armor.${norm}`, locale);
+	}
+
+	export function getAttackTypeLabel(raw: string, locale: Locale = getLocale()): string {
+		const norm = normalizeAttackKey(raw || 'normal');
+		const map = locale === 'en' ? ATTACK_NAMES_EN : ATTACK_NAMES_UK;
+		return map[norm] || t(`combat.attack.${norm}`, locale);
+	}
 </script>
 
 <script lang="ts">
@@ -55,15 +86,14 @@
 </script>
 
 <div
-	class="absolute bottom-full left-1/4 mb-2 w-72 bg-[#10141f]/98 border-2 border-[#8c7456] rounded-xl p-3 text-xs shadow-2xl backdrop-blur z-50 pointer-events-none"
-	style="box-shadow: 0 10px 30px rgba(0,0,0,0.9);"
+	class="lg-hud-tooltip absolute bottom-full left-1/4 mb-2 w-72 border-2 border-[#8c7456]/80 rounded-xl p-3 text-xs z-50 pointer-events-none"
 >
 	{#if matrix.kind === 'attack'}
 		<div class="border-b border-[#3b3226] pb-1.5 mb-2 flex items-center justify-between">
 			<span class="font-bold text-[#fef08a] text-xs">
-				Атака: {matrix.label}
+				{t('combat.attackTitle', { label: getAttackTypeLabel(matrix.key) })}
 			</span>
-			<span class="text-[10px] text-slate-400 font-mono">Ефективність</span>
+			<span class="text-[10px] text-slate-400 font-mono">{t('combat.efficiency')}</span>
 		</div>
 		<div class="grid grid-cols-2 gap-x-2 gap-y-1 text-[10px]">
 			{#each ['none', 'small', 'medium', 'large', 'fort', 'hero'] as armKey}
@@ -72,7 +102,7 @@
 				<div
 					class="flex justify-between items-center bg-[#0d1017] px-1.5 py-0.5 rounded border border-[#2d3748]"
 				>
-					<span class="text-slate-400">{ARMOR_NAMES_UK[armKey]}:</span>
+					<span class="text-slate-400">{getArmorTypeLabel(armKey)}:</span>
 					<span
 						class="font-mono font-bold {pct > 100
 							? 'text-emerald-400'
@@ -88,9 +118,9 @@
 	{:else}
 		<div class="border-b border-[#3b3226] pb-1.5 mb-2 flex items-center justify-between">
 			<span class="font-bold text-[#fef08a] text-xs">
-				Броня: {matrix.label}
+				{t('combat.armorTitle', { label: getArmorTypeLabel(matrix.key) })}
 			</span>
-			<span class="text-[10px] text-slate-400 font-mono">Отримувана шкода</span>
+			<span class="text-[10px] text-slate-400 font-mono">{t('combat.damageTaken')}</span>
 		</div>
 		<div class="grid grid-cols-2 gap-x-2 gap-y-1 text-[10px]">
 			{#each ['normal', 'pierce', 'siege', 'magic', 'chaos', 'hero'] as atkKey}
@@ -99,7 +129,7 @@
 				<div
 					class="flex justify-between items-center bg-[#0d1017] px-1.5 py-0.5 rounded border border-[#2d3748]"
 				>
-					<span class="text-slate-400">{ATTACK_NAMES_UK[atkKey]}:</span>
+					<span class="text-slate-400">{getAttackTypeLabel(atkKey)}:</span>
 					<span
 						class="font-mono font-bold {pct > 100
 							? 'text-rose-400'

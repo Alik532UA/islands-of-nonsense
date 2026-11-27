@@ -22,7 +22,7 @@
 | **Безпека XSS & Storage** | Заборона сирого `{@html}` та неізольованого `localStorage`                   | `src/security.test.ts`                                                                |
 | **Хмарна синхронізація**  | Firebase RTDB (кімнати, лобі, пошук `seek`, присутність, чат) + Auth         | [database.rules.json](database.rules.json), суворий `$other: false`, гейт інваріантів |
 | **Error Boundary**        | `<svelte:boundary>` + `ErrorFallback.svelte`                                 | `src/routes/+layout.svelte`, `src/routes/+error.svelte`                               |
-| **Тестування та гейти**   | 131 Vitest сьют (780 тестів) + Playwright E2E + Axe a11y                     | `npm test`, `npm run test:e2e`, `check:build`, `audit:ci`                             |
+| **Тестування та гейти**   | 166 Vitest сьютів (936 тестів) + Playwright E2E (13 тестів) + Axe a11y       | `npm test`, `npm run test:e2e`, `check:build`, `audit:ci`                             |
 | **CI/CD Автоматизація**   | Deploy + Lighthouse CI + Bundle Budgets                                      | `.github/workflows/deploy.yml`, `lighthouse.yml`, `budgets.yml`                       |
 
 ### Швидкий покажчик ключових рішень:
@@ -179,7 +179,7 @@ $$DR = \frac{0.06 \times Armor}{1 + 0.06 \times |Armor|}$$
 | `npm run check`        | GATE-SVELTE-CHECK  | Сувора перевірка типізації TypeScript та синтаксису Svelte 5 Runes                              |
 | `npm run lint`         | GATE-ESLINT        | Повний лінтинг ESLint Flat Config та форматування Prettier                                      |
 | `npm run format`       | —                  | Автоматичне форматування кодової бази                                                           |
-| `npm test`             | GATE-TEST-RUNNERS  | Vitest юніт-тести рушія, кузні, командирів, сітки та безпеки (131 сьют, 780 тестів)             |
+| `npm test`             | GATE-TEST-RUNNERS  | Vitest юніт-тести рушія, кузні, командирів, сітки та безпеки (166 сьютів, 936 тестів)           |
 | `npm run test:balance` | GATE-BALANCE-SIM   | Headless прогін бот-турніру симуляції балансу без DOM                                           |
 | `npm run test:e2e`     | GATE-A11Y-AXE      | Playwright E2E автоматизовані браузерні тести та WCAG 2.2 AA аудит                              |
 | `npm run check:build`  | GATE-BUILD-OUTPUT  | Автоматичний гейт зібраного проєкту (`build/index.html`, `build/404.html`)                      |
@@ -198,11 +198,15 @@ $$DR = \frac{0.06 \times Armor}{1 + 0.06 \times |Armor|}$$
 ## 9. Доступність (a11y) та керування
 
 - **Гарячі клавіші**:
+  - `Space` / `Enter` — обрати власного робітника / власний замок (подвійне натискання центрує камеру).
+  - `F` — активувати Телепорт (Blink) робітника в межах 500 px.
   - `C` — відкрити / закрити вікно вибору Командира.
-  - `F` — відкрити / закрити Військову Кузню.
+  - `K` — відкрити / закрити Військову Кузню.
   - `B` — відкрити / закрити Магазин Артефактів.
-  - `E` — активувати Спасительний Удар Замку (Rescue Strike).
-  - `R` — активувати Ультимативну здатність раси.
+  - `X` — активувати Рятівний Удар (Rescue Strike).
+  - `Z` — активувати Унікальну суперздібність раси.
+  - `T` / `G` — ближній (500 px) / дальній (1500 px) постріл гармати замку.
+  - `E` / `R` / `Q` — радіальні меню бойових споруд, спецспоруд і здібностей (у пресеті `islands-of-nonsense`).
   - `Esc` — закрити активне модальне вікно або скасувати вибір.
 - **Підтримка екранних читачів**:
   - Модальні вікна мають роль `dialog`, `aria-modal="true"`, доступні описи та заголовки.

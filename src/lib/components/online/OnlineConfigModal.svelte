@@ -127,14 +127,14 @@
 
 {#if isOpen}
 	<div
-		class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[10000] p-2 sm:p-4 select-none"
+		class="lg-hud-backdrop fixed inset-0 flex items-center justify-center z-[10000] p-2 sm:p-4 select-none"
 		role="dialog"
 		aria-modal="true"
 		aria-label={t('online.hud.settingsTitle')}
 		data-testid="online-config-modal"
 	>
 		<div
-			class="bg-gradient-to-b from-[#181d28] to-[#0d1017] border-2 border-[#8c7456] rounded-3xl w-full max-w-4xl max-h-[90vh] shadow-2xl flex flex-col overflow-hidden text-white"
+			class="lg-hud-modal border-2 border-[#8c7456]/80 rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden text-white"
 		>
 			<!-- Header -->
 			<div

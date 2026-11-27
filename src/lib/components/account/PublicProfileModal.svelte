@@ -44,14 +44,12 @@
 </script>
 
 <div
-	class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
+	class="lg-hud-backdrop fixed inset-0 z-50 flex items-center justify-center p-4"
 	role="dialog"
 	aria-modal="true"
 	data-testid="public-profile-modal"
 >
-	<div
-		class="w-full max-w-md rounded-3xl bg-slate-900 border border-slate-700 p-5 shadow-2xl space-y-4"
-	>
+	<div class="lg-hud-modal w-full max-w-md rounded-3xl border border-white/15 p-5 space-y-4">
 		<div class="flex items-center justify-between border-b border-slate-800 pb-3">
 			<h3 class="text-sm font-black uppercase tracking-wider text-amber-300">
 				{t('social.profileTitle')}

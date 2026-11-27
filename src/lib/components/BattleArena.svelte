@@ -13,6 +13,7 @@
 	import { submitDailyResult } from '$lib/net/dailyChallenge';
 	import { consumePendingReplay, saveMatchReplay } from '$lib/services/replayStore.svelte';
 	import { t } from '$lib/i18n';
+	import { localizeRaceName } from '$lib/i18n/entityNames';
 	import type { PlayerState } from '$lib/engine/types';
 	import { BotAI } from '$lib/engine/botAI';
 	import { ArenaRenderer, type SelectedEntity } from '$lib/renderer/ArenaRenderer';
@@ -25,7 +26,7 @@
 		getBaseBuildingsForRace
 	} from '$lib/engine/gameData';
 	import { getRaceAbility } from '$lib/engine/raceAbilities';
-	import { findCommander } from '$lib/engine/commanders';
+	import { findCommander, getCommanderName, getCommanderNickname } from '$lib/engine/commanders';
 	import TopBar from '$lib/components/TopBar.svelte';
 	import BottomBar from '$lib/components/BottomBar.svelte';
 	import RadialMenu from '$lib/components/RadialMenu.svelte';
@@ -693,12 +694,15 @@
 					if (onlineSession && !onlineSession.isPlaying) return;
 					void matchSync.dispatch(sim.isRunning ? 'PAUSE' : 'RESUME');
 					battleAnnouncer.announce(
-						sim.isRunning ? 'Надіслано запит паузи' : 'Надіслано запит відновлення',
+						sim.isRunning ? t('arena.pauseSent') : t('arena.resumeSent'),
 						'polite'
 					);
 				} else {
 					sim.isRunning = !sim.isRunning;
-					battleAnnouncer.announce(sim.isRunning ? 'Гру відновлено' : 'Гру призупинено', 'polite');
+					battleAnnouncer.announce(
+						sim.isRunning ? t('arena.resumed') : t('arena.paused'),
+						'polite'
+					);
 				}
 				uiTick = sim.stateVersion;
 			} else if (isSpectatorView) {
@@ -830,7 +834,7 @@
 			return;
 		}
 		if (!sim.isPointOnIsland(activeTeam, worldX, worldY, 0)) {
-			sim.addFloatingText('Тільки на своєму острові!', worldX, worldY - 25, '#ef4444');
+			sim.addFloatingText(t('arena.onlyOwnIsland'), worldX, worldY - 25, '#ef4444');
 			sound.playErrorResource();
 			uiTick = sim.stateVersion;
 			return;
@@ -993,7 +997,7 @@
 				},
 				onDesync: (tick) => {
 					desyncTick = tick;
-					networkNotice = `Увага: розсинхронізація на тіку ${tick}`;
+					networkNotice = t('arena.desyncWarn', { tick });
 				},
 				onDesyncPauseChange: (paused, failed) => {
 					isDesyncPaused = paused;
@@ -1002,7 +1006,7 @@
 				},
 				onGone: (reason) => {
 					clearOnlineCountdownTimer();
-					networkNotice = `Мережева сесія завершена: ${reason}`;
+					networkNotice = t('arena.netEnded', { reason });
 				},
 				onCommandApplied: (move) => {
 					if (move.type === 'SET_RACE' && matchPhase === 'COUNTDOWN') {
@@ -1012,7 +1016,7 @@
 							move.payload?.playerSlot === controlledPlayer.slot
 						) {
 							onlinePickedRace = null;
-							onlineRacePickError = 'Расу вже зайнято (-ur), виберіть іншу!';
+							onlineRacePickError = t('arena.raceTakenUr');
 							sound.playErrorResource();
 						} else if (!sim.allPlayers.some((p) => !p.isBot && p.pendingRacePick)) {
 							void finalizeOnlineCountdown();
@@ -1430,12 +1434,7 @@
 
 		if (!result) {
 			sound.playErrorResource();
-			sim.addFloatingText(
-				"Спочатку виберіть об'єкт (юніт, будівля, робітник або замок)!",
-				cameraX,
-				cameraY,
-				'#f87171'
-			);
+			sim.addFloatingText(t('arena.selectObjectFirst'), cameraX, cameraY, '#f87171');
 			uiTick = sim.stateVersion;
 			return;
 		}
@@ -1498,7 +1497,7 @@
 		}
 
 		sound.playCoin();
-		sim.addFloatingText(`Лог ${title} скопійовано! (5x L)`, fx, fy, '#38bdf8');
+		sim.addFloatingText(t('arena.logCopied', { title }), fx, fy, '#38bdf8');
 		logService.info('ui', `Copied diagnostic log for ${title}`);
 		uiTick = sim.stateVersion;
 	}
@@ -1846,14 +1845,14 @@
 					keyCls: 'text-sky-300 border-sky-500/60'
 				}
 			]}
-			{@const sideTipClass = `pointer-events-none absolute top-1/2 -translate-y-1/2 ${
+			{@const sideTipClass = `lg-hud-tooltip pointer-events-none absolute top-1/2 -translate-y-1/2 ${
 				isEastSide ? 'right-full mr-2.5' : 'left-full ml-2.5'
-			} z-50 whitespace-nowrap rounded-md border border-[#544738] bg-[#0f141f]/95 px-2.5 py-1 text-[11px] shadow-2xl opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150`}
+			} z-50 whitespace-nowrap rounded-md border border-[#544738]/80 px-2.5 py-1 text-[11px] opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150`}
 			{@const raceBuildings = getBaseBuildingsForRace(controlledPlayer.race)}
 			{@const quickBuildGroups = [
 				{
 					key: 'army' as const,
-					label: 'Армія',
+					label: t('arena.catArmy'),
 					hotkey: 'E',
 					icon: 'swords' as const,
 					btnCls:
@@ -1863,7 +1862,7 @@
 				},
 				{
 					key: 'special' as const,
-					label: 'Спеціальні',
+					label: t('arena.catSpecial'),
 					hotkey: 'R',
 					icon: 'zap' as const,
 					btnCls:
@@ -1874,9 +1873,9 @@
 			]}
 			<div
 				data-testid="hud-quick-focus-dock"
-				class="absolute top-1/2 -translate-y-1/2 {isEastSide
+				class="lg-hud-panel absolute top-1/2 -translate-y-1/2 {isEastSide
 					? 'right-0 rounded-l-2xl rounded-r-none border-y-2 border-l-2 border-r-0'
-					: 'left-0 rounded-r-2xl rounded-l-none border-y-2 border-r-2 border-l-0'} z-20 flex flex-col items-center gap-1.5 bg-[#131722]/90 backdrop-blur-md border-[#544738] p-1.5 shadow-2xl pointer-events-auto"
+					: 'left-0 rounded-r-2xl rounded-l-none border-y-2 border-r-2 border-l-0'} z-20 flex flex-col items-center gap-1.5 border-[#544738]/80 p-1.5 pointer-events-auto"
 			>
 				<!-- Above Worker: Race Ability (Z), Rescue Strike (X), Blink (F) -->
 				<div class="relative group/tip">
@@ -1895,7 +1894,10 @@
 						}}
 						disabled={!canCastRaceSkill}
 						data-testid="hud-race-ability-btn"
-						aria-label="{raceAbility.nameUk}: {raceAbility.descriptionUk} (Гаряча клавіша: Z)"
+						aria-label={t('arena.raceAbilityAria', {
+							name: settings.locale === 'en' ? raceAbility.nameEn : raceAbility.nameUk,
+							desc: settings.locale === 'en' ? raceAbility.descriptionEn : raceAbility.descriptionUk
+						})}
 						aria-keyshortcuts="z"
 						class="relative w-11 h-11 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md {canCastRaceSkill
 							? 'bg-purple-900/90 hover:bg-purple-800 border-purple-400 text-purple-100 ring-2 ring-purple-400/50 animate-pulse'
@@ -1917,7 +1919,7 @@
 						{/if}
 					</button>
 					<div class="{sideTipClass} text-purple-200 flex items-center gap-1.5">
-						<span>{raceAbility.nameUk}</span>
+						<span>{settings.locale === 'en' ? raceAbility.nameEn : raceAbility.nameUk}</span>
 						<span
 							class="text-[9px] font-mono font-bold text-purple-300 bg-black/60 px-1 rounded border border-purple-500/60"
 						>
@@ -1935,7 +1937,7 @@
 						}}
 						disabled={!canUseRescue}
 						data-testid="hud-rescue-strike-btn"
-						aria-label="Прицільний Рятівний Удар на своєму острові (-7000 звичайної шкоди по наземних і повітряних ворогах у 750px, 500px від робітника, 1 раз за раунд, клавіша X)"
+						aria-label={t('arena.rescueAria')}
 						aria-keyshortcuts="x"
 						aria-pressed={isRescueTargeting}
 						class="relative w-11 h-11 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md {isRescueTargeting
@@ -1963,7 +1965,7 @@
 					</button>
 					<div class="{sideTipClass} py-1.5 text-rose-200 flex flex-col gap-0.5">
 						<div class="flex items-center gap-1.5 font-bold">
-							<span>Рятівний удар</span>
+							<span>{t('arena.rescueBtn')}</span>
 							<span
 								class="text-[9px] font-mono font-bold text-rose-300 bg-black/60 px-1 rounded border border-rose-500/60"
 							>
@@ -1971,11 +1973,11 @@
 							</span>
 						</div>
 						<span class="text-[10px] text-slate-300 font-normal">
-							7000 шкоди у 750px на своєму острові • 2× золото • 1 раз за раунд
+							{t('arena.rescueTip')}
 						</span>
 						{#if rescueCd > 0}
 							<span class="text-[9.5px] text-rose-300/90 font-normal">
-								Використано — відновиться у наступному раунді
+								{t('arena.rescueUsed')}
 							</span>
 						{/if}
 					</div>
@@ -1991,7 +1993,7 @@
 						}}
 						disabled={!canQuickBlink}
 						data-testid="hud-quick-blink-btn"
-						aria-label="Телепорт будівельника до 500px (Клавіша F)"
+						aria-label={t('cmd.blinkAria')}
 						aria-keyshortcuts="f"
 						aria-pressed={isBlinkTargeting}
 						class="relative w-11 h-11 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md {isBlinkTargeting
@@ -2012,7 +2014,7 @@
 						<CooldownOverlay remaining={quickBlinkCd} max={WORKER_BLINK_COOLDOWN} />
 					</button>
 					<div class="{sideTipClass} text-cyan-200 flex items-center gap-1.5">
-						<span>Телепорт (500px · КД 500мс)</span>
+						<span>{t('arena.blinkTip')}</span>
 						<span
 							class="text-[9px] font-mono font-bold text-cyan-300 bg-black/60 px-1 rounded border border-cyan-500/60"
 						>
@@ -2029,7 +2031,7 @@
 						type="button"
 						onclick={() => selectOwnWorker(true)}
 						data-testid="hud-quick-worker-btn"
-						aria-label="Знайти та обрати будівельника (Space)"
+						aria-label={t('arena.findWorkerAria')}
 						class="relative w-14 h-14 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md {isWorkerSelected
 							? 'bg-amber-500/25 border-amber-400 text-amber-200 ring-2 ring-amber-400/50'
 							: 'bg-[#1a2030] hover:bg-[#232b40] border-slate-700 hover:border-amber-500/60 text-amber-300'}"
@@ -2042,7 +2044,7 @@
 						</span>
 					</button>
 					<div class="{sideTipClass} text-amber-100 flex items-center gap-1.5">
-						<span>Будівельник</span>
+						<span>{t('arena.workerLabel')}</span>
 						<span
 							class="text-[9px] font-mono font-bold text-amber-400 bg-black/60 px-1 rounded border border-[#544738]"
 						>
@@ -2144,7 +2146,7 @@
 						type="button"
 						onclick={() => selectOwnCastle(true)}
 						data-testid="hud-quick-castle-btn"
-						aria-label="Знайти та обрати замок (Enter)"
+						aria-label={t('arena.findCastleAria')}
 						class="relative w-14 h-14 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md {isCastleSelected
 							? 'bg-sky-500/25 border-sky-400 text-sky-200 ring-2 ring-sky-400/50'
 							: 'bg-[#1a2030] hover:bg-[#232b40] border-slate-700 hover:border-sky-500/60 text-sky-300'}"
@@ -2157,7 +2159,7 @@
 						</span>
 					</button>
 					<div class="{sideTipClass} text-sky-100 flex items-center gap-1.5">
-						<span>Замок</span>
+						<span>{t('arena.castleLabel')}</span>
 						<span
 							class="text-[9px] font-mono font-bold text-sky-400 bg-black/60 px-1 rounded border border-sky-500/40"
 						>
@@ -2197,7 +2199,11 @@
 							onmouseleave={() => renderer?.setHoveredCastleCannonMode(null)}
 							disabled={!canFire}
 							data-testid="hud-topbar-cannon-{cfg.mode}-btn"
-							aria-label="Гармата замку {cfg.range}px ({shotCost}g, {cfg.hotkey})"
+							aria-label={t('arena.cannonAria', {
+								range: cfg.range,
+								cost: shotCost,
+								hotkey: cfg.hotkey
+							})}
 							aria-keyshortcuts={cfg.hotkey.toLowerCase()}
 							class="relative w-11 h-11 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md {canFire
 								? cfg.activeCls
@@ -2221,7 +2227,7 @@
 						</button>
 						<div class="{sideTipClass} py-1.5 {cfg.tipCls} flex flex-col gap-0.5">
 							<div class="flex items-center gap-1.5 font-bold">
-								<span>Гармата · {cfg.range}px ({shotCost}g)</span>
+								<span>{t('arena.cannonTitle', { range: cfg.range, cost: shotCost })}</span>
 								<span
 									class="text-[9px] font-mono font-bold bg-black/60 px-1 rounded border {cfg.keyCls}"
 								>
@@ -2229,7 +2235,7 @@
 								</span>
 							</div>
 							<span class="text-[10px] text-slate-300 font-normal">
-								Ворог у {cfg.range}px або союзник 50% • Ворогів: {enemyCount}
+								{t('arena.cannonTip', { range: cfg.range, count: enemyCount })}
 							</span>
 						</div>
 					</div>
@@ -2242,14 +2248,14 @@
 				uiTick >= 0
 					? sim.canSelectOrChangeCommander(controlledPlayer.team, controlledPlayer)
 					: sim.canSelectOrChangeCommander(controlledPlayer.team, controlledPlayer)}
-			{@const oppositeSideTipClass = `pointer-events-none absolute top-1/2 -translate-y-1/2 ${
+			{@const oppositeSideTipClass = `lg-hud-tooltip pointer-events-none absolute top-1/2 -translate-y-1/2 ${
 				isEastSide ? 'left-full ml-2.5' : 'right-full mr-2.5'
-			} z-50 whitespace-nowrap rounded-md border border-[#544738] bg-[#0f141f]/95 px-2.5 py-1 text-[11px] shadow-2xl opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150`}
+			} z-50 whitespace-nowrap rounded-md border border-[#544738]/80 px-2.5 py-1 text-[11px] opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150`}
 			<div
 				data-testid="topbar-game-actions-dock"
-				class="absolute top-1/2 -translate-y-1/2 {isEastSide
+				class="lg-hud-panel absolute top-1/2 -translate-y-1/2 {isEastSide
 					? 'left-0 rounded-r-2xl rounded-l-none border-y-2 border-r-2 border-l-0'
-					: 'right-0 rounded-l-2xl rounded-r-none border-y-2 border-l-2 border-r-0'} z-20 flex flex-col items-center gap-1.5 bg-[#131722]/90 backdrop-blur-md border-[#544738] p-1.5 shadow-2xl pointer-events-auto"
+					: 'right-0 rounded-l-2xl rounded-r-none border-y-2 border-l-2 border-r-0'} z-20 flex flex-col items-center gap-1.5 border-[#544738]/80 p-1.5 pointer-events-auto"
 			>
 				<!-- Commanders (C) -->
 				<div class="relative group/tip">
@@ -2257,11 +2263,13 @@
 						type="button"
 						onclick={() => openExclusiveModal('commander')}
 						data-testid="hud-commander-btn"
-						aria-label="Командири: {commander
-							? `${commander.name}${controlledPlayer.isRandomCommander ? ' ×2' : ''} (${commander.nickname})`
-							: commanderStatus.hasHall
-								? 'доступний вибір командира'
-								: 'потрібен Дім командира'} (Гаряча клавіша: C)"
+						aria-label={t('arena.commanderAria', {
+							status: commander
+								? `${getCommanderName(commander, settings.locale)}${controlledPlayer.isRandomCommander ? ' ×2' : ''} (${getCommanderNickname(commander, settings.locale)})`
+								: commanderStatus.hasHall
+									? t('arena.commanderAvail')
+									: t('arena.commanderNeedHall')
+						})}
 						aria-keyshortcuts="c"
 						class="relative w-14 h-14 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md bg-[#16192b] hover:bg-[#222745] border-indigo-500/70 hover:border-indigo-400 text-indigo-200"
 					>
@@ -2284,11 +2292,13 @@
 					</button>
 					<div class="{oppositeSideTipClass} text-indigo-200 flex items-center gap-1.5">
 						<span>
-							Командир: {commander
-								? `${commander.name}${controlledPlayer.isRandomCommander ? ' (×2)' : ''}`
-								: commanderStatus.hasHall
-									? 'Можна обрати'
-									: 'Не обрано'}
+							{t('arena.commanderLabel', {
+								status: commander
+									? `${getCommanderName(commander, settings.locale)}${controlledPlayer.isRandomCommander ? ' (×2)' : ''}`
+									: commanderStatus.hasHall
+										? t('arena.commanderCanPick')
+										: t('cmd.notSelected')
+							})}
 						</span>
 						<span
 							class="text-[9px] font-mono font-bold text-indigo-300 bg-black/60 px-1 rounded border border-indigo-500/60"
@@ -2304,7 +2314,7 @@
 						type="button"
 						onclick={() => openExclusiveModal('forge')}
 						data-testid="hud-forge-btn"
-						aria-label="Військова Кузня (Гаряча клавіша: K)"
+						aria-label={t('arena.forgeAria')}
 						aria-keyshortcuts="k"
 						class="relative w-14 h-14 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md bg-[#1a2030] hover:bg-[#232b40] border-slate-700 hover:border-amber-500/70 text-amber-300"
 					>
@@ -2325,7 +2335,7 @@
 						{/if}
 					</button>
 					<div class="{oppositeSideTipClass} text-amber-100 flex items-center gap-1.5">
-						<span>Військова Кузня</span>
+						<span>{t('forge.title')}</span>
 						<span
 							class="text-[9px] font-mono font-bold text-amber-400 bg-black/60 px-1 rounded border border-[#544738]"
 						>
@@ -2340,7 +2350,7 @@
 						type="button"
 						onclick={() => openExclusiveModal('shop')}
 						data-testid="hud-shop-btn"
-						aria-label="Магазин: припаси та захист (Гаряча клавіша: B)"
+						aria-label={t('arena.shopAria')}
 						aria-keyshortcuts="b"
 						class="relative w-14 h-14 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md bg-[#15281e] hover:bg-[#1b3828] border-emerald-600/70 hover:border-emerald-400 text-emerald-300"
 					>
@@ -2352,7 +2362,7 @@
 						</span>
 					</button>
 					<div class="{oppositeSideTipClass} text-emerald-200 flex items-center gap-1.5">
-						<span>Магазин</span>
+						<span>{t('shop.title')}</span>
 						<span
 							class="text-[9px] font-mono font-bold text-emerald-300 bg-black/60 px-1 rounded border border-emerald-600/70"
 						>
@@ -2366,10 +2376,10 @@
 		{#if isBlinkTargeting && !isSpectatorView}
 			<div
 				data-testid="blink-targeting-banner"
-				class="absolute top-16 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-cyan-950/90 border border-cyan-400/75 text-cyan-100 text-xs font-bold shadow-xl backdrop-blur-md"
+				class="lg-hud-panel absolute top-16 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2.5 px-3.5 py-1.5 rounded-full border border-cyan-400/75 text-cyan-100 text-xs font-bold"
 			>
 				<UiIcon name="zap" class="w-4 h-4 text-cyan-300 animate-pulse shrink-0" />
-				<span>Оберіть точку на своєму острові для телепорту (макс. 500px)</span>
+				<span>{t('arena.blinkModeBanner')}</span>
 				<button
 					type="button"
 					onclick={() => (isBlinkTargeting = false)}
@@ -2382,10 +2392,10 @@
 		{#if itemTargetingSlot !== null}
 			<div
 				data-testid="item-targeting-banner"
-				class="absolute top-16 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-amber-950/90 border border-amber-400/75 text-amber-100 text-xs font-bold shadow-xl backdrop-blur-md"
+				class="lg-hud-panel absolute top-16 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2.5 px-3.5 py-1.5 rounded-full border border-amber-400/75 text-amber-100 text-xs font-bold"
 			>
 				<UiIcon name="coins" class="w-4 h-4 text-amber-300 animate-pulse shrink-0" />
-				<span>Клікніть на землю — викласти предмет, або на союзного робітника — передати</span>
+				<span>{t('arena.itemDropBanner')}</span>
 				<button
 					type="button"
 					onclick={() => (itemTargetingSlot = null)}
@@ -2424,16 +2434,19 @@
 					class="flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[11px] font-bold transition cursor-pointer touch-manipulation {isActiveBot
 						? 'bg-amber-950/80 border-amber-400 text-amber-200 shadow-[0_0_8px_rgba(251,191,36,0.35)]'
 						: 'bg-[#181e2c] hover:bg-[#232b3e] border-[#3b3226] text-slate-300 hover:text-white'}"
-					title="{botPlayer.name} ({formatRaceName(botPlayer.race)})"
+					title="{botPlayer.name} ({localizeRaceName(
+						formatRaceName(botPlayer.race),
+						settings.locale
+					)})"
 				>
 					<span
 						class="w-2 h-2 rounded-full shrink-0"
 						style="background-color: {botPlayer.color?.lightHex ??
 							(botPlayer.team === 'west' ? '#3b82f6' : '#ef4444')};"
 					></span>
-					<span>{isOnlineSpectator ? botPlayer.name : `Бот ${botSlot}`}</span>
+					<span>{isOnlineSpectator ? botPlayer.name : t('arena.botSlot', { slot: botSlot })}</span>
 					<span class="text-[9px] text-slate-400 font-normal">
-						({formatRaceName(botPlayer.race)})
+						({localizeRaceName(formatRaceName(botPlayer.race), settings.locale)})
 					</span>
 				</button>
 			{/each}
@@ -2443,7 +2456,7 @@
 			<!-- Online Spectator Switcher & Vision Mode Dock -->
 			<div
 				data-testid="online-spectator-switcher"
-				class="absolute top-14 left-1/2 -translate-x-1/2 z-20 flex flex-wrap items-center justify-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#111520]/90 border border-[#544738] shadow-xl backdrop-blur-md"
+				class="lg-hud-panel absolute top-14 left-1/2 -translate-x-1/2 z-20 flex flex-wrap items-center justify-center gap-1.5 px-2.5 py-1 rounded-xl border border-[#544738]/80"
 			>
 				<div
 					class="flex items-center gap-1 pr-2 mr-1 border-r border-slate-700"
@@ -2469,7 +2482,7 @@
 			<!-- Bot Switcher Pill Dock for Controlling Any Bot in Bot vs Bot Matches -->
 			<div
 				data-testid="spectator-bot-switcher"
-				class="absolute top-14 left-1/2 -translate-x-1/2 z-20 flex flex-wrap items-center justify-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#111520]/90 border border-[#544738] shadow-xl backdrop-blur-md"
+				class="lg-hud-panel absolute top-14 left-1/2 -translate-x-1/2 z-20 flex flex-wrap items-center justify-center gap-1.5 px-2.5 py-1 rounded-xl border border-[#544738]/80"
 			>
 				{@render playerSwitcherButtons()}
 			</div>
@@ -2479,7 +2492,7 @@
 			{@const totalTicks = replayData.result?.totalTicks ?? sim.tick}
 			<div
 				data-testid="replay-player-bar"
-				class="absolute top-14 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#111520]/95 border border-emerald-500/50 text-xs text-slate-100 shadow-xl backdrop-blur-md"
+				class="lg-hud-panel absolute top-14 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-xl border border-emerald-500/50 text-xs text-slate-100"
 			>
 				<span
 					class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-black uppercase text-[10px]"
@@ -2497,7 +2510,7 @@
 					}}
 					class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 font-bold cursor-pointer"
 				>
-					{sim.isRunning ? 'Пауза' : 'Пуск'}
+					{sim.isRunning ? t('arena.pauseShort') : t('arena.playShort')}
 				</button>
 				{#each [1, 2, 4] as sp (sp)}
 					<button
@@ -2548,14 +2561,15 @@
 					{#if isDesyncNotice}
 						{networkNotice}
 					{:else if isOnlineSpectator}
-						{t('online.spectator.badge')}{peerPingMs !== null ? ` · ${peerPingMs} мс` : ''}
-					{:else if peerOnline}
-						Онлайн PvP: {matchSync.localTeam === 'west' ? 'Захід (Ви)' : 'Схід (Ви)'} vs Суперник{peerPingMs !==
-						null
-							? ` · ${peerPingMs} мс`
+						{t('online.spectator.badge')}{peerPingMs !== null
+							? ` · ${peerPingMs} ${t('arena.msUnit')}`
 							: ''}
+					{:else if peerOnline}
+						{t('arena.onlinePvp', {
+							side: matchSync.localTeam === 'west' ? t('arena.westYou') : t('arena.eastYou')
+						})}{peerPingMs !== null ? ` · ${peerPingMs} ${t('arena.msUnit')}` : ''}
 					{:else}
-						{networkNotice ?? 'Очікування суперника...'}
+						{networkNotice ?? t('arena.waitingOpponent')}
 					{/if}
 				</span>
 				{#if isDesyncNotice}
@@ -2565,7 +2579,7 @@
 						data-testid="copy-desync-log-btn"
 						class="ml-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/25 hover:bg-rose-500/40 border border-rose-400/50 text-rose-100 transition-colors cursor-pointer"
 					>
-						{desyncLogCopied ? 'Скопійовано ✓' : 'Копіювати лог'}
+						{desyncLogCopied ? t('arena.copiedTick') : t('arena.copyLog')}
 					</button>
 				{/if}
 			</div>
@@ -2574,11 +2588,11 @@
 		<!-- Desync Recovery Pause Modal -->
 		{#if matchSync && isDesyncPaused}
 			<div
-				class="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-4"
+				class="lg-hud-backdrop fixed inset-0 z-40 flex items-center justify-center p-4"
 				data-testid="desync-recovery-modal"
 			>
 				<div
-					class="w-full max-w-md rounded-2xl border border-rose-500/60 bg-[#121722]/98 p-5 shadow-2xl text-slate-100 flex flex-col gap-3"
+					class="lg-hud-modal w-full max-w-md rounded-2xl border border-rose-500/60 p-5 text-slate-100 flex flex-col gap-3"
 				>
 					<div class="flex items-center gap-2.5">
 						<span
@@ -2587,18 +2601,14 @@
 								: 'bg-amber-400 animate-ping'}"
 						></span>
 						<h2 class="text-base font-bold text-amber-200">
-							{isDesyncRecoveryFailed
-								? 'Не вдалося автоматично синхронізувати'
-								: 'Синхронізація гри...'}
+							{isDesyncRecoveryFailed ? t('arena.desyncFailed') : t('arena.syncingGame')}
 						</h2>
 					</div>
 					<p class="text-xs text-slate-300 leading-relaxed">
 						{#if isDesyncRecoveryFailed}
-							Виявлено розбіжність стану (тік {desyncTick ?? sim.tick}). Автоматичне відновлення за
-							6 сек не узгодило чексуми; діагностичний лог збережено у Firebase.
+							{t('arena.desyncFailedDesc', { tick: desyncTick ?? sim.tick })}
 						{:else}
-							Виявлено розбіжність стану (тік {desyncTick ?? sim.tick}). Гру тимчасово поставлено на
-							паузу, поки відновлюється повна синхронізація юнітів і будівель...
+							{t('arena.desyncSyncDesc', { tick: desyncTick ?? sim.tick })}
 						{/if}
 					</p>
 					<div class="flex flex-wrap items-center justify-end gap-2 pt-1">
@@ -2607,14 +2617,14 @@
 							onclick={() => matchSync?.retryDesyncRecovery()}
 							class="px-3 py-1.5 rounded-lg border border-amber-500/60 bg-amber-500/15 hover:bg-amber-500/30 text-amber-200 text-xs font-bold cursor-pointer transition"
 						>
-							Повторити синхронізацію
+							{t('arena.retrySync')}
 						</button>
 						<button
 							type="button"
 							onclick={handleCopyDesyncLog}
 							class="px-3 py-1.5 rounded-lg border border-slate-600 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer transition"
 						>
-							{desyncLogCopied ? 'Скопійовано ✓' : 'Копіювати лог'}
+							{desyncLogCopied ? t('arena.copiedTick') : t('arena.copyLog')}
 						</button>
 						<button
 							type="button"
@@ -2622,7 +2632,7 @@
 							data-testid="desync-force-resume-btn"
 							class="px-3 py-1.5 rounded-lg border border-emerald-500/60 bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-200 text-xs font-bold cursor-pointer transition"
 						>
-							Продовжити гру
+							{t('arena.continueGame')}
 						</button>
 					</div>
 				</div>
@@ -2637,11 +2647,10 @@
 				Boolean(matchSync) &&
 				(isOnlineSpectator || !controlledPlayer.pendingRacePick || onlinePickedRace !== null)}
 			<div
-				class="absolute inset-0 bg-black/75 backdrop-blur-sm flex flex-col items-center justify-center z-30 p-4 select-none"
+				class="lg-hud-backdrop absolute inset-0 flex flex-col items-center justify-center z-30 p-4 select-none"
 			>
 				<div
-					class="bg-[#121622] border-2 border-[#8c7456] rounded-3xl p-5 max-w-xl w-full text-center shadow-2xl space-y-3"
-					style="box-shadow: 0 10px 40px rgba(0,0,0,0.9);"
+					class="lg-hud-modal border-2 border-[#8c7456]/80 rounded-3xl p-5 max-w-xl w-full text-center space-y-3"
 				>
 					{#if waitingForOthersOnline}
 						<div class="py-4 px-2 space-y-3">
@@ -2651,18 +2660,17 @@
 								<span class="text-2xl font-mono font-black text-amber-300">
 									{countdownSeconds}
 								</span>
-								<span class="text-xs text-amber-200 font-bold uppercase">сек</span>
+								<span class="text-xs text-amber-200 font-bold uppercase">{t('commander.sec')}</span>
 							</div>
 							<div class="text-sm font-bold text-slate-100">
-								{onlinePickedRace
-									? 'Расу зафіксовано! Очікування інших гравців...'
-									: 'Очікування гравців, які обирають расу в грі...'}
+								{onlinePickedRace ? t('arena.raceLockedWait') : t('arena.waitingRacePickers')}
 							</div>
 							<div class="text-xs text-slate-400">
-								Готові: <strong class="text-emerald-300 font-mono">
+								{t('arena.readyCount')}
+								<strong class="text-emerald-300 font-mono">
 									{pickedHumansCount}/{Math.max(1, humanPlayersList.length)}
 								</strong>
-								· Раси приховані до початку бою
+								{t('arena.racesHidden')}
 							</div>
 						</div>
 					{:else}
@@ -2681,13 +2689,13 @@
 						>
 							<div class="flex items-center gap-2.5">
 								<UiIcon name="dices" class="w-6 h-6 text-purple-300 shrink-0" />
-								<span class="text-sm font-bold tracking-wide">Випадкова раса</span>
+								<span class="text-sm font-bold tracking-wide">{t('arena.randomRace')}</span>
 							</div>
 							<div class="flex items-center gap-2">
 								<span
 									class="px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-400/50 text-xs text-amber-300 font-black"
 								>
-									+30% золота
+									{t('arena.bonusGold30')}
 								</span>
 								<div
 									class="px-2.5 py-1 bg-amber-500/20 border-2 border-amber-400/80 rounded-xl flex items-center gap-1.5 animate-pulse"
@@ -2695,16 +2703,20 @@
 									<span class="text-base font-mono font-black text-amber-300">
 										{countdownSeconds}
 									</span>
-									<span class="text-[10px] text-amber-200 font-bold uppercase">сек</span>
+									<span class="text-[10px] text-amber-200 font-bold uppercase">
+										{t('commander.sec')}
+									</span>
 								</div>
 							</div>
 						</button>
 
 						{#if matchSync && humanPlayersList.length > 1}
 							<div class="text-[11px] text-slate-400">
-								Готові: <span class="text-emerald-300 font-mono font-bold">
+								{t('arena.readyCount')}
+								<span class="text-emerald-300 font-mono font-bold">
 									{pickedHumansCount}/{humanPlayersList.length}
-								</span> · Вибір суперника приховано
+								</span>
+								{t('arena.opponentHidden')}
 							</div>
 						{/if}
 
@@ -2739,17 +2751,19 @@
 										: 'bg-[#181e2b] border-[#3b3226] hover:border-amber-400/80 hover:bg-[#202738] text-slate-200 hover:text-white cursor-pointer active:scale-95'}"
 								>
 									<span class="text-xs font-bold {isBanned ? 'line-through text-red-400/80' : ''}">
-										{raceDef.race}
+										{localizeRaceName(raceDef.race, settings.locale)}
 									</span>
 									{#if isBanned}
 										<span
 											class="text-[9px] text-red-400 font-bold flex items-center justify-center gap-1"
 										>
 											<UiIcon name="circleSlash" class="w-3 h-3 text-red-400 shrink-0" />
-											<span>Бан (-ban)</span>
+											<span>{t('arena.banTag')}</span>
 										</span>
 									{:else if isOpponentOccupied}
-										<span class="text-[9px] text-amber-400/80 font-bold">Зайнято (-ur)</span>
+										<span class="text-[9px] text-amber-400/80 font-bold">
+											{t('arena.takenUrTag')}
+										</span>
 									{/if}
 								</button>
 							{/each}
@@ -2847,8 +2861,8 @@
 					renderer?.setCamera(cameraX, cameraY, nz);
 				}}
 				class="w-6 h-6 rounded bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] text-[#d4af37] flex items-center justify-center shadow transition active:scale-95 cursor-pointer touch-manipulation"
-				title="Наблизити (Zoom In)"
-				aria-label="Наблизити"
+				title={t('arena.zoomInTitle')}
+				aria-label={t('arena.zoomInAria')}
 				data-testid="arena-zoom-in"
 			>
 				<UiIcon name="zoomIn" class="w-3.5 h-3.5" />
@@ -2860,8 +2874,8 @@
 					renderer?.setCamera(cameraX, cameraY, nz);
 				}}
 				class="w-6 h-6 rounded bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] text-[#d4af37] flex items-center justify-center shadow transition active:scale-95 cursor-pointer touch-manipulation"
-				title="Віддалити (Zoom Out)"
-				aria-label="Віддалити"
+				title={t('arena.zoomOutTitle')}
+				aria-label={t('arena.zoomOutAria')}
 				data-testid="arena-zoom-out"
 			>
 				<UiIcon name="zoomOut" class="w-3.5 h-3.5" />
@@ -2873,8 +2887,8 @@
 					renderer?.setCamera(activeCastle.x, activeCastle.y);
 				}}
 				class="w-6 h-6 rounded bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] text-[#d4af37] flex items-center justify-center shadow transition active:scale-95 cursor-pointer touch-manipulation"
-				title="Центрувати на замку"
-				aria-label="Центрувати на замку"
+				title={t('arena.centerCastle')}
+				aria-label={t('arena.centerCastle')}
 				data-testid="arena-center-base"
 			>
 				<UiIcon name="compass" class="w-3.5 h-3.5" />
@@ -2883,8 +2897,8 @@
 				type="button"
 				onclick={() => (isHelpOpen = true)}
 				class="w-6 h-6 rounded bg-[#2a241b] hover:bg-[#3d3427] border border-[#78654c] text-[#d4af37] flex items-center justify-center shadow transition active:scale-95 cursor-pointer touch-manipulation"
-				title="Гарячі клавіші та довідка"
-				aria-label="Гарячі клавіші"
+				title={t('arena.hotkeysTitle')}
+				aria-label={t('arena.hotkeysAria')}
 				data-testid="arena-help-btn"
 			>
 				<UiIcon name="helpCircle" class="w-3.5 h-3.5" />

@@ -1,5 +1,12 @@
 <script lang="ts">
-	import { COMMANDERS, getCommanderDescription } from '../engine/commanders';
+	import {
+		COMMANDERS,
+		getCommanderDescription,
+		getCommanderName,
+		getCommanderNickname
+	} from '../engine/commanders';
+	import { settings } from '$lib/services/settings.svelte';
+	import { t } from '$lib/i18n';
 	import UiIcon, { type UiIconName } from '$lib/components/ui/UiIcon.svelte';
 
 	let {
@@ -49,9 +56,9 @@
 		<div class="flex items-center gap-2.5 min-w-0">
 			<UiIcon name="dices" class="w-6 h-6 text-purple-300 shrink-0" />
 			<div class="text-left min-w-0">
-				<span class="text-sm font-bold tracking-wide block">Випадковий командир</span>
+				<span class="text-sm font-bold tracking-wide block">{t('commander.randomTitle')}</span>
 				<span class="text-[11px] text-purple-200/80 block truncate">
-					Випадковий герой з подвоєною ефективністю здібності
+					{t('commander.randomDesc')}
 				</span>
 			</div>
 		</div>
@@ -60,7 +67,7 @@
 			<span
 				class="px-2.5 py-1 rounded-lg bg-purple-500/25 border border-purple-400/60 text-xs text-purple-200 font-black"
 			>
-				×2 бонус
+				{t('commander.doubleBonus')}
 			</span>
 			{#if countdownSeconds !== null}
 				<div
@@ -69,7 +76,7 @@
 					<span class="text-base font-mono font-black text-amber-300">
 						{countdownSeconds}
 					</span>
-					<span class="text-[10px] text-amber-200 font-bold uppercase">сек</span>
+					<span class="text-[10px] text-amber-200 font-bold uppercase">{t('commander.sec')}</span>
 				</div>
 			{/if}
 		</div>
@@ -102,7 +109,9 @@
 
 				<div class="flex-1 min-w-0">
 					<div class="flex items-center justify-between gap-2">
-						<span class="font-bold text-sm text-white truncate">{cmd.name}</span>
+						<span class="font-bold text-sm text-white truncate">
+							{getCommanderName(cmd, settings.locale)}
+						</span>
 						<div class="flex items-center gap-1 shrink-0">
 							{#if isBoosted}
 								<span
@@ -114,7 +123,7 @@
 							<span
 								class="text-[10px] uppercase font-mono font-bold text-indigo-400 bg-indigo-950/70 px-1.5 py-0.5 rounded"
 							>
-								{cmd.nickname}
+								{getCommanderNickname(cmd, settings.locale)}
 							</span>
 						</div>
 					</div>
@@ -123,7 +132,7 @@
 							? 'text-purple-200 font-semibold'
 							: 'text-slate-300'} mt-1 leading-snug"
 					>
-						{getCommanderDescription(cmd, isBoosted)}
+						{getCommanderDescription(cmd, isBoosted, settings.locale)}
 					</p>
 				</div>
 

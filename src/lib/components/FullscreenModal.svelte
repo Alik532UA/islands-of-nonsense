@@ -76,14 +76,13 @@
 
 <dialog
 	bind:this={dialog}
-	class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 text-slate-100 max-w-none max-h-none w-screen h-screen border-none bg-transparent"
+	class="lg-hud-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 text-slate-100 max-w-none max-h-none w-screen h-screen border-none"
 	aria-labelledby="{id}-title"
 	onclose={close}
 	data-testid="fullscreen-modal"
 >
 	<div
-		class="relative w-full max-w-lg bg-gradient-to-b from-[#181d28] to-[#0d1017] border-2 border-[#8c7456] rounded-2xl shadow-2xl p-6 text-white space-y-4 max-h-[calc(100dvh-32px)] overflow-y-auto"
-		style="box-shadow: 0 0 35px rgba(0,0,0,0.9), inset 0 0 20px rgba(140,116,86,0.15);"
+		class="lg-hud-modal relative w-full max-w-lg border-2 border-[#8c7456]/80 rounded-2xl p-6 text-white space-y-4 max-h-[calc(100dvh-32px)] overflow-y-auto"
 	>
 		<div class="flex items-center justify-between pb-3 border-b border-[#3b3226]">
 			<h2

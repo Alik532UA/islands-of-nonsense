@@ -37,6 +37,11 @@
 	--color-header-border: rgba(255, 255, 255, 0.08);
 	--color-header-btn-bg: rgba(255, 255, 255, 0.04);
 	--color-header-btn-border: rgba(255, 255, 255, 0.08);
+	--lg-surface-bg: rgba(18, 24, 40, 0.72);
+	--lg-surface-hover: rgba(28, 38, 62, 0.82);
+	--lg-surface-border: rgba(255, 255, 255, 0.16);
+	--lg-surface-highlight: rgba(255, 255, 255, 0.18);
+	--lg-header-bg: rgba(11, 15, 25, 0.72);
 	color-scheme: dark;
 }
 
@@ -64,6 +69,11 @@ html[data-theme='light-gray'],
 	--color-header-border: rgba(0, 0, 0, 0.1);
 	--color-header-btn-bg: rgba(0, 0, 0, 0.04);
 	--color-header-btn-border: rgba(0, 0, 0, 0.1);
+	--lg-surface-bg: rgba(255, 255, 255, 0.76);
+	--lg-surface-hover: rgba(241, 245, 249, 0.9);
+	--lg-surface-border: rgba(15, 23, 42, 0.14);
+	--lg-surface-highlight: rgba(255, 255, 255, 0.85);
+	--lg-header-bg: rgba(248, 250, 252, 0.78);
 	color-scheme: only light;
 }
 
@@ -91,6 +101,11 @@ html[data-theme='orange'],
 	--color-header-border: rgba(255, 255, 255, 0.15);
 	--color-header-btn-bg: rgba(255, 255, 255, 0.1);
 	--color-header-btn-border: rgba(255, 255, 255, 0.2);
+	--lg-surface-bg: rgba(61, 10, 53, 0.72);
+	--lg-surface-hover: rgba(82, 15, 72, 0.82);
+	--lg-surface-border: rgba(255, 255, 255, 0.26);
+	--lg-surface-highlight: rgba(255, 255, 255, 0.22);
+	--lg-header-bg: rgba(54, 8, 47, 0.74);
 	color-scheme: dark;
 }
 
@@ -118,6 +133,11 @@ html[data-theme='green'],
 	--color-header-border: rgba(5, 150, 105, 0.2);
 	--color-header-btn-bg: rgba(5, 150, 105, 0.1);
 	--color-header-btn-border: rgba(5, 150, 105, 0.2);
+	--lg-surface-bg: rgba(230, 255, 235, 0.78);
+	--lg-surface-hover: rgba(209, 250, 229, 0.9);
+	--lg-surface-border: rgba(5, 150, 105, 0.28);
+	--lg-surface-highlight: rgba(255, 255, 255, 0.78);
+	--lg-header-bg: rgba(230, 255, 235, 0.76);
 	color-scheme: only light;
 }
 
@@ -209,12 +229,22 @@ html[data-custom-cursor] canvas {
 }
 
 .menu-btn--game {
-	background-color: #141c2e;
-	border: 2px solid #2e3d5a;
+	background:
+		linear-gradient(
+			155deg,
+			rgba(255, 255, 255, 0.1) 0%,
+			rgba(255, 255, 255, 0.02) 40%,
+			rgba(0, 0, 0, 0.18) 100%
+		),
+		rgba(18, 25, 42, 0.78);
+	backdrop-filter: blur(14px) saturate(140%);
+	-webkit-backdrop-filter: blur(14px) saturate(140%);
+	border: 1.5px solid rgba(255, 232, 185, 0.22);
 	color: #f8fafc;
 	box-shadow:
-		0 6px 20px rgba(0, 0, 0, 0.4),
-		0 2px 0 rgba(255, 255, 255, 0.05) inset;
+		0 10px 28px rgba(0, 0, 0, 0.45),
+		inset 0 1px 0 rgba(255, 255, 255, 0.22),
+		inset 0 -1px 0 rgba(0, 0, 0, 0.35);
 }
 
 .menu-btn--game span {
@@ -222,13 +252,20 @@ html[data-custom-cursor] canvas {
 }
 
 .menu-btn--game:hover {
-	background-color: #1e293b;
-	border-color: #f59e0b;
+	background:
+		linear-gradient(
+			155deg,
+			rgba(255, 255, 255, 0.16) 0%,
+			rgba(255, 255, 255, 0.04) 40%,
+			rgba(0, 0, 0, 0.12) 100%
+		),
+		rgba(28, 39, 62, 0.86);
+	border-color: rgba(245, 158, 11, 0.65);
 	color: #ffffff;
 	transform: translateY(-3px);
 	box-shadow:
-		0 10px 25px rgba(245, 158, 11, 0.2),
-		0 2px 0 rgba(255, 255, 255, 0.1) inset;
+		0 14px 32px rgba(245, 158, 11, 0.22),
+		inset 0 1px 0 rgba(255, 255, 255, 0.32);
 }
 
 .menu-btn--game:hover span {
@@ -253,16 +290,32 @@ html[data-custom-cursor] canvas {
 	gap: var(--space-sm);
 	padding: var(--space-sm) var(--space-lg);
 	font-size: 0.95rem;
-	color: var(--color-text-muted);
-	background-color: rgba(255, 255, 255, 0.03);
-	border: 1px solid rgba(255, 255, 255, 0.08);
-	backdrop-filter: blur(8px);
+	color: var(--color-text);
+	background:
+		linear-gradient(
+			160deg,
+			var(--lg-surface-highlight, rgba(255, 255, 255, 0.12)) 0%,
+			transparent 55%
+		),
+		var(--lg-surface-bg, rgba(18, 24, 40, 0.72));
+	border: 1px solid var(--lg-surface-border, rgba(255, 255, 255, 0.16));
+	backdrop-filter: blur(12px) saturate(135%);
+	-webkit-backdrop-filter: blur(12px) saturate(135%);
+	box-shadow:
+		0 6px 18px rgba(0, 0, 0, 0.24),
+		inset 0 1px 0 var(--lg-surface-highlight, rgba(255, 255, 255, 0.18));
 }
 
 .menu-btn--link:hover {
-	color: var(--color-text);
-	background-color: rgba(255, 255, 255, 0.08);
-	border-color: rgba(245, 158, 11, 0.4);
+	color: var(--color-heading);
+	background:
+		linear-gradient(
+			160deg,
+			var(--lg-surface-highlight, rgba(255, 255, 255, 0.2)) 0%,
+			transparent 60%
+		),
+		var(--lg-surface-hover, rgba(28, 38, 62, 0.84));
+	border-color: rgba(245, 158, 11, 0.55);
 	transform: translateY(-2px);
 }
 
@@ -288,7 +341,7 @@ html[data-custom-cursor] canvas {
 	}
 }
 
-/* ===== GameHeader Styles ===== */
+/* ===== GameHeader Styles (Liquid Glass) ===== */
 .game-header {
 	display: flex;
 	align-items: center;
@@ -296,10 +349,20 @@ html[data-custom-cursor] canvas {
 	width: 100%;
 	height: 56px;
 	padding: 0 var(--space-md);
-	background: var(--color-header-bg, rgba(11, 15, 25, 0.85));
-	backdrop-filter: blur(12px);
-	border-bottom: 1px solid var(--color-header-border, rgba(255, 255, 255, 0.08));
-	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+	background:
+		linear-gradient(
+			180deg,
+			var(--lg-surface-highlight, rgba(255, 255, 255, 0.08)) 0%,
+			transparent 65%
+		),
+		var(--lg-header-bg, rgba(11, 15, 25, 0.74));
+	backdrop-filter: blur(14px) saturate(140%);
+	-webkit-backdrop-filter: blur(14px) saturate(140%);
+	border-bottom: 1px solid
+		var(--lg-surface-border, var(--color-header-border, rgba(255, 255, 255, 0.12)));
+	box-shadow:
+		0 6px 24px rgba(0, 0, 0, 0.32),
+		inset 0 -1px 0 rgba(0, 0, 0, 0.15);
 	position: sticky;
 	top: 0;
 	z-index: 40;
@@ -312,18 +375,125 @@ html[data-custom-cursor] canvas {
 	width: 38px;
 	height: 38px;
 	border-radius: var(--radius-sm);
-	background-color: var(--color-header-btn-bg, rgba(255, 255, 255, 0.04));
-	border: 1px solid var(--color-header-btn-border, rgba(255, 255, 255, 0.08));
+	background:
+		linear-gradient(
+			160deg,
+			var(--lg-surface-highlight, rgba(255, 255, 255, 0.12)) 0%,
+			transparent 65%
+		),
+		var(--color-header-btn-bg, rgba(255, 255, 255, 0.06));
+	border: 1px solid var(--color-header-btn-border, rgba(255, 255, 255, 0.12));
 	color: var(--color-text, #f1f5f9);
+	box-shadow: inset 0 1px 0 var(--lg-surface-highlight, rgba(255, 255, 255, 0.16));
 	cursor: pointer;
 	text-decoration: none;
 	transition: all 0.2s ease;
 }
 
 .header-btn:hover {
-	background-color: var(--color-bg-card-hover, rgba(255, 255, 255, 0.1));
-	border-color: rgba(245, 158, 11, 0.5);
-	color: #fef08a;
+	background-color: var(--color-bg-card-hover, rgba(255, 255, 255, 0.12));
+	border-color: rgba(245, 158, 11, 0.55);
+	color: var(--color-heading, #fef08a);
+}
+
+/* ===== Unified Liquid Glass Design System (Battle HUD & Modals) ===== */
+/* Composited safely over 60 FPS PixiJS WebGL canvas; keeps high-contrast scrims for WCAG 2.2 AA. */
+.lg-hud-panel {
+	background:
+		linear-gradient(
+			158deg,
+			rgba(255, 255, 255, 0.1) 0%,
+			rgba(255, 255, 255, 0.025) 36%,
+			rgba(8, 12, 22, 0.22) 100%
+		),
+		rgba(13, 18, 30, 0.74) !important;
+	backdrop-filter: blur(12px) saturate(140%);
+	-webkit-backdrop-filter: blur(12px) saturate(140%);
+	box-shadow:
+		0 10px 28px rgba(0, 0, 0, 0.6),
+		inset 0 1px 0 rgba(255, 245, 220, 0.24),
+		inset 0 -1px 0 rgba(0, 0, 0, 0.45);
+	contain: layout style;
+}
+
+.lg-hud-modal {
+	background:
+		linear-gradient(
+			152deg,
+			rgba(255, 255, 255, 0.11) 0%,
+			rgba(255, 255, 255, 0.025) 32%,
+			rgba(7, 10, 19, 0.28) 100%
+		),
+		rgba(14, 19, 32, 0.84) !important;
+	backdrop-filter: blur(16px) saturate(145%);
+	-webkit-backdrop-filter: blur(16px) saturate(145%);
+	box-shadow:
+		0 24px 64px rgba(0, 0, 0, 0.78),
+		inset 0 1px 0 rgba(255, 248, 225, 0.28),
+		inset 0 0 28px rgba(140, 116, 86, 0.14);
+}
+
+.lg-hud-subcard {
+	background:
+		linear-gradient(
+			160deg,
+			rgba(255, 255, 255, 0.065) 0%,
+			rgba(255, 255, 255, 0.015) 45%,
+			rgba(0, 0, 0, 0.16) 100%
+		),
+		rgba(12, 16, 28, 0.68) !important;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.14),
+		0 4px 14px rgba(0, 0, 0, 0.32);
+}
+
+.lg-hud-pill {
+	background:
+		linear-gradient(165deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.015) 60%),
+		rgba(20, 26, 42, 0.72) !important;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.16),
+		0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.lg-hud-tooltip {
+	background:
+		linear-gradient(155deg, rgba(255, 255, 255, 0.09) 0%, rgba(9, 13, 22, 0.2) 100%),
+		rgba(12, 16, 27, 0.88) !important;
+	backdrop-filter: blur(10px) saturate(135%);
+	-webkit-backdrop-filter: blur(10px) saturate(135%);
+	box-shadow:
+		0 12px 32px rgba(0, 0, 0, 0.72),
+		inset 0 1px 0 rgba(255, 245, 220, 0.22);
+}
+
+.lg-hud-backdrop {
+	background: radial-gradient(
+		circle at 50% 35%,
+		rgba(16, 22, 38, 0.56),
+		rgba(4, 6, 12, 0.78)
+	) !important;
+	backdrop-filter: blur(6px) saturate(120%);
+	-webkit-backdrop-filter: blur(6px) saturate(120%);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+	.lg-hud-panel,
+	.lg-hud-modal,
+	.lg-hud-tooltip,
+	.lg-hud-backdrop,
+	.game-header,
+	.menu-btn--game,
+	.menu-btn--link {
+		backdrop-filter: none !important;
+		-webkit-backdrop-filter: none !important;
+	}
+
+	.lg-hud-panel,
+	.lg-hud-modal,
+	.lg-hud-tooltip {
+		background: rgba(14, 18, 30, 0.96) !important;
+	}
 }
 
 .anim-stagger-1 {

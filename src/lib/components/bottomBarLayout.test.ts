@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { getBaseBuildingsForRace } from '../engine/gameData';
+import { getBaseBuildingsForRace, PLAYABLE_RACES } from '../engine/gameData';
 
 describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 	const bottomBarPath = path.resolve('src/lib/components/BottomBar.svelte');
@@ -114,9 +114,8 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 		// Title renders hotkey directly without brackets
 		expect(commandCardSrc).toContain('bHotkey');
 
-		// Test resolution for each race building
-		const races = ['Люди', 'Орки', 'Нежить', 'Ельфи', 'Хаос', 'Північ'];
-		for (const race of races) {
+		// Test resolution for all 12 canonical playable races
+		for (const race of PLAYABLE_RACES) {
 			const buildings = getBaseBuildingsForRace(race);
 			expect(buildings.length).toBeGreaterThanOrEqual(10);
 			for (let idx = 0; idx < Math.min(11, buildings.length); idx++) {
@@ -175,12 +174,12 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 		// Top-left: terrain detail flush in top-left corner
 		expect(minimapSrc).toContain('data-testid="minimap-terrain-btn"');
 		expect(minimapSrc).toContain('absolute top-0 left-0');
-		expect(minimapSrc).toContain('title="Перемкнути детальність рельєфу"');
+		expect(minimapSrc).toContain("title={t('minimap.terrain')}");
 
 		// Bottom-left: ally colors flush in bottom-left corner
 		expect(minimapSrc).toContain('data-testid="minimap-ally-colors-btn"');
 		expect(minimapSrc).toContain('absolute bottom-0 left-0');
-		expect(minimapSrc).toContain('title="Кольори союзників (Зелений / Ворожий)"');
+		expect(minimapSrc).toContain("title={t('minimap.allyColors')}");
 
 		// Top-right: drag handle flush in top-right corner
 		expect(minimapSrc).toContain('data-testid="minimap-drag-btn"');
@@ -247,9 +246,9 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 
 	it('configures minimalist worker inspection panel with faction badge, single speed stat, zero text overlap, and hides redundant vital bar', () => {
 		// Title and faction badge without square brackets
-		expect(entityInspectDetailsSrc).toContain('Будівельник');
+		expect(entityInspectDetailsSrc).toContain("t('inspect.builder')");
 		expect(entityInspectDetailsSrc).toContain('formatFactionName');
-		expect(entityInspectDetailsSrc).toContain('{formatFactionName(player.race)}');
+		expect(entityInspectDetailsSrc).toContain('formatFactionName(player.race)');
 		expect(entityInspectDetailsSrc).not.toContain('[{formatFactionName(player.race)}]');
 
 		// No pulsing green dot
@@ -266,7 +265,7 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 
 		// Worker attribute row contains dynamic Speed (WORKER_MOVE_SPEED = 170) with Footprints icon
 		expect(entityInspectDetailsSrc).toContain("activeEntityType === 'worker'");
-		expect(entityInspectDetailsSrc).toContain('Швидкість:');
+		expect(entityInspectDetailsSrc).toContain("t('inspect.speed')");
 		expect(entityInspectDetailsSrc).toContain('WORKER_MOVE_SPEED');
 
 		// Redundant stats removed for worker (zero text collision or overlapping)
@@ -297,17 +296,6 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 		expect(bottomBarSrc).toContain('bind:clientWidth={contentWidth}');
 		expect(bottomBarSrc).toContain('hudScale');
 		expect(bottomBarSrc).toContain('transform-origin');
-	});
-
-	it('updates placedUnit, availableUpgrades, forge levels, and shop cooldowns reactively with uiTick without re-selecting', () => {
-		expect(bottomBarSrc).toMatch(
-			/placedUnit\s*=\s*\$derived\(\s*uiTick\s*>=\s*0\s*&&\s*placedBuilding/
-		);
-		expect(bottomBarSrc).toMatch(
-			/availableUpgrades\s*=\s*\$derived\(\s*uiTick\s*>=\s*0\s*&&\s*placedBuilding/
-		);
-		expect(commandCardSrc).toContain('uiTick >= 0 ? player.forge.attack : 0');
-		expect(commandCardSrc).toContain('uiTick >= 0 ? sim.getItemCooldown(player.team, item.id) : 0');
 	});
 
 	it('updates placedUnit, availableUpgrades, forge levels, and shop cooldowns reactively with uiTick without re-selecting', () => {

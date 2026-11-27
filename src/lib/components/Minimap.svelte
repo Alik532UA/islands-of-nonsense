@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { Simulation } from '../engine/simulation';
+	import { t } from '$lib/i18n';
 	import {
 		ARENA_WIDTH,
 		ARENA_HEIGHT,
@@ -681,27 +682,26 @@
 				isCollapsed = false;
 				setTimeout(() => renderMinimap(), 16);
 			}}
-			class="flex items-center gap-1.5 px-3 py-1.5 bg-[#131722]/95 hover:bg-[#1f2638] border-t-2 border-x-2 border-b-0 border-[#544738] rounded-t-lg text-amber-300 shadow-2xl transition cursor-pointer active:scale-95 backdrop-blur-md"
-			title="Показати мінікарту"
-			aria-label="Показати мінікарту"
+			class="lg-hud-panel flex items-center gap-1.5 px-3 py-1.5 border-t-2 border-x-2 border-b-0 border-[#544738]/80 rounded-t-lg text-amber-300 transition cursor-pointer active:scale-95"
+			title={t('minimap.show')}
+			aria-label={t('minimap.show')}
 			data-testid="minimap-expand-btn"
 		>
 			<UiIcon name="map" class="w-3.5 h-3.5 text-amber-400" />
 			<UiIcon name="chevronUp" class="w-4 h-4 text-amber-300" />
-			<span class="text-[9.5px] font-bold uppercase tracking-wider">Карта</span>
+			<span class="text-[9.5px] font-bold uppercase tracking-wider">{t('minimap.map')}</span>
 		</button>
 	</div>
 {/if}
 
 <!-- Expanded Minimap: Anchored flush to the bottom with corner controls in the water regions -->
 <div
-	class="relative bg-[#131722]/95 backdrop-blur-md rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 border-[#544738] shadow-2xl select-none h-[142px] w-[424px] shrink-0 overflow-hidden pointer-events-auto transition-all duration-200 {isCollapsed
+	class="lg-hud-panel relative rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 border-[#544738]/80 select-none h-[142px] w-[424px] shrink-0 overflow-hidden pointer-events-auto transition-all duration-200 {isCollapsed
 		? 'hidden'
 		: ''}"
-	style="box-shadow: inset 0 0 10px rgba(0,0,0,0.8), 0 -4px 16px rgba(0,0,0,0.7); {dragPosition.x ||
-	dragPosition.y
+	style={dragPosition.x || dragPosition.y
 		? `transform: translate(${dragPosition.x}px, ${dragPosition.y}px);`
-		: ''}"
+		: undefined}
 >
 	<!-- Minimap Canvas Container (Full Area) with 4 In-Canvas Corner Buttons -->
 	<div class="relative overflow-hidden bg-[#012e4a] w-full h-full flex items-center justify-center">
@@ -712,7 +712,7 @@
 			onmousedown={handleMouseDown}
 			onmousemove={handleMouseMove}
 			class="cursor-crosshair block w-full h-full"
-			title="Мінікарта арени. Затисніть та ведіть, щоб перемістити камеру!"
+			title={t('minimap.arenaTitle')}
 		></canvas>
 
 		<!-- 1. Top-Left: Перемкнути детальність рельєфу (в самому кутку) -->
@@ -723,8 +723,8 @@
 			class="absolute top-0 left-0 z-10 w-7 h-7 rounded-tl-[10px] rounded-br-md rounded-tr-none rounded-bl-none border-b border-r flex items-center justify-center transition cursor-pointer active:scale-95 shadow backdrop-blur-sm {simpleTerrainMode
 				? 'bg-[#3b82f6]/70 border-blue-400 text-blue-200'
 				: 'bg-[#1a1510]/85 hover:bg-[#2a241b] border-[#78654c] text-[#c5a880]'}"
-			title="Перемкнути детальність рельєфу"
-			aria-label="Перемкнути детальність рельєфу"
+			title={t('minimap.terrain')}
+			aria-label={t('minimap.terrain')}
 			data-testid="minimap-terrain-btn"
 		>
 			<UiIcon name="map" class="w-3.5 h-3.5" />
@@ -738,8 +738,8 @@
 			class="absolute bottom-0 left-0 z-10 w-7 h-7 rounded-none rounded-tr-md border-t border-r flex items-center justify-center transition cursor-pointer active:scale-95 shadow backdrop-blur-sm {allyColorsMode
 				? 'bg-emerald-950/85 border-emerald-500 text-emerald-300'
 				: 'bg-[#1a1510]/85 hover:bg-[#2a241b] border-[#78654c] text-[#c5a880]'}"
-			title="Кольори союзників (Зелений / Ворожий)"
-			aria-label="Кольори союзників"
+			title={t('minimap.allyColors')}
+			aria-label={t('minimap.allyColors')}
 			data-testid="minimap-ally-colors-btn"
 		>
 			<UiIcon name="users" class="w-3.5 h-3.5" />
@@ -752,8 +752,8 @@
 			ontouchstart={startDragTouch}
 			ondblclick={resetDragPosition}
 			class="absolute top-0 right-0 z-10 w-7 h-7 rounded-tr-[10px] rounded-bl-md rounded-tl-none rounded-br-none border-b border-l bg-[#1a1510]/85 hover:bg-[#2a241b] border-[#78654c] flex items-center justify-center text-[#d4af37] transition cursor-grab active:cursor-grabbing shadow backdrop-blur-sm"
-			title="Перемістити мінікарту (перетягніть мишею; подвійний клік — скинути позицію)"
-			aria-label="Перемістити мінікарту"
+			title={t('minimap.dragTitle')}
+			aria-label={t('minimap.dragAria')}
 			data-testid="minimap-drag-btn"
 		>
 			<UiIcon name="move" class="w-3.5 h-3.5" />
@@ -765,8 +765,8 @@
 			onclick={() => (isCollapsed = true)}
 			onmousedown={(e) => e.stopPropagation()}
 			class="absolute bottom-0 right-0 z-10 w-7 h-7 rounded-none rounded-tl-md border-t border-l bg-[#1a1510]/85 hover:bg-[#2a241b] border-[#78654c] flex items-center justify-center text-[#d4af37] transition cursor-pointer active:scale-95 shadow backdrop-blur-sm"
-			title="Приховати мінікарту"
-			aria-label="Приховати мінікарту"
+			title={t('minimap.hide')}
+			aria-label={t('minimap.hide')}
 			data-testid="minimap-collapse-btn"
 		>
 			<UiIcon name="chevronDown" class="w-3.5 h-3.5" />

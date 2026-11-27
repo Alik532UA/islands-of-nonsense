@@ -13,11 +13,15 @@
 	import {
 		applyCommanderForgeCostDiscount,
 		findCommander,
-		getCommanderEffectivePct
+		getCommanderEffectivePct,
+		getCommanderName
 	} from '../engine/commanders';
 	import { sound } from '../services/audio';
 	import CooldownOverlay from '$lib/components/ui/CooldownOverlay.svelte';
 	import { WORKER_BLINK_COOLDOWN } from '../engine/constants';
+	import { t } from '$lib/i18n';
+	import { localizeEntityName, localizeShortBuildingName } from '$lib/i18n/entityNames';
+	import { getArmorTypeLabel, getAttackTypeLabel } from './CombatMatrixTooltip.svelte';
 
 	const routeBattleCommand = getContext<BattleCommandRouter | undefined>(BATTLE_COMMAND_ROUTER_KEY);
 
@@ -211,40 +215,8 @@
 	const ION_HOTKEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', 'V'];
 
 	function shortenName(name: string): string {
-		if (name.includes('Магазин')) return 'Магазин';
-		if (name.includes('Скриня')) return 'Скриня';
-		if (name.includes('Снігове')) return 'Снігове';
-		if (name.includes('Іглу')) return 'Іглу';
-		if (name.includes('Хатинка') || name.includes('Хатина')) return 'Хатинка';
-		if (name.includes('Шипи')) return 'Шипи';
-		if (name.includes('гніздо') || name.includes('Гніздо')) return 'Гніздо';
-		if (name.includes('замок') || name.includes('Замок')) return 'Замок';
-		if (name.includes('вежа') || name.includes('Вежа')) return 'Вежа';
-		if (name.includes('гриб') || name.includes('Гриб')) return 'Гриб';
-		if (name.includes('обеліск') || name.includes('Обеліск')) return 'Обеліск';
-		if (name.includes('Заморожувач')) return 'Заморож.';
-		if (name.includes('Барак')) return 'Барак';
-		if (name.includes('Снайпер') || name.includes('Стрільц')) return 'Снайпери';
-		if (name.includes('Майстерня') || name.includes('майстерня')) return 'Майстерня';
-		if (name.includes('Грифон')) return 'Грифони';
-		if (name.includes('Церква')) return 'Церква';
-		if (name.includes('бібліотека')) return 'Бібліотека';
-		if (name.includes('Артилерія')) return 'Артилерія';
-		if (name.includes('Ріг')) return 'Ріг';
-		if (name.includes('Храм')) return 'Храм';
-		if (name.includes('Тотем')) return 'Тотем';
-		if (name.includes('Колодязь')) return 'Колодязь';
-		if (name.includes('Вівтар')) return 'Вівтар';
-		if (name.includes('Брама')) return 'Брама';
-		if (name.includes('Кузня')) return 'Кузня';
-		if (name.includes('командира')) return 'Командир';
-		if (name.includes('Фабрика')) return 'Фабрика';
-		if (name.includes('Звалище')) return 'Звалище';
-		if (name.includes('Клепальня')) return 'Клепальня';
-		if (name.includes('Дробильня')) return 'Дробильня';
-		if (name.includes('Ангар')) return 'Ангар';
-		const words = name.split(' ');
-		return words[0].length <= 8 ? words[0] : words[0].slice(0, 7) + '.';
+		const short = localizeShortBuildingName(name, settings.locale);
+		return short.length <= 8 ? short : short.slice(0, 7) + '.';
 	}
 
 	function getHotkeyForBuilding(bld: BuildingDefinition, index: number): string {
@@ -255,7 +227,7 @@
 		return WC3_HOTKEYS[index] || HOTKEYS[index] || '';
 	}
 	const tipClass =
-		'pointer-events-none absolute bottom-full mb-2 z-50 whitespace-nowrap rounded-md border border-[#544738] bg-[#0f141f]/95 px-2.5 py-1 text-[11px] text-amber-100 shadow-2xl opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150';
+		'lg-hud-tooltip pointer-events-none absolute bottom-full mb-2 z-50 whitespace-nowrap rounded-md border border-[#544738]/80 px-2.5 py-1 text-[11px] text-amber-100 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150';
 	const hotkeyCornerClass =
 		'absolute top-0 right-0 px-1 py-0.2 rounded-bl-[3px] text-[7.5px] font-mono font-bold leading-none select-none bg-black/70 text-[#fef08a] border-l border-b border-[#544738]/60';
 
@@ -268,8 +240,7 @@
 
 <div
 	data-testid="hud-command-card"
-	class="relative flex items-center justify-center p-1.5 bg-[#11151e] rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 border-[#544738] shadow-inner shrink-0 h-[142px]"
-	style="box-shadow: inset 0 0 10px rgba(0,0,0,0.85);"
+	class="lg-hud-panel relative flex items-center justify-center p-1.5 rounded-t-xl rounded-b-none border-t-2 border-x-2 border-b-0 border-[#544738]/80 shrink-0 h-[142px]"
 >
 	{#if placedBuilding}
 		{#if placedBuilding.team === player.team}
@@ -284,10 +255,10 @@
 							style="box-shadow: inset 0 1px 0 rgba(251,191,36,0.25), 0 4px 10px rgba(0,0,0,0.4);"
 						>
 							<UiIcon name="hammer" class="w-4 h-4 text-amber-300 shrink-0" />
-							<span class="text-[11px] font-bold tracking-wide">Добудувати</span>
+							<span class="text-[11px] font-bold tracking-wide">{t('cmd.finishBuild')}</span>
 						</button>
 						<div class="{tipClass} left-1/2 -translate-x-1/2">
-							Відправити робітника добудувати споруду
+							{t('cmd.finishBuildTip')}
 						</div>
 					</div>
 					<div class="relative group/tip w-full">
@@ -297,9 +268,9 @@
 							class="w-full h-9 rounded-lg border border-rose-500/60 bg-gradient-to-b from-rose-950/80 to-[#1a0b11] hover:from-rose-900/85 hover:to-rose-950 text-rose-200 flex items-center justify-center gap-1.5 px-3 transition cursor-pointer touch-manipulation shadow"
 						>
 							<UiIcon name="trash2" class="w-3.5 h-3.5 text-rose-400 shrink-0" />
-							<span class="text-[10.5px] font-bold">Скасувати</span>
+							<span class="text-[10.5px] font-bold">{t('cmd.cancel')}</span>
 						</button>
-						<div class="{tipClass} left-1/2 -translate-x-1/2">Скасувати будівництво</div>
+						<div class="{tipClass} left-1/2 -translate-x-1/2">{t('cmd.cancelTip')}</div>
 					</div>
 				</div>
 			{:else if placedBuilding.specialType === 'shop' || placedBuilding.specialType === 'forge' || placedBuilding.specialType === 'commander'}
@@ -316,7 +287,7 @@
 							>
 								<span class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
 									<UiIcon name="shoppingBag" class="w-3.5 h-3.5 text-amber-400" />
-									Товари
+									{t('cmd.goods')}
 								</span>
 								<div class="flex items-center gap-1">
 									{#if buildingHp < buildingMaxHp}
@@ -326,7 +297,7 @@
 											class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-emerald-950/80 hover:bg-emerald-900 border-emerald-500/70 text-emerald-200 cursor-pointer shadow flex items-center gap-0.5"
 										>
 											<UiIcon name="wrench" class="w-2.5 h-2.5 text-emerald-400" />
-											<span>Ремонт</span>
+											<span>{t('cmd.repair')}</span>
 											<span
 												class="px-1 py-0.2 rounded bg-black/60 border border-emerald-500/40 text-emerald-300 font-mono text-[8px] leading-none"
 											>
@@ -340,7 +311,7 @@
 										class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-rose-950/70 hover:bg-rose-900 border-rose-600/70 text-rose-200 cursor-pointer shadow flex items-center gap-0.5"
 									>
 										<UiIcon name="trash2" class="w-2.5 h-2.5 text-rose-400" />
-										<span>Знести (+25g)</span>
+										<span>{t('cmd.demolishGold', { gold: 25 })}</span>
 									</button>
 								</div>
 							</div>
@@ -360,11 +331,15 @@
 											: cd > 0
 												? 'bg-[#151a24] border-cyan-800/60 text-cyan-400 cursor-not-allowed'
 												: 'bg-[#12161f] border-slate-700 text-slate-500 opacity-60 cursor-not-allowed'}"
-										aria-label="{item.nameUk} ({item.cost}g) - {item.descriptionUk}"
+										aria-label="{settings.locale === 'en'
+											? item.nameEn
+											: item.nameUk} ({item.cost}g) - {settings.locale === 'en'
+											? item.descriptionEn
+											: item.descriptionUk}"
 									>
 										<CooldownOverlay remaining={cd} max={item.cooldown} />
 										<span class="text-[8px] font-bold text-slate-200 truncate max-w-[55px]">
-											{item.nameUk}
+											{settings.locale === 'en' ? item.nameEn : item.nameUk}
 										</span>
 										<span
 											class="text-[8px] text-amber-300 font-mono font-bold flex items-center gap-0.5"
@@ -380,15 +355,21 @@
 									class="absolute -top-14 left-2 right-2 bg-[#0c1017] border border-amber-500/80 rounded p-1.5 z-30 shadow-2xl text-[9px] pointer-events-none"
 								>
 									<div class="flex items-center justify-between font-bold text-amber-300">
-										<span>{hoveredItem.nameUk}</span>
+										<span>
+											{settings.locale === 'en' ? hoveredItem.nameEn : hoveredItem.nameUk}
+										</span>
 										<span class="font-mono flex items-center gap-1">
 											<UiIcon name="coins" class="w-3 h-3 text-amber-400 shrink-0" />
 											<span>{hoveredItem.cost}</span>
 											<span class="text-slate-400">|</span>
-											<span>КД: {hoveredItem.cooldown}с</span>
+											<span>{t('cmd.cdShort', { sec: hoveredItem.cooldown })}</span>
 										</span>
 									</div>
-									<p class="text-slate-300 text-[8.5px] mt-0.5">{hoveredItem.descriptionUk}</p>
+									<p class="text-slate-300 text-[8.5px] mt-0.5">
+										{settings.locale === 'en'
+											? hoveredItem.descriptionEn
+											: hoveredItem.descriptionUk}
+									</p>
 								</div>
 							{/if}
 						</div>
@@ -414,7 +395,7 @@
 							>
 								<span class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
 									<UiIcon name="hammer" class="w-3.5 h-3.5 text-amber-400" />
-									Покращення
+									{t('cmd.upgrades')}
 								</span>
 								<div class="flex items-center gap-1">
 									{#if buildingHp < buildingMaxHp}
@@ -424,7 +405,7 @@
 											class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-emerald-950/80 hover:bg-emerald-900 border-emerald-500/70 text-emerald-200 cursor-pointer shadow flex items-center gap-0.5"
 										>
 											<UiIcon name="wrench" class="w-2.5 h-2.5 text-emerald-400" />
-											<span>Ремонт</span>
+											<span>{t('cmd.repair')}</span>
 											<span
 												class="px-1 py-0.2 rounded bg-black/60 border border-emerald-500/40 text-emerald-300 font-mono text-[8px] leading-none"
 											>
@@ -438,7 +419,7 @@
 										class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-rose-950/70 hover:bg-rose-900 border-rose-600/70 text-rose-200 cursor-pointer shadow flex items-center gap-0.5"
 									>
 										<UiIcon name="trash2" class="w-2.5 h-2.5 text-rose-400" />
-										<span>Знести (+50g)</span>
+										<span>{t('cmd.demolishGold', { gold: 50 })}</span>
 									</button>
 								</div>
 							</div>
@@ -453,14 +434,14 @@
 									>
 										<span class="text-[9.5px] font-bold text-rose-300 flex items-center gap-1">
 											<UiIcon name="swords" class="w-3 h-3 text-rose-400 shrink-0" />
-											<span>Атака {atkLvl}/5</span>
+											<span>{t('cmd.atkLv', { lv: atkLvl })}</span>
 										</span>
-										<span class="text-[8px] text-slate-400">+8% шкоди</span>
+										<span class="text-[8px] text-slate-400">{t('cmd.atkBonus')}</span>
 										<div
 											class="text-[8.5px] font-mono font-bold text-amber-300 flex items-center gap-1"
 										>
 											{#if atkLvl >= 5}
-												<span>МАКС</span>
+												<span>{t('cmd.max')}</span>
 											{:else}
 												<span class="flex items-center gap-0.5">
 													<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
@@ -475,7 +456,7 @@
 											{/if}
 										</div>
 									</button>
-									<div class="{tipClass} left-0">Атака: +8% шкоди всім військам</div>
+									<div class="{tipClass} left-0">{t('cmd.atkTip')}</div>
 								</div>
 
 								<div class="relative group/tip">
@@ -488,14 +469,14 @@
 									>
 										<span class="text-[9.5px] font-bold text-blue-300 flex items-center gap-1">
 											<UiIcon name="shield" class="w-3 h-3 text-blue-400 shrink-0" />
-											<span>Броня {armLvl}/5</span>
+											<span>{t('cmd.armLv', { lv: armLvl })}</span>
 										</span>
-										<span class="text-[8px] text-slate-400">+1 броня</span>
+										<span class="text-[8px] text-slate-400">{t('cmd.armBonus')}</span>
 										<div
 											class="text-[8.5px] font-mono font-bold text-amber-300 flex items-center gap-1"
 										>
 											{#if armLvl >= 5}
-												<span>МАКС</span>
+												<span>{t('cmd.max')}</span>
 											{:else}
 												<span class="flex items-center gap-0.5">
 													<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
@@ -511,7 +492,7 @@
 										</div>
 									</button>
 									<div class="{tipClass} left-1/2 -translate-x-1/2">
-										Броня: +1 броні всім військам
+										{t('cmd.armTip')}
 									</div>
 								</div>
 
@@ -525,14 +506,14 @@
 									>
 										<span class="text-[9.5px] font-bold text-emerald-300 flex items-center gap-1">
 											<UiIcon name="coins" class="w-3 h-3 text-emerald-400 shrink-0" />
-											<span>Дохід {ecoLvl}/3</span>
+											<span>{t('cmd.ecoLv', { lv: ecoLvl })}</span>
 										</span>
-										<span class="text-[8px] text-slate-400">+10% доходу</span>
+										<span class="text-[8px] text-slate-400">{t('cmd.ecoBonus')}</span>
 										<div
 											class="text-[8.5px] font-mono font-bold text-amber-300 flex items-center gap-1"
 										>
 											{#if ecoLvl >= 3}
-												<span>МАКС</span>
+												<span>{t('cmd.max')}</span>
 											{:else}
 												<span class="flex items-center gap-0.5">
 													<UiIcon name="coins" class="w-2.5 h-2.5 text-amber-400 shrink-0" />
@@ -547,7 +528,7 @@
 											{/if}
 										</div>
 									</button>
-									<div class="{tipClass} right-0">Економіка: +10% до доходу золота</div>
+									<div class="{tipClass} right-0">{t('cmd.ecoTip')}</div>
 								</div>
 							</div>
 						</div>
@@ -564,7 +545,7 @@
 							>
 								<span class="text-[11px] font-bold text-indigo-300 flex items-center gap-1">
 									<UiIcon name="crown" class="w-3.5 h-3.5 text-indigo-400" />
-									Керування
+									{t('cmd.management')}
 								</span>
 								<div class="flex items-center gap-1">
 									{#if buildingHp < buildingMaxHp}
@@ -574,7 +555,7 @@
 											class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-emerald-950/80 hover:bg-emerald-900 border-emerald-500/70 text-emerald-200 cursor-pointer shadow flex items-center gap-0.5"
 										>
 											<UiIcon name="wrench" class="w-2.5 h-2.5 text-emerald-400" />
-											<span>Ремонт</span>
+											<span>{t('cmd.repair')}</span>
 											<span
 												class="px-1 py-0.2 rounded bg-black/60 border border-emerald-500/40 text-emerald-300 font-mono text-[8px] leading-none"
 											>
@@ -588,7 +569,9 @@
 										class="px-1.5 py-0.5 rounded text-[8.5px] font-bold border transition bg-rose-950/70 hover:bg-rose-900 border-rose-600/70 text-rose-200 cursor-pointer shadow flex items-center gap-0.5"
 									>
 										<UiIcon name="trash2" class="w-2.5 h-2.5 text-rose-400" />
-										<span>Знести (+{Math.round(placedBuilding.goldCost * 0.5)}g)</span>
+										<span>
+											{t('cmd.demolishGold', { gold: Math.round(placedBuilding.goldCost * 0.5) })}
+										</span>
 									</button>
 								</div>
 							</div>
@@ -597,14 +580,16 @@
 									class="flex items-center justify-between text-[10px] bg-[#0c1017] px-2 py-1 rounded border border-[#2d3748]"
 								>
 									<span class="text-slate-400">
-										Командир:
+										{t('cmd.commanderLabel')}
 										<strong class="text-indigo-200 ml-1">
 											{#if activeCmd}
-												{activeCmd.name}{player.isRandomCommander ? ' ×2' : ''} ({activeCmd.id === 2
+												{getCommanderName(activeCmd, settings.locale)}{player.isRandomCommander
+													? ' ×2'
+													: ''} ({activeCmd.id === 2
 													? `-${getCommanderEffectivePct(activeCmd.id, Boolean(player.isRandomCommander))}%`
 													: `+${getCommanderEffectivePct(activeCmd.id, Boolean(player.isRandomCommander))}%`})
 											{:else}
-												Не обрано
+												{t('cmd.notSelected')}
 											{/if}
 										</strong>
 									</span>
@@ -614,8 +599,8 @@
 											: 'text-amber-300'}"
 									>
 										{cmdStatus.isFree
-											? 'Безкошт.'
-											: `${Math.ceil(cmdStatus.cooldownLeft)}с / 250g+250w`}
+											? t('cmd.free')
+											: t('cmd.freeCd', { sec: Math.ceil(cmdStatus.cooldownLeft) })}
 									</span>
 								</div>
 								<button
@@ -625,7 +610,7 @@
 									class="w-full py-1.5 px-3 rounded border border-indigo-400/70 bg-indigo-950/80 hover:bg-indigo-900 text-indigo-100 text-[11px] font-bold flex items-center justify-center gap-1.5 cursor-pointer transition shadow"
 								>
 									<UiIcon name="crown" class="w-3.5 h-3.5 text-indigo-300" />
-									<span>{activeCmd ? 'Змінити командира' : 'Обрати командира'}</span>
+									<span>{activeCmd ? t('cmd.changeCommander') : t('cmd.pickCommander')}</span>
 								</button>
 							</div>
 						</div>
@@ -657,7 +642,9 @@
 									>
 										{uIdx + 1}
 									</span>
-									<span class="text-[10.5px] font-bold truncate">{up.name}</span>
+									<span class="text-[10.5px] font-bold truncate">
+										{localizeEntityName(up.name, settings.locale)}
+									</span>
 								</span>
 								<span class="flex items-center gap-1.5 text-[9.5px] font-mono font-bold shrink-0">
 									<span class="text-amber-300 flex items-center gap-0.5">
@@ -673,7 +660,11 @@
 								</span>
 							</button>
 							<div class="{tipClass} left-1/2 -translate-x-1/2">
-								{up.name} ({upCost}g{upLumber > 0 ? `, ${upLumber}w` : ''}) · Клавіша {uIdx + 1}
+								{t('cmd.upgradeTip', {
+									name: localizeEntityName(up.name, settings.locale),
+									cost: `${upCost}g${upLumber > 0 ? `, ${upLumber}w` : ''}`,
+									key: uIdx + 1
+								})}
 							</div>
 						</div>
 					{/each}
@@ -686,7 +677,7 @@
 							>
 								<span class="text-[10.5px] font-bold flex items-center gap-1.5">
 									<UiIcon name="wrench" class="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-									<span>Ремонт</span>
+									<span>{t('cmd.repair')}</span>
 								</span>
 								<span
 									class="px-1 py-0.5 rounded bg-black/50 border border-emerald-500/40 text-[8.5px] font-mono font-bold leading-none text-emerald-300"
@@ -695,7 +686,7 @@
 								</span>
 							</button>
 							<div class="{tipClass} left-1/2 -translate-x-1/2">
-								Наказати робітникові відремонтувати споруду · Клавіша R
+								{t('cmd.repairTip')}
 							</div>
 						</div>
 					{/if}
@@ -707,14 +698,14 @@
 						>
 							<span class="text-[10.5px] font-bold flex items-center gap-1.5">
 								<UiIcon name="trash2" class="w-3.5 h-3.5 text-rose-400 shrink-0" />
-								<span>Знести</span>
+								<span>{t('cmd.demolish')}</span>
 							</span>
 							<span class="text-[10px] text-emerald-300 font-mono font-bold">
 								+{Math.floor(placedBuilding.goldCost * 0.5)}g
 							</span>
 						</button>
 						<div class="{tipClass} left-1/2 -translate-x-1/2">
-							Знести споруду (+50% повернення золота)
+							{t('cmd.demolishTip')}
 						</div>
 					</div>
 				</div>
@@ -727,19 +718,27 @@
 				>
 					{#if placedUnit}
 						<div class="flex justify-between">
-							<span class="text-slate-400">Атака / Броня:</span>
+							<span class="text-slate-400">{t('cmd.atkArmor')}</span>
 							<span class="font-mono text-slate-200">
-								{placedUnit.damage_base} ({placedUnit.attack_type}) / {placedUnit.armor} ({placedUnit.armor_type})
+								{placedUnit.damage_base} ({getAttackTypeLabel(
+									placedUnit.attack_type || 'normal',
+									settings.locale
+								)}) / {placedUnit.armor} ({getArmorTypeLabel(
+									placedUnit.armor_type || 'medium',
+									settings.locale
+								)})
 							</span>
 						</div>
 						<div class="flex justify-between">
-							<span class="text-slate-400">Здоров'я / КД:</span>
+							<span class="text-slate-400">{t('cmd.hpCd')}</span>
 							<span class="font-mono text-emerald-300">
-								{Math.round(placedUnit.hp)} HP / {placedBuilding.spawnCooldown}с
+								{Math.round(placedUnit.hp)} HP / {placedBuilding.spawnCooldown}{t(
+									'inspect.secSuffix'
+								)}
 							</span>
 						</div>
 					{:else}
-						<div class="text-slate-400 text-center">Спеціальна ворожа споруда</div>
+						<div class="text-slate-400 text-center">{t('cmd.specialEnemyBld')}</div>
 					{/if}
 				</div>
 			</div>
@@ -756,7 +755,10 @@
 					<div class="flex items-center gap-1.5">
 						<UiIcon name="crosshair" class="w-3.5 h-3.5 text-amber-400 shrink-0" />
 						<span class="font-bold text-amber-200 tracking-wide">
-							Гармата · {cv.cannonDmg} (Облога){cv.isOvercharged ? ' ×2!' : ''}
+							{t('cmd.cannonTitle', {
+								dmg: cv.cannonDmg,
+								over: cv.isOvercharged ? ' ×2!' : ''
+							})}
 						</span>
 					</div>
 					<div class="flex items-center gap-1.5">
@@ -773,8 +775,8 @@
 									: 'text-emerald-400'}"
 						>
 							{cv.cannonCd > 0
-								? `${cv.cannonCd.toFixed(1)}с`
-								: `Готово (${cv.cannonMaxCd.toFixed(1)}с)`}
+								? `${cv.cannonCd.toFixed(1)}${t('inspect.secSuffix')}`
+								: t('cmd.cannonReady', { sec: cv.cannonMaxCd.toFixed(1) })}
 						</span>
 					</div>
 				</div>
@@ -803,7 +805,11 @@
 								onmouseleave={() => onHoverCastleRange?.(null)}
 								disabled={!btn.canFire && !isAuto}
 								data-testid="hud-castle-shot-{btn.mode}-btn"
-								aria-label="Постріл {btn.range}px ({btn.cost}g) Клавіша {btn.hotkey}: ворог або союзник (50%), ПКМ — автокаст"
+								aria-label={t('cmd.cannonBtnAria', {
+									range: btn.range,
+									cost: btn.cost,
+									key: btn.hotkey
+								})}
 								class="relative {castleBtn} {btn.canFire
 									? btn.activeCls
 									: disabledCastleBtn} {isAuto ? 'ring-2 ring-amber-400/85 border-amber-300' : ''}"
@@ -838,9 +844,12 @@
 								{/if}
 							</button>
 							<div class="{tipClass} {bIdx === 0 ? 'left-0' : 'left-1/2 -translate-x-1/2'}">
-								Постріл {btn.range}px ({btn.cost}g) · Клавіша {btn.hotkey} · ПКМ: {isAuto
-									? 'вимкнути автокаст'
-									: 'автокаст'}
+								{t('cmd.cannonBtnTip', {
+									range: btn.range,
+									cost: btn.cost,
+									key: btn.hotkey,
+									auto: isAuto ? t('cmd.autoDisable') : t('cmd.autoEnable')
+								})}
 							</div>
 						</div>
 					{/each}
@@ -855,14 +864,17 @@
 									)}
 								disabled={!cv.canUpgradeCannon}
 								data-testid="hud-castle-cannon-upgrade-btn"
-								aria-label="Покращити гармату: КД 2с → 1с ({CASTLE_CANNON_UPGRADE_GOLD}g+{CASTLE_CANNON_UPGRADE_LUMBER}w) Клавіша 3"
+								aria-label={t('cmd.cannonUpgradeAria', {
+									gold: CASTLE_CANNON_UPGRADE_GOLD,
+									lumber: CASTLE_CANNON_UPGRADE_LUMBER
+								})}
 								class="relative {castleBtn} {cv.canUpgradeCannon
 									? 'border-cyan-500/80 bg-cyan-950/75 hover:bg-cyan-900/90 text-cyan-100'
 									: disabledCastleBtn}"
 							>
 								<span class="text-[9.5px] font-bold flex items-center gap-0.5 leading-none">
 									<UiIcon name="zap" class="w-3 h-3 text-cyan-400" />
-									КД 1с
+									{t('cmd.cannonUpgradeShort')}
 								</span>
 								<span class="text-[8px] font-mono text-cyan-300 font-bold mt-0.5">
 									{CASTLE_CANNON_UPGRADE_GOLD}g/{CASTLE_CANNON_UPGRADE_LUMBER}w
@@ -870,8 +882,10 @@
 								<span class={hotkeyCornerClass}>3</span>
 							</button>
 							<div class="{tipClass} right-0">
-								Покращити гармату: КД 2с → 1с ({CASTLE_CANNON_UPGRADE_GOLD}g + {CASTLE_CANNON_UPGRADE_LUMBER}w)
-								· Клавіша 3
+								{t('cmd.cannonUpgradeTip', {
+									gold: CASTLE_CANNON_UPGRADE_GOLD,
+									lumber: CASTLE_CANNON_UPGRADE_LUMBER
+								})}
 							</div>
 						</div>
 					{:else}
@@ -883,17 +897,17 @@
 								<span class={hotkeyCornerClass}>3</span>
 								<UiIcon name="zap" class="w-3 h-3 text-cyan-400" />
 								<span class="text-[8.5px] font-bold flex items-center gap-0.5">
-									КД 1с
+									{t('cmd.cannonUpgradeShort')}
 									<UiIcon name="check" class="w-2.5 h-2.5 text-emerald-400" />
 								</span>
 							</div>
-							<div class="{tipClass} right-0">Гармата покращена на раунд (КД 1с)</div>
+							<div class="{tipClass} right-0">{t('cmd.cannonUpgradedTip')}</div>
 						</div>
 					{/if}
 				</div>
 				<div class="text-[9.5px] text-slate-400 flex items-center justify-between px-0.5">
-					<span>Радіус оборони: 500 / 1500 px</span>
-					<span>ПКМ — автокаст</span>
+					<span>{t('cmd.defenseRangeHint')}</span>
+					<span>{t('cmd.rmbAutocast')}</span>
 				</div>
 			{:else}
 				{@const enemyCannonCd =
@@ -902,18 +916,21 @@
 					class="flex flex-col gap-1.5 text-[10px] text-slate-300 bg-[#0d1017] p-2.5 rounded border border-[#2d3748] my-auto"
 				>
 					<div class="flex justify-between">
-						<span class="text-slate-400">Потужність гармати:</span>
+						<span class="text-slate-400">{t('cmd.cannonPower')}</span>
 						<span class="font-mono text-amber-300 font-bold">
-							{CASTLE_CANNON_BASE_DAMAGE} (Облога)
+							{t('cmd.cannonPowerVal', { dmg: CASTLE_CANNON_BASE_DAMAGE })}
 						</span>
 					</div>
 					<div class="flex justify-between">
-						<span class="text-slate-400">Радіус оборони:</span>
+						<span class="text-slate-400">{t('cmd.defenseRangeLabel')}</span>
 						<span class="font-mono text-slate-200">500 / 1500 px</span>
 					</div>
 					<div class="flex justify-between">
-						<span class="text-slate-400">Кулдаун гармати:</span>
-						<span class="font-mono text-slate-200">{enemyCannonCd.toFixed(1)} с</span>
+						<span class="text-slate-400">{t('cmd.cannonCdLabel')}</span>
+						<span class="font-mono text-slate-200">
+							{enemyCannonCd.toFixed(1)}
+							{t('inspect.secSuffix')}
+						</span>
 					</div>
 				</div>
 			{/if}
@@ -1040,7 +1057,7 @@
 						onclick={() => onStartBlinkTargeting?.()}
 						disabled={!canBlink}
 						data-testid="hud-worker-blink-btn"
-						aria-label="Телепорт будівельника до 500px (Клавіша F)"
+						aria-label={t('cmd.blinkAria')}
 						class="relative w-[61px] h-[39px] rounded-[3px] border transition flex items-center justify-center overflow-hidden cursor-pointer touch-manipulation {isBlinkTargeting
 							? 'bg-cyan-600/80 border-cyan-300 text-white ring-2 ring-cyan-400 shadow-lg'
 							: canBlink
@@ -1051,13 +1068,11 @@
 						<CooldownOverlay remaining={blinkCd} max={WORKER_BLINK_COOLDOWN} />
 						<div class="flex flex-col items-center justify-center pointer-events-none">
 							<UiIcon name="zap" class="w-3 h-3 text-cyan-300 drop-shadow" />
-							<span class="text-[7.5px] font-bold leading-none mt-0.5">Телепорт</span>
+							<span class="text-[7.5px] font-bold leading-none mt-0.5">{t('cmd.blinkShort')}</span>
 						</div>
 					</button>
 					<div class="{tipClass} right-0">
-						{blinkCd > 0
-							? `Телепорт перезаряджається (${blinkCd.toFixed(1)}с)`
-							: 'Телепорт будівельника (до 500px на своєму острові) · Клавіша F'}
+						{blinkCd > 0 ? t('cmd.blinkCdTip', { sec: blinkCd.toFixed(1) }) : t('cmd.blinkTip')}
 					</div>
 				</div>
 			{/if}
@@ -1070,12 +1085,11 @@
 		{@const bIndex = availableBuildings.findIndex((b) => b.id === bld.id)}
 		{@const bHotkey = getHotkeyForBuilding(bld, bIndex >= 0 ? bIndex : 0)}
 		<div
-			class="absolute bottom-full right-0 mb-3 w-80 bg-[#0e121a]/95 border-2 border-[#b89758] rounded-md p-3 text-xs shadow-2xl backdrop-blur-md pointer-events-none z-50 text-slate-200"
-			style="box-shadow: 0 10px 30px rgba(0,0,0,0.95);"
+			class="lg-hud-tooltip absolute bottom-full right-0 mb-3 w-80 border-2 border-[#b89758]/80 rounded-xl p-3 text-xs pointer-events-none z-50 text-slate-100"
 		>
 			<!-- Gold Title + Hotkey -->
 			<div class="text-[#fef08a] font-bold text-sm leading-tight flex items-center justify-between">
-				<span>Збудувати {bld.name}</span>
+				<span>{t('cmd.buildName', { name: localizeEntityName(bld.name, settings.locale) })}</span>
 				{#if bHotkey}
 					<span class="text-xs font-mono font-bold text-amber-400">{bHotkey}</span>
 				{/if}
@@ -1107,63 +1121,71 @@
 			<!-- Content: Treasure Chest Canon Text OR Spawner Stats OR Special / Lore description -->
 			{#if hoveredBuilding.id === 'h008'}
 				<p class="text-[11px] leading-relaxed text-slate-200">
-					Перша збудована вами Скриня збільшує ваш Дохід на 25%. Інші збудовані Скрині дають на 15%
-					менше золота, ніж попередні (наприклад, друга дає 21.25%, третя 18.06% і т.д.).
+					{t('cmd.chestDesc1')}
 				</p>
 				<p class="text-[11px] leading-relaxed text-amber-300 font-medium mt-1">
-					Обережно, вона дуже крихка!
+					{t('cmd.chestWarn')}
 				</p>
 			{:else if hoveredUnit}
 				<div class="space-y-1 text-[11px] text-slate-300">
 					<div class="flex justify-between">
-						<span class="text-slate-400">Тренує:</span>
-						<strong class="text-amber-300 font-bold">{hoveredUnit.name}</strong>
+						<span class="text-slate-400">{t('cmd.trains')}</span>
+						<strong class="text-amber-300 font-bold">
+							{localizeEntityName(hoveredUnit.name, settings.locale)}
+						</strong>
 					</div>
 					<div class="flex justify-between">
-						<span class="text-slate-400">Атака:</span>
+						<span class="text-slate-400">{t('inspect.attack')}</span>
 						<span class="text-amber-200 font-mono">
-							{hoveredUnit.damage_base ?? 15} ({hoveredUnit.attack_type})
+							{hoveredUnit.damage_base ?? 15} ({getAttackTypeLabel(
+								hoveredUnit.attack_type || 'normal',
+								settings.locale
+							)})
 						</span>
 					</div>
 					<div class="flex justify-between">
-						<span class="text-slate-400">Броня:</span>
+						<span class="text-slate-400">{t('inspect.defense')}</span>
 						<span class="text-emerald-300 font-mono">
-							{hoveredUnit.armor} ({hoveredUnit.armor_type})
+							{hoveredUnit.armor} ({getArmorTypeLabel(
+								hoveredUnit.armor_type || 'medium',
+								settings.locale
+							)})
 						</span>
 					</div>
 					<div class="flex justify-between">
-						<span class="text-slate-400">Здоров'я:</span>
+						<span class="text-slate-400">{t('cmd.healthLabel')}</span>
 						<span class="text-green-400 font-mono font-bold">{Math.round(hoveredUnit.hp)} HP</span>
 					</div>
 				</div>
 			{:else if hoveredBuilding.specialType === 'tower'}
 				<div class="space-y-1 text-[11px] text-slate-300">
-					<div class="text-cyan-300 font-bold">Оборонна сторожова вежа</div>
+					<div class="text-cyan-300 font-bold">{t('cmd.towerTitle')}</div>
 					<div class="flex justify-between">
-						<span class="text-slate-400">Атака:</span>
+						<span class="text-slate-400">{t('inspect.attack')}</span>
 						<span class="text-amber-200 font-mono">
-							{hoveredBuilding.damage_base ?? 50} (Колюча)
+							{t('cmd.towerDmg', { dmg: hoveredBuilding.damage_base ?? 50 })}
 						</span>
 					</div>
 					<div class="flex justify-between">
-						<span class="text-slate-400">Дистанція / КД:</span>
+						<span class="text-slate-400">{t('cmd.rangeCdLabel')}</span>
 						<span class="text-slate-200 font-mono">
-							{hoveredBuilding.range ?? 500} px / {hoveredBuilding.cooldown ?? 1.0} с
+							{hoveredBuilding.range ?? 500} px / {hoveredBuilding.cooldown ?? 1.0}
+							{t('inspect.secSuffix')}
 						</span>
 					</div>
 				</div>
 			{:else if hoveredBuilding.specialType === 'shop'}
 				<div class="space-y-1 text-[11px] text-slate-300">
-					<div class="text-amber-300 font-bold">Магазин артефактів</div>
+					<div class="text-amber-300 font-bold">{t('cmd.shopTitle')}</div>
 					<p class="text-[11px] leading-relaxed text-slate-300">
-						Дозволяє купувати корисні зілля, сувої та предмети в бою (золото / дерево).
+						{t('cmd.shopDesc')}
 					</p>
 				</div>
 			{:else if hoveredBuilding.specialType === 'forge'}
 				<div class="space-y-1 text-[11px] text-slate-300">
-					<div class="text-cyan-300 font-bold">Кузня покращень</div>
+					<div class="text-cyan-300 font-bold">{t('cmd.forgeTitle')}</div>
 					<p class="text-[11px] leading-relaxed text-slate-300">
-						Дослідження технологій: покращення сили атаки, міцності броні та видобутку золота.
+						{t('cmd.forgeDesc')}
 					</p>
 				</div>
 			{:else if hoveredBuilding.raw_fields?.utub}
@@ -1172,14 +1194,16 @@
 				</p>
 			{:else if hoveredBuilding.specialType === 'commander'}
 				<div class="space-y-1 text-[11px] text-slate-300">
-					<div class="text-indigo-300 font-bold">Штаб командування</div>
+					<div class="text-indigo-300 font-bold">{t('cmd.commanderHallTitle')}</div>
 					<p class="text-[11px] leading-relaxed text-slate-300">
-						Дозволяє обрати або змінити командира армії, який підсилює війська та економіку.
+						{t('cmd.commanderHallDesc')}
 					</p>
 				</div>
 			{:else}
 				<p class="text-[11px] leading-relaxed text-slate-400">
-					Спеціальна споруда: {hoveredBuilding.name}.
+					{t('cmd.specialDesc', {
+						name: localizeEntityName(hoveredBuilding.name, settings.locale)
+					})}
 				</p>
 			{/if}
 
@@ -1188,7 +1212,12 @@
 					class="mt-2 text-[10px] text-amber-300 bg-amber-950/50 p-1.5 rounded border border-amber-500/40 flex items-center gap-1"
 				>
 					<UiIcon name="crown" class="w-3.5 h-3.5 text-amber-400 shrink-0" />
-					<span>Легендарна споруда. Потребує їжу ({player.food}/{player.maxFood}).</span>
+					<span>
+						{t('cmd.legendaryFood', {
+							food: player.food,
+							maxFood: player.maxFood
+						})}
+					</span>
 				</div>
 			{/if}
 		</div>

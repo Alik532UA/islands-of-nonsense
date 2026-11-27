@@ -5,6 +5,8 @@
 	import { CASTLE_ITEMS_LIST } from '../engine/items';
 	import { sound } from '../services/audio';
 	import { shortcutDigit, isEditableTarget } from '../hotkeys/hotkeys';
+	import { settings } from '$lib/services/settings.svelte';
+	import { t } from '$lib/i18n';
 	import UiIcon, { type UiIconName } from '$lib/components/ui/UiIcon.svelte';
 	let {
 		sim,
@@ -128,13 +130,12 @@
 	<div
 		role="dialog"
 		aria-modal="true"
-		aria-label="Магазин"
-		class="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4 select-none"
+		aria-label={t('shop.title')}
+		class="lg-hud-backdrop fixed inset-0 flex items-center justify-center z-50 p-3 sm:p-4 select-none"
 		data-testid="shop-modal"
 	>
 		<div
-			class="bg-[#121622] border-2 border-[#8c7456] rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl text-white relative overflow-hidden"
-			style="box-shadow: 0 16px 48px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,215,140,0.12);"
+			class="lg-hud-modal bg-[#121622] border-2 border-[#8c7456]/80 rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col text-white relative overflow-hidden"
 		>
 			<!-- Header -->
 			<div
@@ -150,11 +151,10 @@
 						<h2
 							class="text-base sm:text-lg font-extrabold tracking-wide text-emerald-300 uppercase"
 						>
-							Магазин
+							{t('shop.title')}
 						</h2>
 						<p class="text-[11px] text-slate-400 truncate">
-							Стратегічні припаси та екстрений захист вашої цитаделі ({visibleItems.length}
-							предметів)
+							{t('shop.subtitle', { count: visibleItems.length })}
 						</p>
 					</div>
 				</div>
@@ -164,7 +164,7 @@
 					<div
 						class="hidden sm:flex items-center gap-2.5 bg-[#0a0d14] border border-[#3b3226] rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold shadow-inner"
 					>
-						<span class="flex items-center gap-1 text-amber-400" title="Доступне золото">
+						<span class="flex items-center gap-1 text-amber-400" title={t('forge.goldAvail')}>
 							<UiIcon name="coins" class="w-3.5 h-3.5 text-amber-400" />
 							{isSandbox ? '∞' : playerGold}
 						</span>
@@ -173,7 +173,7 @@
 							class="flex items-center gap-1 {isSandbox || playerLumber > 0
 								? 'text-emerald-300'
 								: 'text-slate-500'}"
-							title="Доступна деревина"
+							title={t('forge.lumberAvail')}
 						>
 							<UiIcon
 								name="treePine"
@@ -190,7 +190,7 @@
 						onclick={() => (isOpen = false)}
 						data-testid="shop-close-btn"
 						class="w-9 h-9 rounded-lg bg-[#181d28] hover:bg-[#242c3d] border border-[#3b3226] hover:border-amber-500/70 text-slate-300 hover:text-amber-300 flex items-center justify-center transition cursor-pointer active:scale-95"
-						aria-label="Закрити Магазин"
+						aria-label={t('shop.close')}
 					>
 						<UiIcon name="x" class="w-4 h-4" />
 					</button>
@@ -212,7 +212,7 @@
 						<div class="flex items-center gap-2 min-w-0">
 							<UiIcon name="hammer" class="w-4 h-4 text-amber-400 animate-pulse shrink-0" />
 							<span class="text-xs font-bold text-amber-200">
-								Магазин зводиться робітником ({pct}%)
+								{t('shop.constructing', { pct })}
 							</span>
 						</div>
 						<div class="w-28 h-2 bg-[#0a0d14] rounded-full overflow-hidden border border-[#544738]">
@@ -234,9 +234,9 @@
 								<UiIcon name="shoppingBag" class="w-4 h-4" />
 							</div>
 							<div class="min-w-0">
-								<div class="text-xs font-bold text-amber-200">Магазин ще не збудовано</div>
+								<div class="text-xs font-bold text-amber-200">{t('shop.notBuiltTitle')}</div>
 								<div class="text-[11px] text-slate-400">
-									Зведіть Магазин на базі, щоб купувати припаси та артефакти
+									{t('shop.notBuiltDesc')}
 								</div>
 							</div>
 						</div>
@@ -251,11 +251,11 @@
 									? 'bg-gradient-to-b from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 border-emerald-300 text-slate-950 shadow-lg shadow-emerald-950/60'
 									: 'bg-[#181d28] border-[#3b3226] text-slate-400 opacity-75 cursor-not-allowed'}"
 								title={canAffordBuildShop
-									? 'Вибрати місце на мапі для будівництва Магазину'
-									: `Потрібно ${shopGoldCost} золота та ${shopLumberCost} деревини`}
+									? t('shop.buildTip')
+									: t('forge.needRes', { gold: shopGoldCost, lumber: shopLumberCost })}
 							>
 								<UiIcon name="hammer" class="w-3.5 h-3.5 shrink-0" />
-								<span>Будувати</span>
+								<span>{t('forge.build')}</span>
 								<span
 									class="flex items-center gap-1.5 font-mono text-[11px] pl-1.5 border-l {canAffordBuildShop
 										? 'border-slate-900/30'
@@ -287,7 +287,7 @@
 						data-testid="shop-active-banner"
 					>
 						<UiIcon name="checkCircle2" class="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-						<span>Магазин активний — припаси готові до використання</span>
+						<span>{t('shop.activeBanner')}</span>
 					</div>
 				{/if}
 
@@ -303,7 +303,7 @@
 						{@const canBuy = hasShop && canAfford && cd <= 0}
 
 						<div
-							class="bg-[#0b0e16] border border-[#3b3226] hover:border-[#544738] rounded-xl p-3 flex flex-col justify-between gap-2.5 transition shadow-inner"
+							class="lg-hud-subcard border border-[#3b3226]/80 hover:border-[#8c7456]/70 rounded-xl p-3 flex flex-col justify-between gap-2.5 transition"
 							data-testid="shop-item-card-{item.id}"
 						>
 							<div class="flex items-start gap-2.5 min-w-0">
@@ -322,10 +322,10 @@
 
 								<div class="min-w-0 flex-1">
 									<h3 class="font-bold text-xs sm:text-[13px] text-slate-100 leading-tight">
-										{item.nameUk}
+										{settings.locale === 'en' ? item.nameEn : item.nameUk}
 									</h3>
 									<p class="text-[11px] text-slate-400 mt-1 leading-snug line-clamp-2">
-										{item.descriptionUk}
+										{settings.locale === 'en' ? item.descriptionEn : item.descriptionUk}
 									</p>
 								</div>
 							</div>
@@ -333,7 +333,7 @@
 							<div class="flex items-center justify-between gap-2 pt-1.5 border-t border-[#1e2433]">
 								<span class="flex items-center gap-1 text-[10px] text-slate-400 font-mono">
 									<UiIcon name="clock" class="w-3 h-3 text-slate-500" />
-									{item.cooldown}с
+									{item.cooldown}{t('inspect.secSuffix')}
 								</span>
 
 								<button
@@ -346,9 +346,11 @@
 										: 'bg-[#171c29] border-[#293142] text-slate-500 cursor-not-allowed'}"
 								>
 									{#if cd > 0}
-										<span class="font-mono text-amber-400">{Math.ceil(cd)}с</span>
+										<span class="font-mono text-amber-400">
+											{Math.ceil(cd)}{t('inspect.secSuffix')}
+										</span>
 									{:else}
-										<span>Купити</span>
+										<span>{t('shop.buy')}</span>
 										<span
 											class="flex items-center gap-0.5 font-mono pl-1.5 border-l {canBuy
 												? 'border-white/25 text-amber-200'
@@ -372,15 +374,15 @@
 				class="px-5 py-2.5 border-t border-[#544738]/60 bg-[#0d1019] flex justify-between items-center text-[11px] text-slate-400 shrink-0"
 			>
 				<span class="flex items-center gap-1.5">
-					Гаряча клавіша:
+					{t('shop.hotkey')}
 					<kbd
 						class="px-1.5 py-0.5 bg-[#181d28] border border-[#544738] rounded text-amber-300 font-mono"
 					>
 						B
 					</kbd>
-					<span class="hidden sm:inline text-slate-500">• 1–9 швидка покупка</span>
+					<span class="hidden sm:inline text-slate-500">{t('shop.quickBuy')}</span>
 				</span>
-				<span>ESC щоб закрити</span>
+				<span>{t('shop.escClose')}</span>
 			</div>
 		</div>
 	</div>

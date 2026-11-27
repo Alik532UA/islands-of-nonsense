@@ -81,8 +81,70 @@ export function getCommanderEffectivePct(commanderId: number, isRandom = false):
 	return cmd.baseBonusPct * (isRandom ? RANDOM_COMMANDER_MULTIPLIER : 1);
 }
 
-export function getCommanderDescription(cmd: Commander, isRandom = false): string {
+export function getCommanderName(cmd: Commander, locale: 'uk' | 'en' = 'uk'): string {
+	if (locale === 'uk') return cmd.name;
+	switch (cmd.id) {
+		case 1:
+			return 'Sasha';
+		case 2:
+			return 'Alik';
+		case 3:
+			return 'Dima';
+		case 4:
+			return 'Dan';
+		case 5:
+			return 'Yura';
+		case 6:
+			return 'Lesha';
+		default:
+			return cmd.name;
+	}
+}
+
+export function getCommanderNickname(cmd: Commander, locale: 'uk' | 'en' = 'uk'): string {
+	if (locale === 'uk') return cmd.nickname;
+	switch (cmd.id) {
+		case 1:
+			return 'Banker';
+		case 2:
+			return 'Forgemaster';
+		case 3:
+			return 'Warlord';
+		case 4:
+			return 'Berserker';
+		case 5:
+			return 'Sniper';
+		case 6:
+			return 'Phantom';
+		default:
+			return cmd.nickname;
+	}
+}
+
+export function getCommanderDescription(
+	cmd: Commander,
+	isRandom = false,
+	locale: 'uk' | 'en' = 'uk'
+): string {
 	const pct = cmd.baseBonusPct * (isRandom ? RANDOM_COMMANDER_MULTIPLIER : 1);
+	if (locale === 'en') {
+		switch (cmd.id) {
+			case 1:
+				return `+${pct}% to all gold income`;
+			case 2:
+				return `Forge and all its upgrades cost ${pct}% less`;
+			case 3:
+				return `+${pct}% base damage to all troops`;
+			case 4:
+				return `+${pct}% attack speed to all troops`;
+			case 5:
+				return `${pct}% critical strike chance (×2 damage)`;
+			case 6:
+				return `${pct}% chance to evade enemy attacks`;
+			default:
+				return cmd.description;
+		}
+	}
 	switch (cmd.id) {
 		case 1:
 			return `+${pct}% до всього доходу золота`;

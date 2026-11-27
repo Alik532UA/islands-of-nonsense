@@ -39,12 +39,11 @@
 
 {#if isOpen}
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 select-none"
+		class="lg-hud-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 select-none"
 		data-testid="pause-menu-modal"
 	>
 		<div
-			class="relative w-full max-w-sm bg-gradient-to-b from-[#181d28] to-[#0d1017] border-2 border-[#8c7456] rounded-2xl shadow-2xl overflow-hidden p-6 text-center text-white space-y-4"
-			style="box-shadow: 0 0 30px rgba(0,0,0,0.9), inset 0 0 15px rgba(140,116,86,0.2);"
+			class="lg-hud-modal relative w-full max-w-sm border-2 border-[#8c7456]/80 rounded-2xl overflow-hidden p-6 text-center text-white space-y-4"
 		>
 			<!-- Close cross button -->
 			<button

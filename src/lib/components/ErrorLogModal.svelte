@@ -255,8 +255,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: rgba(0, 0, 0, 0.7);
-		backdrop-filter: blur(4px);
+		background: radial-gradient(circle at 50% 35%, rgba(16, 22, 38, 0.56), rgba(4, 6, 12, 0.78));
+		backdrop-filter: blur(6px) saturate(120%);
 		padding: 16px;
 	}
 	.modal-card {
@@ -267,10 +267,20 @@
 		max-width: 680px;
 		max-height: calc(100dvh - 32px);
 		border-radius: 16px;
-		background: var(--color-surface, #0f172a);
+		background:
+			linear-gradient(
+				155deg,
+				var(--lg-surface-highlight, rgba(255, 255, 255, 0.1)) 0%,
+				transparent 45%
+			),
+			var(--lg-surface-bg, var(--color-surface, rgba(15, 23, 42, 0.84)));
+		backdrop-filter: blur(16px) saturate(140%);
+		-webkit-backdrop-filter: blur(16px) saturate(140%);
 		color: var(--color-text, #f8fafc);
-		border: 1px solid var(--color-border, rgba(255, 255, 255, 0.15));
-		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+		border: 1px solid var(--lg-surface-border, var(--color-border, rgba(255, 255, 255, 0.18)));
+		box-shadow:
+			0 24px 60px rgba(0, 0, 0, 0.55),
+			inset 0 1px 0 var(--lg-surface-highlight, rgba(255, 255, 255, 0.22));
 		overflow: hidden;
 	}
 	.modal-header {

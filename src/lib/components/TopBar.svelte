@@ -8,6 +8,7 @@
 	import { fullscreen, canFullscreen } from '$lib/services/fullscreen.svelte';
 	import { createHoverMenu, hoverMenuContainer } from '$lib/ui/hoverMenu.svelte';
 	import { t } from '$lib/i18n';
+	import { localizeRaceName } from '$lib/i18n/entityNames';
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	let {
 		sim,
@@ -126,14 +127,14 @@
 	}
 
 	const dockClass =
-		'bg-[#131722]/95 backdrop-blur-md rounded-b-xl rounded-t-none border-b-2 border-x-2 border-t-0 border-[#544738] px-2 py-1.5 shadow-2xl pointer-events-auto flex items-center gap-1.5 shrink-0';
+		'lg-hud-panel rounded-b-xl rounded-t-none border-b-2 border-x-2 border-t-0 border-[#544738]/80 px-2 py-1.5 pointer-events-auto flex items-center gap-1.5 shrink-0';
 
 	const baseBtnClass =
 		'relative flex items-center justify-center w-9 h-9 [@media(pointer:coarse)]:min-w-[44px] [@media(pointer:coarse)]:min-h-[44px] rounded-lg border text-xs font-semibold transition-all duration-150 cursor-pointer active:scale-95 shadow-sm shrink-0 touch-manipulation';
 
-	const neutralBtnClass = `${baseBtnClass} bg-[#181d28] hover:bg-[#242c3d] border-[#3b3226] hover:border-amber-500/70 text-slate-200 hover:text-amber-300`;
+	const neutralBtnClass = `${baseBtnClass} lg-hud-pill border-white/15 hover:border-amber-400/75 text-slate-100 hover:text-amber-300`;
 	const tipBoxClass =
-		'absolute top-full mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px]';
+		'lg-hud-tooltip absolute top-full mt-2 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap border border-[#544738]/80 px-2.5 py-1 rounded-md text-[11px]';
 
 	const speedMenu = createHoverMenu({ closeDelayMs: 300 });
 	const soundMenu = createHoverMenu({ closeDelayMs: 300 });
@@ -165,7 +166,7 @@
 						}
 					}}
 					class={neutralBtnClass}
-					aria-label="Назад до вибору режимів"
+					aria-label={t('topbar.backToModes')}
 					data-testid="topbar-back-link"
 				>
 					<UiIcon name="arrowLeft" class="w-4 h-4" />
@@ -185,7 +186,7 @@
 						}
 					}}
 					class={neutralBtnClass}
-					aria-label="Головне меню"
+					aria-label={t('topbar.mainMenu')}
 					data-testid="topbar-home-link"
 				>
 					<UiIcon name="house" class="w-4 h-4" />
@@ -201,7 +202,7 @@
 					onclick={() => onOpenGuide?.()}
 					data-testid="hud-guide-btn"
 					class={neutralBtnClass}
-					aria-label="Довідник гри: правила, економіка та гарячі клавіші (F9)"
+					aria-label={t('topbar.guideAria')}
 					aria-keyshortcuts="F9"
 				>
 					<UiIcon name="bookOpen" class="w-4 h-4 text-amber-400 shrink-0" />
@@ -224,7 +225,7 @@
 					onclick={onOpenSettings}
 					data-testid="hud-menu-btn"
 					class={neutralBtnClass}
-					aria-label="Меню налаштувань матчу"
+					aria-label={t('topbar.matchMenu')}
 				>
 					<UiIcon name="menu" class="w-4 h-4 text-amber-300 shrink-0" />
 				</button>
@@ -257,7 +258,7 @@
 					type="button"
 					onclick={() => settings.toggleMute()}
 					class="{neutralBtnClass} {soundMenu.isOpen ? 'border-amber-400 bg-[#242c3d]' : ''}"
-					aria-label={settings.isAudioActive ? 'Звук: Увімкнено' : 'Звук: Вимкнено'}
+					aria-label={settings.isAudioActive ? t('topbar.soundOn') : t('topbar.soundOff')}
 					aria-expanded={soundMenu.isOpen}
 					aria-haspopup="menu"
 					data-testid="topbar-sound-toggle"
@@ -274,14 +275,12 @@
 						? 'opacity-100 translate-y-0 pointer-events-auto visible'
 						: 'opacity-0 -translate-y-1 pointer-events-none invisible'}"
 					role="menu"
-					aria-label="Налаштування гучності звуку"
+					aria-label={t('topbar.soundVolumeTitle')}
 					data-testid="topbar-sound-dropdown"
 				>
-					<div
-						class="w-60 bg-[#131722]/98 backdrop-blur-md border border-[#544738] rounded-xl p-2.5 shadow-2xl space-y-2.5"
-					>
+					<div class="lg-hud-modal w-60 border border-[#544738]/80 rounded-xl p-2.5 space-y-2.5">
 						<div class="flex items-center justify-between border-b border-[#3b3226] pb-1.5">
-							<span class="text-[11px] font-bold text-amber-300">Гучність аудіо</span>
+							<span class="text-[11px] font-bold text-amber-300">{t('topbar.audioVolume')}</span>
 							<button
 								type="button"
 								onclick={() => settings.toggleMute()}
@@ -289,7 +288,7 @@
 									? 'bg-emerald-950/70 border-emerald-600/60 text-emerald-300'
 									: 'bg-rose-950/70 border-rose-600/60 text-rose-300'}"
 							>
-								{settings.isAudioActive ? 'Увімкнено' : 'Вимкнено'}
+								{settings.isAudioActive ? t('topbar.enabled') : t('topbar.disabled')}
 							</button>
 						</div>
 
@@ -303,7 +302,7 @@
 										? 'text-slate-200'
 										: 'text-slate-500 line-through'}"
 								>
-									<span>Ефекти</span>
+									<span>{t('topbar.sfx')}</span>
 								</button>
 								<span class="font-mono text-[10px] text-amber-300 tabular-nums">
 									{Math.round(settings.volume * 100)}%
@@ -316,7 +315,7 @@
 								step="0.01"
 								value={settings.volume}
 								oninput={(e) => settings.setVolume(Number(e.currentTarget.value))}
-								aria-label="Гучність ефектів"
+								aria-label={t('topbar.sfxVolume')}
 								data-testid="sound-slider-sfx"
 								class="w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-[#1f2636] accent-amber-400"
 							/>
@@ -332,7 +331,7 @@
 										? 'text-slate-200'
 										: 'text-slate-500 line-through'}"
 								>
-									<span>Музика</span>
+									<span>{t('topbar.music')}</span>
 								</button>
 								<span class="font-mono text-[10px] text-amber-300 tabular-nums">
 									{Math.round(settings.musicVolume * 100)}%
@@ -345,7 +344,7 @@
 								step="0.01"
 								value={settings.musicVolume}
 								oninput={(e) => settings.setMusicVolume(Number(e.currentTarget.value))}
-								aria-label="Гучність музики"
+								aria-label={t('topbar.musicVolume')}
 								data-testid="sound-slider-music"
 								class="w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-[#1f2636] accent-emerald-400"
 							/>
@@ -361,7 +360,7 @@
 										? 'text-slate-200'
 										: 'text-slate-500 line-through'}"
 								>
-									<span>Озвучка</span>
+									<span>{t('topbar.voice')}</span>
 								</button>
 								<span class="font-mono text-[10px] text-amber-300 tabular-nums">
 									{Math.round(settings.voiceVolume * 100)}%
@@ -374,7 +373,7 @@
 								step="0.01"
 								value={settings.voiceVolume}
 								oninput={(e) => settings.setVoiceVolume(Number(e.currentTarget.value))}
-								aria-label="Гучність озвучки"
+								aria-label={t('topbar.voiceVolume')}
 								data-testid="sound-slider-voice"
 								class="w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-[#1f2636] accent-sky-400"
 							/>
@@ -389,7 +388,7 @@
 						type="button"
 						onclick={() => fullscreen.toggle()}
 						class={neutralBtnClass}
-						aria-label="Повноекранний режим"
+						aria-label={t('topbar.fullscreenEnter')}
 						data-testid="topbar-fullscreen-toggle"
 					>
 						{#if fullscreen.active}
@@ -399,7 +398,7 @@
 						{/if}
 					</button>
 					<div class="{tipBoxClass} left-1/2 -translate-x-1/2 text-amber-100">
-						{fullscreen.active ? 'Вийти з повного екрана' : 'Повноекранний режим'}
+						{fullscreen.active ? t('topbar.fullscreenExit') : t('topbar.fullscreenEnter')}
 					</div>
 				</div>
 			{/if}
@@ -410,13 +409,13 @@
 					type="button"
 					onclick={() => settings.setLocale(settings.locale === 'uk' ? 'en' : 'uk')}
 					class="{neutralBtnClass} font-mono font-bold text-cyan-300"
-					aria-label={settings.locale === 'uk' ? 'Switch to English' : 'Перемкнути на українську'}
+					aria-label={t('topbar.langSwitchAria')}
 					data-testid="topbar-locale-toggle"
 				>
-					{settings.locale === 'uk' ? 'UA' : 'EN'}
+					{t('topbar.langBadge')}
 				</button>
 				<div class="{tipBoxClass} left-1/2 -translate-x-1/2 text-cyan-200">
-					{settings.locale === 'uk' ? 'Мова: Українська (EN)' : 'Language: English (UA)'}
+					{t('topbar.langTooltip')}
 				</div>
 			</div>
 
@@ -426,7 +425,7 @@
 					type="button"
 					onclick={() => settings.openSettings()}
 					class={neutralBtnClass}
-					aria-label="Загальні налаштування"
+					aria-label={t('topbar.globalSettings')}
 					data-testid="topbar-settings-btn"
 				>
 					<UiIcon name="settings" class="w-4 h-4 text-amber-300" />
@@ -442,14 +441,18 @@
 	<div class="flex items-start gap-2.5 shrink-0 pointer-events-none">
 		<!-- Authentic WC3 Resource Boxes (Center-Left) -->
 		<div
-			class="bg-[#131722]/95 backdrop-blur-md rounded-b-xl rounded-t-none border-b-2 border-x-2 border-t-0 border-[#544738] px-3 py-1.5 shadow-2xl pointer-events-auto flex items-center shrink-0"
+			class="lg-hud-panel rounded-b-xl rounded-t-none border-b-2 border-x-2 border-t-0 border-[#544738]/80 px-3 py-1.5 pointer-events-auto flex items-center shrink-0"
 			data-testid="resource-boxes"
 		>
 			<div class="flex items-center gap-2.5 h-9">
 				<!-- Gold -->
 				<div
 					class="flex items-center gap-1.5 font-bold text-amber-400 shrink-0"
-					title="Золото гравця • Дохід: +{periodicGold}g кожні {incomeEvery}с (наступне через {incomeIn}с)"
+					title={t('topbar.goldTitle', {
+						gold: periodicGold,
+						every: incomeEvery,
+						inSec: incomeIn
+					})}
 				>
 					<UiIcon name="coins" class="w-4 h-4 text-amber-400 shrink-0" />
 					<span class="text-sm font-mono tracking-tight tabular-nums">
@@ -462,7 +465,7 @@
 					class="flex items-center gap-1.5 text-xs {isSandbox || westLumber > 0
 						? 'text-emerald-300'
 						: 'text-slate-500'} border-l border-[#3b3226] pl-2.5 shrink-0"
-					title="Запас деревини для вдосконалення технологій та будівель вищого тиру"
+					title={t('topbar.lumberTitle')}
 				>
 					<UiIcon
 						name="treePine"
@@ -479,7 +482,10 @@
 					0
 						? 'text-amber-300'
 						: 'text-slate-500'}"
-					aria-label="Ліміт легендарних будівель (Їжа): {player.food}/{player.maxFood}. Збільшуйте ліміт у Магазині (B)."
+					aria-label={t('topbar.foodLabel', {
+						food: player.food,
+						maxFood: player.maxFood
+					})}
 				>
 					<UiIcon
 						name="crown"
@@ -487,8 +493,10 @@
 					/>
 					<span class="font-mono font-bold tabular-nums">{player.food}/{player.maxFood}</span>
 					<div class="{tipBoxClass} right-0 text-amber-100">
-						Ліміт легендарних будівель (Їжа): {player.food}/{player.maxFood} · Золотий Сир у Магазині
-						(B)
+						{t('topbar.foodTitle', {
+							food: player.food,
+							maxFood: player.maxFood
+						})}
 					</div>
 				</div>
 			</div>
@@ -496,7 +504,7 @@
 
 		<!-- Match Clock & Scoreboard (Center-Right) -->
 		<div
-			class="bg-[#131722]/95 backdrop-blur-md rounded-b-xl rounded-t-none border-b-2 border-x-2 border-t-0 border-[#544738] px-3 py-1.5 shadow-2xl pointer-events-auto flex items-center gap-2.5 shrink-0 select-none"
+			class="lg-hud-panel rounded-b-xl rounded-t-none border-b-2 border-x-2 border-t-0 border-[#544738]/80 px-3 py-1.5 pointer-events-auto flex items-center gap-2.5 shrink-0 select-none"
 			data-testid="topbar-match-dock"
 		>
 			<!-- Authentic Warcraft III Circular Day/Night Clock Dial + Match Timer -->
@@ -506,12 +514,12 @@
 						? 'shadow-amber-500/15'
 						: 'shadow-indigo-500/20'}"
 					title={dayPhase === 'day'
-						? 'День (Сонце)'
+						? t('topbar.phaseDay')
 						: dayPhase === 'dusk'
-							? 'Сутінки (Захід сонця)'
+							? t('topbar.phaseDusk')
 							: dayPhase === 'night'
-								? 'Ніч (Місяць)'
-								: 'Світанок (Схід сонця)'}
+								? t('topbar.phaseNight')
+								: t('topbar.phaseDawn')}
 					style="box-shadow: inset 0 0 6px rgba(0,0,0,0.8), 0 2px 8px rgba(0,0,0,0.6);"
 					data-testid="day-night-dial"
 					data-phase={dayPhase}
@@ -531,7 +539,7 @@
 
 				<span
 					class="text-sm font-mono font-bold text-slate-100 tracking-wide tabular-nums whitespace-nowrap"
-					title="Час поточного раунду"
+					title={t('topbar.roundTimeTitle')}
 				>
 					{formatTime(gameTime)}
 				</span>
@@ -547,7 +555,7 @@
 				<!-- Round Pill -->
 				<div
 					class="flex items-center gap-1 px-2 h-7 rounded-lg bg-[#181d28] border border-[#3b3226]"
-					title="Поточний раунд матчу"
+					title={t('topbar.currentRoundTitle')}
 				>
 					<span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
 						{t('topbar.round')}
@@ -600,7 +608,10 @@
 				<!-- Team Size Format Badge -->
 				<span
 					class="px-2 h-7 flex items-center rounded-lg text-[10px] font-mono font-bold bg-cyan-950/70 text-cyan-300 border border-cyan-700/50"
-					title="Формат матчу: {sim.teamSize} на {sim.teamSize} ({sim.teamSize * 2} гравців)"
+					title={t('topbar.formatTitle', {
+						size: sim.teamSize,
+						total: sim.teamSize * 2
+					})}
 				>
 					{sim.teamSize}v{sim.teamSize}
 				</span>
@@ -619,11 +630,11 @@
 					{:else}
 						<div
 							class="px-2 h-7 rounded-lg bg-[#181d28] border border-[#3b3226] text-[10px] text-slate-300 font-mono flex items-center gap-1"
-							title="Час до появи нейтрального боса"
+							title={t('topbar.bossTitle')}
 							data-testid="boss-timer-badge"
 						>
 							<UiIcon name="crown" class="w-3 h-3 text-amber-400/80 shrink-0" />
-							<span>Бос: {bossSpawnTimer}с</span>
+							<span>{t('topbar.bossIn', { sec: bossSpawnTimer })}</span>
 						</div>
 					{/if}
 				{/if}
@@ -647,7 +658,7 @@
 							}}
 							data-testid="topbar-pause-btn"
 							class={neutralBtnClass}
-							aria-label={isRunning ? 'Пауза (Пробіл)' : 'Продовжити (Пробіл)'}
+							aria-label={isRunning ? t('topbar.pauseAria') : t('topbar.resumeAria')}
 							aria-keyshortcuts="Space"
 						>
 							{#if isRunning}
@@ -661,11 +672,11 @@
 								? ''
 								: 'group-hover/tip:opacity-100'} transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap bg-[#0f141f]/95 border border-[#544738] px-2.5 py-1 rounded-md shadow-2xl text-[11px] text-amber-100 flex items-center gap-1.5"
 						>
-							<span>{isRunning ? 'Пауза' : 'Продовжити'}</span>
+							<span>{isRunning ? t('topbar.pause') : t('topbar.resume')}</span>
 							<span
 								class="text-[9px] font-mono font-bold text-amber-400 bg-black/60 px-1 rounded border border-[#544738]"
 							>
-								Пробіл
+								{t('topbar.spaceKey')}
 							</span>
 						</div>
 					</div>
@@ -683,8 +694,8 @@
 							class="relative flex items-center justify-center h-9 min-w-[44px] px-2 [@media(pointer:coarse)]:min-h-[44px] rounded-lg border text-[11px] font-mono font-bold transition-all duration-150 cursor-pointer active:scale-95 shadow-sm shrink-0 touch-manipulation bg-[#181d28] hover:bg-[#242c3d] {speedMenu.isOpen
 								? 'border-amber-400 bg-[#242c3d]'
 								: 'border-amber-500/50 hover:border-amber-400'} text-amber-300 gap-1"
-							title="Швидкість гри: {simSpeed}x (натисніть або наведіть для вибору)"
-							aria-label="Швидкість гри: {simSpeed}x"
+							title={t('topbar.speedTitle', { speed: simSpeed })}
+							aria-label={t('topbar.speedAria', { speed: simSpeed })}
 							aria-expanded={speedMenu.isOpen}
 							aria-haspopup="menu"
 						>
@@ -704,11 +715,11 @@
 								? 'opacity-100 translate-y-0 pointer-events-auto visible'
 								: 'opacity-0 -translate-y-1 pointer-events-none invisible'}"
 							role="menu"
-							aria-label="Вибір швидкості гри"
+							aria-label={t('topbar.speedMenuAria')}
 							data-testid="topbar-speed-dropdown"
 						>
 							<div
-								class="flex flex-col gap-0.5 bg-[#0f131c] border border-[#544738] rounded-lg p-1 shadow-2xl backdrop-blur-md min-w-[76px]"
+								class="lg-hud-modal flex flex-col gap-0.5 border border-[#544738]/80 rounded-lg p-1 min-w-[76px]"
 							>
 								{#each availableSpeeds as sp}
 									<button
@@ -727,8 +738,12 @@
 											: sp >= 10
 												? 'text-cyan-400 hover:text-cyan-200 hover:bg-[#1f2637]'
 												: 'text-slate-300 hover:text-white hover:bg-[#1f2637]'}"
-										title={sp >= 10 ? `Турбо швидкість x${sp}` : `Швидкість гри x${sp}`}
-										aria-label={sp >= 10 ? `Турбо швидкість x${sp}` : `Швидкість гри x${sp}`}
+										title={sp >= 10
+											? t('topbar.speedOptionTurbo', { speed: sp })
+											: t('topbar.speedOption', { speed: sp })}
+										aria-label={sp >= 10
+											? t('topbar.speedOptionTurbo', { speed: sp })
+											: t('topbar.speedOption', { speed: sp })}
 									>
 										<span>{sp >= 10 ? `x${sp}` : `${sp}x`}</span>
 										{#if simSpeed === sp}
@@ -745,18 +760,21 @@
 			<!-- Dock 3D: Castles HP Meters (Shown in bot-vs-bot, replay, or spectator mode) -->
 			{#if isBotVsBot || isSpectator}
 				<div
-					class="bg-[#131722]/95 backdrop-blur-md rounded-b-xl rounded-t-none border-b-2 border-x-2 border-t-0 border-[#544738] px-3 py-1.5 shadow-2xl pointer-events-auto flex items-center gap-2.5 shrink-0"
+					class="lg-hud-panel rounded-b-xl rounded-t-none border-b-2 border-x-2 border-t-0 border-[#544738]/80 px-3 py-1.5 pointer-events-auto flex items-center gap-2.5 shrink-0"
 					data-testid="castle-hp-meters"
 				>
 					<!-- West Castle HP (Player) -->
 					<div
 						class="w-24 xl:w-28 2xl:w-32 shrink-0 h-9 flex flex-col justify-center"
 						role="meter"
-						aria-label="Здоров'я Західного Замку (Гравець)"
+						aria-label={t('topbar.westCastleAria')}
 						aria-valuenow={westHp}
 						aria-valuemin={0}
 						aria-valuemax={westMaxHp}
-						title="Західний Замок (Гравець): {westHp} / {westMaxHp}"
+						title={t('topbar.westCastleTitle', {
+							hp: westHp,
+							maxHp: westMaxHp
+						})}
 					>
 						<div
 							class="flex justify-between items-center text-[10px] font-bold mb-0.5 whitespace-nowrap gap-1"
@@ -781,13 +799,15 @@
 					<div
 						class="w-24 xl:w-28 2xl:w-32 shrink-0 h-9 flex flex-col justify-center"
 						role="meter"
-						aria-label="Здоров'я Східного Замку (Ворог)"
+						aria-label={t('topbar.eastCastleAria')}
 						aria-valuenow={eastHp}
 						aria-valuemin={0}
 						aria-valuemax={eastMaxHp}
-						title="Східний Замок ({toPlayableRace(
-							sim.players.east.race
-						)} Бот): {eastHp} / {eastMaxHp}"
+						title={t('topbar.eastCastleTitle', {
+							race: localizeRaceName(toPlayableRace(sim.players.east.race), settings.locale),
+							hp: eastHp,
+							maxHp: eastMaxHp
+						})}
 					>
 						<div
 							class="flex justify-between items-center text-[10px] font-bold mb-0.5 whitespace-nowrap gap-1"

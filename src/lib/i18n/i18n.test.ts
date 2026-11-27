@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { translations, t, setLocale, getLocale, type Locale } from './index';
+import { localizeEntityName, localizeRaceName, localizeShortBuildingName } from './entityNames';
+import { BUILDINGS_MAP, PLAYABLE_RACES, UNITS_MAP } from '../engine/gameData';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 describe('i18n parity and translation coverage (I18N-v10)', () => {
 	const locales = Object.keys(translations) as Locale[];
@@ -62,5 +66,45 @@ describe('i18n parity and translation coverage (I18N-v10)', () => {
 		);
 
 		delete dict['test.greeting'];
+	});
+
+	it('перекладає всі грабельні раси, юніти та будівлі англійською без залишку кирилиці', () => {
+		for (const race of PLAYABLE_RACES) {
+			const enRace = localizeRaceName(race, 'en');
+			expect(enRace, `Race "${race}" must translate to English`).not.toMatch(/[а-яА-ЯіІїЇєЄґҐ]/);
+		}
+		for (const u of UNITS_MAP.values()) {
+			const enName = localizeEntityName(u.name, 'en');
+			expect(enName, `Unit "${u.name}" must translate to English`).not.toMatch(/[а-яА-ЯіІїЇєЄґҐ]/);
+		}
+		for (const b of BUILDINGS_MAP.values()) {
+			const enName = localizeEntityName(b.name, 'en');
+			expect(enName, `Building "${b.name}" must translate to English`).not.toMatch(
+				/[а-яА-ЯіІїЇєЄґҐ]/
+			);
+			const enShort = localizeShortBuildingName(b.name, 'en');
+			expect(enShort, `Short building "${b.name}" must translate to English`).not.toMatch(
+				/[а-яА-ЯіІїЇєЄґҐ]/
+			);
+		}
+	});
+
+	it('EntityInspectDetails та CommandCard не рендерять сирі типи атаки/броні (medium/normal)', () => {
+		const inspectSrc = fs.readFileSync(
+			path.resolve(process.cwd(), 'src/lib/components/EntityInspectDetails.svelte'),
+			'utf-8'
+		);
+		const cmdSrc = fs.readFileSync(
+			path.resolve(process.cwd(), 'src/lib/components/CommandCard.svelte'),
+			'utf-8'
+		);
+		expect(inspectSrc).not.toContain('{selectedUnit.armorType}');
+		expect(inspectSrc).not.toContain('{selectedUnit.attackType}');
+		expect(inspectSrc).toContain('getArmorTypeLabel');
+		expect(inspectSrc).toContain('getAttackTypeLabel');
+		expect(cmdSrc).not.toContain('({hoveredUnit.attack_type})');
+		expect(cmdSrc).not.toContain('({hoveredUnit.armor_type})');
+		expect(cmdSrc).not.toContain('({placedUnit.attack_type})');
+		expect(cmdSrc).not.toContain('({placedUnit.armor_type})');
 	});
 });

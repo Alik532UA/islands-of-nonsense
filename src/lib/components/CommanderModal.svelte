@@ -4,9 +4,12 @@
 	import {
 		COMMANDER_CHANGE_GOLD_COST,
 		COMMANDER_CHANGE_LUMBER_COST,
-		findCommander
+		findCommander,
+		getCommanderName
 	} from '../engine/commanders';
 	import { BUILDINGS_MAP } from '../engine/gameData';
+	import { settings } from '$lib/services/settings.svelte';
+	import { t } from '$lib/i18n';
 	import CommanderPickerGrid from './CommanderPickerGrid.svelte';
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	let {
@@ -64,13 +67,12 @@
 	<div
 		role="dialog"
 		aria-modal="true"
-		aria-label="Командири"
+		aria-label={t('commander.title')}
 		data-testid="commander-modal"
-		class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+		class="lg-hud-backdrop fixed inset-0 flex items-center justify-center z-50 p-4"
 	>
 		<div
-			class="bg-[#121622] border-2 border-[#544738] rounded-2xl w-full max-w-3xl shadow-2xl p-6 text-white relative flex flex-col max-h-[85vh] overflow-hidden"
-			style="box-shadow: 0 10px 40px rgba(0,0,0,0.95);"
+			class="lg-hud-modal border-2 border-[#544738]/80 rounded-2xl w-full max-w-3xl p-6 text-white relative flex flex-col max-h-[85vh] overflow-hidden"
 		>
 			<!-- Close button -->
 			<button
@@ -78,7 +80,7 @@
 				onclick={() => (isOpen = false)}
 				data-testid="commander-close-btn"
 				class="absolute top-4 right-4 text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition cursor-pointer"
-				aria-label="Закрити"
+				aria-label={t('commander.close')}
 			>
 				<UiIcon name="x" class="w-5 h-5" />
 			</button>
@@ -93,7 +95,7 @@
 					</div>
 					<div>
 						<h2 class="text-base font-bold text-indigo-200 flex items-center gap-2">
-							<span>Командири</span>
+							<span>{t('commander.title')}</span>
 							<span
 								class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/50 border border-indigo-500/40 text-indigo-300"
 							>
@@ -101,14 +103,14 @@
 							</span>
 						</h2>
 						<p class="text-xs text-slate-400">
-							Оберіть стратегічного командира для бонусу команді (Випадковий = ×2)
+							{t('commander.subtitle')}
 						</p>
 					</div>
 				</div>
 				<div
 					class="hidden sm:flex items-center gap-2.5 bg-[#0a0d14] border border-[#3b3226] rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold shadow-inner shrink-0"
 				>
-					<span class="flex items-center gap-1 text-amber-400" title="Доступне золото">
+					<span class="flex items-center gap-1 text-amber-400" title={t('forge.goldAvail')}>
 						<UiIcon name="coins" class="w-3.5 h-3.5 text-amber-400" />
 						{isSandbox ? '∞' : playerGold}
 					</span>
@@ -117,7 +119,7 @@
 						class="flex items-center gap-1 {isSandbox || playerLumber > 0
 							? 'text-emerald-300'
 							: 'text-slate-500'}"
-						title="Доступна деревина"
+						title={t('forge.lumberAvail')}
 					>
 						<UiIcon
 							name="treePine"
@@ -144,7 +146,7 @@
 						<div class="flex items-center gap-2.5 min-w-0">
 							<UiIcon name="crown" class="w-4 h-4 text-indigo-400 animate-pulse shrink-0" />
 							<div class="text-xs font-bold text-indigo-200">
-								Дім командира зводиться робітником ({pct}%)
+								{t('commander.constructing', { pct })}
 							</div>
 						</div>
 						<div class="w-28 h-2 bg-[#0a0d14] rounded-full overflow-hidden border border-[#544738]">
@@ -166,10 +168,9 @@
 								<UiIcon name="crown" class="w-4 h-4" />
 							</div>
 							<div class="min-w-0">
-								<div class="text-xs font-bold text-indigo-200">Дім командира ще не збудовано</div>
+								<div class="text-xs font-bold text-indigo-200">{t('commander.notBuiltTitle')}</div>
 								<div class="text-[11px] text-slate-400 mt-0.5">
-									Збудуйте Дім командира (250 золота та 250 деревини), щоб вибрати або змінювати
-									командира
+									{t('commander.notBuiltDesc')}
 								</div>
 							</div>
 						</div>
@@ -185,7 +186,7 @@
 									: 'bg-[#181d28] border-[#3b3226] text-slate-400 opacity-75 cursor-not-allowed'}"
 							>
 								<UiIcon name="crown" class="w-3.5 h-3.5 shrink-0" />
-								<span>Будувати</span>
+								<span>{t('forge.build')}</span>
 								<span
 									class="flex items-center gap-1.5 font-mono text-[11px] pl-1.5 border-l border-white/20"
 								>
@@ -220,21 +221,24 @@
 					>
 						<div class="flex items-center gap-2">
 							{#if hallStatus.isFirstPick}
-								<span class="font-bold">Перший вибір командира — безкоштовно</span>
+								<span class="font-bold">{t('commander.firstFree')}</span>
 							{:else if hallStatus.isFree}
-								<span class="font-bold">Кулдаун завершено — зміна командира безкоштовна</span>
+								<span class="font-bold">{t('commander.cdReadyFree')}</span>
 							{:else}
 								<UiIcon name="clock" class="w-3.5 h-3.5 text-amber-300 shrink-0" />
 								<span>
-									Безкоштовна зміна через
+									{t('commander.freeIn')}
 									<strong class="font-mono">{formatCooldown(hallStatus.cooldownLeft)}</strong>
-									· зараз: <strong>{hallStatus.goldCost}g + {hallStatus.lumberCost}w</strong>
+									{t('commander.nowCost')}
+									<strong>{hallStatus.goldCost}g + {hallStatus.lumberCost}w</strong>
 								</span>
 							{/if}
 						</div>
 						{#if activeCommander}
 							<span class="text-[11px] text-indigo-300 font-bold">
-								Поточний: {activeCommander.name}{player.isRandomCommander ? ' (×2)' : ''}
+								{t('commander.current', {
+									name: `${getCommanderName(activeCommander, settings.locale)}${player.isRandomCommander ? ' (×2)' : ''}`
+								})}
 							</span>
 						{/if}
 					</div>

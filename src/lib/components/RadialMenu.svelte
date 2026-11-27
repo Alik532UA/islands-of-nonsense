@@ -383,7 +383,7 @@
 
 {#if isOpen}
 	<div
-		class="fixed inset-0 z-40 flex flex-col items-center justify-center bg-[#03050a]/72 backdrop-blur-xs select-none animate-in fade-in duration-150 p-3 gap-3"
+		class="lg-hud-backdrop fixed inset-0 z-40 flex flex-col items-center justify-center select-none animate-in fade-in duration-150 p-3 gap-3"
 		role="dialog"
 		aria-label="Радіальне меню дій"
 		tabindex="-1"
@@ -402,7 +402,7 @@
 		>
 			<!-- Outer Sculpted Tactical Disk & Engraved Rings -->
 			<div
-				class="absolute inset-4 rounded-full border-2 border-[#a88a5c]/65 bg-[radial-gradient(circle_at_center,rgba(24,31,50,0.96)_0%,rgba(13,17,28,0.97)_58%,rgba(7,9,16,0.98)_100%)] shadow-[0_0_95px_rgba(0,0,0,0.95),inset_0_0_45px_rgba(168,138,92,0.16)] pointer-events-none"
+				class="lg-hud-modal absolute inset-4 rounded-full border-2 border-[#a88a5c]/70 pointer-events-none"
 			></div>
 			<div
 				class="absolute inset-[74px] rounded-full border border-[#8c7456]/40 pointer-events-none"

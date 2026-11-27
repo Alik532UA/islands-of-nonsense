@@ -200,7 +200,7 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 		);
 
 		expect(topBarContent).toContain('{formatTime(gameTime)}');
-		expect(topBarContent).toContain('Бос: {bossSpawnTimer}с');
+		expect(topBarContent).toContain("t('topbar.bossIn'");
 		expect(topBarContent).toContain('{#if activeBossInstanceId}');
 	});
 
@@ -223,8 +223,8 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 		expect(arenaContent).toContain('aria-keyshortcuts="b"');
 		expect(arenaContent).toContain('aria-keyshortcuts="z"');
 		expect(arenaContent).toContain('aria-keyshortcuts="x"');
-		expect(updatedContent).toContain('aria-label="Здоров\'я Західного Замку (Гравець)"');
-		expect(updatedContent).toContain('aria-label="Здоров\'я Східного Замку (Ворог)"');
+		expect(updatedContent).toContain("aria-label={t('topbar.westCastleAria')}");
+		expect(updatedContent).toContain("aria-label={t('topbar.eastCastleAria')}");
 	});
 
 	it('series score pill exposes hover tooltip with both teams rescue strikes and gold income', () => {
@@ -242,5 +242,18 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 		expect(topBarContent).toContain('data-testid="sound-slider-sfx"');
 		expect(topBarContent).toContain('data-testid="sound-slider-music"');
 		expect(topBarContent).toContain('data-testid="sound-slider-voice"');
+	});
+
+	it('applies unified Liquid Glass design tokens with PixiJS compositing safety and reduced-transparency fallback', () => {
+		const cssPath = path.resolve(process.cwd(), 'src/routes/layout.css');
+		const cssContent = fs.readFileSync(cssPath, 'utf-8');
+		expect(cssContent).toContain('.lg-hud-panel');
+		expect(cssContent).toContain('.lg-hud-modal');
+		expect(cssContent).toContain('.lg-hud-subcard');
+		expect(cssContent).toContain('.lg-hud-tooltip');
+		expect(cssContent).toContain('.lg-hud-backdrop');
+		expect(cssContent).toContain('contain: layout style;');
+		expect(cssContent).toContain('prefers-reduced-transparency: reduce');
+		expect(topBarContent).toContain('lg-hud-panel');
 	});
 });

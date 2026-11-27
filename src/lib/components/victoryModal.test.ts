@@ -8,7 +8,7 @@ describe('VictoryModal Invariants & Post-Match Actions', () => {
 
 	it('contains next round and play again buttons', () => {
 		expect(content).toContain('data-testid="victory-next-round-btn"');
-		expect(content).toContain('Зіграти ще раз');
+		expect(content).toContain("t('victory.playAgain')");
 	});
 
 	it('provides clean exit routes after match end to play modes and main menu', () => {
@@ -23,6 +23,7 @@ describe('VictoryModal Invariants & Post-Match Actions', () => {
 		expect(content).toContain('let isLocalWin = $derived(winner === localTeam);');
 		expect(content).toContain('sim.getMvpBuilding(localTeam)');
 		expect(content).not.toContain('isWestWin');
-		expect(content).toContain("localTeam === 'east' ? 'Ваша команда'");
+		expect(content).toContain("localTeam === 'east'");
+		expect(content).toContain("t('victory.yourTeam')");
 	});
 });

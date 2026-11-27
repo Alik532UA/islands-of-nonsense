@@ -33,13 +33,13 @@
 
 {#if isOpen}
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 select-none animate-in fade-in duration-150"
+		class="lg-hud-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 select-none animate-in fade-in duration-150"
 		role="dialog"
 		aria-modal="true"
 		aria-label="Гарячі клавіші"
 	>
 		<div
-			class="relative w-full max-w-lg max-h-[90vh] flex flex-col bg-[#0d111a] border border-amber-500/40 rounded-2xl shadow-2xl p-5 text-slate-200 overflow-hidden"
+			class="lg-hud-modal relative w-full max-w-lg max-h-[90vh] flex flex-col border border-amber-400/45 rounded-2xl p-5 text-slate-200 overflow-hidden"
 		>
 			<!-- Header -->
 			<div class="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
@@ -67,7 +67,7 @@
 			<div class="mt-4 flex-1 overflow-y-auto space-y-2 pr-1">
 				{#each shortcuts as s}
 					<div
-						class="flex items-center justify-between py-1.5 px-3 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-slate-700 transition"
+						class="lg-hud-subcard flex items-center justify-between py-1.5 px-3 rounded-xl border border-slate-700/70 hover:border-amber-400/50 transition"
 					>
 						<span class="text-xs text-slate-300">{s.desc}</span>
 						<kbd
