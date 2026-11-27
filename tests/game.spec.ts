@@ -104,7 +104,7 @@ test.describe('Islands of Nonsense — Comprehensive E2E Verification', () => {
 			.getByTestId('hud-race-ability-btn')
 			.locator('xpath=following-sibling::div');
 		await expect(raceAbilityTip).toContainText(/Відкриється на 5:00 бою/i);
-		await expect(raceAbilityTip).toContainText(/.{40,}/);
+		await expect(raceAbilityTip).toContainText(/[\s\S]{40,}/);
 
 		await page.getByTestId('topbar-locale-toggle').click();
 		await expect(statusBanner).toContainText(/Round/i);
@@ -113,7 +113,7 @@ test.describe('Islands of Nonsense — Comprehensive E2E Verification', () => {
 		await expect(statsPanel).not.toContainText(/[а-яА-ЯіІїЇєЄґҐ]/);
 		await expect(commandCard).not.toContainText(/[а-яА-ЯіІїЇєЄґҐ]/);
 		await expect(raceAbilityTip).toContainText(/Unlocks at 5:00 of match/i);
-		await expect(raceAbilityTip).toContainText(/.{35,}/);
+		await expect(raceAbilityTip).toContainText(/[\s\S]{35,}/);
 		await expect(raceAbilityTip).not.toContainText(/[а-яА-ЯіІїЇєЄґҐ]/);
 
 		await page.keyboard.press('k');

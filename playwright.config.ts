@@ -4,8 +4,9 @@ const PORT = 4174;
 
 export default defineConfig({
 	testDir: 'tests',
-	fullyParallel: true,
-	workers: 2,
+	fullyParallel: !process.env.CI,
+	workers: process.env.CI ? 1 : 2,
+	timeout: process.env.CI ? 60_000 : 30_000,
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 1 : 0,
 	reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
