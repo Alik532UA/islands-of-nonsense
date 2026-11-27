@@ -12,6 +12,7 @@
 	} from '../engine/types';
 	import { formatRaceName, formatFactionName } from '../engine/gameData';
 	import { computeSpawnProgressRatio } from '../engine/buildingSystem';
+	import { getSpecialBuildingDescription } from '../engine/specialBuildings';
 	import {
 		findCommander,
 		getCommanderEffectivePct,
@@ -122,7 +123,7 @@
 					({activeCommander.id === 2 ? `-${effectivePct}%` : `+${effectivePct}%`})
 				</span>
 				<div
-					class="pointer-events-none absolute bottom-full mb-2 left-0 z-50 w-56 rounded-md border border-indigo-500/50 bg-[#0f141f]/95 px-2.5 py-1.5 text-[11px] text-indigo-100 shadow-2xl opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150"
+					class="lg-hud-tooltip pointer-events-none absolute bottom-full mb-2 left-0 z-50 w-56 rounded-md border border-indigo-500/50 px-2.5 py-1.5 text-[11px] text-indigo-100 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150"
 				>
 					<div class="font-bold text-amber-300">
 						{getCommanderName(activeCommander, settings.locale)} ({getCommanderNickname(
@@ -163,7 +164,7 @@
 					</span>
 				</button>
 				<div
-					class="pointer-events-none absolute bottom-full mb-2 left-0 z-50 whitespace-nowrap rounded-md border border-[#544738] bg-[#0f141f]/95 px-2.5 py-1 text-[11px] text-amber-100 shadow-2xl opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150"
+					class="lg-hud-tooltip pointer-events-none absolute bottom-full mb-2 left-0 z-50 whitespace-nowrap rounded-md border border-[#544738]/80 px-2.5 py-1 text-[11px] text-amber-100 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150"
 				>
 					{t('inspect.bridgeTooltip')}
 				</div>
@@ -490,7 +491,7 @@
 								</span>
 							</button>
 							<div
-								class="pointer-events-none absolute bottom-full mb-2 left-0 z-50 whitespace-nowrap rounded-md border border-[#544738] bg-[#0f141f]/95 px-2.5 py-1 text-[11px] text-amber-100 shadow-2xl opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150"
+								class="lg-hud-tooltip pointer-events-none absolute bottom-full mb-2 left-0 z-50 whitespace-nowrap rounded-md border border-[#544738]/80 px-2.5 py-1 text-[11px] text-amber-100 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150"
 							>
 								{canRepairCastle ? t('inspect.repairTitle') : t('inspect.citadelIntact')}
 							</div>
@@ -515,7 +516,7 @@
 								</span>
 							</button>
 							<div
-								class="pointer-events-none absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-50 whitespace-nowrap rounded-md border border-[#544738] bg-[#0f141f]/95 px-2.5 py-1 text-[11px] text-amber-100 shadow-2xl opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150"
+								class="lg-hud-tooltip pointer-events-none absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-50 whitespace-nowrap rounded-md border border-[#544738]/80 px-2.5 py-1 text-[11px] text-amber-100 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150"
 							>
 								{!isBridgeBroken
 									? t('inspect.bridgeIntact')
@@ -557,7 +558,7 @@
 								style="width: {Math.max(0, Math.min(100, pct))}%"
 							></div>
 						</div>
-					{:else}
+					{:else if placedBuilding.spawnUnitId}
 						{@const remPct =
 							computeSpawnProgressRatio(placedBuilding.spawnTimer, placedBuilding.spawnCooldown) *
 							100}
@@ -575,6 +576,14 @@
 								style="width: {remPct}%"
 							></div>
 						</div>
+					{:else}
+						{@const placedDesc = getSpecialBuildingDescription(
+							placedBuilding.defId,
+							settings.locale
+						)}
+						<span class="text-[10px] leading-snug text-slate-300 line-clamp-2">
+							{placedDesc ?? t('inspect.specialBld')}
+						</span>
 					{/if}
 					<button
 						onclick={() => onCloseBuilding?.()}

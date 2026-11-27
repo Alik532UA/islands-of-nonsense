@@ -45,6 +45,7 @@ import {
 	resolveUnitKillBounty,
 	toPlayableRace
 } from './gameData';
+import { tickSpecialBuildingEffects, handleSpecialBuildingAllyDeath } from './specialBuildings';
 import { logService } from '../services/logService.svelte';
 
 /**
@@ -877,7 +878,8 @@ export class BuildingSystem {
 					}
 				}
 			}
-			if (b.specialType) {
+			tickSpecialBuildingEffects(this.sim, b, dt);
+			if (!b.spawnUnitId) {
 				continue;
 			}
 
@@ -901,8 +903,12 @@ export class BuildingSystem {
 		}
 	}
 
-	public spawnUnitFromBuilding(building: Building): Unit | null {
-		const unitDef = getUnit(building.spawnUnitId);
+	public handleAllyDeathSpecials(deadUnit: Unit): void {
+		handleSpecialBuildingAllyDeath(this.sim, deadUnit);
+	}
+
+	public spawnUnitFromBuilding(building: Building, overrideUnitId?: string): Unit | null {
+		const unitDef = getUnit(overrideUnitId || building.spawnUnitId);
 		if (!unitDef) return null;
 
 		const teamMemberCount = Math.max(1, this.sim.teamMembers?.[building.team]?.length ?? 1);
@@ -1074,7 +1080,7 @@ export class BuildingSystem {
 
 		this.sim.units.push(unit);
 		const bDef = getBuilding(building.defId);
-		if (bDef && isLegendaryBuilding(bDef)) {
+		if (!overrideUnitId && bDef && isLegendaryBuilding(bDef)) {
 			this.sim.onSoundEffect?.('bossSpawn');
 			this.sim.onBossSpawn?.(unit);
 		}

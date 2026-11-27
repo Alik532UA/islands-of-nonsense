@@ -3,6 +3,9 @@
 	import type { Simulation } from '../engine/simulation';
 	import type { BuildingDefinition, PlayerState, UnitDefinition } from '../engine/types';
 	import { formatRaceName, getUnit, isLegendaryBuilding } from '../engine/gameData';
+	import { getRaceAbility } from '../engine/raceAbilities';
+	import { t } from '$lib/i18n';
+	import { settings } from '../services/settings.svelte';
 	import { BATTLE_COMMAND_ROUTER_KEY, type BattleCommandRouter } from '$lib/net/onlineMatchSetup';
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import UnitSilhouette from './ui/UnitSilhouette.svelte';
@@ -62,6 +65,16 @@
 	const routeBattleCommand = getContext<BattleCommandRouter | undefined>(BATTLE_COMMAND_ROUTER_KEY);
 
 	let rescueCd = $derived(sim.getRescueStrikeCooldown(activeTeam, player));
+	let raceAbility = $derived(getRaceAbility(player.race));
+	let raceSkillCd = $derived(sim.raceSkillCooldown[activeTeam] ?? 0);
+	let raceSkillUnlockLeft = $derived(Math.max(0, 300 - Math.floor(sim.gameTime)));
+	let raceSkillStatusText = $derived(
+		raceSkillUnlockLeft > 0
+			? t('arena.raceSkillUnlockIn', { sec: raceSkillUnlockLeft })
+			: raceSkillCd > 0
+				? t('arena.raceSkillCooldown', { sec: Math.ceil(raceSkillCd) })
+				: t('arena.raceSkillReady')
+	);
 
 	function execBattleAbility(
 		canUse: boolean,
@@ -84,10 +97,9 @@
 	let abilities = $derived<RadialAbilityItem[]>([
 		{
 			id: 'rescue_strike',
-			name: 'Рятівний удар',
-			costText: rescueCd > 0 ? `КД ${Math.ceil(rescueCd)}с` : '950 AoE (Приціл)',
-			description:
-				'Оберіть зону ураження (750px) на своєму острові; робітник застосує в радіусі 500px.',
+			name: t('arena.rescueBtn'),
+			costText: rescueCd > 0 ? t('arena.rescueUsed') : '950 AoE',
+			description: t('arena.rescueTip'),
 			hotkey: '1',
 			icon: 'rescue',
 			enabled: sim.canUseRescueStrike(activeTeam, player),
@@ -112,9 +124,9 @@
 		},
 		{
 			id: 'repair_castle',
-			name: 'Ремонт цитаделі',
-			costText: 'Безкоштовно',
-			description: 'Відправляє робітника ремонтувати головний замок.',
+			name: t('inspect.repairBtn'),
+			costText: settings.locale === 'en' ? 'Free' : 'Безкоштовно',
+			description: t('inspect.repairTitle'),
 			hotkey: '2',
 			icon: 'repair',
 			enabled: sim.castles[activeTeam].hp < sim.castles[activeTeam].maxHp,
@@ -131,9 +143,9 @@
 		},
 		{
 			id: 'repair_bridge',
-			name: 'Відбудувати міст',
-			costText: '50 деревини',
-			description: 'Відновлює зруйнований міст через річку для атаки лінією.',
+			name: t('inspect.bridgeBtn'),
+			costText: settings.locale === 'en' ? '50 Lumber' : '50 деревини',
+			description: t('inspect.bridgeTooltip'),
 			hotkey: '3',
 			icon: 'bridge',
 			enabled: Boolean(sim.brokenBridge) && lumber >= 50,
@@ -148,9 +160,9 @@
 		},
 		{
 			id: 'open_shop',
-			name: 'Магазин замку',
-			costText: 'Артефакти',
-			description: 'Сувої, зілля й тактичні предмети підтримки замку.',
+			name: t('shop.title'),
+			costText: settings.locale === 'en' ? 'Items' : 'Артефакти',
+			description: t('arena.shopTipDesc'),
 			hotkey: '4',
 			icon: 'shop',
 			enabled: true,
@@ -161,9 +173,11 @@
 		},
 		{
 			id: 'open_forge',
-			name: 'Кузня покращень',
-			costText: 'Апгрейди',
-			description: 'Покращення атаки, броні військ та економіки.',
+			name: t('forge.title'),
+			costText: settings.locale === 'en' ? 'Upgrades' : 'Апгрейди',
+			description: t('arena.forgeTipDesc', {
+				lvl: player.forge.attack + player.forge.armor + player.forge.econ
+			}),
 			hotkey: '5',
 			icon: 'forge',
 			enabled: true,
@@ -174,9 +188,9 @@
 		},
 		{
 			id: 'open_commander',
-			name: 'Дім командира',
-			costText: 'Командир',
-			description: 'Вибір або зміна пасивного бонусу командира.',
+			name: t('cmd.commanderHallTitle'),
+			costText: settings.locale === 'en' ? 'Commander' : 'Командир',
+			description: t('arena.commanderDescPick'),
 			hotkey: '6',
 			icon: 'commander',
 			enabled: true,
@@ -187,9 +201,9 @@
 		},
 		{
 			id: 'race_skill',
-			name: 'Здібність раси',
-			costText: 'Магія',
-			description: 'Унікальна активна здібність вашої обраної раси.',
+			name: settings.locale === 'en' ? raceAbility.nameEn : raceAbility.nameUk,
+			costText: raceSkillStatusText,
+			description: settings.locale === 'en' ? raceAbility.descriptionEn : raceAbility.descriptionUk,
 			hotkey: '7',
 			icon: 'skill',
 			enabled: sim.canUseRaceSkill(activeTeam),

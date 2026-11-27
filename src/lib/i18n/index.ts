@@ -935,7 +935,28 @@ export const translations = {
 		'arena.zoomOutAria': 'Віддалити',
 		'arena.centerCastle': 'Центрувати на замку',
 		'arena.hotkeysTitle': 'Гарячі клавіші та довідка',
-		'arena.hotkeysAria': 'Гарячі клавіші'
+		'arena.hotkeysAria': 'Гарячі клавіші',
+		'arena.raceSkillUnlockIn': 'Відкриється на 5:00 бою (через {sec}с)',
+		'arena.raceSkillCooldown': 'Перезарядка: {sec}с (КД 150с)',
+		'arena.raceSkillReady': 'Готово до застосування · КД 150с',
+		'arena.blinkDesc': 'Телепортує робітника у точку на вашому острові (до 500px)',
+		'arena.blinkReady': 'Готово · КД 500мс',
+		'arena.workerTip': 'Виділяє та центрує камеру на робітникові (будівництво та ремонт)',
+		'arena.castleTip': 'Виділяє цитадель (постріли гармати та ремонт замку)',
+		'arena.commanderDescPick': 'Оберіть пасивного командира для бонусу армії та економіці',
+		'arena.commanderDescNeedHall': 'Збудуйте Дім командира (R), щоб активувати командира',
+		'arena.forgeTipDesc':
+			'Кузня: +8% шкоди, +1 броні та +10% доходу золота (поточний рівень: {lvl}/13)',
+		'arena.shopTipDesc': 'Зілля, сувої, Золотий Сир (+ліміт будівель) та захист цитаделі',
+		'special.desc.cg09_repair': 'Автоматично відновлює здоров’я вашого замку (+25 HP/с).',
+		'special.desc.cg07_recycler':
+			'Повертає +4 золота за кожного загиблого союзного бійця (до +8g від 2 утилізаторів).',
+		'special.desc.h045_altar':
+			'Аура захисту: дарує +3 до броні всім дружнім бійцям у радіусі 600 px.',
+		'special.desc.h046_fountain':
+			'Аура зцілення: відновлює +25 HP/с усім дружнім бійцям у радіусі 600 px.',
+		'special.desc.h047_obelisk':
+			'Аура мани: відновлює +10 мани/с усім дружнім заклиначам у радіусі 600 px.'
 	},
 	en: {
 		app_title: 'Castle Fight Web',
@@ -1859,7 +1880,25 @@ export const translations = {
 		'arena.zoomOutAria': 'Zoom Out',
 		'arena.centerCastle': 'Center on Castle',
 		'arena.hotkeysTitle': 'Hotkeys & Guide',
-		'arena.hotkeysAria': 'Hotkeys'
+		'arena.hotkeysAria': 'Hotkeys',
+		'arena.raceSkillUnlockIn': 'Unlocks at 5:00 of match (in {sec}s)',
+		'arena.raceSkillCooldown': 'Cooldown: {sec}s (150s CD)',
+		'arena.raceSkillReady': 'Ready to cast · 150s CD',
+		'arena.blinkDesc': 'Teleports builder to a target point on your island (up to 500px)',
+		'arena.blinkReady': 'Ready · 500ms CD',
+		'arena.workerTip': 'Selects & centers camera on your builder (construct & repair)',
+		'arena.castleTip': 'Selects citadel (cannon shots & castle repair)',
+		'arena.commanderDescPick': 'Choose a passive commander to buff army & economy',
+		'arena.commanderDescNeedHall': 'Build Command Hall (R) to activate a commander',
+		'arena.forgeTipDesc':
+			'Forge: +8% damage, +1 armor & +10% gold income (current level: {lvl}/13)',
+		'arena.shopTipDesc': 'Potions, scrolls, Golden Cheese (+building cap) & citadel defense',
+		'special.desc.cg09_repair': 'Automatically restores your castle health (+25 HP/s).',
+		'special.desc.cg07_recycler':
+			'Refunds +4 gold per fallen friendly unit (up to +8g with 2 Recyclers).',
+		'special.desc.h045_altar': 'Protection aura: grants +3 armor to allied units within 600 px.',
+		'special.desc.h046_fountain': 'Healing aura: restores +25 HP/s to allied units within 600 px.',
+		'special.desc.h047_obelisk': 'Mana aura: restores +10 mana/s to allied casters within 600 px.'
 	}
 } as const;
 

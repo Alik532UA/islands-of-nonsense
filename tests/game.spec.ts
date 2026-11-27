@@ -100,12 +100,21 @@ test.describe('Islands of Nonsense — Comprehensive E2E Verification', () => {
 		await expect(statsPanel).toContainText(/Будівельник/i);
 		await expect(statsPanel).toContainText(/Швидкість:/i);
 
+		const raceAbilityTip = page
+			.getByTestId('hud-race-ability-btn')
+			.locator('xpath=following-sibling::div');
+		await expect(raceAbilityTip).toContainText(/Відкриється на 5:00 бою/i);
+		await expect(raceAbilityTip).toContainText(/.{40,}/);
+
 		await page.getByTestId('topbar-locale-toggle').click();
 		await expect(statusBanner).toContainText(/Round/i);
 		await expect(statsPanel).toContainText(/Builder/i);
 		await expect(statsPanel).toContainText(/Speed:/i);
 		await expect(statsPanel).not.toContainText(/[а-яА-ЯіІїЇєЄґҐ]/);
 		await expect(commandCard).not.toContainText(/[а-яА-ЯіІїЇєЄґҐ]/);
+		await expect(raceAbilityTip).toContainText(/Unlocks at 5:00 of match/i);
+		await expect(raceAbilityTip).toContainText(/.{35,}/);
+		await expect(raceAbilityTip).not.toContainText(/[а-яА-ЯіІїЇєЄґҐ]/);
 
 		await page.keyboard.press('k');
 		const forgeModal = page.getByTestId('forge-modal');

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n';
+
 	let {
 		remaining = 0,
 		max = 1
@@ -28,7 +30,7 @@
 		<span
 			class="pointer-events-none absolute -bottom-1 -right-1 z-10 text-[8px] font-mono bg-black/90 px-1 py-0.5 rounded text-amber-300 font-bold leading-none border border-amber-500/40"
 		>
-			{Math.ceil(remaining)}с
+			{Math.ceil(remaining)}{t('inspect.secSuffix')}
 		</span>
 	{/if}
 {/if}

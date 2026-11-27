@@ -13,7 +13,7 @@
 	import { submitDailyResult } from '$lib/net/dailyChallenge';
 	import { consumePendingReplay, saveMatchReplay } from '$lib/services/replayStore.svelte';
 	import { t } from '$lib/i18n';
-	import { localizeRaceName } from '$lib/i18n/entityNames';
+	import { localizeRaceName, localizeEntityName } from '$lib/i18n/entityNames';
 	import type { PlayerState } from '$lib/engine/types';
 	import { BotAI } from '$lib/engine/botAI';
 	import { ArenaRenderer, type SelectedEntity } from '$lib/renderer/ArenaRenderer';
@@ -23,10 +23,17 @@
 		RACES_LIST,
 		PLAYABLE_RACES,
 		formatRaceName,
-		getBaseBuildingsForRace
+		getBaseBuildingsForRace,
+		getUnit
 	} from '$lib/engine/gameData';
 	import { getRaceAbility } from '$lib/engine/raceAbilities';
-	import { findCommander, getCommanderName, getCommanderNickname } from '$lib/engine/commanders';
+	import { getSpecialBuildingDescription } from '$lib/engine/specialBuildings';
+	import {
+		findCommander,
+		getCommanderDescription,
+		getCommanderName,
+		getCommanderNickname
+	} from '$lib/engine/commanders';
 	import TopBar from '$lib/components/TopBar.svelte';
 	import BottomBar from '$lib/components/BottomBar.svelte';
 	import RadialMenu from '$lib/components/RadialMenu.svelte';
@@ -1847,7 +1854,7 @@
 			]}
 			{@const sideTipClass = `lg-hud-tooltip pointer-events-none absolute top-1/2 -translate-y-1/2 ${
 				isEastSide ? 'right-full mr-2.5' : 'left-full ml-2.5'
-			} z-50 whitespace-nowrap rounded-md border border-[#544738]/80 px-2.5 py-1 text-[11px] opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150`}
+			} z-50 w-max max-w-[270px] whitespace-normal text-left leading-snug rounded-md border border-[#544738]/80 px-2.5 py-1.5 text-[11px] opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150`}
 			{@const raceBuildings = getBaseBuildingsForRace(controlledPlayer.race)}
 			{@const quickBuildGroups = [
 				{
@@ -1918,12 +1925,30 @@
 							<CooldownOverlay remaining={raceSkillCd} max={150} />
 						{/if}
 					</button>
-					<div class="{sideTipClass} text-purple-200 flex items-center gap-1.5">
-						<span>{settings.locale === 'en' ? raceAbility.nameEn : raceAbility.nameUk}</span>
+					<div class="{sideTipClass} text-purple-200 flex flex-col gap-0.5">
+						<div class="flex items-center gap-1.5 font-bold">
+							<span>{settings.locale === 'en' ? raceAbility.nameEn : raceAbility.nameUk}</span>
+							<span
+								class="text-[9px] font-mono font-bold text-purple-300 bg-black/60 px-1 rounded border border-purple-500/60"
+							>
+								Z
+							</span>
+						</div>
+						<span class="text-[10px] text-slate-300 font-normal">
+							{settings.locale === 'en' ? raceAbility.descriptionEn : raceAbility.descriptionUk}
+						</span>
 						<span
-							class="text-[9px] font-mono font-bold text-purple-300 bg-black/60 px-1 rounded border border-purple-500/60"
+							class="text-[9.5px] {canCastRaceSkill
+								? 'text-emerald-300'
+								: 'text-purple-300/90'} font-normal"
 						>
-							Z
+							{#if raceSkillUnlockLeft > 0}
+								{t('arena.raceSkillUnlockIn', { sec: raceSkillUnlockLeft })}
+							{:else if raceSkillCd > 0}
+								{t('arena.raceSkillCooldown', { sec: Math.ceil(raceSkillCd) })}
+							{:else}
+								{t('arena.raceSkillReady')}
+							{/if}
 						</span>
 					</div>
 				</div>
@@ -2013,12 +2038,26 @@
 						</span>
 						<CooldownOverlay remaining={quickBlinkCd} max={WORKER_BLINK_COOLDOWN} />
 					</button>
-					<div class="{sideTipClass} text-cyan-200 flex items-center gap-1.5">
-						<span>{t('arena.blinkTip')}</span>
+					<div class="{sideTipClass} text-cyan-200 flex flex-col gap-0.5">
+						<div class="flex items-center gap-1.5 font-bold">
+							<span>{t('arena.blinkTip')}</span>
+							<span
+								class="text-[9px] font-mono font-bold text-cyan-300 bg-black/60 px-1 rounded border border-cyan-500/60"
+							>
+								F
+							</span>
+						</div>
+						<span class="text-[10px] text-slate-300 font-normal">
+							{t('arena.blinkDesc')}
+						</span>
 						<span
-							class="text-[9px] font-mono font-bold text-cyan-300 bg-black/60 px-1 rounded border border-cyan-500/60"
+							class="text-[9.5px] {canQuickBlink
+								? 'text-emerald-300'
+								: 'text-cyan-300/90'} font-normal"
 						>
-							F
+							{canQuickBlink
+								? t('arena.blinkReady')
+								: `${quickBlinkCd.toFixed(1)}${t('inspect.secSuffix')}`}
 						</span>
 					</div>
 				</div>
@@ -2043,12 +2082,17 @@
 							Spc
 						</span>
 					</button>
-					<div class="{sideTipClass} text-amber-100 flex items-center gap-1.5">
-						<span>{t('arena.workerLabel')}</span>
-						<span
-							class="text-[9px] font-mono font-bold text-amber-400 bg-black/60 px-1 rounded border border-[#544738]"
-						>
-							Space
+					<div class="{sideTipClass} text-amber-100 flex flex-col gap-0.5">
+						<div class="flex items-center gap-1.5 font-bold">
+							<span>{t('arena.workerLabel')}</span>
+							<span
+								class="text-[9px] font-mono font-bold text-amber-400 bg-black/60 px-1 rounded border border-[#544738]"
+							>
+								Space
+							</span>
+						</div>
+						<span class="text-[10px] text-slate-300 font-normal">
+							{t('arena.workerTip')}
 						</span>
 					</div>
 				</div>
@@ -2077,7 +2121,7 @@
 								: 'left-full pl-2'} z-50"
 						>
 							<div
-								class="bg-[#131722]/95 backdrop-blur-md border-2 border-[#544738] rounded-xl p-2 shadow-2xl flex flex-col gap-1.5 min-w-[210px]"
+								class="lg-hud-modal border-2 border-[#544738] rounded-xl p-2 shadow-2xl flex flex-col gap-1.5 min-w-[210px]"
 							>
 								<div
 									class="text-[10px] font-bold uppercase tracking-wider text-amber-200/90 flex items-center justify-between border-b border-[#3b3226] pb-1"
@@ -2095,6 +2139,14 @@
 											controlledPlayer.gold >= goldCost &&
 											(controlledPlayer.lumber ?? 0) >= lumberCost}
 										{@const isSel = selectedBuildingId === bld.id}
+										{@const bldUnit = bld.unit ? getUnit(bld.unit) : null}
+										{@const bldName = localizeEntityName(bld.name, settings.locale)}
+										{@const bldDetail = bldUnit
+											? `${localizeEntityName(bldUnit.name, settings.locale)}: ${bldUnit.damage_base ?? 15} dmg, ${Math.round(bldUnit.hp)} HP`
+											: (getSpecialBuildingDescription(bld.id, settings.locale) ??
+												(bld.specialType === 'tower'
+													? `${bld.damage_base ?? 50} dmg, ${bld.range ?? 500}px`
+													: ''))}
 										<button
 											type="button"
 											onclick={() => {
@@ -2108,7 +2160,9 @@
 												uiTick = sim.stateVersion;
 											}}
 											data-testid="hud-quick-build-item-{bld.id}"
-											title="{bld.name} ({goldCost}g{lumberCost > 0 ? `, ${lumberCost}w` : ''})"
+											title="{bldName} ({goldCost}g{lumberCost > 0
+												? `, ${lumberCost}w`
+												: ''}){bldDetail ? ` — ${bldDetail}` : ''}"
 											class="w-11 h-11 rounded-lg border flex flex-col items-center justify-center p-0.5 transition cursor-pointer {isSel
 												? 'bg-blue-600/80 border-amber-300 ring-2 ring-amber-400 text-white'
 												: canAfford
@@ -2158,12 +2212,17 @@
 							Ent
 						</span>
 					</button>
-					<div class="{sideTipClass} text-sky-100 flex items-center gap-1.5">
-						<span>{t('arena.castleLabel')}</span>
-						<span
-							class="text-[9px] font-mono font-bold text-sky-400 bg-black/60 px-1 rounded border border-sky-500/40"
-						>
-							Enter
+					<div class="{sideTipClass} text-sky-100 flex flex-col gap-0.5">
+						<div class="flex items-center gap-1.5 font-bold">
+							<span>{t('arena.castleLabel')}</span>
+							<span
+								class="text-[9px] font-mono font-bold text-sky-400 bg-black/60 px-1 rounded border border-sky-500/40"
+							>
+								Enter
+							</span>
+						</div>
+						<span class="text-[10px] text-slate-300 font-normal">
+							{t('arena.castleTip')}
 						</span>
 					</div>
 				</div>
@@ -2250,7 +2309,7 @@
 					: sim.canSelectOrChangeCommander(controlledPlayer.team, controlledPlayer)}
 			{@const oppositeSideTipClass = `lg-hud-tooltip pointer-events-none absolute top-1/2 -translate-y-1/2 ${
 				isEastSide ? 'left-full ml-2.5' : 'right-full mr-2.5'
-			} z-50 whitespace-nowrap rounded-md border border-[#544738]/80 px-2.5 py-1 text-[11px] opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150`}
+			} z-50 w-max max-w-[270px] whitespace-normal text-left leading-snug rounded-md border border-[#544738]/80 px-2.5 py-1.5 text-[11px] opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150`}
 			<div
 				data-testid="topbar-game-actions-dock"
 				class="lg-hud-panel absolute top-1/2 -translate-y-1/2 {isEastSide
@@ -2290,20 +2349,33 @@
 							</span>
 						{/if}
 					</button>
-					<div class="{oppositeSideTipClass} text-indigo-200 flex items-center gap-1.5">
-						<span>
-							{t('arena.commanderLabel', {
-								status: commander
-									? `${getCommanderName(commander, settings.locale)}${controlledPlayer.isRandomCommander ? ' (×2)' : ''}`
-									: commanderStatus.hasHall
-										? t('arena.commanderCanPick')
-										: t('cmd.notSelected')
-							})}
-						</span>
-						<span
-							class="text-[9px] font-mono font-bold text-indigo-300 bg-black/60 px-1 rounded border border-indigo-500/60"
-						>
-							C
+					<div class="{oppositeSideTipClass} text-indigo-200 flex flex-col gap-0.5">
+						<div class="flex items-center gap-1.5 font-bold">
+							<span>
+								{t('arena.commanderLabel', {
+									status: commander
+										? `${getCommanderName(commander, settings.locale)}${controlledPlayer.isRandomCommander ? ' (×2)' : ''}`
+										: commanderStatus.hasHall
+											? t('arena.commanderCanPick')
+											: t('cmd.notSelected')
+								})}
+							</span>
+							<span
+								class="text-[9px] font-mono font-bold text-indigo-300 bg-black/60 px-1 rounded border border-indigo-500/60"
+							>
+								C
+							</span>
+						</div>
+						<span class="text-[10px] text-slate-300 font-normal">
+							{commander
+								? getCommanderDescription(
+										commander,
+										Boolean(controlledPlayer.isRandomCommander),
+										settings.locale
+									)
+								: commanderStatus.hasHall
+									? t('arena.commanderDescPick')
+									: t('arena.commanderDescNeedHall')}
 						</span>
 					</div>
 				</div>
@@ -2334,12 +2406,22 @@
 							</span>
 						{/if}
 					</button>
-					<div class="{oppositeSideTipClass} text-amber-100 flex items-center gap-1.5">
-						<span>{t('forge.title')}</span>
-						<span
-							class="text-[9px] font-mono font-bold text-amber-400 bg-black/60 px-1 rounded border border-[#544738]"
-						>
-							K
+					<div class="{oppositeSideTipClass} text-amber-100 flex flex-col gap-0.5">
+						<div class="flex items-center gap-1.5 font-bold">
+							<span>{t('forge.title')}</span>
+							<span
+								class="text-[9px] font-mono font-bold text-amber-400 bg-black/60 px-1 rounded border border-[#544738]"
+							>
+								K
+							</span>
+						</div>
+						<span class="text-[10px] text-slate-300 font-normal">
+							{t('arena.forgeTipDesc', {
+								lvl:
+									controlledPlayer.forge.attack +
+									controlledPlayer.forge.armor +
+									controlledPlayer.forge.econ
+							})}
 						</span>
 					</div>
 				</div>
@@ -2361,12 +2443,17 @@
 							B
 						</span>
 					</button>
-					<div class="{oppositeSideTipClass} text-emerald-200 flex items-center gap-1.5">
-						<span>{t('shop.title')}</span>
-						<span
-							class="text-[9px] font-mono font-bold text-emerald-300 bg-black/60 px-1 rounded border border-emerald-600/70"
-						>
-							B
+					<div class="{oppositeSideTipClass} text-emerald-200 flex flex-col gap-0.5">
+						<div class="flex items-center gap-1.5 font-bold">
+							<span>{t('shop.title')}</span>
+							<span
+								class="text-[9px] font-mono font-bold text-emerald-300 bg-black/60 px-1 rounded border border-emerald-600/70"
+							>
+								B
+							</span>
+						</div>
+						<span class="text-[10px] text-slate-300 font-normal">
+							{t('arena.shopTipDesc')}
 						</span>
 					</div>
 				</div>

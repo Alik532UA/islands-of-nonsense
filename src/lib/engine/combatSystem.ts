@@ -1083,6 +1083,9 @@ export class CombatSystem {
 					this.sim.players[target.team].gold += scrapBonus;
 					this.sim.addFloatingText(`+${scrapBonus}g Брухт`, target.x, target.y - 20, '#eab308');
 				}
+				if (!isFriendlyDamage && (target.team === 'west' || target.team === 'east')) {
+					this.sim.buildingSystem.handleAllyDeathSpecials(target);
+				}
 			}
 
 			// Scavenger Scrap & Great Assembly (Велика збірка)

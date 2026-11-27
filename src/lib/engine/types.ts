@@ -434,6 +434,8 @@ export interface Building {
 	specialType?:
 		'treasure' | 'repair' | 'recycler' | 'tower' | 'special' | 'shop' | 'forge' | 'commander';
 	aura?: BuildingAuraDef;
+	specialTimer?: number;
+	secondaryTimer?: number;
 	attackCooldown?: number;
 	attackTimer?: number;
 	attackRange?: number;

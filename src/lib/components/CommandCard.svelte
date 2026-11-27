@@ -10,6 +10,7 @@
 		PlayerState
 	} from '../engine/types';
 	import { getUnit, isLegendaryBuilding } from '../engine/gameData';
+	import { getSpecialBuildingDescription } from '../engine/specialBuildings';
 	import {
 		applyCommanderForgeCostDiscount,
 		findCommander,
@@ -1082,6 +1083,7 @@
 	<!-- Floating Authentic Warcraft III Tooltip on Hover (Matches Reference Image 2) -->
 	{#if hoveredBuilding}
 		{@const bld = hoveredBuilding}
+		{@const specDesc = getSpecialBuildingDescription(bld.id, settings.locale)}
 		{@const bIndex = availableBuildings.findIndex((b) => b.id === bld.id)}
 		{@const bHotkey = getHotkeyForBuilding(bld, bIndex >= 0 ? bIndex : 0)}
 		<div
@@ -1173,6 +1175,11 @@
 							{t('inspect.secSuffix')}
 						</span>
 					</div>
+					{#if specDesc}
+						<p class="text-[10.5px] leading-relaxed text-slate-300 pt-1">
+							{specDesc}
+						</p>
+					{/if}
 				</div>
 			{:else if hoveredBuilding.specialType === 'shop'}
 				<div class="space-y-1 text-[11px] text-slate-300">
@@ -1188,6 +1195,10 @@
 						{t('cmd.forgeDesc')}
 					</p>
 				</div>
+			{:else if specDesc}
+				<p class="text-[11px] leading-relaxed text-slate-300">
+					{specDesc}
+				</p>
 			{:else if hoveredBuilding.raw_fields?.utub}
 				<p class="text-[11px] leading-relaxed text-slate-300 whitespace-pre-line">
 					{formatBuildingTooltip(hoveredBuilding.raw_fields.utub)}

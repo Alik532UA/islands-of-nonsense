@@ -531,7 +531,7 @@
 						: t('bag.emptySlot')}
 				>
 					<div
-						class="pointer-events-none absolute bottom-full mb-2 right-0 z-50 w-max max-w-[min(240px,calc(100vw-24px))] whitespace-normal text-left leading-snug rounded-md border border-[#544738] bg-[#0f141f]/95 px-2.5 py-1.5 text-[11px] text-amber-100 shadow-2xl opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150"
+						class="lg-hud-tooltip pointer-events-none absolute bottom-full mb-2 right-0 z-50 w-max max-w-[min(240px,calc(100vw-24px))] whitespace-normal text-left leading-snug rounded-md border border-[#544738]/80 px-2.5 py-1.5 text-[11px] text-amber-100 opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150"
 					>
 						{#if slotItem}
 							{@const def = CASTLE_ITEMS[slotItem.id]}
