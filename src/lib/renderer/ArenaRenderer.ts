@@ -88,6 +88,7 @@ export interface RendererOptions {
 	canvas: HTMLCanvasElement;
 	sim: Simulation;
 	graphicsStyle?: GraphicsStyle;
+	interactive?: boolean;
 	onTileClick: (tileX: number, tileY: number, shiftKey?: boolean) => void;
 	onWorkerCommand?: (cmd: WorkerCanvasCommand) => boolean;
 	onSelectEntity?: (entity: SelectedEntity) => void;
@@ -143,6 +144,7 @@ export class ArenaRenderer {
 	public zoom = 0.85;
 	public minZoom = 0.16;
 	public maxZoom = 2.0;
+	private interactive = true;
 	private isPanning = false;
 	private panStartX = 0;
 	private panStartY = 0;
@@ -253,6 +255,7 @@ export class ArenaRenderer {
 		this.onGroundItemClick = options.onGroundItemClick;
 		this.onCameraChange = options.onCameraChange;
 		this.graphicsStyle = options.graphicsStyle ?? '2.5d';
+		this.interactive = options.interactive ?? true;
 
 		this.app = new Application();
 		this.rootContainer = new Container();
@@ -413,7 +416,9 @@ export class ArenaRenderer {
 			await this.loadCastleTexturesIfNeeded();
 		}
 
-		this.setupInteraction(canvas);
+		if (this.interactive) {
+			this.setupInteraction(canvas);
+		}
 		this.drawStaticTerrain();
 
 		if (typeof ResizeObserver !== 'undefined') {
@@ -564,7 +569,7 @@ export class ArenaRenderer {
 			down: allowEdge && this.mouseScreenY > screenH - edgeMargin
 		};
 
-		if (this.isPanning) {
+		if (!this.interactive || this.isPanning) {
 			this.camVelX = 0;
 			this.camVelY = 0;
 		} else {

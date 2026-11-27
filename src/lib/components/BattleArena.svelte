@@ -14,7 +14,7 @@
 	import { consumePendingReplay, saveMatchReplay } from '$lib/services/replayStore.svelte';
 	import { t } from '$lib/i18n';
 	import { localizeRaceName, localizeEntityName } from '$lib/i18n/entityNames';
-	import type { PlayerState } from '$lib/engine/types';
+	import type { PlayerState, Building, Unit } from '$lib/engine/types';
 	import { BotAI } from '$lib/engine/botAI';
 	import { ArenaRenderer, type SelectedEntity } from '$lib/renderer/ArenaRenderer';
 	import { sound, music } from '$lib/services/audio';
@@ -96,6 +96,22 @@
 		};
 	}
 
+	function bindArenaAudioBridge(targetSim: Simulation) {
+		if (unlistenAudio) unlistenAudio();
+		unlistenAudio = attachAudioBridge(targetSim, sound, () => localTeam, {
+			shouldPlayUnitSpawnVoice: (_unit: Unit, building: Building) => {
+				// Spectator & Bot-vs-Bot modes play spawn voices for both sides
+				if (isSpectatorView || isBotVsBot) return true;
+				// Otherwise restrict to local player's own buildings (Q1 = A)
+				const activeSlot = controlledPlayer?.slot;
+				if (building.playerSlot != null && activeSlot != null) {
+					return building.playerSlot === activeSlot;
+				}
+				return building.team === localTeam;
+			}
+		});
+	}
+
 	function applyReplayActionToSim(targetSim: Simulation, action: ReplayAction) {
 		const { team, actionType, payload } = action;
 		if (
@@ -157,8 +173,7 @@
 		sim = replaySim;
 		controlledPlayerSlot = sim.players.west?.slot ?? 1;
 		perfMonitor.attachSim(sim);
-		if (unlistenAudio) unlistenAudio();
-		unlistenAudio = attachAudioBridge(sim, sound, () => localTeam);
+		bindArenaAudioBridge(sim);
 		renderer?.setSimulation(sim);
 		renderer?.resetCastleVisuals();
 		uiTick = sim.stateVersion;
@@ -936,7 +951,7 @@
 	onMount(async () => {
 		perfMonitor.attachSim(sim);
 		botAI = new BotAI(sim);
-		unlistenAudio = attachAudioBridge(sim, sound, () => localTeam);
+		bindArenaAudioBridge(sim);
 		const searchParams =
 			typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
 		const urlMode = searchParams?.get('mode');
@@ -968,8 +983,7 @@
 					cameraY = init.cameraY;
 					if (!init.isSpectator) attachReplayRecorder(sim);
 					perfMonitor.attachSim(sim);
-					if (unlistenAudio) unlistenAudio();
-					unlistenAudio = attachAudioBridge(sim, sound, () => localTeam);
+					bindArenaAudioBridge(sim);
 					if (init.isPlaying && nextSim.allPlayers.some((p) => !p.isBot && p.pendingRacePick)) {
 						startOnlineCountdown();
 					} else {
@@ -982,8 +996,7 @@
 					sim = nextSim;
 					if (!isOnlineSpectator) attachReplayRecorder(sim);
 					perfMonitor.attachSim(sim);
-					if (unlistenAudio) unlistenAudio();
-					unlistenAudio = attachAudioBridge(sim, sound, () => localTeam);
+					bindArenaAudioBridge(sim);
 					renderer?.setSimulation(sim);
 					if (networkNotice?.includes('розсинхронізація')) {
 						networkNotice = null;
@@ -1081,8 +1094,7 @@
 					}
 					if (!isSpectator) attachReplayRecorder(sim);
 					perfMonitor.attachSim(sim);
-					if (unlistenAudio) unlistenAudio();
-					unlistenAudio = attachAudioBridge(sim, sound, () => localTeam);
+					bindArenaAudioBridge(sim);
 					renderer?.setSimulation(sim);
 					renderer?.resetCastleVisuals();
 					if (nextSim.allPlayers.some((p) => !p.isBot && p.pendingRacePick)) {
@@ -1591,8 +1603,7 @@
 		controlledPlayerSlot = sim.players.west?.slot ?? 1;
 		sim.isRunning = false;
 		perfMonitor.attachSim(sim);
-		if (unlistenAudio) unlistenAudio();
-		unlistenAudio = attachAudioBridge(sim, sound, () => localTeam);
+		bindArenaAudioBridge(sim);
 		botAI = new BotAI(sim);
 		renderer?.setSimulation(sim);
 		renderer?.resetCastleVisuals();

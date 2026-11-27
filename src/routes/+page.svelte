@@ -15,7 +15,7 @@
 	<!-- Game Title & Hero Header -->
 	<header class="w-full max-w-2xl text-center mb-8">
 		<h1
-			class="text-4xl md:text-5xl font-black text-amber-300 tracking-wider uppercase drop-shadow-md"
+			class="text-4xl md:text-5xl font-black text-amber-300 tracking-wider uppercase drop-shadow-[0_4px_18px_rgba(0,0,0,0.85)]"
 		>
 			{t('menu.title')}
 		</h1>

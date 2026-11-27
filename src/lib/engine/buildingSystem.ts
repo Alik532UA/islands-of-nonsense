@@ -1079,6 +1079,7 @@ export class BuildingSystem {
 		};
 
 		this.sim.units.push(unit);
+		this.sim.onUnitSpawn?.(unit, building);
 		const bDef = getBuilding(building.defId);
 		if (!overrideUnitId && bDef && isLegendaryBuilding(bDef)) {
 			this.sim.onSoundEffect?.('bossSpawn');

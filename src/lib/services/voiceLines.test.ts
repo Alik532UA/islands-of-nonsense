@@ -7,6 +7,7 @@ import { PLAYABLE_RACES } from '$lib/engine/gameData';
 import {
 	getWorkerVoiceSlug,
 	SoundService,
+	UNIT_SPAWN_VOICE_COOLDOWN_MS,
 	UNIT_VOICE_VARIANTS,
 	WORKER_VOICE_COOLDOWN_MS,
 	WORKER_VOICE_VARIANTS,
@@ -137,8 +138,54 @@ describe('Unit & Worker Edge TTS Voice Lines', () => {
 		expect(playSpy.mock.calls[1][0]).not.toBe(playSpy.mock.calls[2][0]);
 	});
 
+	it('enforces shared 60-second cooldown for building-spawn voice lines without blocking clicks or interrupting active speech', () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-11-26T20:00:00Z'));
+
+		const svc = new SoundService();
+		const playSpy = vi.spyOn(
+			svc as unknown as { playVoiceUrl: (url: string) => void },
+			'playVoiceUrl'
+		);
+
+		// First unit exiting a building speaks immediately
+		svc.playUnitSpawnVoice('h03C');
+		expect(playSpy).toHaveBeenCalledTimes(1);
+
+		// Subsequent unit exits within 60s are suppressed (shared timer across all unit types)
+		vi.advanceTimersByTime(UNIT_SPAWN_VOICE_COOLDOWN_MS - 1000);
+		svc.playUnitSpawnVoice('hfoo');
+		expect(playSpy).toHaveBeenCalledTimes(1);
+
+		// Manual click on a unit still plays immediately despite spawn cooldown
+		svc.playUnitVoice('hfoo');
+		expect(playSpy).toHaveBeenCalledTimes(2);
+
+		// After 60s cooldown passes, next exited unit speaks cleanly
+		vi.advanceTimersByTime(1000);
+		svc.playUnitSpawnVoice('hkni');
+		expect(playSpy).toHaveBeenCalledTimes(3);
+
+		// Does not interrupt an already playing voice clip
+		vi.advanceTimersByTime(UNIT_SPAWN_VOICE_COOLDOWN_MS);
+		vi.spyOn(svc, 'isVoicePlaying').mockReturnValue(true);
+		svc.playUnitSpawnVoice('hmpr');
+		expect(playSpy).toHaveBeenCalledTimes(3);
+
+		// Once active playback finishes, pending cooldown wasn't consumed, so next unit speaks
+		vi.spyOn(svc, 'isVoicePlaying').mockReturnValue(false);
+		svc.playUnitSpawnVoice('hmpr');
+		expect(playSpy).toHaveBeenCalledTimes(4);
+
+		// Match reset clears spawn cooldown cleanly
+		svc.resetUnitSpawnVoiceCooldown();
+		svc.playUnitSpawnVoice('h03C');
+		expect(playSpy).toHaveBeenCalledTimes(5);
+	});
+
 	it('exposes safe playWorkerVoice and playUnitVoice methods on sound service', () => {
 		expect(() => sound.playWorkerVoice('Альянс')).not.toThrow();
 		expect(() => sound.playUnitVoice('h03C')).not.toThrow();
+		expect(() => sound.playUnitSpawnVoice('h03C')).not.toThrow();
 	});
 });

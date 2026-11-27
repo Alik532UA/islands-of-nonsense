@@ -122,5 +122,36 @@ describe('audioBridge service', () => {
 		expect(sim.onSoundEffect).toBeUndefined();
 		expect(sim.onCastleUnderAttack).toBeUndefined();
 		expect(sim.onCastleLowHp).toBeUndefined();
+		expect(sim.onUnitSpawn).toBeUndefined();
+	});
+
+	it('routes building unit spawn voice through shouldPlayUnitSpawnVoice filter and resets spawn cooldown', () => {
+		const sim = new Simulation({ botDifficulty: 0, startGold: 5000 });
+		sim.decorations = [];
+		const mockSound = {
+			playUnitSpawnVoice: vi.fn(),
+			resetUnitSpawnVoiceCooldown: vi.fn(),
+			playCastleUnderAttack: vi.fn(),
+			playLowCastleHp: vi.fn()
+		} as unknown as SoundService;
+
+		const unlisten = attachAudioBridge(sim, mockSound, () => 'west', {
+			shouldPlayUnitSpawnVoice: (_unit, bld) => bld.team === 'west' && bld.playerSlot === 1
+		});
+		expect(mockSound.resetUnitSpawnVoiceCooldown).toHaveBeenCalledTimes(1);
+
+		expect(sim.build('west', 'h000', 25, 20)).toBe(true);
+		const westBld = sim.buildings[0];
+		westBld.isUnderConstruction = false;
+		sim.buildingSystem.spawnUnitFromBuilding(westBld);
+		expect(mockSound.playUnitSpawnVoice).toHaveBeenCalledTimes(1);
+
+		// Non-matching slot or enemy team is suppressed
+		westBld.playerSlot = 2;
+		sim.buildingSystem.spawnUnitFromBuilding(westBld);
+		expect(mockSound.playUnitSpawnVoice).toHaveBeenCalledTimes(1);
+
+		unlisten();
+		expect(sim.onUnitSpawn).toBeUndefined();
 	});
 });

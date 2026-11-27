@@ -47,6 +47,7 @@ export function getWorkerVoiceSlug(race: string): string {
 export const WORKER_VOICE_VARIANTS = 5;
 export const UNIT_VOICE_VARIANTS = 3;
 export const WORKER_VOICE_COOLDOWN_MS = 60_000;
+export const UNIT_SPAWN_VOICE_COOLDOWN_MS = 60_000;
 
 type SfxSampleKey =
 	| 'build'
@@ -94,6 +95,7 @@ export class SoundService {
 	private pendingVoiceUrl: string | null = null;
 	private lastVoicePlayedAt = 0;
 	private lastWorkerVoiceAt = 0;
+	private lastUnitSpawnVoiceAt = 0;
 	private lastWorkerVariantBySlug = new Map<string, number>();
 	private lastUnitVariantById = new Map<string, number>();
 
@@ -1222,9 +1224,15 @@ export class SoundService {
 	}
 
 	private playVoiceBuffer(buf: AudioBuffer): void {
-		if (!this.voiceEnabled || this.voiceVolume <= 0) return;
+		if (!this.voiceEnabled || this.voiceVolume <= 0) {
+			this.pendingVoiceUrl = null;
+			return;
+		}
 		const ctx = this.getContext();
-		if (!ctx) return;
+		if (!ctx) {
+			this.pendingVoiceUrl = null;
+			return;
+		}
 
 		this.stopActiveVoice();
 		const src = ctx.createBufferSource();
@@ -1243,45 +1251,77 @@ export class SoundService {
 	}
 
 	private async loadAndPlayVoice(urlPath: string): Promise<void> {
-		if (typeof window === 'undefined' || typeof fetch !== 'function') return;
+		if (typeof window === 'undefined' || typeof fetch !== 'function') {
+			if (this.pendingVoiceUrl === urlPath) this.pendingVoiceUrl = null;
+			return;
+		}
 		this.voiceCache.set(urlPath, 'loading');
 		try {
 			const res = await fetch(audioUrl(urlPath));
 			if (!res.ok) {
 				this.voiceCache.set(urlPath, 'failed');
+				if (this.pendingVoiceUrl === urlPath) this.pendingVoiceUrl = null;
 				return;
 			}
 			const arr = await res.arrayBuffer();
 			const ctx = this.getContext();
 			if (!ctx) {
 				this.voiceCache.delete(urlPath);
+				if (this.pendingVoiceUrl === urlPath) this.pendingVoiceUrl = null;
 				return;
 			}
 			const decoded = await ctx.decodeAudioData(arr);
 			this.voiceCache.set(urlPath, decoded);
 			if (this.pendingVoiceUrl === urlPath && this.voiceEnabled && this.voiceVolume > 0) {
 				this.playVoiceBuffer(decoded);
+			} else if (this.pendingVoiceUrl === urlPath) {
+				this.pendingVoiceUrl = null;
 			}
 		} catch {
 			this.voiceCache.set(urlPath, 'failed');
+			if (this.pendingVoiceUrl === urlPath) this.pendingVoiceUrl = null;
 		}
 	}
 
 	private playVoiceUrl(urlPath: string): void {
 		if (!this.voiceEnabled || this.voiceVolume <= 0) return;
+		const cached = this.voiceCache.get(urlPath);
+		if (cached === 'failed') return;
+
 		const now = Date.now();
 		if (now - this.lastVoicePlayedAt < 450) return;
 		this.lastVoicePlayedAt = now;
 		this.pendingVoiceUrl = urlPath;
 
-		const cached = this.voiceCache.get(urlPath);
-		if (cached && cached !== 'loading' && cached !== 'failed') {
+		if (cached && cached !== 'loading') {
 			this.playVoiceBuffer(cached);
 			return;
 		}
 		if (!cached) {
 			void this.loadAndPlayVoice(urlPath);
 		}
+	}
+
+	private pickNonRepeatingVariant(
+		map: Map<string, number>,
+		key: string,
+		maxVariants: number
+	): number {
+		const prev = map.get(key);
+		let variant = Math.floor(Math.random() * maxVariants) + 1;
+		if (maxVariants > 1 && variant === prev) {
+			variant = (variant % maxVariants) + 1;
+		}
+		map.set(key, variant);
+		return variant;
+	}
+
+	public isVoicePlaying(): boolean {
+		return Boolean(this.activeVoiceSource || this.pendingVoiceUrl);
+	}
+
+	public resetUnitSpawnVoiceCooldown(): void {
+		this.lastUnitSpawnVoiceAt = 0;
 	}
 
 	/**
@@ -1295,12 +1335,11 @@ export class SoundService {
 			return;
 		}
 		const slug = getWorkerVoiceSlug(race);
-		const prev = this.lastWorkerVariantBySlug.get(slug);
-		let variant = Math.floor(Math.random() * WORKER_VOICE_VARIANTS) + 1;
-		if (WORKER_VOICE_VARIANTS > 1 && variant === prev) {
-			variant = (variant % WORKER_VOICE_VARIANTS) + 1;
-		}
-		this.lastWorkerVariantBySlug.set(slug, variant);
+		const variant = this.pickNonRepeatingVariant(
+			this.lastWorkerVariantBySlug,
+			slug,
+			WORKER_VOICE_VARIANTS
+		);
 		this.lastWorkerVoiceAt = now;
 		this.playVoiceUrl(`/audio/voices/workers/${slug}_${variant}.mp3`);
 	}
@@ -1366,14 +1405,39 @@ export class SoundService {
 	 * Озвучена репліка юніта за його defId (при виборі на арені),
 	 * випадковий вибір із 3 унікальних варіантів без повторів поспіль.
 	 */
+	/**
+	 * Озвучена репліка конкретного юніта (виділення кліком по карті) з ротацією 3 варіантів без КД.
+	 */
 	public playUnitVoice(unitId: string): void {
 		if (!unitId || !this.voiceEnabled || this.voiceVolume <= 0) return;
-		const prev = this.lastUnitVariantById.get(unitId);
-		let variant = Math.floor(Math.random() * UNIT_VOICE_VARIANTS) + 1;
-		if (UNIT_VOICE_VARIANTS > 1 && variant === prev) {
-			variant = (variant % UNIT_VOICE_VARIANTS) + 1;
+		const variant = this.pickNonRepeatingVariant(
+			this.lastUnitVariantById,
+			unitId,
+			UNIT_VOICE_VARIANTS
+		);
+		this.playVoiceUrl(`/audio/voices/units/${unitId}_${variant}.mp3`);
+	}
+
+	/**
+	 * Автоматична репліка юніта при виході з будівлі: спільний кулдаун 1 хв
+	 * та захист від переривання активної голосової репліки.
+	 */
+	public playUnitSpawnVoice(unitId: string): void {
+		if (!unitId || !this.voiceEnabled || this.voiceVolume <= 0) return;
+		if (this.isVoicePlaying()) return;
+		const now = Date.now();
+		if (
+			this.lastUnitSpawnVoiceAt > 0 &&
+			now - this.lastUnitSpawnVoiceAt < UNIT_SPAWN_VOICE_COOLDOWN_MS
+		) {
+			return;
 		}
-		this.lastUnitVariantById.set(unitId, variant);
+		const variant = this.pickNonRepeatingVariant(
+			this.lastUnitVariantById,
+			unitId,
+			UNIT_VOICE_VARIANTS
+		);
+		this.lastUnitSpawnVoiceAt = now;
 		this.playVoiceUrl(`/audio/voices/units/${unitId}_${variant}.mp3`);
 	}
 }

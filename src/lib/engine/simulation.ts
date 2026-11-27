@@ -277,6 +277,7 @@ export class Simulation {
 	public onCastleUnderAttack?: (team: MatchTeam, hpPercent: number) => void;
 	public onCastleLowHp?: (team: MatchTeam) => void;
 	public onBuildingComplete?: (building: Building) => void;
+	public onUnitSpawn?: (unit: Unit, building: Building) => void;
 	public onBossSpawn?: (unit: Unit) => void;
 	public onReplayAction?: (action: ReplayAction) => void;
 	public onRescueStrikeWarning?: (strike: {

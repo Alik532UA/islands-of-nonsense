@@ -2,9 +2,10 @@
 	import './layout.css';
 	import favicon from '#lib/assets/favicon.svg';
 	import type { LayoutProps } from './$types';
+	import type { Component } from 'svelte';
 	import { dev } from '$app/env';
 	import { beforeNavigate } from '$app/navigation';
-	import { updated } from '$app/state';
+	import { page, updated } from '$app/state';
 	import ServiceBadge from '$lib/components/ServiceBadge.svelte';
 	import GameHeader from '$lib/components/GameHeader.svelte';
 	import SettingsModal from '$lib/components/SettingsModal.svelte';
@@ -20,6 +21,21 @@
 	import { createKeySequence, listenForSequences } from '$lib/debug/keySequence';
 
 	let { children }: LayoutProps = $props();
+	let isBattleRoute = $derived(page.url.pathname.includes('/play/battle'));
+	let BgBattle = $state<Component | null>(null);
+
+	$effect(() => {
+		if (isBattleRoute || BgBattle) return;
+		let cancelled = false;
+		void import('$lib/components/MenuBackgroundBattle.svelte').then((mod) => {
+			if (!cancelled) {
+				BgBattle = mod.default;
+			}
+		});
+		return () => {
+			cancelled = true;
+		};
+	});
 
 	/** Показати табло в production: 55 разів поспіль V випадково не натиснеш. */
 	const BADGE_SHOW = 55;
@@ -76,15 +92,20 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
+{#if !isBattleRoute && BgBattle}
+	<BgBattle />
+{/if}
 <GameHeader />
-<svelte:boundary
-	onerror={(error) => logService.error('render', 'Layout boundary caught render error', error)}
->
-	{@render children()}
-	{#snippet failed(_error, reset)}
-		<ErrorFallback onretry={reset} />
-	{/snippet}
-</svelte:boundary>
+<div class={isBattleRoute ? 'contents' : 'relative z-10'}>
+	<svelte:boundary
+		onerror={(error) => logService.error('render', 'Layout boundary caught render error', error)}
+	>
+		{@render children()}
+		{#snippet failed(_error, reset)}
+			<ErrorFallback onretry={reset} />
+		{/snippet}
+	</svelte:boundary>
+</div>
 <SettingsModal isOpen={settings.isSettingsOpen} onClose={() => settings.closeSettings()} />
 {#if fullscreen.isModalOpen}
 	<FullscreenModal

@@ -1,6 +1,10 @@
 import type { Simulation } from '../engine/simulation';
-import type { MatchTeam, SoundEffectType } from '../engine/types';
+import type { Building, MatchTeam, SoundEffectType, Unit } from '../engine/types';
 import { sound, type SoundService } from './audio';
+
+export interface AudioBridgeOptions {
+	shouldPlayUnitSpawnVoice?: (unit: Unit, building: Building) => boolean;
+}
 
 /**
  * Connects simulation sound events to the procedural audio service.
@@ -11,7 +15,8 @@ import { sound, type SoundService } from './audio';
 export function attachAudioBridge(
 	sim: Simulation,
 	audioService: SoundService = sound,
-	getLocalTeam?: () => MatchTeam
+	getLocalTeam?: () => MatchTeam,
+	options?: AudioBridgeOptions
 ): () => void {
 	const handler = (type: SoundEffectType) => {
 		switch (type) {
@@ -104,7 +109,18 @@ export function attachAudioBridge(
 		}
 	};
 
+	const unitSpawnHandler = (unit: Unit, building: Building) => {
+		const allow = options?.shouldPlayUnitSpawnVoice
+			? options.shouldPlayUnitSpawnVoice(unit, building)
+			: !getLocalTeam || building.team === getLocalTeam();
+		if (allow) {
+			audioService.playUnitSpawnVoice?.(unit.defId);
+		}
+	};
+
+	audioService.resetUnitSpawnVoiceCooldown?.();
 	sim.onSoundEffect = handler;
+	sim.onUnitSpawn = unitSpawnHandler;
 	if (getLocalTeam) {
 		sim.onCastleUnderAttack = underAttackHandler;
 		sim.onCastleLowHp = lowHpHandler;
@@ -113,6 +129,9 @@ export function attachAudioBridge(
 	return () => {
 		if (sim.onSoundEffect === handler) {
 			sim.onSoundEffect = undefined;
+		}
+		if (sim.onUnitSpawn === unitSpawnHandler) {
+			sim.onUnitSpawn = undefined;
 		}
 		if (sim.onCastleUnderAttack === underAttackHandler) {
 			sim.onCastleUnderAttack = undefined;
