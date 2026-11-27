@@ -4,6 +4,7 @@
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	import { settings } from '$lib/services/settings.svelte';
 	import { fullscreen, canFullscreen } from '$lib/services/fullscreen.svelte';
+	import { t } from '$lib/i18n';
 
 	let {
 		isOpen = false,
@@ -49,8 +50,8 @@
 			<button
 				onclick={onResume}
 				class="absolute top-3 right-3 text-slate-400 hover:text-white transition p-1 cursor-pointer"
-				title="Продовжити (Esc)"
-				aria-label="Продовжити (Esc)"
+				title={t('pause.resumeTip')}
+				aria-label={t('pause.resumeTip')}
 				data-testid="pause-resume-x"
 			>
 				<UiIcon name="x" class="w-5 h-5" />
@@ -61,7 +62,9 @@
 				<div class="text-[10px] uppercase tracking-widest text-[#d4af37] font-bold">
 					Castle Fight Web
 				</div>
-				<h2 class="text-xl font-black text-amber-300 uppercase tracking-wide">Пауза / Меню гри</h2>
+				<h2 class="text-xl font-black text-amber-300 uppercase tracking-wide">
+					{t('pause.title')}
+				</h2>
 			</div>
 
 			<!-- Action Menu Buttons -->
@@ -73,7 +76,7 @@
 					data-testid="pause-resume-btn"
 				>
 					<UiIcon name="play" class="w-4 h-4 fill-white" />
-					<span>Продовжити бій (Esc)</span>
+					<span>{t('pause.resumeBtn')}</span>
 				</button>
 
 				<!-- Restart Match Button -->
@@ -83,7 +86,7 @@
 					data-testid="pause-restart-btn"
 				>
 					<UiIcon name="rotateCcw" class="w-4 h-4 text-amber-400" />
-					<span>Перезапустити бій</span>
+					<span>{t('pause.restartBtn')}</span>
 				</button>
 
 				<!-- Game Client Settings (Audio, Language, Scale) -->
@@ -93,7 +96,7 @@
 					data-testid="pause-game-settings-btn"
 				>
 					<UiIcon name="sliders" class="w-3.5 h-3.5 text-amber-400" />
-					<span>Налаштування гри (Звук, Мова, UI)</span>
+					<span>{t('pause.gameSettingsBtn')}</span>
 				</button>
 
 				<!-- Match Settings -->
@@ -104,7 +107,7 @@
 						data-testid="pause-settings-btn"
 					>
 						<UiIcon name="sliders" class="w-3.5 h-3.5 text-slate-400" />
-						<span>Налаштування матчу</span>
+						<span>{t('pause.matchSettingsBtn')}</span>
 					</button>
 				{/if}
 
@@ -115,14 +118,14 @@
 						onclick={() => settings.toggleMute()}
 						class="py-2 px-2 bg-[#131722] hover:bg-[#1e2433] border border-slate-700 text-xs text-slate-300 font-semibold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
 						data-testid="pause-sound-toggle"
-						title={settings.isAudioActive ? 'Звук: Увімкнено' : 'Звук: Вимкнено'}
+						title={settings.isAudioActive ? t('pause.soundOnTitle') : t('pause.soundOffTitle')}
 					>
 						{#if settings.isAudioActive}
 							<UiIcon name="volume2" class="w-4 h-4 text-emerald-400 shrink-0" />
-							<span>Звук</span>
+							<span>{t('pause.soundOn')}</span>
 						{:else}
 							<UiIcon name="volumeX" class="w-4 h-4 text-slate-500 shrink-0" />
-							<span class="text-slate-500">Вимк</span>
+							<span class="text-slate-500">{t('pause.soundOff')}</span>
 						{/if}
 					</button>
 
@@ -132,21 +135,23 @@
 							onclick={() => fullscreen.toggle()}
 							class="py-2 px-2 bg-[#131722] hover:bg-[#1e2433] border border-slate-700 text-xs text-slate-300 font-semibold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
 							data-testid="pause-fullscreen-toggle"
-							title={fullscreen.active ? 'Згорнути до вікна' : 'Розгорнути на весь екран'}
+							title={fullscreen.active
+								? t('pause.fullscreenExitTitle')
+								: t('pause.fullscreenEnterTitle')}
 						>
 							{#if fullscreen.active}
 								<UiIcon name="minimize2" class="w-4 h-4 text-amber-400 shrink-0" />
-								<span>Вікно</span>
+								<span>{t('pause.windowLabel')}</span>
 							{:else}
 								<UiIcon name="maximize2" class="w-4 h-4 text-slate-400 shrink-0" />
-								<span>Екран</span>
+								<span>{t('pause.fullscreenLabel')}</span>
 							{/if}
 						</button>
 					{:else}
 						<div
 							class="py-2 px-2 bg-[#131722] border border-slate-800 text-[11px] text-slate-500 rounded-xl flex items-center justify-center"
 						>
-							Вікно
+							{t('pause.windowLabel')}
 						</div>
 					{/if}
 
@@ -169,7 +174,7 @@
 					data-testid="pause-surrender-btn"
 				>
 					<UiIcon name="flag" class="w-3.5 h-3.5 text-rose-400" />
-					<span>Здатися</span>
+					<span>{t('pause.surrenderBtn')}</span>
 				</button>
 			</div>
 
@@ -181,7 +186,7 @@
 					data-testid="pause-exit-modes-btn"
 				>
 					<UiIcon name="arrowLeft" class="w-3.5 h-3.5 text-amber-400" />
-					<span>Вийти до вибору режимів</span>
+					<span>{t('pause.exitModesBtn')}</span>
 				</button>
 
 				<button
@@ -190,7 +195,7 @@
 					data-testid="pause-exit-home-btn"
 				>
 					<UiIcon name="house" class="w-3.5 h-3.5 text-slate-400" />
-					<span>Головне меню</span>
+					<span>{t('pause.exitHomeBtn')}</span>
 				</button>
 			</div>
 		</div>

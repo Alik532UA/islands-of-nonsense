@@ -1935,7 +1935,7 @@
 						}}
 						disabled={!canUseRescue}
 						data-testid="hud-rescue-strike-btn"
-						aria-label="Прицільний Рятівний Удар на своєму острові (-7000 звичайної шкоди по наземних і повітряних ворогах у 750px, 500px від робітника, КД 180с, клавіша X)"
+						aria-label="Прицільний Рятівний Удар на своєму острові (-7000 звичайної шкоди по наземних і повітряних ворогах у 750px, 500px від робітника, 1 раз за раунд, клавіша X)"
 						aria-keyshortcuts="x"
 						aria-pressed={isRescueTargeting}
 						class="relative w-11 h-11 rounded-xl border-2 flex items-center justify-center transition cursor-pointer shadow-md {isRescueTargeting
@@ -1953,7 +1953,13 @@
 						>
 							X
 						</span>
-						<CooldownOverlay remaining={rescueCd} max={180} />
+						{#if rescueCd > 0}
+							<span
+								class="absolute -bottom-1 left-1/2 -translate-x-1/2 px-1 py-0.2 rounded bg-black/85 border border-rose-500/40 text-[7.5px] font-mono font-bold text-rose-300 leading-none whitespace-nowrap"
+							>
+								0/1
+							</span>
+						{/if}
 					</button>
 					<div class="{sideTipClass} py-1.5 text-rose-200 flex flex-col gap-0.5">
 						<div class="flex items-center gap-1.5 font-bold">
@@ -1965,8 +1971,13 @@
 							</span>
 						</div>
 						<span class="text-[10px] text-slate-300 font-normal">
-							7000 шкоди у 750px на своєму острові • 2× золото • КД: 180с
+							7000 шкоди у 750px на своєму острові • 2× золото • 1 раз за раунд
 						</span>
+						{#if rescueCd > 0}
+							<span class="text-[9.5px] text-rose-300/90 font-normal">
+								Використано — відновиться у наступному раунді
+							</span>
+						{/if}
 					</div>
 				</div>
 

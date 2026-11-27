@@ -8,7 +8,7 @@ describe('PauseMenuModal Invariants & Action Buttons', () => {
 
 	it('contains resume button with Escape shortcut title', () => {
 		expect(content).toContain('data-testid="pause-resume-btn"');
-		expect(content).toContain('Продовжити бій (Esc)');
+		expect(content).toContain("t('pause.resumeBtn')");
 	});
 
 	it('contains restart match and surrender buttons', () => {

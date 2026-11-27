@@ -291,4 +291,33 @@ describe('UI/UX Layout, Spacing & Panel Alignment Invariants', () => {
 		expect(bottomBarSrc).toContain('resolveBuildingDisplayRace(');
 		expect(bottomBarSrc).not.toContain('{placedBuilding.race}');
 	});
+
+	it('adaptively scales and collapses empty side clusters on narrower viewports so panels never clip off-screen', () => {
+		expect(bottomBarSrc).toContain('bind:innerWidth={viewportWidth}');
+		expect(bottomBarSrc).toContain('bind:clientWidth={contentWidth}');
+		expect(bottomBarSrc).toContain('hudScale');
+		expect(bottomBarSrc).toContain('transform-origin');
+	});
+
+	it('updates placedUnit, availableUpgrades, forge levels, and shop cooldowns reactively with uiTick without re-selecting', () => {
+		expect(bottomBarSrc).toMatch(
+			/placedUnit\s*=\s*\$derived\(\s*uiTick\s*>=\s*0\s*&&\s*placedBuilding/
+		);
+		expect(bottomBarSrc).toMatch(
+			/availableUpgrades\s*=\s*\$derived\(\s*uiTick\s*>=\s*0\s*&&\s*placedBuilding/
+		);
+		expect(commandCardSrc).toContain('uiTick >= 0 ? player.forge.attack : 0');
+		expect(commandCardSrc).toContain('uiTick >= 0 ? sim.getItemCooldown(player.team, item.id) : 0');
+	});
+
+	it('updates placedUnit, availableUpgrades, forge levels, and shop cooldowns reactively with uiTick without re-selecting', () => {
+		expect(bottomBarSrc).toMatch(
+			/placedUnit\s*=\s*\$derived\(\s*uiTick\s*>=\s*0\s*&&\s*placedBuilding/
+		);
+		expect(bottomBarSrc).toMatch(
+			/availableUpgrades\s*=\s*\$derived\(\s*uiTick\s*>=\s*0\s*&&\s*placedBuilding/
+		);
+		expect(commandCardSrc).toContain('uiTick >= 0 ? player.forge.attack : 0');
+		expect(commandCardSrc).toContain('uiTick >= 0 ? sim.getItemCooldown(player.team, item.id) : 0');
+	});
 });

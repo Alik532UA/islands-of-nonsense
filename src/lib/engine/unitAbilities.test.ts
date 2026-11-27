@@ -321,4 +321,28 @@ describe('Point 3: Unit Abilities & Passives (Ensnare, Poison, Heal, Bash, Aura)
 			abils.some((a) => a.type === 'heal' || a.type === 'inner_fire' || a.type === 'aura_armor')
 		).toBe(true);
 	});
+
+	it('maps all WC3 reference unit spell codes (Siren, Banshee, Warlock, Faerie Dragon, Snow Queen, Enchantress, etc.)', () => {
+		const expected: Array<[string, string[]]> = [
+			['n00S', ['dispel', 'raise_dead']], // Сирена
+			['u001', ['curse', 'slow']], // Банші
+			['n005', ['thunderbolt']], // Чорнокнижник
+			['e000', ['heal', 'mana_burn']], // Чарівний дракончик
+			['n014', ['frost', 'slow', 'thunderbolt', 'aura_armor']], // Снігова королева
+			['h07B', ['heal', 'chain_lightning']], // Заклинателька
+			['h00U', ['curse']], // Грифон-воїн
+			['n01Y', ['thunderbolt']], // Яструбиний мисливець
+			['o003', ['inner_fire']], // Троль-мисливець
+			['n01G', ['aura_speed']], // Лавовий Пес
+			['e007', ['ensnare']] // Друїд
+		];
+		for (const [unitId, types] of expected) {
+			const def = getUnit(unitId);
+			expect(def, `Missing unit ${unitId}`).toBeDefined();
+			const abilTypes = new Set(getUnitAbilities(def).map((a) => a.type));
+			for (const t of types) {
+				expect(abilTypes.has(t as never), `Unit ${unitId} (${def?.name}) missing ${t}`).toBe(true);
+			}
+		}
+	});
 });

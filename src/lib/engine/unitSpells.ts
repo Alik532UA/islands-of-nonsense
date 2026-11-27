@@ -54,9 +54,11 @@ export class UnitSpellSystem {
 		}
 
 		// 1. Ensnare ability (Web down flying enemies)
+		const hasEnsnare =
+			u.abilityType === 'ensnare' || u.abilities?.some((a) => a.type === 'ensnare');
 		const ensnareCost = SPELL_MANA_COSTS.ensnare;
 		if (
-			u.abilityType === 'ensnare' &&
+			hasEnsnare &&
 			(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
 			(!u.maxMana || (u.mana ?? 0) >= ensnareCost)
 		) {
@@ -82,9 +84,10 @@ export class UnitSpellSystem {
 		}
 
 		// 2. Heal ability (Support wounded allies)
+		const hasHeal = u.abilityType === 'heal' || u.abilities?.some((a) => a.type === 'heal');
 		const healCost = SPELL_MANA_COSTS.heal;
 		if (
-			u.abilityType === 'heal' &&
+			hasHeal &&
 			(!u.abilityCooldownTimer || u.abilityCooldownTimer <= 0) &&
 			(!u.maxMana || (u.mana ?? 0) >= healCost)
 		) {
@@ -110,7 +113,7 @@ export class UnitSpellSystem {
 		}
 
 		// 3. Command Aura (Buff nearby allies damage)
-		if (u.abilityType === 'aura_dmg') {
+		if (u.abilityType === 'aura_dmg' || u.abilities?.some((a) => a.type === 'aura_dmg')) {
 			for (const ally of this.sim.units) {
 				if (
 					ally.team === u.team &&

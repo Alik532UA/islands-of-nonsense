@@ -1390,15 +1390,10 @@ export class Simulation {
 		this.castleOverchargeTimer.east = Math.max(0, this.castleOverchargeTimer.east - dt);
 
 		for (const p of this.allPlayers) {
-			if (p.rescueStrikeCooldown !== undefined && p.rescueStrikeCooldown > 0) {
-				p.rescueStrikeCooldown = Math.max(0, p.rescueStrikeCooldown - dt);
-			}
 			if (p.commanderCooldown !== undefined && p.commanderCooldown > 0) {
 				p.commanderCooldown = Math.max(0, p.commanderCooldown - dt);
 			}
 		}
-		this.rescueStrikeCooldown.west = Math.max(0, this.rescueStrikeCooldown.west - dt);
-		this.rescueStrikeCooldown.east = Math.max(0, this.rescueStrikeCooldown.east - dt);
 		this.teamBotRescueCooldown.west = Math.max(0, this.teamBotRescueCooldown.west - dt);
 		this.teamBotRescueCooldown.east = Math.max(0, this.teamBotRescueCooldown.east - dt);
 

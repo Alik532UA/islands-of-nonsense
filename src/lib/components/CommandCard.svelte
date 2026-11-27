@@ -199,6 +199,13 @@
 	let hoveredItem = $state<CastleItem | null>(null);
 	let hoveredUnit = $derived(hoveredBuilding ? getUnit(hoveredBuilding.unit) : null);
 
+	function formatBuildingTooltip(raw: unknown): string {
+		return String(raw ?? '')
+			.replace(/\|n/g, '\n')
+			.replace(/\|c[0-9a-fA-F]{8}|\|r/g, '')
+			.trim();
+	}
+
 	const HOTKEYS = ['Q', 'W', 'E', 'R', 'A', 'S', 'D', 'F', 'Z', 'X', 'C', 'Esc'];
 	const WC3_HOTKEYS = ['Q', 'W', 'E', 'R', 'T', 'A', 'S', 'D', 'F', 'G', 'Z', 'X', 'C'];
 	const ION_HOTKEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', 'V'];
@@ -339,7 +346,7 @@
 							</div>
 							<div class="grid grid-cols-4 gap-1 max-h-[105px] overflow-y-auto pr-0.5 pt-0.5">
 								{#each shopItems as item}
-									{@const cd = sim.getItemCooldown(player.team, item.id)}
+									{@const cd = uiTick >= 0 ? sim.getItemCooldown(player.team, item.id) : 0}
 									{@const canAfford = playerGold >= item.cost}
 									{@const canBuy = canAfford && cd <= 0}
 									<button
@@ -386,15 +393,17 @@
 							{/if}
 						</div>
 					{:else if placedBuilding.specialType === 'forge'}
-						{@const atkLvl = player.forge.attack}
-						{@const armLvl = player.forge.armor}
-						{@const ecoLvl = player.forge.econ}
-						{@const atkCost = sim.getForgePrice(player.team, 'attack', player)}
-						{@const armCost = sim.getForgePrice(player.team, 'armor', player)}
-						{@const ecoCost = sim.getForgePrice(player.team, 'econ', player)}
-						{@const atkLum = sim.getForgeLumberPrice(player.team, 'attack', player)}
-						{@const armLum = sim.getForgeLumberPrice(player.team, 'armor', player)}
-						{@const ecoLum = sim.getForgeLumberPrice(player.team, 'econ', player)}
+						{@const atkLvl = uiTick >= 0 ? player.forge.attack : 0}
+						{@const armLvl = uiTick >= 0 ? player.forge.armor : 0}
+						{@const ecoLvl = uiTick >= 0 ? player.forge.econ : 0}
+						{@const atkCost = uiTick >= 0 ? sim.getForgePrice(player.team, 'attack', player) : 0}
+						{@const armCost = uiTick >= 0 ? sim.getForgePrice(player.team, 'armor', player) : 0}
+						{@const ecoCost = uiTick >= 0 ? sim.getForgePrice(player.team, 'econ', player) : 0}
+						{@const atkLum =
+							uiTick >= 0 ? sim.getForgeLumberPrice(player.team, 'attack', player) : 0}
+						{@const armLum =
+							uiTick >= 0 ? sim.getForgeLumberPrice(player.team, 'armor', player) : 0}
+						{@const ecoLum = uiTick >= 0 ? sim.getForgeLumberPrice(player.team, 'econ', player) : 0}
 						{@const canAtk = atkLvl < 5 && playerGold >= atkCost && (player.lumber ?? 0) >= atkLum}
 						{@const canArm = armLvl < 5 && playerGold >= armCost && (player.lumber ?? 0) >= armLum}
 						{@const canEco = ecoLvl < 3 && playerGold >= ecoCost && (player.lumber ?? 0) >= ecoLum}
@@ -543,8 +552,11 @@
 							</div>
 						</div>
 					{:else if placedBuilding.specialType === 'commander'}
-						{@const activeCmd = findCommander(player.commander)}
-						{@const cmdStatus = sim.canSelectOrChangeCommander(player.team, player)}
+						{@const activeCmd = uiTick >= 0 ? findCommander(player.commander) : null}
+						{@const cmdStatus =
+							uiTick >= 0
+								? sim.canSelectOrChangeCommander(player.team, player)
+								: sim.canSelectOrChangeCommander(player.team, player)}
 						<!-- Placed Commander Hall: Status & Open Selection -->
 						<div class="col-span-4 flex flex-col justify-between w-[280px] h-full py-0.5">
 							<div
@@ -1156,7 +1168,18 @@
 				</div>
 			{:else if hoveredBuilding.raw_fields?.utub}
 				<p class="text-[11px] leading-relaxed text-slate-300 whitespace-pre-line">
-					{hoveredBuilding.raw_fields.utub}
+					{formatBuildingTooltip(hoveredBuilding.raw_fields.utub)}
+				</p>
+			{:else if hoveredBuilding.specialType === 'commander'}
+				<div class="space-y-1 text-[11px] text-slate-300">
+					<div class="text-indigo-300 font-bold">Штаб командування</div>
+					<p class="text-[11px] leading-relaxed text-slate-300">
+						Дозволяє обрати або змінити командира армії, який підсилює війська та економіку.
+					</p>
+				</div>
+			{:else}
+				<p class="text-[11px] leading-relaxed text-slate-400">
+					Спеціальна споруда: {hoveredBuilding.name}.
 				</p>
 			{/if}
 

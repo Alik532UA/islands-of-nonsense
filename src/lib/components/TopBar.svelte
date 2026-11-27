@@ -7,6 +7,7 @@
 	import { settings } from '$lib/services/settings.svelte';
 	import { fullscreen, canFullscreen } from '$lib/services/fullscreen.svelte';
 	import { createHoverMenu, hoverMenuContainer } from '$lib/ui/hoverMenu.svelte';
+	import { t } from '$lib/i18n';
 	import UiIcon from '$lib/components/ui/UiIcon.svelte';
 	let {
 		sim,
@@ -170,7 +171,7 @@
 					<UiIcon name="arrowLeft" class="w-4 h-4" />
 				</a>
 				<div class="{tipBoxClass} left-0 text-amber-100 flex items-center gap-1.5">
-					<span>Назад до вибору режимів</span>
+					<span>{t('topbar.backToModes')}</span>
 				</div>
 			</div>
 
@@ -190,7 +191,7 @@
 					<UiIcon name="house" class="w-4 h-4" />
 				</a>
 				<div class="{tipBoxClass} left-0 text-amber-100 flex items-center gap-1.5">
-					<span>Головне меню</span>
+					<span>{t('topbar.mainMenu')}</span>
 				</div>
 			</div>
 
@@ -208,7 +209,7 @@
 				<div
 					class="{tipBoxClass} left-1/2 -translate-x-1/2 text-amber-100 flex items-center gap-1.5"
 				>
-					<span>Довідник гри</span>
+					<span>{t('topbar.guide')}</span>
 					<span
 						class="text-[9px] font-mono font-bold text-amber-400 bg-black/60 px-1 rounded border border-[#544738]"
 					>
@@ -230,7 +231,7 @@
 				<div
 					class="{tipBoxClass} left-1/2 -translate-x-1/2 text-amber-100 flex items-center gap-1.5"
 				>
-					<span>Меню матчу</span>
+					<span>{t('topbar.matchMenu')}</span>
 					<span
 						class="text-[9px] font-mono font-bold text-amber-400 bg-black/60 px-1 rounded border border-[#544738]"
 					>
@@ -431,7 +432,7 @@
 					<UiIcon name="settings" class="w-4 h-4 text-amber-300" />
 				</button>
 				<div class="{tipBoxClass} left-1/2 -translate-x-1/2 text-amber-100">
-					Загальні налаштування
+					{t('topbar.globalSettings')}
 				</div>
 			</div>
 		</div>
@@ -549,7 +550,7 @@
 					title="Поточний раунд матчу"
 				>
 					<span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-						Раунд
+						{t('topbar.round')}
 					</span>
 					<span class="text-xs font-mono font-black text-amber-300">{sim.round}</span>
 				</div>
@@ -563,18 +564,20 @@
 					<span class="text-[10px] font-bold text-slate-500">:</span>
 					<span class="text-xs font-mono font-black text-rose-400">{sim.score.east}</span>
 					<span class="h-3 w-px bg-[#3b3226] mx-0.5"></span>
-					<span class="text-[10px] font-medium text-slate-400">до {sim.targetWins}</span>
+					<span class="text-[10px] font-medium text-slate-400">
+						{t('topbar.toTarget', { target: sim.targetWins })}
+					</span>
 					<div
 						class="{tipBoxClass} left-1/2 -translate-x-1/2 text-slate-200 min-w-[235px] p-2.5 space-y-1.5"
 						data-testid="series-score-tooltip"
 					>
 						<div class="text-[11px] font-bold text-amber-300 border-b border-[#3b3226] pb-1">
-							Рахунок серії (до {sim.targetWins} перемог)
+							{t('topbar.seriesTitle', { target: sim.targetWins })}
 						</div>
 						<div class="flex items-center justify-between gap-3 text-[11px]">
-							<span class="text-slate-400">Рятівні удари:</span>
+							<span class="text-slate-400">{t('topbar.rescueStrikes')}</span>
 							{#if isNoRescueStrike}
-								<span class="font-mono text-slate-500">Вимкнено (-nr)</span>
+								<span class="font-mono text-slate-500">{t('topbar.disabledNr')}</span>
 							{:else}
 								<span class="font-mono font-bold tabular-nums">
 									<span class="text-sky-400">{westRescueReady}/{westRescueTotal}</span>
@@ -584,7 +587,7 @@
 							{/if}
 						</div>
 						<div class="flex items-center justify-between gap-3 text-[11px]">
-							<span class="text-slate-400">Дохід ({incomeEvery}с):</span>
+							<span class="text-slate-400">{t('topbar.incomeEvery', { sec: incomeEvery })}</span>
 							<span class="font-mono font-bold tabular-nums">
 								<span class="text-sky-400">+{westTeamIncome}g</span>
 								<span class="text-slate-500 mx-0.5">vs</span>
@@ -611,7 +614,7 @@
 							data-testid="boss-active-badge"
 						>
 							<UiIcon name="crown" class="w-3.5 h-3.5 text-amber-400 shrink-0" />
-							<span>БОС НА АРЕНІ!</span>
+							<span>{t('topbar.bossActive')}</span>
 						</div>
 					{:else}
 						<div
@@ -760,7 +763,7 @@
 						>
 							<span class="text-blue-400 flex items-center gap-0.5">
 								<UiIcon name="shield" class="w-3 h-3 text-blue-400 shrink-0" />
-								Ваш Замок
+								{t('topbar.yourCastle')}
 							</span>
 							<span class="text-slate-300 font-mono text-[9px]">{westHp}</span>
 						</div>
@@ -791,7 +794,7 @@
 						>
 							<span class="text-slate-300 font-mono text-[9px]">{eastHp}</span>
 							<span class="text-rose-400 flex items-center gap-0.5">
-								Замок Ворога
+								{t('topbar.enemyCastle')}
 								<UiIcon name="shield" class="w-3 h-3 text-rose-400 shrink-0" />
 							</span>
 						</div>

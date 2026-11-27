@@ -1,6 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Simulation } from './simulation';
-import { getBuilding, SPECIAL_BUILDINGS } from './gameData';
+import {
+	BUILDINGS_MAP,
+	getBaseBuildingsForRace,
+	getBuilding,
+	getUnit,
+	GUARD_TOWERS,
+	PLAYABLE_RACES,
+	SPECIAL_BUILDINGS
+} from './gameData';
 
 describe('Point 6: Special Non-Spawning Buildings (Treasure Box, Repair, Recycler)', () => {
 	let sim: Simulation;
@@ -126,5 +134,34 @@ describe('Point 6: Special Non-Spawning Buildings (Treasure Box, Repair, Recycle
 		expect(friendlyUnit.state).toBe('DEAD');
 		// Recycler awards +4 gold on unit death: 100 + 4 = 104
 		expect(sim.players.west.gold).toBe(104);
+	});
+
+	it('ensures every special, tower, and race building has an explanatory description or unit', () => {
+		for (const sb of SPECIAL_BUILDINGS) {
+			const desc = String(sb.raw_fields?.utub ?? '').trim();
+			expect(desc.length, `Missing description for special building ${sb.id}`).toBeGreaterThan(0);
+		}
+		for (const t of GUARD_TOWERS) {
+			const desc = String(t.raw_fields?.utub ?? '').trim();
+			expect(desc.length, `Missing description for tower ${t.id}`).toBeGreaterThan(0);
+		}
+		for (const race of PLAYABLE_RACES) {
+			for (const b of getBaseBuildingsForRace(race)) {
+				const hasUnit = Boolean(b.unit && getUnit(b.unit));
+				const hasDesc = Boolean(String(b.raw_fields?.utub ?? '').trim());
+				expect(
+					hasUnit || hasDesc,
+					`Building ${b.id} (${b.name}) in ${race} lacks description and unit`
+				).toBe(true);
+			}
+		}
+		for (const b of BUILDINGS_MAP.values()) {
+			const hasUnit = Boolean(b.unit && getUnit(b.unit));
+			const hasDesc = Boolean(String(b.raw_fields?.utub ?? '').trim());
+			expect(
+				hasUnit || hasDesc,
+				`Building ${b.id} (${b.name}) in BUILDINGS_MAP lacks description and unit`
+			).toBe(true);
+		}
 	});
 });

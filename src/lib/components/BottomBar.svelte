@@ -85,35 +85,59 @@
 	const routeBattleCommand = getContext<BattleCommandRouter | undefined>(BATTLE_COMMAND_ROUTER_KEY);
 
 	let localPlayer = $derived(
-		activePlayer ?? (localTeam === 'east' ? sim.players.east : sim.players.west)
+		uiTick >= 0
+			? (activePlayer ?? (localTeam === 'east' ? sim.players.east : sim.players.west))
+			: sim.players.west
 	);
-	let effectiveTeam = $derived(localPlayer.team);
-	let player = $derived(uiTick >= 0 ? localPlayer : localPlayer);
+	let effectiveTeam = $derived(uiTick >= 0 ? localPlayer.team : localPlayer.team);
+	let player = $derived(
+		uiTick >= 0 ? { ...localPlayer, forge: { ...localPlayer.forge } } : localPlayer
+	);
 	let playerGold = $derived(uiTick >= 0 ? localPlayer.gold : 0);
-	let worker = $derived(uiTick >= 0 ? localPlayer.worker : localPlayer.worker);
+	let worker = $derived(uiTick >= 0 && localPlayer.worker ? { ...localPlayer.worker } : null);
 	let availableBuildings = $derived(uiTick >= 0 ? getBaseBuildingsForRace(player.race) : []);
 
-	// Placed building state
+	// Placed building state (shallow-copied on uiTick so in-place upgrades/HP/cooldowns react immediately)
 	let placedBuilding = $derived(
 		uiTick >= 0 && selectedPlacedBuildingId
-			? sim.buildings.find((b) => b.instanceId === selectedPlacedBuildingId) || null
+			? (() => {
+					const found = sim.buildings.find((b) => b.instanceId === selectedPlacedBuildingId);
+					return found ? { ...found } : null;
+				})()
 			: null
 	);
-	let placedUnit = $derived(placedBuilding ? getUnit(placedBuilding.spawnUnitId) : null);
+	let placedUnit = $derived(
+		uiTick >= 0 && placedBuilding ? getUnit(placedBuilding.spawnUnitId) : null
+	);
 	let availableUpgrades = $derived(
-		placedBuilding ? getUpgradesForBuilding(placedBuilding.defId) : []
+		uiTick >= 0 && placedBuilding ? getUpgradesForBuilding(placedBuilding.defId) : []
 	);
 
 	// Unit state (friendly, enemy or neutral)
 	let selectedUnit = $derived(
 		uiTick >= 0 && selectedUnitId
-			? sim.units.find((u) => u.instanceId === selectedUnitId && u.state !== 'DEAD') || null
+			? (() => {
+					const found = sim.units.find(
+						(u) => u.instanceId === selectedUnitId && u.state !== 'DEAD'
+					);
+					return found ? { ...found } : null;
+				})()
 			: null
 	);
 
 	// Castle state
 	let selectedCastle = $derived(
-		uiTick >= 0 && selectedEntity?.type === 'castle' ? sim.castles[selectedEntity.team] : null
+		uiTick >= 0 && selectedEntity?.type === 'castle'
+			? { ...sim.castles[selectedEntity.team] }
+			: null
+	);
+
+	let viewportWidth = $state(1440);
+	let contentWidth = $state(0);
+	let hudScale = $derived(
+		viewportWidth > 0 && contentWidth > 0
+			? Math.min(1, Math.max(0.4, (viewportWidth - 16) / contentWidth))
+			: 1
 	);
 
 	// Group selection state
@@ -284,7 +308,7 @@
 	}
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} bind:innerWidth={viewportWidth} />
 
 {#snippet portraitSnippet()}
 	<!-- 2. Entity Portrait & Health / Mana Vital Bars -->
@@ -594,7 +618,12 @@
 >
 	{#if settings.uiLayoutPreset === 'warcraft3'}
 		<!-- Authentic Warcraft III HUD: Left Minimap, Center/Right Action Panels -->
-		<div class="w-full flex items-end justify-start gap-2.5 pointer-events-none">
+		<div
+			bind:clientWidth={contentWidth}
+			class="w-max min-w-full flex items-end justify-start gap-2.5 pointer-events-none"
+			style:transform={hudScale < 1 ? `scale(${hudScale})` : undefined}
+			style:transform-origin="bottom left"
+		>
 			<!-- 1. LEFT: Interactive Real-time Minimap flush to bottom -->
 			<div class="flex items-center shrink-0 pointer-events-auto self-end">
 				<Minimap {sim} {uiTick} {cameraX} {cameraY} {zoom} {onMinimapClick} {touchControls} />
@@ -618,36 +647,47 @@
 			</div>
 		</div>
 	{:else}
-		<!-- Islands of Nonsense Modern HUD: Minimap Centered, Left (Player/Allied) vs Right (Enemy/Boss) -->
-		<div class="w-full flex items-end justify-between gap-2.5 pointer-events-none">
-			<!-- Left Cluster (Player/Allied if localTeam='west', Opponent if localTeam='east') -->
-			<div
-				class="flex-1 flex items-end justify-end gap-2.5 transition-all duration-300 ease-out {showOnLeft
-					? 'translate-y-0 opacity-100 pointer-events-auto'
-					: 'translate-y-[170%] opacity-0 pointer-events-none invisible'}"
-			>
-				{#if showOnLeft}
-					{#if activeEntityType === 'worker'}
-						{#if !isSpectator}
-							{@render commandCardSnippet()}
-						{/if}
-						{@render inventorySnippet()}
-						{@render statsSnippet()}
-						{@render portraitSnippet()}
-					{:else if activeEntityType === 'unit'}
-						{@render statsSnippet()}
-						{@render portraitSnippet()}
-					{:else}
-						{@render statsSnippet()}
-						{@render portraitSnippet()}
-						{#if !isSpectator}
-							{@render commandCardSnippet()}
+		<!-- Islands of Nonsense Modern HUD: Minimap Centered on wide screens, adaptive fit on smaller viewports -->
+		<div
+			bind:clientWidth={contentWidth}
+			class="w-max {viewportWidth >= 1536
+				? 'w-full justify-between'
+				: 'justify-center'} flex items-end gap-2.5 pointer-events-none"
+			style:transform={hudScale < 1 ? `scale(${hudScale})` : undefined}
+			style:transform-origin="bottom center"
+		>
+			{#if showOnLeft || viewportWidth >= 1536}
+				<!-- Left Cluster (Player/Allied if localTeam='west', Opponent if localTeam='east') -->
+				<div
+					class="{viewportWidth >= 1536
+						? 'flex-1'
+						: 'shrink-0'} flex items-end justify-end gap-2.5 transition-all duration-300 ease-out {showOnLeft
+						? 'translate-y-0 opacity-100 pointer-events-auto'
+						: 'translate-y-[170%] opacity-0 pointer-events-none invisible'}"
+				>
+					{#if showOnLeft}
+						{#if activeEntityType === 'worker'}
+							{#if !isSpectator}
+								{@render commandCardSnippet()}
+							{/if}
+							{@render inventorySnippet()}
+							{@render statsSnippet()}
+							{@render portraitSnippet()}
+						{:else if activeEntityType === 'unit'}
+							{@render statsSnippet()}
+							{@render portraitSnippet()}
+						{:else}
+							{@render statsSnippet()}
+							{@render portraitSnippet()}
+							{#if !isSpectator}
+								{@render commandCardSnippet()}
+							{/if}
 						{/if}
 					{/if}
-				{/if}
-			</div>
+				</div>
+			{/if}
 
-			<!-- Center Minimap: strictly centered and flush to bottom -->
+			<!-- Center Minimap: strictly centered on wide screens, flush to bottom -->
 			<div class="flex items-center shrink-0 pointer-events-auto z-30 self-end">
 				<Minimap
 					{sim}
@@ -661,32 +701,36 @@
 				/>
 			</div>
 
-			<!-- Right Cluster (Opponent/Enemy/Boss if localTeam='west', Allied if localTeam='east') -->
-			<div
-				class="flex-1 flex items-end justify-start gap-2.5 transition-all duration-300 ease-out {showOnRight
-					? 'translate-y-0 opacity-100 pointer-events-auto'
-					: 'translate-y-[170%] opacity-0 pointer-events-none invisible'}"
-			>
-				{#if showOnRight}
-					{#if activeEntityType === 'worker'}
-						{@render portraitSnippet()}
-						{@render statsSnippet()}
-						{@render inventorySnippet()}
-						{#if !isSpectator}
-							{@render commandCardSnippet()}
-						{/if}
-					{:else if activeEntityType === 'unit'}
-						{@render portraitSnippet()}
-						{@render statsSnippet()}
-					{:else}
-						{@render portraitSnippet()}
-						{@render statsSnippet()}
-						{#if !isSpectator}
-							{@render commandCardSnippet()}
+			{#if showOnRight || viewportWidth >= 1536}
+				<!-- Right Cluster (Opponent/Enemy/Boss if localTeam='west', Allied if localTeam='east') -->
+				<div
+					class="{viewportWidth >= 1536
+						? 'flex-1'
+						: 'shrink-0'} flex items-end justify-start gap-2.5 transition-all duration-300 ease-out {showOnRight
+						? 'translate-y-0 opacity-100 pointer-events-auto'
+						: 'translate-y-[170%] opacity-0 pointer-events-none invisible'}"
+				>
+					{#if showOnRight}
+						{#if activeEntityType === 'worker'}
+							{@render portraitSnippet()}
+							{@render statsSnippet()}
+							{@render inventorySnippet()}
+							{#if !isSpectator}
+								{@render commandCardSnippet()}
+							{/if}
+						{:else if activeEntityType === 'unit'}
+							{@render portraitSnippet()}
+							{@render statsSnippet()}
+						{:else}
+							{@render portraitSnippet()}
+							{@render statsSnippet()}
+							{#if !isSpectator}
+								{@render commandCardSnippet()}
+							{/if}
 						{/if}
 					{/if}
-				{/if}
-			</div>
+				</div>
+			{/if}
 		</div>
 	{/if}
 </div>

@@ -9,7 +9,7 @@ describe('Point 5: Rescue Strike (Emergency Castle Defense)', () => {
 		sim = new Simulation({ botDifficulty: 0, startGold: 500 });
 	});
 
-	it('should start with rescue strike ready and set 180s cooldown upon activation', () => {
+	it('should start with rescue strike ready, stay spent for the rest of the round, and restore on next round', () => {
 		expect(sim.canUseRescueStrike('west')).toBe(true);
 		expect(sim.rescueStrikeCooldown.west).toBe(0);
 
@@ -18,10 +18,15 @@ describe('Point 5: Rescue Strike (Emergency Castle Defense)', () => {
 		expect(sim.rescueStrikeCooldown.west).toBe(180);
 		expect(sim.canUseRescueStrike('west')).toBe(false);
 
-		// Advance simulation by 180s
-		for (let i = 0; i < 3600; i++) {
+		// Advance simulation by 200s within the same round — must NOT restore
+		for (let i = 0; i < 4000; i++) {
 			sim.step(0.05);
 		}
+		expect(sim.canUseRescueStrike('west')).toBe(false);
+
+		// Next round restores rescue strike
+		sim.round++;
+		sim.resetRound();
 		expect(sim.rescueStrikeCooldown.west).toBe(0);
 		expect(sim.canUseRescueStrike('west')).toBe(true);
 	});

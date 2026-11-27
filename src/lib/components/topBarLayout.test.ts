@@ -81,7 +81,7 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 		expect(topBarContent).toContain('{sim.round}');
 		expect(topBarContent).toContain('{sim.score.west}');
 		expect(topBarContent).toContain('{sim.score.east}');
-		expect(topBarContent).toContain('до {sim.targetWins}');
+		expect(topBarContent).toContain("t('topbar.toTarget'");
 		expect(topBarContent).toContain('{sim.teamSize}v{sim.teamSize}');
 	});
 
@@ -230,7 +230,7 @@ describe('TopBar Layout & Spacing Invariants (UI/UX)', () => {
 	it('series score pill exposes hover tooltip with both teams rescue strikes and gold income', () => {
 		expect(topBarContent).toContain('data-testid="series-score-pill"');
 		expect(topBarContent).toContain('data-testid="series-score-tooltip"');
-		expect(topBarContent).toContain('Рятівні удари:');
+		expect(topBarContent).toContain("t('topbar.rescueStrikes')");
 		expect(topBarContent).toContain('westRescueReady');
 		expect(topBarContent).toContain('eastRescueReady');
 		expect(topBarContent).toContain('westTeamIncome');
