@@ -89,6 +89,8 @@ export interface RendererOptions {
 	sim: Simulation;
 	graphicsStyle?: GraphicsStyle;
 	interactive?: boolean;
+	resolution?: number;
+	maxFPS?: number;
 	onTileClick: (tileX: number, tileY: number, shiftKey?: boolean) => void;
 	onWorkerCommand?: (cmd: WorkerCanvasCommand) => boolean;
 	onSelectEntity?: (entity: SelectedEntity) => void;
@@ -145,6 +147,9 @@ export class ArenaRenderer {
 	public minZoom = 0.16;
 	public maxZoom = 2.0;
 	private interactive = true;
+	private preferredResolution?: number;
+	private maxFPS?: number;
+	private paused = false;
 	private isPanning = false;
 	private panStartX = 0;
 	private panStartY = 0;
@@ -256,6 +261,8 @@ export class ArenaRenderer {
 		this.onCameraChange = options.onCameraChange;
 		this.graphicsStyle = options.graphicsStyle ?? '2.5d';
 		this.interactive = options.interactive ?? true;
+		this.preferredResolution = options.resolution;
+		this.maxFPS = options.maxFPS;
 
 		this.app = new Application();
 		this.rootContainer = new Container();
@@ -383,7 +390,7 @@ export class ArenaRenderer {
 			width: initWidth,
 			height: initHeight,
 			backgroundColor: 0x012e4a,
-			resolution: window.devicePixelRatio || 1,
+			resolution: this.preferredResolution ?? (window.devicePixelRatio || 1),
 			autoDensity: true
 		});
 
@@ -440,12 +447,38 @@ export class ArenaRenderer {
 		}
 
 		this.tickerFn = () => {
-			if (!this.isDestroyed) {
+			if (!this.isDestroyed && !this.paused) {
 				this.updateCamera();
 				this.render();
 			}
 		};
+		if (this.maxFPS && this.app?.ticker) {
+			this.app.ticker.maxFPS = this.maxFPS;
+		}
 		this.app.ticker.add(this.tickerFn);
+		if (this.paused) {
+			this.renderOnce();
+			this.app.ticker.stop();
+		}
+	}
+
+	/** Render a single synchronized frame (useful when the continuous ticker is paused). */
+	public renderOnce(): void {
+		if (this.isDestroyed || !this.app?.renderer) return;
+		this.updateCamera();
+		this.render();
+		this.app.render();
+	}
+
+	/** Pause or resume the internal PixiJS render ticker without tearing down the scene. */
+	public setPaused(paused: boolean): void {
+		this.paused = paused;
+		if (this.isDestroyed || !this.app?.ticker) return;
+		if (paused) {
+			this.app.ticker.stop();
+		} else {
+			this.app.ticker.start();
+		}
 	}
 
 	public getVisibleWorldBounds(): { minX: number; minY: number; maxX: number; maxY: number } {

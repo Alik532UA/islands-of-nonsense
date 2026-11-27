@@ -13,8 +13,8 @@
 		activeRenderer?.setGraphicsStyle(style);
 	});
 
-	function createWarmedMenuBattleSim(): Simulation {
-		const sim = new Simulation({
+	function createMenuBattleSim(): Simulation {
+		return new Simulation({
 			botDifficulty: 30,
 			startGold: 950,
 			teamSize: 3,
@@ -27,12 +27,27 @@
 			isRunning: true,
 			seed: Math.floor(Math.random() * 1_000_000) + 1
 		});
-		// Pre-warm 48 seconds headless so all 6 bots already built bases and fight across bridges
-		for (let i = 0; i < 480; i++) {
-			sim.step(0.1);
-			if (sim.winner) break;
+	}
+
+	/**
+	 * Pre-warm a 3x3 simulation in small non-blocking slices so initial UI
+	 * rendering and menu link clicks never stall waiting on CPU warm-up.
+	 */
+	async function warmMenuBattleSim(
+		sim: Simulation,
+		targetSteps: number,
+		isCancelled: () => boolean
+	): Promise<void> {
+		const chunkSize = 20;
+		for (let i = 0; i < targetSteps; i += chunkSize) {
+			if (isCancelled() || sim.winner || sim.matchWinner) return;
+			const end = Math.min(targetSteps, i + chunkSize);
+			for (let j = i; j < end; j++) {
+				sim.step(0.1);
+				if (sim.winner || sim.matchWinner) return;
+			}
+			await new Promise<void>((resolve) => setTimeout(resolve, 0));
 		}
-		return sim;
 	}
 
 	/**
@@ -69,30 +84,35 @@
 
 	onMount(() => {
 		if (!canvasEl) return;
+		const mountCanvas = canvasEl;
 
 		let disposed = false;
 		let rafId = 0;
 		let renderer: ArenaRenderer | null = null;
-		let sim = createWarmedMenuBattleSim();
+		let sim = createMenuBattleSim();
+		let isWarmingReplacement = false;
 
 		const reducedMotionQuery =
 			typeof window !== 'undefined' && typeof window.matchMedia === 'function'
 				? window.matchMedia('(prefers-reduced-motion: reduce)')
 				: null;
 
-		const initialFocus = sampleCombatFocus(sim);
-		let goalX = initialFocus?.x ?? ARENA_WIDTH / 2;
-		let goalY = initialFocus?.y ?? MID_LANE_Y;
+		const shouldPause = (): boolean => Boolean(reducedMotionQuery?.matches) || document.hidden;
+
+		const initialZoom = computeTargetZoom(
+			typeof window !== 'undefined' ? window.innerWidth || 1280 : 1280,
+			typeof window !== 'undefined' ? window.innerHeight || 720 : 720
+		);
+
+		let goalX = ARENA_WIDTH / 2;
+		let goalY = MID_LANE_Y;
 		let focusX = goalX;
 		let focusY = goalY;
 		let camX = focusX;
 		let camY = focusY;
 		let velX = 0;
 		let velY = 0;
-		let camZoom = computeTargetZoom(
-			typeof window !== 'undefined' ? window.innerWidth || 1280 : 1280,
-			typeof window !== 'undefined' ? window.innerHeight || 720 : 720
-		);
+		let camZoom = initialZoom;
 		let lastTime = performance.now();
 		let elapsed = 0;
 		let accumulator = 0;
@@ -100,99 +120,138 @@
 		const MAX_PAN_SPEED = 115; // px/sec cap prevents any fast camera whip across lanes
 
 		const localRenderer = new ArenaRenderer({
-			canvas: canvasEl,
+			canvas: mountCanvas,
 			sim,
 			graphicsStyle: settings.graphicsStyle,
 			interactive: false,
+			resolution: 1,
+			maxFPS: 24,
 			onTileClick: () => {},
 			getSelectedBuildingDefId: () => null
 		});
 		localRenderer.enableFog = false;
 
-		void localRenderer
-			.init(canvasEl)
+		const syncPausedState = () => {
+			const paused = shouldPause();
+			renderer?.setPaused(paused);
+			if (!paused && renderer && !rafId && !disposed) {
+				lastTime = performance.now();
+				rafId = requestAnimationFrame(loop);
+			} else if (paused && rafId) {
+				cancelAnimationFrame(rafId);
+				rafId = 0;
+			}
+		};
+
+		const loop = (now: number) => {
+			rafId = 0;
+			if (disposed || !renderer || shouldPause()) return;
+			const rawDt = Math.min(0.1, Math.max(0, (now - lastTime) / 1000));
+			lastTime = now;
+
+			if (rawDt > 0) {
+				elapsed += rawDt;
+				accumulator += rawDt;
+				let steps = 0;
+				while (accumulator >= FIXED_STEP && steps < 3) {
+					sim.step(FIXED_STEP);
+					accumulator -= FIXED_STEP;
+					steps++;
+				}
+				if (accumulator > FIXED_STEP * 2) {
+					accumulator = 0;
+				}
+
+				if ((sim.winner || sim.matchWinner) && !isWarmingReplacement) {
+					isWarmingReplacement = true;
+					const nextSim = createMenuBattleSim();
+					void warmMenuBattleSim(nextSim, 260, () => disposed).then(() => {
+						isWarmingReplacement = false;
+						if (disposed || !renderer) return;
+						sim = nextSim;
+						renderer.setSimulation(sim);
+						renderer.enableFog = false;
+					});
+				}
+
+				// Stage 1: slowly integrate sampled combat centroid (~5s time constant)
+				const sampled = sampleCombatFocus(sim);
+				if (sampled) {
+					const sampleAlpha = 1 - Math.exp(-rawDt * 0.22);
+					goalX += (sampled.x - goalX) * sampleAlpha;
+					goalY += (sampled.y - goalY) * sampleAlpha;
+				}
+
+				const focusAlpha = 1 - Math.exp(-rawDt * 0.35);
+				focusX += (goalX - focusX) * focusAlpha;
+				focusY += (goalY - focusY) * focusAlpha;
+
+				const targetX = Math.max(
+					ARENA_WIDTH / 2 - 900,
+					Math.min(ARENA_WIDTH / 2 + 900, focusX + Math.sin(elapsed * 0.08) * 240)
+				);
+				const targetY = Math.max(
+					MID_LANE_Y - 380,
+					Math.min(ARENA_HEIGHT - 460, focusY + Math.cos(elapsed * 0.06) * 110)
+				);
+
+				// Stage 2: critically damped spring with speed limit for silky, non-jerky camera glide
+				const omega = 0.75;
+				const ax = omega * omega * (targetX - camX) - 2 * omega * velX;
+				const ay = omega * omega * (targetY - camY) - 2 * omega * velY;
+				velX += ax * rawDt;
+				velY += ay * rawDt;
+				const speed = Math.hypot(velX, velY);
+				if (speed > MAX_PAN_SPEED) {
+					const scale = MAX_PAN_SPEED / speed;
+					velX *= scale;
+					velY *= scale;
+				}
+				camX += velX * rawDt;
+				camY += velY * rawDt;
+
+				const targetZoom = computeTargetZoom(window.innerWidth || 1280, window.innerHeight || 720);
+				camZoom += (targetZoom - camZoom) * (1 - Math.exp(-rawDt * 1.5));
+				renderer.setCamera(camX, camY, camZoom);
+			}
+
+			rafId = requestAnimationFrame(loop);
+		};
+
+		document.addEventListener('visibilitychange', syncPausedState);
+		reducedMotionQuery?.addEventListener('change', syncPausedState);
+
+		const warmSteps = reducedMotionQuery?.matches ? 60 : 280;
+		void warmMenuBattleSim(sim, warmSteps, () => disposed)
 			.then(() => {
-				if (disposed || !canvasEl) {
+				if (disposed || !mountCanvas) return null;
+				const warmedFocus = sampleCombatFocus(sim);
+				if (warmedFocus) {
+					goalX = warmedFocus.x;
+					goalY = warmedFocus.y;
+					focusX = warmedFocus.x;
+					focusY = warmedFocus.y;
+					camX = warmedFocus.x;
+					camY = warmedFocus.y;
+				}
+				localRenderer.setCamera(camX, camY, camZoom);
+				localRenderer.setPaused(shouldPause());
+				return localRenderer.init(mountCanvas);
+			})
+			.then((res) => {
+				if (res === null || disposed || !mountCanvas) {
 					localRenderer.destroy();
 					return;
 				}
 				renderer = localRenderer;
 				activeRenderer = localRenderer;
 				renderer.setCamera(camX, camY, camZoom);
-
-				const loop = (now: number) => {
-					if (disposed || !renderer) return;
-					const rawDt = Math.min(0.1, Math.max(0, (now - lastTime) / 1000));
-					lastTime = now;
-
-					const pauseMotion = Boolean(reducedMotionQuery?.matches);
-					if (!pauseMotion && !document.hidden && rawDt > 0) {
-						elapsed += rawDt;
-						accumulator += rawDt;
-						let steps = 0;
-						while (accumulator >= FIXED_STEP && steps < 3) {
-							sim.step(FIXED_STEP);
-							accumulator -= FIXED_STEP;
-							steps++;
-						}
-						if (accumulator > FIXED_STEP * 2) {
-							accumulator = 0;
-						}
-
-						if (sim.winner || sim.matchWinner) {
-							sim = createWarmedMenuBattleSim();
-							renderer.setSimulation(sim);
-							renderer.enableFog = false;
-						}
-
-						// Stage 1: slowly integrate sampled combat centroid (~5s time constant)
-						const sampled = sampleCombatFocus(sim);
-						if (sampled) {
-							const sampleAlpha = 1 - Math.exp(-rawDt * 0.22);
-							goalX += (sampled.x - goalX) * sampleAlpha;
-							goalY += (sampled.y - goalY) * sampleAlpha;
-						}
-
-						const focusAlpha = 1 - Math.exp(-rawDt * 0.35);
-						focusX += (goalX - focusX) * focusAlpha;
-						focusY += (goalY - focusY) * focusAlpha;
-
-						const targetX = Math.max(
-							ARENA_WIDTH / 2 - 900,
-							Math.min(ARENA_WIDTH / 2 + 900, focusX + Math.sin(elapsed * 0.08) * 240)
-						);
-						const targetY = Math.max(
-							MID_LANE_Y - 380,
-							Math.min(ARENA_HEIGHT - 460, focusY + Math.cos(elapsed * 0.06) * 110)
-						);
-
-						// Stage 2: critically damped spring with speed limit for silky, non-jerky camera glide
-						const omega = 0.75;
-						const ax = omega * omega * (targetX - camX) - 2 * omega * velX;
-						const ay = omega * omega * (targetY - camY) - 2 * omega * velY;
-						velX += ax * rawDt;
-						velY += ay * rawDt;
-						const speed = Math.hypot(velX, velY);
-						if (speed > MAX_PAN_SPEED) {
-							const scale = MAX_PAN_SPEED / speed;
-							velX *= scale;
-							velY *= scale;
-						}
-						camX += velX * rawDt;
-						camY += velY * rawDt;
-
-						const targetZoom = computeTargetZoom(
-							window.innerWidth || 1280,
-							window.innerHeight || 720
-						);
-						camZoom += (targetZoom - camZoom) * (1 - Math.exp(-rawDt * 1.5));
-						renderer.setCamera(camX, camY, camZoom);
-					}
-
+				if (shouldPause()) {
+					renderer.renderOnce();
+				} else {
+					lastTime = performance.now();
 					rafId = requestAnimationFrame(loop);
-				};
-
-				rafId = requestAnimationFrame(loop);
+				}
 			})
 			.catch(() => {
 				localRenderer.destroy();
@@ -200,6 +259,8 @@
 
 		return () => {
 			disposed = true;
+			document.removeEventListener('visibilitychange', syncPausedState);
+			reducedMotionQuery?.removeEventListener('change', syncPausedState);
 			if (rafId) cancelAnimationFrame(rafId);
 			activeRenderer = null;
 			renderer?.destroy();
@@ -217,6 +278,6 @@
 	<!-- Soft atmospheric veil over live 3x3 bot battle for crisp Liquid Glass menu readability -->
 	<div
 		class="absolute inset-0 pointer-events-none"
-		style="backdrop-filter: blur(2px) saturate(1.1); -webkit-backdrop-filter: blur(2px) saturate(1.1); background: radial-gradient(circle at 50% 42%, rgba(9, 14, 26, 0.48) 0%, rgba(7, 11, 21, 0.72) 58%, rgba(4, 7, 15, 0.88) 100%);"
+		style="background: radial-gradient(circle at 50% 42%, rgba(9, 14, 26, 0.54) 0%, rgba(7, 11, 21, 0.76) 58%, rgba(4, 7, 15, 0.90) 100%);"
 	></div>
 </div>
