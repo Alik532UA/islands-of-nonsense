@@ -473,7 +473,7 @@ export class ArenaRenderer {
 	/** Pause or resume the internal PixiJS render ticker without tearing down the scene. */
 	public setPaused(paused: boolean): void {
 		this.paused = paused;
-		if (this.isDestroyed || !this.app?.ticker) return;
+		if (this.isDestroyed || !this.app?.renderer || !this.app?.ticker) return;
 		if (paused) {
 			this.app.ticker.stop();
 		} else {
@@ -482,8 +482,9 @@ export class ArenaRenderer {
 	}
 
 	public getVisibleWorldBounds(): { minX: number; minY: number; maxX: number; maxY: number } {
-		const screenW = this.app?.screen?.width || 1200;
-		const screenH = this.app?.screen?.height || 800;
+		const hasScreen = Boolean(this.app?.renderer);
+		const screenW = hasScreen ? this.app.screen.width || 1200 : 1200;
+		const screenH = hasScreen ? this.app.screen.height || 800 : 800;
 		const halfW = screenW / (2 * this.zoom);
 		const halfH = screenH / (2 * this.zoom);
 		return {
@@ -532,8 +533,9 @@ export class ArenaRenderer {
 		if (zoom !== undefined) {
 			this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, zoom));
 		}
-		const screenW = this.app?.screen?.width || 1200;
-		const screenH = this.app?.screen?.height || 800;
+		const hasScreen = Boolean(this.app?.renderer);
+		const screenW = hasScreen ? this.app.screen.width || 1200 : 1200;
+		const screenH = hasScreen ? this.app.screen.height || 800 : 800;
 		const halfW = screenW / (2 * this.zoom);
 		const halfH = screenH / (2 * this.zoom);
 
@@ -560,7 +562,9 @@ export class ArenaRenderer {
 		const targetH = Math.max(1, Math.round(rect.height));
 		if (targetW <= 0 || targetH <= 0) return false;
 
-		const targetDpr = Math.max(1, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
+		const targetDpr =
+			this.preferredResolution ??
+			Math.max(1, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
 		const sizeChanged = this.app.screen.width !== targetW || this.app.screen.height !== targetH;
 		const dprChanged = this.app.renderer.resolution !== targetDpr;
 

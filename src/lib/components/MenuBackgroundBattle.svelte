@@ -4,6 +4,7 @@
 	import { MID_LANE_Y } from '$lib/engine/constants';
 	import { ArenaRenderer } from '$lib/renderer/ArenaRenderer';
 	import { settings } from '$lib/services/settings.svelte';
+	import { logService } from '$lib/services/logService.svelte';
 
 	let canvasEl: HTMLCanvasElement | undefined = $state();
 	let activeRenderer = $state<ArenaRenderer | null>(null);
@@ -38,7 +39,7 @@
 		targetSteps: number,
 		isCancelled: () => boolean
 	): Promise<void> {
-		const chunkSize = 20;
+		const chunkSize = 25;
 		for (let i = 0; i < targetSteps; i += chunkSize) {
 			if (isCancelled() || sim.winner || sim.matchWinner) return;
 			const end = Math.min(targetSteps, i + chunkSize);
@@ -221,7 +222,7 @@
 		document.addEventListener('visibilitychange', syncPausedState);
 		reducedMotionQuery?.addEventListener('change', syncPausedState);
 
-		const warmSteps = reducedMotionQuery?.matches ? 60 : 280;
+		const warmSteps = reducedMotionQuery?.matches ? 60 : 450;
 		void warmMenuBattleSim(sim, warmSteps, () => disposed)
 			.then(() => {
 				if (disposed || !mountCanvas) return null;
@@ -234,7 +235,6 @@
 					camX = warmedFocus.x;
 					camY = warmedFocus.y;
 				}
-				localRenderer.setCamera(camX, camY, camZoom);
 				localRenderer.setPaused(shouldPause());
 				return localRenderer.init(mountCanvas);
 			})
@@ -253,7 +253,8 @@
 					rafId = requestAnimationFrame(loop);
 				}
 			})
-			.catch(() => {
+			.catch((err) => {
+				logService.error('render', 'Menu background battle init failed', err);
 				localRenderer.destroy();
 			});
 

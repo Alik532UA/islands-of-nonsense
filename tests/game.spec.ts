@@ -30,6 +30,13 @@ test.describe('Islands of Nonsense — Comprehensive E2E Verification', () => {
 		await expect(page.getByTestId('menu-online-link')).toBeVisible();
 		await expect(page.getByTestId('menu-order-link')).toBeVisible();
 		await expect(page.getByTestId('menu-battle-backdrop')).toBeAttached();
+		await expect
+			.poll(() =>
+				page
+					.locator('[data-testid="menu-battle-backdrop"] canvas')
+					.evaluate((c: HTMLCanvasElement) => c.width)
+			)
+			.toBeGreaterThan(300);
 
 		// Switching into sub-menu (/play) keeps the exact same 3x3 battle backdrop alive
 		await page.getByTestId('menu-play-link').click();
